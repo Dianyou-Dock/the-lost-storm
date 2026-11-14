@@ -7,12 +7,15 @@ import { exitWithheld, withheldZones } from './withheld.ts';
 
 const content: Content = loadContent();
 
-void test('the cave under the Hall is withheld: every way into it needs a flag nothing in the data sets', (): void => {
-  assert.deepEqual([...withheldZones(content)], ['under_hall']);
+void test('the shipped world withholds nothing, and holding back the flag on the way down withholds the cave and hides every way into it', (): void => {
+  assert.deepEqual(content.world.withheld, []);
+  assert.deepEqual([...withheldZones(content)], []);
+  const held: Content = { ...content, world: { ...content.world, withheld: ['keeper_defeated'] } };
+  assert.deepEqual([...withheldZones(held)], ['under_hall']);
   const into: ZoneExit[] = [...content.zones.values()].flatMap((zone: ZoneDef): ZoneExit[] => zone.exits.filter((exit: ZoneExit): boolean => exit.to === 'under_hall'));
   assert.ok(into.length > 0);
   for (const exit of into) {
-    assert.ok(exitWithheld(content, exit), exit.id);
+    assert.ok(exitWithheld(held, exit), exit.id);
     assert.equal(exit.hiddenWhenLocked, true, exit.id);
   }
 });

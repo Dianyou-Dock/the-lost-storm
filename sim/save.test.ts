@@ -484,15 +484,16 @@ void test('a new hero starts bareheaded in the traveller coat, trousers and boot
   assert.ok(world.player.inventory.every((item: ItemInstance | null): boolean => item === null));
 });
 
-void test('a save can never carry the hero into the withheld cave: its flag, the zone, its waypoint and its visit are dropped', (): void => {
+void test('a save can never carry the hero into a withheld cave: its flag, the zone, its waypoint and its visit are dropped', (): void => {
+  const held: Content = { ...content, world: { ...content.world, withheld: ['keeper_defeated'] } };
   const original: World = played();
   const saved = toSave(original);
-  const forged = { ...saved, zone: 'under_hall', flags: { ...saved.flags, under_hall: 'open' }, visited: [...saved.visited, 'under_hall'], waypoints: [...saved.waypoints, 'under_hall'] };
-  const read: SaveData = must(readSave(content, JSON.parse(JSON.stringify(forged))), 'save');
-  assert.equal(read.zone, content.world.town);
-  assert.equal(read.flags['under_hall'], undefined);
+  const forged = { ...saved, zone: 'under_hall', flags: { ...saved.flags, keeper_defeated: 'defeated' }, visited: [...saved.visited, 'under_hall'], waypoints: [...saved.waypoints, 'under_hall'] };
+  const read: SaveData = must(readSave(held, JSON.parse(JSON.stringify(forged))), 'save');
+  assert.equal(read.zone, held.world.town);
+  assert.equal(read.flags['keeper_defeated'], undefined);
   assert.ok(!read.visited.includes('under_hall'));
   assert.ok(!read.waypoints.includes('under_hall'));
-  const restored: World = createWorld(content, { seed: 7, save: read });
+  const restored: World = createWorld(held, { seed: 7, save: read });
   assert.notEqual(restored.zone.id, 'under_hall');
 });

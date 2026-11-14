@@ -258,7 +258,7 @@
         "x": 18,
         "z": 10.5
       },
-      "requires": [{"type": "flag", "flag": "under_hall", "is": "open"}],
+      "requires": [{"type": "flag", "flag": "keeper_defeated", "is": "defeated"}],
       "lockedHint": "",
       "hiddenWhenLocked": true
     }

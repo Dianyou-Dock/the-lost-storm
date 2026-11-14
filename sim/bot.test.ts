@@ -7,7 +7,7 @@ import { botFight, botInDanger, botPlay, botRoute, botTalk, botTravelTo, botWalk
 import type { Bot, BotReport } from './bot.ts';
 import { loadContent } from './content/content.ts';
 import { exitWithheld } from './content/withheld.ts';
-import type { Condition, Content, QuestDef, SkillDef, ZoneDef, ZoneExit } from './content/types.ts';
+import type { Condition, Content, QuestDef, SkillDef, ZoneDef } from './content/types.ts';
 import { offenceOf } from './world/combat.ts';
 import { createWorld } from './world/create.ts';
 import { placeHazard } from './world/hazards.ts';
@@ -33,29 +33,18 @@ function waitsOnLevel(conditions: readonly Condition[]): boolean {
   return conditions.some((condition: Condition): boolean => condition.type === 'level' && !condition.not && condition.atLeast > ACT.maxLevel);
 }
 
-interface Way {
-  readonly from: string;
-  readonly exit: ZoneExit;
-}
-
-function waysInto(zone: ZoneDef): Way[] {
-  return [...content.zones.values()].flatMap((from: ZoneDef): Way[] => from.exits.filter((exit: ZoneExit): boolean => exit.to === zone.id && from.id !== zone.id).map((exit: ZoneExit): Way => ({ from: from.id, exit })));
-}
-
 function levelGatedZones(): ReadonlySet<string> {
-  const gated: Set<string> = new Set<string>();
-  let grew: boolean = true;
-  while (grew) {
-    grew = false;
-    for (const zone of content.zones.values()) {
-      if (gated.has(zone.id)) continue;
-      const ways: Way[] = waysInto(zone);
-      if (ways.length === 0 || !ways.every((way: Way): boolean => waitsOnLevel(way.exit.requires) || exitWithheld(content, way.exit) || gated.has(way.from))) continue;
-      gated.add(zone.id);
-      grew = true;
+  const open: Set<string> = new Set<string>([content.world.start]);
+  const queue: string[] = [content.world.start];
+  while (queue.length > 0) {
+    const from: ZoneDef | undefined = content.zones.get(queue.pop() ?? '');
+    for (const exit of from?.exits ?? []) {
+      if (open.has(exit.to) || waitsOnLevel(exit.requires) || exitWithheld(content, exit)) continue;
+      open.add(exit.to);
+      queue.push(exit.to);
     }
   }
-  return gated;
+  return new Set<string>([...content.zones.keys()].filter((id: string): boolean => !open.has(id)));
 }
 
 void test('the bot plays the whole act from a fresh save: every quest, in the time and at the level it is tuned for', (): void => {

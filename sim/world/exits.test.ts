@@ -81,12 +81,11 @@ void test('walking over the open gate does not take the hero through: only the t
   assert.equal(world.zone.id, 'hall_of_time');
 });
 
-void test('the lair\'s way down to the cave stays hidden and shut after the boss falls, and only the withheld flag opens it', (): void => {
+void test('the lair\'s way down to the cave stays hidden and shut until the boss falls, and then leads into the cave', (): void => {
   const shipped: Content = loadContent();
   const world: World = worldIn(shipped, 'keepers_gate', 4);
   const down: ZoneExit = must(world.zone.exits.find((candidate: ZoneExit): boolean => candidate.to === 'under_hall'), 'way down');
   world.player.level = 20;
-  world.flags['keeper_defeated'] = 'yes';
   assert.equal(exitShown(world, down), false);
   assert.equal(exitUnder(world, { x: down.x, z: down.z }), null);
   world.player.pos = { x: down.arrival.x, z: down.arrival.z };
@@ -94,7 +93,7 @@ void test('the lair\'s way down to the cave stays hidden and shut after the boss
   const zoneNow = (): string => world.zone.id;
   for (let step: number = 0; step < 300; step += 1) stepWorld(world, [], DT);
   assert.equal(zoneNow(), 'keepers_gate');
-  world.flags['under_hall'] = 'open';
+  world.flags['keeper_defeated'] = 'defeated';
   assert.equal(exitShown(world, down), true);
   stepWorld(world, [{ type: 'travel', exit: down.id }], DT);
   for (let step: number = 0; step < 600 && zoneNow() === 'keepers_gate'; step += 1) stepWorld(world, [], DT);

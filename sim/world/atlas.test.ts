@@ -149,17 +149,15 @@ void test('a hero who woke in the In-Between has walked no road of act 1, and on
   for (const road of act.atlas.roads) assert.equal(roadWalked(travelled, road), true, `${road.from} ${road.to}`);
 });
 
-void test('the cave under the Hall has no place on the map until its withheld flag is open, and a saved flag cannot open it', (): void => {
+void test('the cave under the Hall has no place on the map until the keeper of the Last Gate falls, and then its road opens', (): void => {
   const cave: MapPlace = must(act.atlas.places.find((place: MapPlace): boolean => place.zone === 'under_hall'), 'cave place');
   const travelled: World = worldIn(content, 'keepers_gate', 20);
-  travelled.flags['keeper_defeated'] = 'yes';
   assert.equal(placeShown(travelled, cave), false);
   assert.ok(!shownPlaces(travelled, act.atlas.places).includes(cave));
   assert.equal(placeState(travelled, 'under_hall'), 'unknown');
   const road: AtlasRoad = must(act.atlas.roads.find((joined: AtlasRoad): boolean => joined.to === 'under_hall'), 'cave road');
   assert.equal(roadState(travelled, road), 'hidden');
-  travelled.flags['under_hall'] = 'open';
+  travelled.flags['keeper_defeated'] = 'defeated';
   assert.equal(placeShown(travelled, cave), true);
   assert.equal(roadState(travelled, road), 'open');
-  assert.deepEqual(content.world.withheld, ['under_hall']);
 });

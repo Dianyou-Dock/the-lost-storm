@@ -5,7 +5,7 @@
     "opening": "skipped"
   },
   "town": "hideout",
-  "withheld": ["under_hall"],
+  "withheld": [],
   "scaling": {
     "lifePerLevel": 0.3,
     "damagePerLevel": 0.28,
@@ -53,7 +53,7 @@
             "zone": "under_hall",
             "x": 655,
             "y": 410,
-            "when": [{"type": "flag", "flag": "under_hall", "is": "open", "not": false}]
+            "when": [{"type": "flag", "flag": "keeper_defeated", "is": "defeated", "not": false}]
           }
         ],
         "roads": [
