@@ -24,7 +24,7 @@ function monsterOf(world: World, id: number): MonsterState | undefined {
 }
 
 function positionOf(world: World, actorId: number): Vec2 | null {
-  const actor: { readonly pos: Vec2 } | undefined = actorId === world.player.id ? world.player : monsterOf(world, actorId);
+  const actor: { readonly pos: Vec2 } | undefined = actorId === world.player.id ? world.player : (monsterOf(world, actorId) ?? world.npcs.find((npc): boolean => npc.id === actorId));
   return actor === undefined ? null : { x: actor.pos.x, z: actor.pos.z };
 }
 
@@ -164,6 +164,7 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
     case 'boss_phase':
     case 'boss_defeated':
     case 'bark':
+    case 'scene_lead':
     case 'revive':
     case 'flasks_refilled':
       break;

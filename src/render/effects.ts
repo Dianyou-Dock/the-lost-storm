@@ -525,6 +525,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
             ring(event.pos.x, event.pos.z, FLASK_BURST.ring, FLASK_GLOW[event.resource], FLASK_BURST.ringTime);
             break;
           case 'bark':
+          case 'scene_lead':
           case 'flasks_refilled':
           case 'monster_remove':
           case 'aggro':

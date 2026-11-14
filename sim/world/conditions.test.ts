@@ -19,3 +19,14 @@ void test('a level condition holds from its level up, and its not holds below it
   world.player.level = 15;
   assert.equal(holds(world, reached), true);
 });
+
+void test('a visited condition holds once the hero has stood in that zone, and its not holds until then', (): void => {
+  const world: World = createWorld(loadContent(), { seed: 1, save: null });
+  const been: Condition = { type: 'visited', zone: 'hideout', not: false };
+  const never: Condition = { ...been, not: true };
+  assert.equal(holds(world, been), false);
+  assert.equal(holds(world, never), true);
+  world.visited.push('hideout');
+  assert.equal(holds(world, been), true);
+  assert.equal(holds(world, never), false);
+});

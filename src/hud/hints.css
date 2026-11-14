@@ -27,6 +27,11 @@
   transform: translateY(0);
 }
 
+.hud.barking .hud-hint.visible {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
 .hint-key {
   display: inline-block;
   min-width: 16px;

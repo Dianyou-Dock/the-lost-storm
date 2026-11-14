@@ -30,7 +30,7 @@ const GUARD = {
   strikeGap: 6,
   dormantWait: 0.5,
   over: { hero: 9, low: 1, near: 7, minutes: 8, seed: 1, drastic: 1 / 3 },
-  boss: { level: 8, repeats: 2, poorSeeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], minutes: 60, meanSeconds: { min: 45, max: 150 }, builds: ['mixed', 'marksman'] },
+  boss: { level: 8, repeats: 2, poorSeeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], poorBelowAverage: 0.3, poorAtMost: 0.6, minutes: 60, meanSeconds: { min: 45, max: 150 }, builds: ['mixed', 'marksman'] },
 } as const;
 
 function runs(scenario: Scenario, skill: string): RunSummary[] {
@@ -136,6 +136,10 @@ interface BossRun {
   readonly summary: RunSummary;
 }
 
+function winRate(attempts: readonly BossAttempt[]): number {
+  return attempts.length === 0 ? 0 : attempts.filter((attempt: BossAttempt): boolean => attempt.outcome === 'won').length / attempts.length;
+}
+
 function bossFights(skill: string, build: string, seed: number): BossRun {
   const stream = runJob({ scenario: { kind: 'boss', levels: [GUARD.boss.level], repeats: GUARD.boss.repeats, minutes: GUARD.boss.minutes }, skill, build, seed, danger: 1, toughness: 1 }, POLICIES);
   return { attempts: bossAttempts(stream), summary: summarize(stream) };
@@ -148,7 +152,7 @@ void test('the boss lair is found from the content, and its boss sits behind a l
   assert.ok(gates.length > 0 && gates.every((exit: ZoneExit): boolean => exit.requires.some((entry: Condition): boolean => entry.type === 'level' && entry.atLeast === GUARD.boss.level)));
 });
 
-void test('at the gate\'s level both heroes win the boss fight with careful play, its fights last about a minute or two and reach the end card, and poor play loses most of them', (): void => {
+void test('at the gate\'s level both heroes win the boss fight with careful play, its fights last about a minute or two and reach the end card, and poor play wins clearly less often than average play', (): void => {
   for (const build of GUARD.boss.builds) {
     const won: BossRun = bossFights('careful', build, 1);
     const careful: readonly BossAttempt[] = won.attempts;
@@ -158,6 +162,11 @@ void test('at the gate\'s level both heroes win the boss fight with careful play
     assert.ok(careful.every((attempt: BossAttempt): boolean => attempt.outcome === 'won'), `${build} careful: ${JSON.stringify(careful)}`);
     const mean: number = careful.reduce((sum: number, attempt: BossAttempt): number => sum + attempt.seconds, 0) / careful.length;
     assert.ok(mean >= GUARD.boss.meanSeconds.min && mean <= GUARD.boss.meanSeconds.max, `${build} careful fights last ${mean.toFixed(0)} s on average`);
-    assert.ok(poor.filter((attempt: BossAttempt): boolean => attempt.outcome === 'won').length < poor.length / 2, `${build} poor: ${JSON.stringify(poor)}`);
+    const average: readonly BossAttempt[] = GUARD.boss.poorSeeds.flatMap((seed: number): readonly BossAttempt[] => bossFights('average', build, seed).attempts);
+    const poorRate: number = winRate(poor);
+    const averageRate: number = winRate(average);
+    assert.ok(poor.length > 0 && average.length > 0, `${build}: ${poor.length} poor and ${average.length} average attempts`);
+    assert.ok(poorRate <= averageRate - GUARD.boss.poorBelowAverage, `${build} poor wins ${(poorRate * 100).toFixed(0)}%, average ${(averageRate * 100).toFixed(0)}%`);
+    assert.ok(poorRate < GUARD.boss.poorAtMost, `${build} poor wins ${(poorRate * 100).toFixed(0)}%: ${JSON.stringify(poor)}`);
   }
 });

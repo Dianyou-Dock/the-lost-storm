@@ -173,27 +173,26 @@ function echoDef(world: World, entry: MomentEcho): MonsterDef | null {
   return entry.look === null ? echo : { ...echo, rig: entry.look.rig, scale: entry.look.scale, gear: entry.look.gear, wear: entry.look.wear };
 }
 
-function turning(world: World, moment: MomentState): MomentFigure[] {
+function turning(world: World, moment: MomentState, sure: boolean): MomentFigure[] {
   const able: MomentFigure[] = moment.figures.filter((figure: MomentFigure): boolean => moment.def.echoes[figure.echo]?.turns === true);
   const rolled: MomentFigure[] = able.filter((): boolean => world.rng.chance(moment.def.turnChance));
   const first: MomentFigure | undefined = able[0];
-  return rolled.length === 0 && first !== undefined && sureHolds(world, fieldOf(world)) ? [first] : rolled;
+  return rolled.length === 0 && first !== undefined && sure ? [first] : rolled;
 }
 
-function turn(world: World, moment: MomentState): number[] {
+function turn(world: World, moment: MomentState, sure: boolean): number[] {
   if (!moment.combat) return [];
   const packId: number = world.nextPackId;
   world.nextPackId += 1;
   const turned: number[] = [];
   const rising: { readonly figure: MomentFigure; readonly entry: MomentEcho; readonly def: MonsterDef }[] = [];
-  for (const figure of turning(world, moment)) {
+  for (const figure of turning(world, moment, sure)) {
     const entry: MomentEcho | undefined = moment.def.echoes[figure.echo];
     const def: MonsterDef | null = entry === undefined ? null : echoDef(world, entry);
     if (entry !== undefined && def !== null) rising.push({ figure, entry, def });
   }
   const bases: MonsterDef[] = rising.map((one): MonsterDef => one.def);
-  const field: MomentField | null = fieldOf(world);
-  const ranked: MonsterDef[] = world.zone.ranks && !sureHolds(world, field) && ranksHere(bases) ? rankPack(world.content, world.rng, rollRank(world.content.packRanks, world.rng, monsterLevel(world)), bases) : bases;
+  const ranked: MonsterDef[] = world.zone.ranks && !sure && ranksHere(bases) ? rankPack(world.content, world.rng, rollRank(world.content.packRanks, world.rng, monsterLevel(world)), bases) : bases;
   const reach: Uint8Array = reachFrom(routedGrid(world.grid), world.player.pos);
   rising.forEach(({ figure, entry, def: base }, index: number): void => {
     const def: MonsterDef = ranked[index] ?? base;
@@ -216,12 +215,12 @@ function turn(world: World, moment: MomentState): number[] {
   return turned;
 }
 
-function wake(world: World, moment: MomentState): void {
+export function wakeMoment(world: World, moment: MomentState, sure: boolean): void {
   moment.phase = 'awake';
   moment.entered = true;
   moment.timeLeft = moment.def.awake;
   moment.phaseTime = 0;
-  const turned: number[] = turn(world, moment);
+  const turned: number[] = turn(world, moment, sure);
   world.events.push({ type: 'moment_woke', moment, turned });
   if (turned.length > 0 || !moment.combat || moment.def.chest === null) return;
   moment.chest = 'closed';
@@ -285,6 +284,11 @@ function stepChest(world: World, moment: MomentState): void {
   end(world, moment, 'played');
 }
 
+function staged(world: World, moment: MomentState): boolean {
+  const scene = world.scene;
+  return scene !== null && scene.momentId === moment.id && (scene.phase === 'fight' || scene.phase === 'strike');
+}
+
 function stepAwake(world: World, moment: MomentState, dt: number): void {
   if (moment.chest === 'closed' || moment.chest === 'opening') {
     stepChest(world, moment);
@@ -298,7 +302,7 @@ function stepAwake(world: World, moment: MomentState, dt: number): void {
   }
   if (world.player.alive) {
     const inside: boolean = distance(world.player.pos, moment.pos) <= moment.def.radius;
-    if (moment.entered && !inside) {
+    if (moment.entered && !inside && !staged(world, moment)) {
       end(world, moment, 'left');
       return;
     }
@@ -328,7 +332,7 @@ function stepMoment(world: World, moment: MomentState, dt: number): boolean {
       return true;
     case 'dormant':
       if (!inside) moment.armed = true;
-      if (deep && (moment.armed || moment.phaseTime >= MOMENTS.settle)) wake(world, moment);
+      if (deep && (moment.armed || moment.phaseTime >= MOMENTS.settle)) wakeMoment(world, moment, sureHolds(world, fieldOf(world)));
       else if (moment.timeLeft <= 0) end(world, moment, 'faded');
       return true;
     case 'awake':
