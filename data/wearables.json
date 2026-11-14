@@ -132,6 +132,16 @@
     "hides": []
   },
   {
+    "id": "mist_treader_boots",
+    "model": "models/wear/{frame}/ranger.glb",
+    "pieces": [
+      "Ranger_Feet"
+    ],
+    "region": "feet",
+    "tint": "#b8c6d4",
+    "hides": []
+  },
+  {
     "id": "sackcloth_robe",
     "model": "models/wear/{frame}/peasant.glb",
     "pieces": [

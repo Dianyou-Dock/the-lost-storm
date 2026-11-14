@@ -7,10 +7,13 @@ import type { Content, ItemBaseDef, PowerDef } from './types.ts';
 
 const content: Content = loadContent();
 
-void test('the shipped powers check out, and each alpha family has three pieces', (): void => {
+void test('the shipped powers check out, and each alpha family has three pieces, and every build has a Legendary of its own', (): void => {
   assert.deepEqual(powerRuleProblems(content), []);
   assert.deepEqual(familyPieces(content, 'forkweather').map((base: ItemBaseDef): string => base.id), ['wirethread_gloves', 'lantern_of_second_sounds', 'crown_of_the_struck_hour']);
   assert.deepEqual(familyPieces(content, 'millwheel').map((base: ItemBaseDef): string => base.id), ['the_millwheel', 'grinders_bracers', 'gyre_stitched_breeches']);
+  for (const [family, piece] of [['quietshot', 'quietshot'], ['groundbreaker', 'groundbreaker'], ['rainmaker', 'rainmaker'], ['mist_treader', 'mist_treader_boots']] as const) {
+    assert.deepEqual(familyPieces(content, family).map((base: ItemBaseDef): string => base.id), [piece]);
+  }
 });
 
 void test('a power naming things that do not exist is reported', (): void => {

@@ -329,6 +329,7 @@ function stepChannel(world: World, actor: Actor, action: ActionState): void {
 
 function finishWindup(world: World, actor: Actor, action: ActionState): void {
   actor.interrupts = 0;
+  const from: ReadonlyVec2 = { x: actor.pos.x, z: actor.pos.z };
   if (action.travelSpeed > 0) land(world, actor, action);
   const hold: PressDef | null = action.skill.press;
   const skill: SkillDef = chargedSkill(action.skill, chargeOf(action));
@@ -341,6 +342,7 @@ function finishWindup(world: World, actor: Actor, action: ActionState): void {
     action.timeLeft += action.recovery;
   }
   resolveImpact(world, actor, action, skill);
+  if (actor.kind === 'player' && firePowers(world, { on: 'use', skill: action.skill, target: null, at: from })) refreshPlayer(world);
 }
 
 export function stepAction(world: World, actor: Actor, dt: number): void {

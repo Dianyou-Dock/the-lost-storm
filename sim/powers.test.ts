@@ -143,3 +143,41 @@ void test('a Legendary reads its power and its family, counting the pieces worn 
   assert.equal(familyReading(content, crown, world.player.equipped)?.count, 2);
   assert.equal(familyReading(content, item('stormsteel_sword', 41), world.player.equipped), null);
 });
+
+void test('Quietshot: a Dodge Roll gives +60% damage for three seconds, and no other skill does', (): void => {
+  const world: World = hero();
+  wear(world, 'quietshot');
+  assert.ok(!firePowers(world, { on: 'use', skill: skill('cleave'), target: null, at: world.player.pos }));
+  assert.ok(firePowers(world, { on: 'use', skill: skill('dodge_roll'), target: null, at: world.player.pos }));
+  assert.ok(firePowers(world, { on: 'use', skill: skill('dodge_roll'), target: null, at: world.player.pos }));
+  const mods = buffMods(world.player.powers);
+  assert.equal(mods.length, 1);
+  assert.equal(must(mods[0], 'buff').stat, 'damagePercent');
+  assert.ok(Math.abs(must(mods[0], 'buff').value - 0.6) < 1e-9);
+  stepPowerState(world.player.powers, 3.1);
+  assert.deepEqual(buffMods(world.player.powers), []);
+});
+
+void test('Groundbreaker: every third Cleave strike lets out a Thunderclap on the enemy struck, and each strike stacks armour up to ten', (): void => {
+  const world: World = hero();
+  wear(world, 'groundbreaker');
+  const target: MonsterState = place(world, 'test_shambler', { x: ARENA_CENTRE.x + 1, z: ARENA_CENTRE.z });
+  for (let hit: number = 0; hit < 3; hit += 1) firePowers(world, { on: 'hit', skill: skill('cleave'), target, at: target.pos });
+  assert.deepEqual(casts(world), ['thunderclap']);
+  assert.deepEqual(must(world.echoes[0], 'clap').origin, { x: target.pos.x, z: target.pos.z });
+  for (let hit: number = 0; hit < 12; hit += 1) firePowers(world, { on: 'hit', skill: skill('cleave'), target, at: target.pos });
+  assert.ok(Math.abs(must(buffMods(world.player.powers)[0], 'armour').value - 50) < 1e-9);
+  firePowers(world, { on: 'hit', skill: skill('storm_bolt'), target, at: target.pos });
+  assert.ok(world.echoes.length <= 6);
+});
+
+void test('Rainmaker: a Squall also breaks over the caster, and lasts longer', (): void => {
+  const world: World = hero();
+  wear(world, 'rainmaker');
+  const away = { x: world.player.pos.x + 6, z: world.player.pos.z };
+  firePowers(world, { on: 'use', skill: skill('squall'), target: null, at: away });
+  assert.deepEqual(casts(world), ['squall']);
+  assert.deepEqual(must(world.echoes[0], 'squall').origin, { x: world.player.pos.x, z: world.player.pos.z });
+  firePowers(world, { on: 'use', skill: skill('storm_bolt'), target: null, at: away });
+  assert.equal(world.echoes.length, 1);
+});

@@ -10,6 +10,8 @@ import { cellIndex } from '../nav/grid.ts';
 import { chainedSkill, chargedSkill, comboHits, readyToRepeat, startSkill } from './skills.ts';
 import { damageTo, dummy, offset, run, SHAPE_CONTENT, shapeArena, shapeSkill } from '../../test/shape-support.ts';
 import { resolveSkill } from '../stats.ts';
+import { generateItem } from '../items.ts';
+import { createRng } from '../rng.ts';
 import { stepWorld } from './step.ts';
 import type { AreaState, Command, MonsterState, World, WorldEvent } from './types.ts';
 
@@ -287,4 +289,27 @@ void test('a held skill repeats only when the hero is free, it is off cooldown, 
   stepWorld(world, [swing], DT);
   assert.notEqual(world.player.action, null);
   assert.equal(readyToRepeat(world.player, bolt), false);
+});
+
+void test('a hero in the Mist-Treader Boots leaves a Downdraught where the Mist Step began, and only on a Mist Step', (): void => {
+  const world: World = arena(7);
+  const boots = must(generateItem(world.content, createRng(7), 900, 8, 'mist_treader_boots', null), 'boots');
+  world.player.equipped.feet = boots;
+  const step: SkillDef = must(world.content.skills.get('mist_step'), 'mist step');
+  const from: Vec2 = { ...world.player.pos };
+  startSkill(world, world.player, step, { x: 3, z: 0 });
+  const fell: AreaState[] = [];
+  for (let frame: number = 0; frame < Math.round((step.windup + 0.4) / DT) && fell.length === 0; frame += 1) {
+    stepWorld(world, [], DT);
+    fell.push(...world.areas.filter((area: AreaState): boolean => area.skill.id === 'downdraught'));
+  }
+  const area: AreaState = must(fell[0], 'a Downdraught fell');
+  assert.ok(distance(area.pos, from) < 0.05, `it fell where the hero stood (${distance(area.pos, from).toFixed(2)} away)`);
+  assert.ok(distance(world.player.pos, from) > 1, 'the hero is gone from there');
+  world.areas = [];
+  world.player.equipped.feet = null;
+  world.player.cooldowns = {};
+  startSkill(world, world.player, step, { x: -3, z: 0 });
+  for (let frame: number = 0; frame < Math.round((step.windup + 0.4) / DT); frame += 1) stepWorld(world, [], DT);
+  assert.equal(world.areas.filter((late: AreaState): boolean => late.skill.id === 'downdraught').length, 0);
 });
