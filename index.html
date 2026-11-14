@@ -45,92 +45,135 @@
     <script type="application/ld+json" data-ld="home"></script>
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/@fontsource/cinzel/files/cinzel-latin-700-normal.woff2" />
     <link rel="preload" as="font" type="font/woff2" crossorigin href="/node_modules/@fontsource/alegreya-sans/files/alegreya-sans-latin-400-normal.woff2" />
+    <link rel="preload" as="image" type="image/avif" href="/landing/hero-man.avif" fetchpriority="high" />
     <link rel="stylesheet" href="/src/landing/landing.css" />
     <link rel="stylesheet" href="/src/landing/socials.css" />
   </head>
   <body>
-    <header class="hero">
-      <picture class="hero-art">
-        <source type="image/avif" srcset="/src/landing/images/hero-1280.avif 1280w, /src/landing/images/hero-2400.avif 2400w" sizes="(max-width: 720px) 190vw, 100vw" />
-        <source type="image/webp" srcset="/src/landing/images/hero-1280.webp 1280w, /src/landing/images/hero-2400.webp 2400w" sizes="(max-width: 720px) 190vw, 100vw" />
-        <img src="/src/landing/images/hero-1280.webp" width="2400" height="1350" alt="On a black shore in the rain, pale echoes close on the hero inside a ring of firelight." fetchpriority="high" decoding="async" />
-      </picture>
-      <script>
-        (function () {
-          var art = document.querySelector('.hero-art img');
-          if (!art || art.complete) return;
-          art.classList.add('waiting');
-          var show = function () {
-            art.classList.remove('waiting');
-          };
-          art.addEventListener('load', show);
-          art.addEventListener('error', show);
-        })();
-      </script>
+    <header class="hero" id="top">
+      <div class="hero-stage" id="hero-stage" data-hero="man">
+        <picture class="hero-still" data-hero-still="man">
+          <source type="image/avif" srcset="/landing/hero-man.avif" />
+          <img src="/landing/hero-man.webp" width="840" height="1120" alt="The hero stands in a shaft of light on black rock, the mist drifting around him." fetchpriority="high" decoding="async" />
+        </picture>
+        <picture class="hero-still" data-hero-still="woman">
+          <source type="image/avif" data-srcset="/landing/hero-woman.avif" />
+          <img data-src="/landing/hero-woman.webp" width="840" height="1120" alt="The heroine stands in a shaft of light on black rock, the mist drifting around her." decoding="async" />
+        </picture>
+        <video class="hero-loop" data-hero-loop="man" muted loop playsinline disablepictureinpicture preload="none" width="840" height="1120" aria-hidden="true">
+          <source data-src="/landing/hero-man.webm" type="video/webm; codecs=av01.0.05M.08" />
+          <source data-src="/landing/hero-man.mp4" type="video/mp4" />
+        </video>
+        <video class="hero-loop" data-hero-loop="woman" muted loop playsinline disablepictureinpicture preload="none" width="840" height="1120" aria-hidden="true">
+          <source data-src="/landing/hero-woman.webm" type="video/webm; codecs=av01.0.05M.08" />
+          <source data-src="/landing/hero-woman.mp4" type="video/mp4" />
+        </video>
+        <script>
+          (function () {
+            var art = document.querySelector('.hero-still img[src]');
+            if (!art || art.complete) return;
+            art.classList.add('waiting');
+            var show = function () {
+              art.classList.remove('waiting');
+            };
+            art.addEventListener('load', show);
+            art.addEventListener('error', show);
+          })();
+        </script>
+      </div>
       <div class="hero-shade" aria-hidden="true"></div>
-      <p class="live-chip" id="live-chip" aria-hidden="true"><span class="live-dot"></span><b id="live-chip-online">0</b> playing now</p>
       <div class="hero-body">
-        <p class="kicker">Free <span class="alpha-tag">Alpha</span></p>
+        <p class="kicker">Free <span class="alpha-tag">Early alpha</span></p>
         <h1>The Lost Storm</h1>
-        <p class="lede">A hack-and-slash action RPG that runs in your browser.</p>
+        <p class="lede">A hack-and-slash action RPG that runs in your browser. Fight what the storm leaves behind, keep what drops, and grow a hero of your own.</p>
         <div class="actions">
-          <a class="play" href="/play/">Play now</a>
+          <a class="play" href="/play/">Play free</a>
           <a class="play quiet" data-link="discord">Join the Discord</a>
         </div>
-        <p class="fine">No download, no account needed.</p>
+        <p class="fine">In your browser, on a computer or a phone. No download, no account needed.</p>
+        <p class="live-now" id="live-now" aria-live="polite"><span class="live-dot" aria-hidden="true"></span><b id="live-now-count">0</b> playing now</p>
+      </div>
+      <div class="hero-pick" role="group" aria-label="Who wakes">
+        <button type="button" class="hero-pick-option" data-pick="man" aria-pressed="true">Man</button>
+        <button type="button" class="hero-pick-option" data-pick="woman" aria-pressed="false">Woman</button>
       </div>
     </header>
 
     <main>
-      <aside class="live" id="live" aria-label="Players and ladder">
-        <p class="live-head"><span class="live-dot" aria-hidden="true"></span><b id="live-online">0</b> playing now</p>
-        <h2>Ladder</h2>
-        <ol class="live-top" id="live-top"></ol>
-        <p class="live-empty" id="live-empty" hidden>No one on the ladder yet. Be the first.</p>
-      </aside>
-      <section class="shots" aria-label="What you do">
-        <figure>
+      <section class="played" aria-labelledby="played-title">
+        <h2 id="played-title" class="section-title">See it played</h2>
+        <div class="clips">
+          <figure class="clip">
+            <div class="clip-frame">
+              <video class="clip-video" muted loop playsinline disablepictureinpicture preload="none" width="1280" height="720" data-poster="/landing/fight-poster.webp" aria-label="In the rain on the black shore of the Hall of Time, the hero cuts down a pack of pale echoes; damage numbers rise and gear drops where they fall.">
+                <source data-src="/landing/fight.webm" type="video/webm; codecs=av01.0.05M.08" />
+                <source data-src="/landing/fight.mp4" type="video/mp4" />
+              </video>
+            </div>
+            <figcaption><b>The Hall of Time</b> A black shore under a night storm. Lightning leaves moments behind, and each one wakes into a fight.</figcaption>
+          </figure>
+          <figure class="clip">
+            <div class="clip-frame">
+              <video class="clip-video" muted loop playsinline disablepictureinpicture preload="none" width="1280" height="720" data-poster="/landing/spin-poster.webp" aria-label="The Millwheel build spins through a pack of echoes, its momentum growing with every one it strikes.">
+                <source data-src="/landing/spin.webm" type="video/webm; codecs=av01.0.05M.08" />
+                <source data-src="/landing/spin.mp4" type="video/mp4" />
+              </video>
+            </div>
+            <figcaption><b>The Millwheel</b> One of the builds in the guide: Cleave turns into a spin you hold, and it speeds up with every enemy it strikes.</figcaption>
+          </figure>
+        </div>
+      </section>
+
+      <section class="blocks" aria-label="What you do">
+        <article class="block">
           <picture>
-            <source type="image/avif" srcset="/src/landing/images/fight-640.avif 640w, /src/landing/images/fight-1200.avif 1200w" sizes="(max-width: 720px) 100vw, 560px" />
-            <source type="image/webp" srcset="/src/landing/images/fight-640.webp 640w, /src/landing/images/fight-1200.webp 1200w" sizes="(max-width: 720px) 100vw, 560px" />
-            <img src="/src/landing/images/fight-640.webp" width="1200" height="675" loading="lazy" decoding="async" alt="The hero trades blows with pale echoes by the fire, a damage number rising over them." />
-          </picture>
-          <figcaption><b>Fight</b> Click to move and swing. Call lightning onto a crowd, throw bolts at the ones that run.</figcaption>
-        </figure>
-        <figure>
-          <picture>
-            <source type="image/avif" srcset="/src/landing/images/loot-640.avif 640w, /src/landing/images/loot-1200.avif 1200w" sizes="(max-width: 720px) 100vw, 560px" />
-            <source type="image/webp" srcset="/src/landing/images/loot-640.webp 640w, /src/landing/images/loot-1200.webp 1200w" sizes="(max-width: 720px) 100vw, 560px" />
+            <source type="image/avif" srcset="/src/landing/images/loot-640.avif 640w, /src/landing/images/loot-1200.avif 1200w" sizes="(max-width: 720px) 100vw, 540px" />
+            <source type="image/webp" srcset="/src/landing/images/loot-640.webp 640w, /src/landing/images/loot-1200.webp 1200w" sizes="(max-width: 720px) 100vw, 540px" />
             <img src="/src/landing/images/loot-640.webp" width="1200" height="675" loading="lazy" decoding="async" alt="Beams of light mark the gear the echoes dropped, each piece named on the ground: a Gale Charm, breeches and leathers." />
           </picture>
-          <figcaption><b>Loot</b> Monsters drop gold and gear with random affixes. Pick it up and wear the better piece.</figcaption>
-        </figure>
-        <figure>
+          <div class="block-text">
+            <h2>Fight, loot, level</h2>
+            <p>Click to move and swing, or play with touch on a phone. Monsters drop gold and gear with random affixes; wear the better piece. Every level brings a point for the Skill Tree.</p>
+          </div>
+        </article>
+        <article class="block">
           <picture>
-            <source type="image/avif" srcset="/src/landing/images/build-640.avif 640w, /src/landing/images/build-1200.avif 1200w" sizes="(max-width: 720px) 100vw, 560px" />
-            <source type="image/webp" srcset="/src/landing/images/build-640.webp 640w, /src/landing/images/build-1200.webp 1200w" sizes="(max-width: 720px) 100vw, 560px" />
-            <img src="/src/landing/images/build-640.webp" width="1200" height="675" loading="lazy" decoding="async" alt="After a fight the game offers three skills to choose from: Thunderclap, Storm Bolt and Forkline." />
+            <source type="image/avif" srcset="/landing/tree-640.avif 640w, /landing/tree-1200.avif 1200w" sizes="(max-width: 720px) 100vw, 540px" />
+            <source type="image/webp" srcset="/landing/tree-640.webp 640w, /landing/tree-1200.webp 1200w" sizes="(max-width: 720px) 100vw, 540px" />
+            <img src="/landing/tree-640.webp" width="1200" height="675" loading="lazy" decoding="async" alt="The Skill Tree: five paths spiral out from the centre, and a lightning build lights up the Gathering Storm." />
           </picture>
-          <figcaption><b>Build</b> Each ability you earn is a choice of two or three, and gear brings stats. The same hero plays differently every time.</figcaption>
-        </figure>
-        <figure>
+          <div class="block-text">
+            <h2>Build your hero</h2>
+            <p>Spend your points on the Skill Tree. Some places change how a skill works: Cleave can become a spin, a bolt can fork. The <a href="/guide/">player's guide</a> walks through six builds, with numbers measured in the game.</p>
+          </div>
+        </article>
+        <article class="block">
           <picture>
-            <source type="image/avif" srcset="/src/landing/images/mist-640.avif 640w, /src/landing/images/mist-1200.avif 1200w" sizes="(max-width: 720px) 100vw, 560px" />
-            <source type="image/webp" srcset="/src/landing/images/mist-640.webp 640w, /src/landing/images/mist-1200.webp 1200w" sizes="(max-width: 720px) 100vw, 560px" />
-            <img src="/src/landing/images/mist-640.webp" width="1200" height="675" loading="lazy" decoding="async" alt="The hero stands alone in the white mist of the In-Between." />
+            <source type="image/avif" srcset="/landing/hideout-640.avif 640w, /landing/hideout-1200.avif 1200w" sizes="(max-width: 720px) 100vw, 540px" />
+            <source type="image/webp" srcset="/landing/hideout-640.webp 640w, /landing/hideout-1200.webp 1200w" sizes="(max-width: 720px) 100vw, 540px" />
+            <img src="/landing/hideout-640.webp" width="1200" height="675" loading="lazy" decoding="async" alt="The Hideout at night: a fire, lamps, and the Wardens who keep the trade, the auction and the waypoint." />
           </picture>
-          <figcaption><b>Wake</b> You wake in the white mist of the In-Between. Past it lies a black shore under a storm, where lightning leaves moments to fight.</figcaption>
-        </figure>
+          <div class="block-text">
+            <h2>Not alone at the fire</h2>
+            <p>The Hideout keeps a trader, a stash and a waypoint.</p>
+            <p data-server>Other players stand there with you. Talk in the chat, trade with each other, and buy and sell at the auction house.</p>
+            <aside class="live" id="live" aria-label="Players and ladder">
+              <p class="live-head"><span class="live-dot" aria-hidden="true"></span><b id="live-online">0</b> playing now</p>
+              <h3>Ladder</h3>
+              <ol class="live-top" id="live-top"></ol>
+              <p class="live-empty" id="live-empty" hidden>No one on the ladder yet. Be the first.</p>
+            </aside>
+          </div>
+        </article>
       </section>
 
       <section class="alpha" aria-labelledby="alpha-title">
-        <h2 id="alpha-title">Early alpha, honestly</h2>
-        <p>In now: the In-Between, where you wake; the Hall of Time, a black shore under a night storm, where lightning leaves moments behind to fight; the Hideout off the Hall, whose fire keeps a trader, an auctioneer, a stash and a waypoint; and the Last Gate, a boss lair. Two heroes to choose from, abilities you choose as you earn them, a dodge roll, life and mana flasks, loot with affixes and levels. It plays on a computer, or with touch controls on a phone.</p>
-        <p>Progress saves on its own as you play. Close the tab and you pick up where you left off. While the game is in alpha, progress may be reset.</p>
-        <p data-server>Tell us what you think: the game asks at the end of the alpha, and Feedback in the pause menu works any time.</p>
+        <h2 id="alpha-title">Early alpha, changing every day</h2>
+        <p>In now: the white mist where you wake; the Hall of Time, a black shore under a night storm; the Hideout off the Hall; and the Last Gate, where the Reckoner waits. Two heroes to choose from, the Skill Tree, a dodge roll, life and mana flasks, loot with affixes and levels.</p>
+        <p>New things land most days, and some days things break. Progress saves on its own as you play; while the game is in alpha it may be reset.</p>
+        <p data-server>Tell us what you think: Feedback in the pause menu works any time.</p>
         <p>The game is open source under the MIT licence: read the code or report a bug on <a href="https://github.com/marginsystems/the-lost-storm">GitHub</a>. Models, animations and textures come from free libraries, listed in the <a href="https://github.com/marginsystems/the-lost-storm/blob/main/ASSETS.md">asset credits</a>.</p>
-        <p>New here? The <a href="/guide/">player's guide</a> explains the keys, combat, the Skill Tree and six builds, with numbers measured in the game itself.</p>
-        <a class="play quiet" href="/play/">Play now</a>
+        <a class="play" href="/play/">Play free</a>
       </section>
     </main>
 
