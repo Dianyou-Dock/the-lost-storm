@@ -3,7 +3,7 @@ import type { ZoneBarrier } from './barrier-types.ts';
 import type { AffixDef, FamilyDef, ItemBaseDef, ItemScaling, RarityDef } from './item-types.ts';
 import type { FlaskDef } from './flasks.ts';
 import type { AttachmentDef, RigDef } from './rig-types.ts';
-import type { DormantDef, FactionDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, StalkerBehaviour, SummonDef, SwarmBehaviour } from './combat-types.ts';
+import type { DormantDef, FactionDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, StalkerBehaviour, SummonDef, SwarmBehaviour, AmbushBehaviour } from './combat-types.ts';
 import type { AreaDelivery, BeamDelivery, BlinkDelivery, ChainDelivery, SkillShape, SkillUnlock } from './shape-types.ts';
 import type { ServiceKind, TradeDef } from './trade-types.ts';
 import type { PropDef, SurfaceDef } from './prop-types.ts';
@@ -159,7 +159,7 @@ export interface RangedBehaviour {
   readonly retreatRange: number;
 }
 
-export type MonsterBehaviour = ChaserBehaviour | RangedBehaviour | StalkerBehaviour | SwarmBehaviour;
+export type MonsterBehaviour = ChaserBehaviour | RangedBehaviour | StalkerBehaviour | SwarmBehaviour | AmbushBehaviour;
 
 export interface MonsterLoot {
   readonly goldChance: number;

@@ -1,5 +1,5 @@
 import { attacksHeld } from './glitch-hold.ts';
-import type { StalkerBehaviour, SummonDef, SwarmBehaviour } from '../content/combat-types.ts';
+import type { AmbushBehaviour, StalkerBehaviour, SummonDef, SwarmBehaviour } from '../content/combat-types.ts';
 import type { MonsterDef, RangedBehaviour, SkillDef, SurgeRules } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { clamp, directionOf, distance, facingOf, normalize, rotate } from '../math.ts';
@@ -229,6 +229,31 @@ function swarm(world: World, monster: MonsterState, behaviour: SwarmBehaviour, s
   circle(world, monster, foe, behaviour.ring, gap, dt);
 }
 
+function lurk(world: World, monster: MonsterState, behaviour: AmbushBehaviour, skill: SkillDef, foe: Actor, dt: number): void {
+  const gap: number = distance(monster.pos, foe.pos) - foe.radius;
+  const sight: boolean = lineOfSight(world.grid, monster.pos, foe.pos);
+  if (sight && gap <= skill.engageRange && attack(world, monster, skill, foe)) return;
+  const ready: boolean = blockedReason(monster, skill) === null;
+  if (!sight || gap > skill.engageRange || (ready && gap > behaviour.spring)) {
+    monster.stance = 'approach';
+    approach(world, monster, foe.pos, dt);
+    return;
+  }
+  const toward: Vec2 = towardOf(monster, foe.pos);
+  const behind: Vec2 = { x: monster.pos.x - toward.x * MONSTERS.retreatProbe, z: monster.pos.z - toward.z * MONSTERS.retreatProbe };
+  if (gap < behaviour.spring && lineWalkable(routedGrid(world.grid), monster.pos, behind) && insideShell(world, monster, behind)) {
+    monster.stance = 'retreat';
+    travel(world, monster, { x: -toward.x, z: -toward.z }, monster.def.moveSpeed * MONSTERS.retreatSpeed, foe.pos, dt);
+    return;
+  }
+  monster.stance = 'hold';
+  face(monster, foe.pos, dt);
+}
+
+function wakeRadius(def: MonsterDef): number {
+  return def.behaviour.type === 'ambush' ? Math.min(def.aggroRadius, def.behaviour.spring) : def.aggroRadius;
+}
+
 function summonOf(world: World, monster: MonsterState, summon: SummonDef, dt: number): void {
   monster.summonTimer -= dt;
   if (monster.summonTimer > 0) return;
@@ -306,7 +331,7 @@ function fighting(actor: Actor): boolean {
 }
 
 function wake(world: World, monster: MonsterState): boolean {
-  const roused: boolean = monster.def.dormant !== null ? heard(world, monster, monster.def.dormant.noiseRadius) : [world.player, ...world.monsters].some((actor: Actor): boolean => fighting(actor) && distance(monster.pos, actor.pos) <= monster.def.aggroRadius && strikes(world, monster, actor) && lineOfSight(world.grid, monster.pos, actor.pos));
+  const roused: boolean = monster.def.dormant !== null ? heard(world, monster, monster.def.dormant.noiseRadius) : [world.player, ...world.monsters].some((actor: Actor): boolean => fighting(actor) && distance(monster.pos, actor.pos) <= wakeRadius(monster.def) && strikes(world, monster, actor) && lineOfSight(world.grid, monster.pos, actor.pos));
   if (roused) rouse(world, monster);
   return roused;
 }
@@ -431,6 +456,9 @@ export function stepMonster(world: World, monster: MonsterState, dt: number): vo
       return;
     case 'swarm':
       swarm(world, monster, behaviour, skill, foe, local);
+      return;
+    case 'ambush':
+      lurk(world, monster, behaviour, skill, foe, local);
       return;
   }
 }

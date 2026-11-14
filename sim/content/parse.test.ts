@@ -178,8 +178,8 @@ void test('a dash whose invulnerable window is negative or longer than its durat
 void test('an unknown enum value and a duplicate id are rejected', (): void => {
   const badBehaviour: RawContent = { ...shipped, monsters: [{ ...extraMonster, behaviour: { type: 'dancer' } }] };
   assert.throws((): Content => parseContent(badBehaviour), (error: unknown): boolean => problem(error, 'behaviour.type'));
-  assert.deepEqual(must(parseContent({ ...shipped, monsters: [{ ...extraMonster, behaviour: { type: 'swarm', ring: 2 } }] }).monsters.get('ash_wraith'), 'swarm').behaviour, { type: 'swarm', ring: 2 });
-  assert.throws((): Content => parseContent({ ...shipped, monsters: [{ ...extraMonster, behaviour: { type: 'swarm', ring: 0 } }] }), (error: unknown): boolean => problem(error, 'behaviour.ring'));
+  for (const behaviour of [{ type: 'swarm', ring: 2 }, { type: 'ambush', spring: 4 }] as const) assert.deepEqual(must(parseContent({ ...shipped, monsters: [{ ...extraMonster, behaviour }] }).monsters.get('ash_wraith'), behaviour.type).behaviour, behaviour);
+  for (const [behaviour, field] of [[{ type: 'swarm', ring: 0 }, 'ring'], [{ type: 'ambush', spring: 0 }, 'spring']] as const) assert.throws((): Content => parseContent({ ...shipped, monsters: [{ ...extraMonster, behaviour }] }), (error: unknown): boolean => problem(error, `behaviour.${field}`));
   assert.equal(must(parseContent({ ...shipped, monsters: [{ ...extraMonster, scalesLife: false }] }).monsters.get('ash_wraith'), 'fixed life').scalesLife, false);
   assert.throws((): Content => parseContent({ ...shipped, monsters: [{ ...extraMonster, scalesLife: 'no' }] }), (error: unknown): boolean => problem(error, 'scalesLife'));
   const duplicate: RawContent = { ...shipped, attachments: [...attachments, extraAttachment], wearables: [...wearables, extraWearable], monsters: [extraMonster, extraMonster] };

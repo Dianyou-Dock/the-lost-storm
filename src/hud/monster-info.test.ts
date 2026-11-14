@@ -52,6 +52,11 @@ void test('a swarm says it surrounds you', (): void => {
   assert.ok(texts(monsterLines(world, monster), 'state').includes('Surrounds you with its kind'));
 });
 
+void test('an ambusher says it waits, then springs', (): void => {
+  const { world, monster } = spawn('spider');
+  assert.ok(texts(monsterLines(world, monster), 'state').includes('Waits for you to come close, then springs'));
+});
+
 void test('a boss names every phase skill once, takes no stagger and is marked as a boss', (): void => {
   const { world, monster } = spawn('unfinished_colossus');
   const lines: MonsterLine[] = monsterLines(world, monster);
