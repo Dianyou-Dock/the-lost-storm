@@ -1,4 +1,5 @@
 import type { Bot } from '../sim/bot.ts';
+import type { BotPlan } from '../sim/bot-plan.ts';
 import { BOT, botFight, botPause, botPlay, botStep, botTravelTo, botWalkTo, createBot } from '../sim/bot.ts';
 import { loadContent } from '../sim/content/content.ts';
 import type { BookDef, PageDef } from '../sim/content/story-types.ts';
@@ -20,6 +21,7 @@ import type { PackFight } from './simulate-pack.ts';
 import { packFoe } from './simulate-pack.ts';
 import type { BuildPolicy, Policies, SkillPolicy } from './simulate-policies.ts';
 import { planFor } from './simulate-policies.ts';
+import { forkBot } from './simulate-fork.ts';
 
 export const RUN = {
   wakeLimit: 30,
@@ -47,6 +49,17 @@ export interface Job {
   readonly seed: number;
   readonly danger: number;
   readonly toughness: number;
+}
+
+export interface RivalRun {
+  readonly stream: Measurement[];
+  readonly rivals: ReadonlyMap<string, readonly Measurement[]>;
+}
+
+interface Rival {
+  readonly skill: SkillPolicy;
+  readonly plan: BotPlan;
+  readonly out: Measurement[];
 }
 
 export interface Recorder {
@@ -321,13 +334,25 @@ function fightPacks(bot: Bot, recorder: Recorder, scenario: PackFight, loot: boo
   return null;
 }
 
-function fightBosses(bot: Bot, recorder: Recorder, scenario: Extract<Scenario, { readonly kind: 'boss' }>, loot: boolean): string | null {
+function fightRivals(bot: Bot, lair: BossLair, rivals: readonly Rival[], repeats: number, origin: number): void {
+  for (const rival of rivals) {
+    const fork: Bot = forkBot(bot, rival.skill.habits, rival.plan);
+    for (let attempt: number = 0; attempt < repeats; attempt += 1) {
+      const measured: Measurement | null = fightBoss(fork, lair, origin);
+      if (measured === null) break;
+      rival.out.push(measured);
+    }
+  }
+}
+
+function fightBosses(bot: Bot, recorder: Recorder, scenario: Extract<Scenario, { readonly kind: 'boss' }>, loot: boolean, rivals: readonly Rival[]): string | null {
   const world: World = bot.world;
   const lair: BossLair | null = bossLair(world.content);
   if (lair === null) return 'no zone holds a boss';
   for (const level of scenario.levels) {
     if (!farm(bot, world.time + scenario.minutes * 60, loot, (): boolean => world.player.level >= level)) return 'could not reach the Hall';
     if (world.player.level < level) return `did not reach level ${level}`;
+    fightRivals(bot, lair, rivals, scenario.repeats, recorder.meter?.origin ?? 0);
     for (let attempt: number = 0; attempt < scenario.repeats; attempt += 1) {
       const measured: Measurement | null = fightBoss(bot, lair, recorder.meter?.origin ?? 0);
       if (measured === null) return `could not reach ${lair.zone.id}`;
@@ -338,9 +363,18 @@ function fightBosses(bot: Bot, recorder: Recorder, scenario: Extract<Scenario, {
 }
 
 export function runJob(job: Job, policies: Policies): Measurement[] {
+  return runRivals(job, policies, []).stream;
+}
+
+export function runRivals(job: Job, policies: Policies, rivalSkills: readonly string[]): RivalRun {
   const skill: SkillPolicy | undefined = policies.skills.get(job.skill);
   const build: BuildPolicy | undefined = policies.builds.get(job.build);
   if (skill === undefined || build === undefined) throw new Error(`no policy ${job.skill}/${job.build}`);
+  const rivals: Rival[] = rivalSkills.map((name: string): Rival => {
+    const rival: SkillPolicy | undefined = policies.skills.get(name);
+    if (rival === undefined) throw new Error(`no policy ${name}`);
+    return { skill: rival, plan: planFor(rival, build), out: [] };
+  });
   if (build.hero !== null && !CONTENT.player.heroes.some((hero): boolean => hero.id === build.hero)) throw new Error(`build ${build.name} names the unknown hero ${build.hero}`);
   const scenario: Scenario = job.scenario;
   const content: Content = harder(scenario.kind === 'over' ? fixedLevel(CONTENT, scenario.zone) : CONTENT, job.danger, job.toughness);
@@ -371,7 +405,7 @@ export function runJob(job: Job, policies: Policies): Measurement[] {
       if (opened && !farm(bot, (meter?.origin ?? 0) + scenario.minutes * 60, skill.loot, (): boolean => world.player.level >= scenario.level)) reason = 'could not reach the Hall';
       break;
     case 'boss':
-      if (opened) reason = fightBosses(bot, recorder, scenario, skill.loot) ?? reason;
+      if (opened) reason = fightBosses(bot, recorder, scenario, skill.loot, rivals) ?? reason;
       break;
     case 'pack':
       if (opened) reason = fightPacks(bot, recorder, scenario, skill.loot) ?? reason;
@@ -379,5 +413,5 @@ export function runJob(job: Job, policies: Policies): Measurement[] {
   }
   if (meter !== null) recorder.out.push(...closeMeter(world, meter));
   recorder.out.push({ kind: 'end', t: Math.round((world.time - (meter?.origin ?? 0)) * 100) / 100, reason });
-  return recorder.out;
+  return { stream: recorder.out, rivals: new Map<string, readonly Measurement[]>(rivals.map((rival: Rival): [string, readonly Measurement[]] => [rival.skill.name, rival.out])) };
 }

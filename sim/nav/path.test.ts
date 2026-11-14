@@ -106,6 +106,18 @@ void test('the cells reached from a point are the ones a path can get to, and a 
   assert.equal(reach[cellIndex(sealed, pocket.x, pocket.z)], 0);
 });
 
+void test('no path forms into or out of a sealed pocket, and a path around the seal still does', (): void => {
+  const pocket: Vec2 = { x: 28, z: 30 };
+  const sealed: NavGrid = sealedRound(grid, pocket, 2);
+  const outside: Vec2 = { x: 28, z: 20 };
+  assert.deepEqual(findPath(sealed, outside, pocket), []);
+  assert.deepEqual(findPath(sealed, pocket, outside), []);
+  const beyond: Vec2 = { x: 28, z: 37 };
+  const around: Vec2[] = findPath(sealed, outside, beyond);
+  assert.deepEqual(must(around.at(-1), 'the far side'), beyond);
+  assert.ok(around.length > 1);
+});
+
 void test('the nearest reached spot to a sealed point lies just outside the seal, and a reached point stays where it is', (): void => {
   const pocket: Vec2 = { x: 28, z: 30 };
   const sealed: NavGrid = sealedRound(grid, pocket, 2);
