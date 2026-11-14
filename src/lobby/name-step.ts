@@ -44,7 +44,7 @@ export interface NameStepParts {
   readonly lobby: Lobby | null;
   readonly fresh: boolean;
   readonly store: KeyValueStore;
-  readonly body: NameBody;
+  readonly body: () => NameBody | null;
   readonly suggester: NameSuggester;
   readonly begin: () => void;
 }
@@ -136,7 +136,7 @@ export function createNameStep(parts: NameStepParts): NameStep {
   };
 
   const suggest = (): boolean => {
-    const picked: PickedName | null = suggester.pick(parts.body);
+    const picked: PickedName | null = suggester.pick(parts.body());
     if (picked === null) return refuse('name_taken');
     showOffer(null);
     swapField(picked.name);
@@ -158,7 +158,7 @@ export function createNameStep(parts: NameStepParts): NameStep {
 
   const taken = async (wanted: string, retries: number): Promise<boolean> => {
     if (suggester.suggested(wanted) && retries < NAME_STEP.retries) {
-      const next: PickedName | null = await suggester.next(parts.body);
+      const next: PickedName | null = await suggester.next(parts.body());
       if (next !== null) {
         swapField(next.name);
         tell(pickedLine(next), false);
@@ -237,7 +237,7 @@ export function createNameStep(parts: NameStepParts): NameStep {
       if (action === 'suggest') return suggest();
       if (action === 'submit') return name(field.value, 0);
       setState('open');
-      void suggester.warm(parts.body);
+      void suggester.warm(parts.body());
       field.value = readHeroName(parts.store) ?? '';
       field.focus({ preventScroll: true });
       return false;

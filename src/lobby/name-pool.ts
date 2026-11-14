@@ -1,7 +1,8 @@
+import type { NameStyle } from '../../sim/content/types.ts';
 import type { NameMood } from '../backend/api.ts';
 import { nameProblem } from './lobby-model.ts';
 
-export type NameBody = 'man' | 'woman';
+export type NameBody = NameStyle;
 
 export const MOODS: readonly NameMood[] = ['night', 'small-hours', 'dawn', 'day', 'dusk'];
 
@@ -189,8 +190,12 @@ function fits(name: string): readonly string[] {
   return nameProblem(name) === null ? [name] : [];
 }
 
-export function localNames(body: NameBody, mood: NameMood): readonly string[] {
-  return [...GIVEN_NAMES[body], ...EITHER_NAMES].flatMap((given: string): readonly string[] => BYNAMES[mood].flatMap((byname: string): readonly string[] => fits(`${given} ${byname}`)));
+export function givenFor(body: NameBody | null): readonly string[] {
+  return body === null ? EITHER_NAMES : [...GIVEN_NAMES[body], ...EITHER_NAMES];
+}
+
+export function localNames(body: NameBody | null, mood: NameMood): readonly string[] {
+  return givenFor(body).flatMap((given: string): readonly string[] => BYNAMES[mood].flatMap((byname: string): readonly string[] => fits(`${given} ${byname}`)));
 }
 
 export function nearNames(typed: string, mood: NameMood): readonly string[] {

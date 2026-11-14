@@ -56,3 +56,12 @@ void test('a name close to a typed one keeps what was typed and only fits within
   assert.equal(nearNames('Corvin', 'dusk').length, BYNAMES.dusk.length);
   assert.deepEqual(nearNames('Bartholomew Ash', 'dusk'), []);
 });
+
+void test('with no hero picked yet, the local pool holds only given names that suit either hero', (): void => {
+  for (const mood of MOODS) {
+    const names: readonly string[] = localNames(null, mood);
+    assert.ok(names.length > 0);
+    for (const name of names) assert.ok(EITHER_NAMES.includes(name.split(' ')[0] ?? ''));
+    for (const name of names) assert.ok(!GIVEN_NAMES.man.includes(name.split(' ')[0] ?? '') && !GIVEN_NAMES.woman.includes(name.split(' ')[0] ?? ''));
+  }
+});

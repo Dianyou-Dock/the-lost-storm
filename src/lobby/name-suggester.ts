@@ -17,9 +17,9 @@ export interface SuggesterParts {
 }
 
 export interface NameSuggester {
-  warm(body: NameBody): Promise<void>;
-  pick(body: NameBody): PickedName | null;
-  next(body: NameBody): Promise<PickedName | null>;
+  warm(body: NameBody | null): Promise<void>;
+  pick(body: NameBody | null): PickedName | null;
+  next(body: NameBody | null): Promise<PickedName | null>;
   near(typed: string): Promise<PickedName | null>;
   refuse(name: string): void;
   suggested(name: string): boolean;
@@ -39,7 +39,8 @@ export function createNameSuggester(parts: SuggesterParts): NameSuggester {
 
   const open = (entry: NameSuggestion): boolean => !refused.has(nameKey(entry.name)) && !offered.has(nameKey(entry.name)) && nameProblem(entry.name) === null;
 
-  const batch = (body: NameBody): NameSuggestion[] => {
+  const batch = (body: NameBody | null): NameSuggestion[] => {
+    if (body === null) return [];
     const kept: NameSuggestion[] = (batches.get(body) ?? []).filter(open);
     batches.set(body, kept);
     return kept;
@@ -62,9 +63,9 @@ export function createNameSuggester(parts: SuggesterParts): NameSuggester {
     }
   };
 
-  const warm = (body: NameBody): Promise<void> => {
+  const warm = (body: NameBody | null): Promise<void> => {
     const api: NamesApi | null = parts.api;
-    if (api === null || batch(body).length >= NAME_SUGGESTER.lowWater) return Promise.resolve();
+    if (api === null || body === null || batch(body).length >= NAME_SUGGESTER.lowWater) return Promise.resolve();
     const running: Promise<void> | undefined = pending.get(body);
     if (running !== undefined) return running;
     const started: Promise<void> = fetchBatch(body, api).finally((): void => {
@@ -74,7 +75,7 @@ export function createNameSuggester(parts: SuggesterParts): NameSuggester {
     return started;
   };
 
-  const pick = (body: NameBody): PickedName | null => {
+  const pick = (body: NameBody | null): PickedName | null => {
     const mood: NameMood = moodAt(parts.hour());
     const fromServer: NameSuggestion | null = takeFor(batch(body), mood);
     void warm(body);
@@ -94,7 +95,7 @@ export function createNameSuggester(parts: SuggesterParts): NameSuggester {
   return {
     warm,
     pick,
-    async next(body: NameBody): Promise<PickedName | null> {
+    async next(body: NameBody | null): Promise<PickedName | null> {
       if (batch(body).length === 0) await warm(body);
       return pick(body);
     },

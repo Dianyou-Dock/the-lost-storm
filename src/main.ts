@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { cuesForEvent, cuesForUi, uiActionForCommand, warmSoundIds } from '../sim/audio.ts';
 import { frameOf, zoneCharacterNeeds } from '../sim/wear.ts';
-import { heroOpen, heroRig } from '../sim/hero.ts';
+import { heroRig } from '../sim/hero.ts';
 import { noteInConsole, warnInConsole } from './backend/console-log.ts';
 import { runFrames } from './frame-loop.ts';
 import { element } from './dom-element.ts';
@@ -24,7 +24,7 @@ import { insideAwakeMoment } from '../sim/world/moments.ts';
 import { MAX_STEP, stepWorld } from '../sim/world/step.ts';
 import type { DebugHooks } from './debug-handle.ts';
 import { attachDebug } from './debug-handle.ts';
-import type { Command, ItemInstance, World, WorldEvent } from '../sim/world/types.ts';
+import type { Command, ItemInstance, PlayerState, World, WorldEvent } from '../sim/world/types.ts';
 import type { Listener } from './audio/listener.ts';
 import { createListener } from './audio/listener.ts';
 import { readAssetBase } from './audio/manifest.ts';
@@ -77,7 +77,9 @@ import { spokenName } from './lobby/lobby-model.ts';
 import { createNameStep, wireEnter } from './lobby/name-step.ts';
 import { createBrowserSuggester } from './lobby/name-suggester.ts';
 import { readHeroName } from './lobby/hero-name.ts';
-import { heroChoice, keepHero, readHero } from './lobby/hero-choice.ts';
+import { keepHero, readHero, startingHero } from './lobby/hero-choice.ts';
+import { createHeroPick } from './lobby/hero-pick.ts';
+import type { HeroPick } from './lobby/hero-pick.ts';
 import type { Minimap } from './minimap/minimap.ts';
 import { createMinimap } from './minimap/minimap.ts';
 import type { Leaderboard } from './backend/api.ts';
@@ -223,7 +225,12 @@ async function start(): Promise<void> {
   });
   const keptHero: string | null = save === null ? readHero(createBrowserStore(), content) : null;
   const world: World = createWorld(content, keptHero === null ? { seed: Date.now() >>> 0, save, opening: true } : { seed: Date.now() >>> 0, save, opening: true, hero: keptHero });
-  let chosenHero: string = world.player.hero;
+  let entered: boolean = save !== null;
+  const keepChosen = (id: string): void => {
+    keepHero(createBrowserStore(), id);
+    send({ type: 'hero', hero: id });
+  };
+  const pick: HeroPick = createHeroPick({ content, chosen: startingHero(content, save === null ? null : world.player.hero, keptHero), standing: (): PlayerState => world.player, entered: (): boolean => entered, keep: keepChosen, restage: (): void => flow.restage(), settled: (): Promise<void> => (restLoaded ? paintThumbnails() : Promise.resolve()), load: (id: string): Promise<void> => loadNeeds(loader, content, dresser, library, zoneCharacterNeeds(content, world.zone, world.player.equipped, id)) });
   const propDresser: Dresser = (dress: Readonly<Record<string, string>>, material: Material): Material => dressedProp(content, dress, material, propDressing(world.zone));
   const [library, firstView]: [CharacterLibrary, ZoneView] = await Promise.all([loadCharacters(loader, content, dresser, zoneCharacterNeeds(content, world.zone, world.player.equipped, world.player.hero)), buildZoneView(loader, content, world.zone, stage.scene, mobile.quality.tier.name)]);
   const loot: LootView = await createLootView(loader, stage.scene, library);
@@ -614,9 +621,9 @@ async function start(): Promise<void> {
   };
   let restLoaded: boolean = false;
   const paintThumbnails = async (): Promise<void> => {
-    const hero: string = chosenHero;
-    const painted: ItemThumbnails = await createItemThumbnails(library, frameOf(content, heroRig(content, hero)), shownPieces, content.player.tint, createBrowserTimers());
-    if (hero !== chosenHero) return;
+    const hero: string | null = pick.chosen;
+    const painted: ItemThumbnails = await createItemThumbnails(library, frameOf(content, heroRig(content, hero ?? world.player.hero)), shownPieces, content.player.tint, createBrowserTimers());
+    if (hero !== pick.chosen) return;
     thumbnails = painted;
     hud.refreshItems();
   };
@@ -671,26 +678,14 @@ async function start(): Promise<void> {
   reset.addEventListener('click', (): void => {
     void startOver();
   });
-  let entered: boolean = save !== null;
-  const chooseHero = async (id: string): Promise<void> => {
-    if (entered || id === chosenHero || !heroOpen(world.player)) return;
-    chosenHero = id;
-    keepHero(createBrowserStore(), id);
-    send({ type: 'hero', hero: id });
-    flow.restage();
-    await loadNeeds(loader, content, dresser, library, zoneCharacterNeeds(content, world.zone, world.player.equipped, id));
-    if (chosenHero !== id) return;
-    flow.restage();
-    if (restLoaded) await paintThumbnails();
-  };
-  const flow: LobbyFlow = createLobbyFlow({ tier: (): QualityName => mobile.quality.tier.name, restore: (): void => stage.resize(), root: element('lobby', HTMLDivElement), veil: element('lobby-veil', HTMLDivElement), title, hud: element('hud', HTMLDivElement), renderer: stage.renderer, content, library, loader, lobby, look: (): LobbyLook => ({ equipped: world.player.equipped, rig: heroRig(content, chosenHero) }), view: (): SheetView => ({ name: heroName ?? readHeroName(createBrowserStore()), hero: lobbyHero(content, world.player, world.zone.name, readPlayed(createBrowserStore().read(PLAYED_KEY))), known: entered, heroes: entered ? null : heroChoice(content, world.player, chosenHero) }), enterColour: (): string => world.zone.ambience.background, begin: (): void => {
+  const flow: LobbyFlow = createLobbyFlow({ tier: (): QualityName => mobile.quality.tier.name, restore: (): void => stage.resize(), root: element('lobby', HTMLDivElement), veil: element('lobby-veil', HTMLDivElement), title, hud: element('hud', HTMLDivElement), renderer: stage.renderer, content, library, loader, lobby, look: (): LobbyLook => pick.look(), view: (): SheetView => ({ name: heroName ?? readHeroName(createBrowserStore()), hero: lobbyHero(content, world.player, world.zone.name, readPlayed(createBrowserStore().read(PLAYED_KEY))), known: entered, heroes: pick.choice() }), enterColour: (): string => world.zone.ambience.background, begin: (): void => {
     entered = true;
     begin();
-  }, ready: (): Promise<void> => effects.ready, startOver: (): void => void startOver(), characters: { serverUrl: import.meta.env.VITE_SERVER_URL, persist, hold: (held: boolean): void => void (saveHeld = held), flush: (): void => backend.flush(), level: (): number | null => (entered ? world.player.level : null), hero: (): string => chosenHero }, chooseHero: (id: string): void => void chooseHero(id), openSettings: (): void => pauseMenu.open('graphics'), openFeedback: launch.feedback });
+  }, ready: (): Promise<void> => effects.ready, startOver: (): void => void startOver(), characters: { serverUrl: import.meta.env.VITE_SERVER_URL, persist, hold: (held: boolean): void => void (saveHeld = held), flush: (): void => backend.flush(), level: (): number | null => (entered ? world.player.level : null), hero: (): string | null => pick.chosen }, chooseHero: (id: string): void => void pick.choose(id), previewHero: (id: string | null): void => void pick.preview(id), openSettings: (): void => pauseMenu.open('graphics'), openFeedback: launch.feedback });
   lobbyFlow = flow;
   whenIdle((): void => void flow.warm());
   const openLobby = (): void => void flow.open();
-  wireEnter({ enter, begin: openLobby, failed: (): boolean => failed, step: createNameStep({ card: enter.parentElement ?? title, enter, lobby, fresh: save === null, store: createBrowserStore(), body: 'man', suggester: createBrowserSuggester(import.meta.env.VITE_SERVER_URL), begin: openLobby }) });
+  wireEnter({ enter, begin: openLobby, failed: (): boolean => failed, step: createNameStep({ card: enter.parentElement ?? title, enter, lobby, fresh: save === null, store: createBrowserStore(), body: (): ReturnType<HeroPick['body']> => pick.body(), suggester: createBrowserSuggester(import.meta.env.VITE_SERVER_URL), begin: openLobby }) });
 }
 
 document.documentElement.dataset['boot'] = RETRY.started;

@@ -573,10 +573,15 @@ export interface FirstDropDef {
   readonly rarity: string;
 }
 
+export type NameStyle = 'man' | 'woman';
+
+export const NAME_STYLES: readonly NameStyle[] = ['man', 'woman'];
+
 export interface HeroDef {
   readonly id: string;
   readonly name: string;
   readonly rig: string;
+  readonly names: NameStyle;
 }
 
 export interface PlayerDef {

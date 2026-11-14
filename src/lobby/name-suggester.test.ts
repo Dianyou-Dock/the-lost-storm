@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { NameSuggestion } from '../backend/api.ts';
 import type { NamesApi, SuggestQuery } from '../backend/names-api.ts';
-import { BYNAMES } from './name-pool.ts';
+import { BYNAMES, EITHER_NAMES } from './name-pool.ts';
 import type { PickedName } from './name-pool.ts';
 import { createNameSuggester, NAME_SUGGESTER } from './name-suggester.ts';
 import type { NameSuggester } from './name-suggester.ts';
@@ -138,4 +138,15 @@ void test('no close name is offered when the server has none free or the typed n
   assert.equal(await names.near('Corvin'), null);
   assert.equal(await names.near('x'), null);
   assert.equal(fake.asked.length, 1);
+});
+
+void test('before a hero is picked, a name comes from the given names that suit either, without asking the server', async (): Promise<void> => {
+  const fake: FakeApi = fakeApi();
+  const names: NameSuggester = suggester(fake.api);
+  await names.warm(null);
+  for (let pick: number = 0; pick < 12; pick += 1) {
+    const picked: PickedName = must(names.pick(null));
+    assert.ok(EITHER_NAMES.includes(picked.name.split(' ')[0] ?? ''));
+  }
+  assert.deepEqual(fake.asked, []);
 });

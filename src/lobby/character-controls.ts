@@ -10,14 +10,14 @@ import { reloadPage } from '../gpu-release.ts';
 import { createCharacterDesk } from './character-desk.ts';
 import type { CharacterDesk, CreateCheck } from './character-desk.ts';
 import { removeRefusalText, stripCards } from './character-strip-model.ts';
-import type { CardView } from './character-strip-model.ts';
+import type { CardView, LiveCharacter } from './character-strip-model.ts';
 import type { NameBody, PickedName } from './name-pool.ts';
 import { createBrowserSuggester } from './name-suggester.ts';
 import type { NameSuggester } from './name-suggester.ts';
 import { markResume, takeResume } from './lobby-resume.ts';
 import type { FlagStore } from './lobby-resume.ts';
 
-export const CHARACTER_CONTROLS: { readonly womanBelow: number; readonly retries: number } = { womanBelow: 0.5, retries: 3 };
+export const CHARACTER_CONTROLS: { readonly retries: number } = { retries: 3 };
 
 export interface CharacterHooks {
   readonly serverUrl: string | undefined;
@@ -25,7 +25,7 @@ export interface CharacterHooks {
   hold(held: boolean): void;
   flush(): void;
   level(): number | null;
-  hero(): string;
+  hero(): string | null;
 }
 
 export interface CharacterView {
@@ -47,6 +47,8 @@ export interface CharacterControls {
   reload(): void;
 }
 
+const NEW_CHARACTER_BODY: NameBody | null = null;
+
 const SESSION_FLAGS: FlagStore = {
   getItem: (key: string): string | null => window.sessionStorage.getItem(key),
   setItem: (key: string, value: string): void => {
@@ -67,13 +69,12 @@ export function createCharacterControls(content: Content, hooks: CharacterHooks)
   const api: CharactersApi | null = server.kind === 'ok' ? createCharactersApi(server.url, browserFetch) : null;
   const desk: CharacterDesk = createCharacterDesk({ content, place, api, random: Math.random });
   const suggester: NameSuggester = createBrowserSuggester(hooks.serverUrl);
-  let body: NameBody = 'man';
   const check = async (name: string, retries: number): Promise<CreateCheck> => {
     const checked: CreateCheck = await desk.check(name);
     if (checked.kind !== 'taken') return checked;
     suggester.refuse(name);
     if (!suggester.suggested(name) || retries >= CHARACTER_CONTROLS.retries) return checked;
-    const next: PickedName | null = await suggester.next(body);
+    const next: PickedName | null = await suggester.next(NEW_CHARACTER_BODY);
     return next === null ? checked : check(next.name, retries + 1);
   };
   const reload = (): void => {
@@ -95,15 +96,15 @@ export function createCharacterControls(content: Content, hooks: CharacterHooks)
   return {
     resuming: takeResume(SESSION_FLAGS),
     view(name: string | null): CharacterView {
-      desk.note({ name, hero: hooks.hero(), level: hooks.level() });
-      return { cards: stripCards(desk.facts(name)), username: desk.username(), only: desk.only() };
+      const live: LiveCharacter = { name, hero: hooks.hero(), level: hooks.level() };
+      desk.note(live);
+      return { cards: stripCards(desk.facts(live)), username: desk.username(), only: desk.only() };
     },
     pick: (key: string): Promise<boolean> => switchOut((): boolean => desk.pick(key)),
     check: (name: string): Promise<CreateCheck> => check(name, 0),
     enterNew: (name: string, id: string | null): Promise<boolean> => switchOut((): boolean => desk.open(name, id)),
     suggest(): string | null {
-      body = Math.random() < CHARACTER_CONTROLS.womanBelow ? 'woman' : 'man';
-      return suggester.pick(body)?.name ?? null;
+      return suggester.pick(NEW_CHARACTER_BODY)?.name ?? null;
     },
     refresh: (): Promise<void> => desk.refresh(),
     only: (): boolean => desk.only(),

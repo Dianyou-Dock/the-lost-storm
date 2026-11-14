@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { firstSlot } from '../backend/roster.ts';
 import type { Roster, Slot } from '../backend/roster.ts';
 import { canCreate, createRefusalText, deleteWording, EMPTY_KEY, removeRefusalText, STRIP_TEXT, stripCards } from './character-strip-model.ts';
-import type { CardView, HeroNames, StripFacts } from './character-strip-model.ts';
+import type { CardView, HeroNames, LiveCharacter, StripFacts } from './character-strip-model.ts';
 import { NAME_MESSAGES } from './lobby-model.ts';
 
 const HEROES: HeroNames = { name: (id: string): string | null => (id === 'woman' ? 'Woman' : id === 'man' ? 'Man' : null) };
@@ -12,13 +12,15 @@ function slot(key: string, name: string | null, level: number | null, hero: stri
   return { key, id, legacy: false, name, hero, level };
 }
 
+const UNWOKEN: LiveCharacter = { name: null, hero: null, level: null };
+
 function facts(roster: Roster, overrides: Partial<StripFacts> = {}): StripFacts {
-  return { roster, heroes: HEROES, firstOnServer: true, accountFull: false, activeName: null, ...overrides };
+  return { roster, heroes: HEROES, firstOnServer: true, accountFull: false, live: UNWOKEN, ...overrides };
 }
 
 void test('each character shows its name, level and hero, the one in play is lit, and an empty place offers a new character', (): void => {
   const roster: Roster = { active: 'b', account: null, slots: [{ ...firstSlot(), name: 'Grey Heron', level: 4, hero: 'man' }, slot('b', 'Bright Reed', null, 'woman')] };
-  const cards: readonly CardView[] = stripCards(facts(roster));
+  const cards: readonly CardView[] = stripCards(facts(roster, { live: { ...UNWOKEN, hero: 'woman' } }));
   assert.deepEqual(cards, [
     { kind: 'character', key: 'first', name: 'Grey Heron', detail: 'Level 4 · Man', active: false, note: null },
     { kind: 'character', key: 'b', name: 'Bright Reed', detail: 'Not yet woken · Woman', active: true, note: null },
@@ -28,7 +30,7 @@ void test('each character shows its name, level and hero, the one in play is lit
 
 void test('three characters leave no empty place, and the name in play comes from the lobby when it is known there', (): void => {
   const roster: Roster = { active: 'first', account: null, slots: [firstSlot(), slot('b', 'B', 1, null), slot('c', 'C', 2, null)] };
-  const cards: readonly CardView[] = stripCards(facts(roster, { activeName: 'Ash Walker' }));
+  const cards: readonly CardView[] = stripCards(facts(roster, { live: { ...UNWOKEN, name: 'Ash Walker' } }));
   assert.equal(cards.length, 3);
   assert.equal(cards[0]?.name, 'Ash Walker');
   assert.equal(canCreate(facts(roster)), false);
@@ -39,6 +41,15 @@ void test('a new character waits until the first one is on the server, and says 
   const cards: readonly CardView[] = stripCards(facts(roster, { firstOnServer: false }));
   assert.deepEqual(cards[1], { kind: 'empty', key: EMPTY_KEY, name: STRIP_TEXT.newCharacter, detail: STRIP_TEXT.newDetail, open: false, note: STRIP_TEXT.firstFirst });
   assert.equal(cards[0]?.name, STRIP_TEXT.unnamed);
+});
+
+void test('the character in play shows the hero picked in the lobby at once, even when the stored entry and the server still say another', (): void => {
+  const roster: Roster = { active: 'b', account: 'acc', slots: [{ ...firstSlot(), name: 'Grey Heron', level: 4, hero: 'man' }, slot('b', 'Lotte Sleepless', 1, 'man', 'srv-b')] };
+  assert.equal(stripCards(facts(roster))[1]?.detail, STRIP_TEXT.fresh);
+  assert.equal(stripCards(facts(roster, { live: { ...UNWOKEN, hero: 'woman' } }))[1]?.detail, 'Not yet woken · Woman');
+  assert.equal(stripCards(facts(roster, { live: { ...UNWOKEN, hero: 'man' } }))[1]?.detail, 'Not yet woken · Man');
+  assert.equal(stripCards(facts(roster, { live: { name: null, hero: 'woman', level: 3 } }))[1]?.detail, 'Level 3 · Woman');
+  assert.equal(stripCards(facts(roster, { live: { ...UNWOKEN, hero: 'woman' } }))[0]?.detail, 'Level 4 · Man');
 });
 
 void test('a character made on the device when the account had no room says it is not on the account', (): void => {

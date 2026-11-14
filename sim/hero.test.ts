@@ -41,7 +41,7 @@ void test('a player with no hero is refused, and a doubled hero or a hero on an 
   assert.throws((): Content => parseContent({ ...RAW_CONTENT, player: { ...player, heroes: [] } }), ContentError);
   const doubled: string[] = contentProblems(parseContent({ ...RAW_CONTENT, player: { ...player, heroes: [...player.heroes, ...player.heroes.slice(0, 1)] } }));
   assert.ok(doubled.includes('the player lists a hero twice'));
-  const lost: string[] = contentProblems(parseContent({ ...RAW_CONTENT, player: { ...player, heroes: [{ id: 'ghost', name: 'Ghost', rig: 'no_such_rig' }] } }));
+  const lost: string[] = contentProblems(parseContent({ ...RAW_CONTENT, player: { ...player, heroes: [{ id: 'ghost', name: 'Ghost', rig: 'no_such_rig', names: 'man' }] } }));
   assert.ok(lost.includes('hero ghost uses unknown rig no_such_rig'));
   assert.ok(lost.some((problem: string): boolean => problem.includes('names unknown hero')));
 });

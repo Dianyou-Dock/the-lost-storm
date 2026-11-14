@@ -62,6 +62,8 @@ export const LOBBY_STAGE = {
   footSamples: 16,
   soleClearance: 0.002,
   swapSpring: { freq: 1.8, damping: 1 },
+  presenceSpring: { freq: 1.6, damping: 1 },
+  presenceGone: 0.01,
   swapAt: 0.985,
   swapClear: 0.004,
   coverColor: 0x070a10,
@@ -96,6 +98,7 @@ export function lobbyFraming(width: number, height: number): Framing {
 export interface LobbyLook {
   readonly equipped: Equipment;
   readonly rig: string;
+  readonly veiled: boolean;
 }
 
 export function coverShare(radius: number, plateau: number): number {
@@ -313,9 +316,10 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
   const cover: Mesh<PlaneGeometry, MeshBasicMaterial> = coverMesh();
   scene.add(cover);
   const veil: Spring = { x: 0, v: 0 };
+  const presence: Spring = { x: 1, v: 0 };
+  let shadowMesh: Object3D | null = null;
   let veiling: boolean = false;
   let wanted: LobbyLook | null = null;
-  let shadowLaid: boolean = false;
 
   const stand = (rigId: string): RigInstance | null => {
     const loaded: LoadedRig | undefined = library.rigs.get(rigId);
@@ -329,8 +333,10 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
     castShadows(made.root);
     const roles: BodyRoles = bodyRoles(loaded.def.bodyParts);
     life = createLobbyLife(made.root, random(), roles);
-    if (!shadowLaid) scene.add(contactShadow());
-    shadowLaid = true;
+    if (shadowMesh === null) {
+      shadowMesh = contactShadow();
+      scene.add(shadowMesh);
+    }
     scene.add(made.root);
     hero = made;
     heroKey = '';
@@ -356,6 +362,13 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
     if (hero === null) {
       const made: RigInstance | null = stand(look.rig);
       if (made !== null) wear(made, look);
+      if (look.veiled) presence.x = 0;
+      return;
+    }
+    if (hero.def.id !== look.rig && presence.x <= LOBBY_STAGE.presenceGone && library.rigs.has(look.rig)) {
+      const made: RigInstance | null = stand(look.rig);
+      if (made !== null) wear(made, look);
+      veiling = false;
       return;
     }
     if (hero.def.id !== look.rig) {
@@ -364,6 +377,15 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
     }
     veiling = false;
     wear(hero, look);
+  };
+
+  const stepPresence = (dt: number): void => {
+    const shown: number = Math.min(1, Math.max(0, stepSpring(presence, wanted?.veiled === true ? 0 : 1, LOBBY_STAGE.presenceSpring.freq, LOBBY_STAGE.presenceSpring.damping, dt)));
+    lights.shadows(shown);
+    shadowMesh?.scale.setScalar(Math.max(LOBBY_STAGE.presenceGone, shown));
+    if (hero === null) return;
+    hero.setFade(shown);
+    hero.root.visible = shown > LOBBY_STAGE.presenceGone;
   };
 
   const stepVeil = (dt: number): void => {
@@ -399,6 +421,7 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
       const view: OrbitView = stepOrbit(orbit, dt);
       camera.position.set(view.x, view.y, view.z);
       stepVeil(dt);
+      stepPresence(dt);
       document.getElementById(LOBBY_STAGE.rootId)?.style.setProperty(LOBBY_STAGE.zoomProperty, view.zoom.toFixed(3));
       camera.lookAt(0, view.lookHeight, 0);
       renderer.getSize(size);

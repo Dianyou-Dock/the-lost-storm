@@ -7,7 +7,7 @@ import type { Reconciliation, RemoveOutcome, RosterPlace, Summary } from '../bac
 import { parseSyncRecord, SYNC_KEY } from '../backend/sync-record.ts';
 import type { SyncRecord } from '../backend/sync-record.ts';
 import { createRefusalText } from './character-strip-model.ts';
-import type { HeroNames, StripFacts } from './character-strip-model.ts';
+import type { HeroNames, LiveCharacter, StripFacts } from './character-strip-model.ts';
 import { keepHeroName } from './hero-name.ts';
 import { NAME_MESSAGES, nameProblem, tidyName } from './lobby-model.ts';
 import type { NameRefusal } from '../backend/api.ts';
@@ -17,7 +17,7 @@ export const CHARACTER_DESK: { readonly requestMs: number } = { requestMs: 4000 
 export type CreateCheck = { readonly kind: 'ready'; readonly name: string; readonly id: string | null } | { readonly kind: 'refused'; readonly text: string } | { readonly kind: 'taken'; readonly text: string };
 
 export interface CharacterDesk {
-  facts(activeName: string | null): StripFacts;
+  facts(live: LiveCharacter): StripFacts;
   refresh(): Promise<void>;
   check(raw: string): Promise<CreateCheck>;
   open(name: string, id: string | null): boolean;
@@ -53,9 +53,9 @@ export function createCharacterDesk(parts: DeskParts): CharacterDesk {
   let server: ServerRoster | null = null;
   const record = (): SyncRecord | null => (place.serverUrl === null ? null : parseSyncRecord(place.store.read(SYNC_KEY), place.serverUrl));
   return {
-    facts(activeName: string | null): StripFacts {
+    facts(live: LiveCharacter): StripFacts {
       const roster: Roster = loadRoster(place.store);
-      return { roster, heroes: heroNames(parts.content), firstOnServer: server === null || firstOnServer(server), accountFull: accountFull(roster, server), activeName };
+      return { roster, heroes: heroNames(parts.content), firstOnServer: server === null || firstOnServer(server), accountFull: accountFull(roster, server), live };
     },
     async refresh(): Promise<void> {
       if (api === null) return;

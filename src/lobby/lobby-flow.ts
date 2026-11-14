@@ -40,6 +40,7 @@ export interface LobbyFlowParts {
   readonly enterColour: () => string | null;
   readonly startOver: () => void;
   readonly chooseHero: (id: string) => void;
+  readonly previewHero: (id: string | null) => void;
   readonly characters: CharacterHooks;
   readonly openSettings: () => void;
   readonly openFeedback: (() => void) | null;
@@ -183,6 +184,9 @@ export function createLobbyFlow(parts: LobbyFlowParts): LobbyFlow {
     chooseHero: (id: string): void => {
       if (!busy) parts.chooseHero(id);
     },
+    previewHero: (id: string | null): void => {
+      if (!busy) parts.previewHero(id);
+    },
     pick: (key: string): void => {
       void leave((): Promise<boolean> => characters.pick(key));
     },
@@ -252,7 +256,10 @@ export function createLobbyFlow(parts: LobbyFlowParts): LobbyFlow {
     },
     restage(): void {
       stage.dress(parts.look());
-      screen.setHeroes(parts.view().heroes);
+      if (!active) return;
+      const next: LobbyView = view();
+      screen.setHeroes(next.heroes);
+      screen.setCards(next.cards);
     },
   };
 }

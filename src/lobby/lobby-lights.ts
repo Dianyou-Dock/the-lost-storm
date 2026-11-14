@@ -16,6 +16,7 @@ export const LOBBY_LIGHTS = {
 
 export interface LobbyLights {
   step(dt: number): void;
+  shadows(amount: number): void;
   readonly share: number;
 }
 
@@ -69,6 +70,10 @@ export function createLobbyLights(scene: Scene): LobbyLights {
     step(dt: number): void {
       const amount: number = Math.min(1, Math.max(0, stepSpring(share, 1, spec.spring.freq, spec.spring.damping, dt)));
       for (const entry of lit) entry.light.intensity = entry.full * amount;
+    },
+    shadows(amount: number): void {
+      key.shadow.intensity = amount;
+      rim.shadow.intensity = amount;
     },
     get share(): number {
       return share.x;

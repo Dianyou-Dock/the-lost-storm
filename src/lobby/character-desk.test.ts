@@ -11,6 +11,7 @@ import type { RosterPlace } from '../backend/roster-store.ts';
 import { accountFull, createCharacterDesk, heroNames } from './character-desk.ts';
 import type { CharacterDesk, CreateCheck } from './character-desk.ts';
 import { STRIP_TEXT } from './character-strip-model.ts';
+import type { LiveCharacter } from './character-strip-model.ts';
 import { HERO_NAME_KEY } from './hero-name.ts';
 import { NAME_MESSAGES } from './lobby-model.ts';
 
@@ -32,6 +33,9 @@ async function played(harness: Harness, level: number): Promise<Backend> {
 function login(harness: Harness): ServerAccount {
   return must(harness.server.accounts[0], 'the login account');
 }
+
+
+const UNWOKEN: LiveCharacter = { name: null, hero: null, level: null };
 
 void test('hero ids read as their names from the data', (): void => {
   const names = heroNames(content);
@@ -62,7 +66,7 @@ void test('opening a new character makes it the one in play, with its name kept 
   assert.equal(activeSlot(loadRoster(harness.store)).name, 'Bright Reed');
   assert.equal(harness.store.read(HERO_NAME_KEY), 'Bright Reed');
   assert.equal(desk.only(), false);
-  const cards = desk.facts('Bright Reed');
+  const cards = desk.facts({ name: 'Bright Reed', hero: null, level: null });
   assert.equal(cards.roster.slots.length, 2);
 });
 
@@ -70,13 +74,13 @@ void test('the lobby learns the username and whether the first character is on t
   const harness: Harness = createHarness();
   await harness.open().load();
   const desk: CharacterDesk = deskOn(harness);
-  assert.equal(desk.facts(null).firstOnServer, true);
+  assert.equal(desk.facts(UNWOKEN).firstOnServer, true);
   await desk.refresh();
-  assert.equal(desk.facts(null).firstOnServer, false);
+  assert.equal(desk.facts(UNWOKEN).firstOnServer, false);
   await played(harness, 2);
   login(harness).username = 'heron';
   await desk.refresh();
-  assert.equal(desk.facts(null).firstOnServer, true);
+  assert.equal(desk.facts(UNWOKEN).firstOnServer, true);
   assert.equal(desk.username(), 'heron');
 });
 

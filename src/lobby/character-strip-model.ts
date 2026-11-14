@@ -35,19 +35,25 @@ export type CardView =
   | { readonly kind: 'character'; readonly key: string; readonly name: string; readonly detail: string; readonly active: boolean; readonly note: string | null }
   | { readonly kind: 'empty'; readonly key: string; readonly name: string; readonly detail: string; readonly open: boolean; readonly note: string | null };
 
+export interface LiveCharacter {
+  readonly name: string | null;
+  readonly hero: string | null;
+  readonly level: number | null;
+}
+
 export interface StripFacts {
   readonly roster: Roster;
   readonly heroes: HeroNames;
   readonly firstOnServer: boolean;
   readonly accountFull: boolean;
-  readonly activeName: string | null;
+  readonly live: LiveCharacter;
 }
 
 export const EMPTY_KEY: string = 'new';
 
-function nameOf(slot: Slot, facts: StripFacts): string {
-  if (slot.key === facts.roster.active && facts.activeName !== null) return facts.activeName;
-  return slot.name ?? STRIP_TEXT.unnamed;
+function shownSlot(slot: Slot, facts: StripFacts): Slot {
+  if (slot.key !== facts.roster.active) return slot;
+  return { ...slot, name: facts.live.name ?? slot.name, hero: facts.live.hero, level: facts.live.level };
 }
 
 function detailOf(slot: Slot, heroes: HeroNames): string {
@@ -61,16 +67,17 @@ export function canCreate(facts: StripFacts): boolean {
 }
 
 export function stripCards(facts: StripFacts): readonly CardView[] {
-  const cards: CardView[] = facts.roster.slots.map(
-    (slot: Slot): CardView => ({
+  const cards: CardView[] = facts.roster.slots.map((stored: Slot): CardView => {
+    const slot: Slot = shownSlot(stored, facts);
+    return {
       kind: 'character',
       key: slot.key,
-      name: nameOf(slot, facts),
+      name: slot.name ?? STRIP_TEXT.unnamed,
       detail: detailOf(slot, facts.heroes),
       active: slot.key === facts.roster.active,
       note: slot.id === null && !slot.legacy && facts.accountFull ? STRIP_TEXT.offAccount : null,
-    }),
-  );
+    };
+  });
   if (facts.roster.slots.length < ROSTER.max) {
     const open: boolean = canCreate(facts);
     cards.push({ kind: 'empty', key: EMPTY_KEY, name: STRIP_TEXT.newCharacter, detail: STRIP_TEXT.newDetail, open, note: open ? null : STRIP_TEXT.firstFirst });

@@ -59,7 +59,7 @@ import type {
   ZoneReturn,
   XpGap,
 } from './types.ts';
-import { DAMAGE_TYPES, MANA_SHOWS, SKILL_CATEGORIES, STAT_IDS, WEAR_REGIONS } from './types.ts';
+import { DAMAGE_TYPES, MANA_SHOWS, NAME_STYLES, SKILL_CATEGORIES, STAT_IDS, WEAR_REGIONS } from './types.ts';
 
 export interface RawContent {
   readonly skills: unknown;
@@ -395,7 +395,7 @@ function player(value: unknown, where: string): PlayerDef {
   const penalty: Fields = fields(source['deathPenalty'], `${where}.deathPenalty`);
   const heroes: HeroDef[] = each(source['heroes'], `${where}.heroes`, (entry: unknown, entryWhere: string): HeroDef => {
     const hero: Fields = fields(entry, entryWhere);
-    return { id: text(hero, 'id', entryWhere), name: text(hero, 'name', entryWhere), rig: text(hero, 'rig', entryWhere) };
+    return { id: text(hero, 'id', entryWhere), name: text(hero, 'name', entryWhere), rig: text(hero, 'rig', entryWhere), names: choice(hero, 'names', NAME_STYLES, entryWhere) };
   });
   const [first] = heroes;
   if (first === undefined) throw new ContentError(`${where}.heroes`, 'the player needs at least one hero');
