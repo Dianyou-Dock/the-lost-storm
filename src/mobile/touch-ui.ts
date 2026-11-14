@@ -12,8 +12,9 @@ import { el } from '../hud/dom.ts';
 import { flaskUses, paintUses } from '../hud/flask-belt.ts';
 import type { Hud, HudPanel } from '../hud/hud-api.ts';
 import { iconSvg } from '../hud/icons.ts';
-import { PANEL_ICONS } from '../hud/key-labels.ts';
+import { PANEL_ICONS, TOUCH_NAMES } from '../hud/key-labels.ts';
 import type { Input } from '../input.ts';
+import type { ItemNames } from '../render/item-names.ts';
 import { INPUT } from '../input.ts';
 import { createBrowserStore } from '../storage.ts';
 import { TITLE_SCREEN } from '../title-screen.ts';
@@ -33,6 +34,7 @@ export interface TouchSetup {
   readonly hud: Hud;
   readonly yaw: number;
   readonly zoomStep: number;
+  readonly itemNames: ItemNames;
   zoomBy(wheelDelta: number): void;
   readonly feedback: (() => void) | null;
   openMenu(): void;
@@ -199,6 +201,20 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
       feedback();
     });
   }
+  const names: HTMLButtonElement = el('button', 'tc-menu-btn tc-names', menu);
+  names.type = 'button';
+  names.setAttribute('aria-label', TOUCH_NAMES.name);
+  names.innerHTML = iconSvg(TOUCH_NAMES.icon);
+  const showNames = (): void => {
+    const on: boolean = setup.itemNames.toggled();
+    names.classList.toggle('on', on);
+    names.setAttribute('aria-pressed', on ? 'true' : 'false');
+  };
+  showNames();
+  names.addEventListener('click', (): void => {
+    setup.itemNames.setToggled(!setup.itemNames.toggled());
+    showNames();
+  });
   const pause: HTMLButtonElement = el('button', 'tc-menu-btn tc-pause', menu);
   pause.type = 'button';
   pause.setAttribute('aria-label', 'Menu');

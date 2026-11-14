@@ -328,6 +328,7 @@ async function start(): Promise<void> {
   });
   const overlays: Overlays = createOverlays(element('overlays', HTMLDivElement), camera, {
     findLabel: findLabel(mobile.touch),
+    nameKeys: (): readonly string[] => gameSettings.keys().bindingsOf('names'),
     heightOf: (id: number): number => actors.heightOf(id),
     onPickup: (groundId: number): void => {
       hud.hideGroundItem();
@@ -367,7 +368,7 @@ async function start(): Promise<void> {
   };
   gameSettings.subscribe(applyGraphics);
   applyGraphics();
-  const touch: Mobile = startMobile(mobile, { canvas, hudRoot: element('hud', HTMLDivElement), world, input, hud, camera, stage, feedback: launch.feedback, openMenu: (): void => {
+  const touch: Mobile = startMobile(mobile, { canvas, hudRoot: element('hud', HTMLDivElement), world, input, hud, camera, stage, itemNames: overlays.itemNames, feedback: launch.feedback, openMenu: (): void => {
       if (playing && !transition.blocking) pauseMenu.open(null);
     } });
   const opening: Opening = createOpening({ world, camera, hud: element('hud', HTMLDivElement), touch: mobile.touch, overlays: overlayManager, send, nameOf: (): string | null => heroName ?? readHeroName(createBrowserStore()), fetchVoice: (): Promise<SpokenName | null> => (nameVoice === null || heroName === null ? Promise.resolve(null) : nameVoice.fetch()), playVoice: (clip: ArrayBuffer): Promise<void> => audio.playEcho(clip), setAmbience: (light: ZoneLight): void => stage.setAmbience(light), setRain: (amount: number): void => rain.setWeather({ ...world.zone.weather, rain: amount }), refreshName: (): Promise<void> => (lobby === null ? Promise.resolve() : lobby.feed.refresh(true)) });

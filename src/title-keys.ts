@@ -57,7 +57,7 @@ function capital(text: string): string {
 }
 
 function keysOf(keys: ResolvedKeys, def: ActionDef, joiner: string): string {
-  return keys.bindingsOf(def.id).map(keyName).join(joiner);
+  return [...new Set<string>(keys.bindingsOf(def.id).map(keyName))].join(joiner);
 }
 
 function labelOf(def: ActionDef): string {

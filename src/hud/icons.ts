@@ -40,6 +40,7 @@ const GLYPHS: ReadonlyMap<string, string> = new Map<string, string>([
   ['eye', '<path d="M2 12c3-6 7-7 10-7s7 1 10 7c-3 6-7 7-10 7s-7-1-10-7z"/><circle cx="12" cy="12" r="3"/>'],
   ['mouse_left', '<rect x="5.5" y="2" width="13" height="20" rx="6.5" stroke-width="2"/><path d="M12 2v8H5.5V8.5A6.5 6.5 0 0 1 12 2z" fill="currentColor" stroke="none"/>'],
   ['mouse_right', '<rect x="5.5" y="2" width="13" height="20" rx="6.5" stroke-width="2"/><path d="M12 2v8h6.5V8.5A6.5 6.5 0 0 0 12 2z" fill="currentColor" stroke="none"/>'],
+  ['tag', '<path d="M3.5 11.6V4.5a1 1 0 0 1 1-1h7.1l8.6 8.6a1 1 0 0 1 0 1.4l-7.1 7.1a1 1 0 0 1-1.4 0z"/><circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/>'],
   ['coin', '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5.5" opacity="0.5"/><path d="M12 9.5v5" opacity="0.8"/>'],
 ]);
 

@@ -10,6 +10,7 @@ import { enterLandscapeFullscreen, holdPageStill, readDeviceFacts } from './page
 import type { DeviceFacts, Quality, QualityTier } from './quality.ts';
 import { chooseQuality, configureRenderBudget, createQuality } from './quality.ts';
 import { prefersTouch } from './touch-map.ts';
+import type { ItemNames } from '../render/item-names.ts';
 import type { TouchControls } from './touch-ui.ts';
 import { createTouchControls } from './touch-ui.ts';
 
@@ -26,6 +27,7 @@ export interface MobileSetup {
   readonly hud: Hud;
   readonly camera: IsoCamera;
   readonly stage: Stage;
+  readonly itemNames: ItemNames;
   readonly feedback: (() => void) | null;
   openMenu(): void;
 }
@@ -61,6 +63,7 @@ export function startMobile(boot: MobileBoot, setup: MobileSetup): Mobile {
         yaw: (CAMERA.yawDegrees * Math.PI) / 180,
         zoomStep: CAMERA.zoomStep,
         zoomBy: (wheelDelta: number): void => setup.camera.zoomBy(wheelDelta),
+        itemNames: setup.itemNames,
         feedback: setup.feedback,
         openMenu: (): void => setup.openMenu(),
       })

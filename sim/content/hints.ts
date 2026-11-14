@@ -7,7 +7,7 @@ import type { Content } from './types.ts';
 export const HINT_PANELS = ['inventory', 'tree', 'map'] as const;
 export type HintPanel = (typeof HINT_PANELS)[number];
 
-export const STATIC_KEYS = ['inventory', 'tree', 'map', 'flask'] as const;
+export const STATIC_KEYS = ['inventory', 'tree', 'map', 'flask', 'names'] as const;
 export const SLOT_KEY: RegExp = /^slot_([1-9])$/;
 export const DESK_WORDS: RegExp = /\b(click\w*|press(es|ed|ing)?|mouse|mice|keyboards?|keys?)\b/i;
 

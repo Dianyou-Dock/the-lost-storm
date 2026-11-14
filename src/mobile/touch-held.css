@@ -28,3 +28,17 @@
 .tc-stick.held .tc-knob {
   scale: 0.8;
 }
+
+.tc-names svg {
+  transition:
+    background-color var(--spring-snappy-ms) var(--spring-snappy),
+    color var(--spring-snappy-ms) var(--spring-snappy);
+}
+
+.tc-names.on {
+  color: var(--storm);
+}
+
+body.touch .tc-names.on svg {
+  background: rgba(24, 40, 58, 0.66);
+}

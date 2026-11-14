@@ -8,6 +8,7 @@ const NAMED: Readonly<Record<string, ActionId>> = {
   tree: 'tree',
   map: 'map',
   flask: 'flask1',
+  names: 'names',
 };
 
 export function keyLabel(keys: ResolvedKeys, name: string): string {
@@ -16,6 +17,11 @@ export function keyLabel(keys: ResolvedKeys, name: string): string {
   const action: ActionId | undefined = NAMED[name];
   return action === undefined ? '' : keys.labelOf(action);
 }
+
+export const TOUCH_NAMES = {
+  icon: 'tag',
+  name: 'Show item names',
+} as const;
 
 export const PANEL_ICONS = {
   inventory: 'armour',
@@ -41,6 +47,8 @@ export function touchLabel(world: World, name: string): TouchLabel {
       return { kind: 'icon', icon: PANEL_ICONS.map, name: 'Map' };
     case 'flask':
       return { kind: 'words', text: '1' };
+    case 'names':
+      return { kind: 'icon', icon: TOUCH_NAMES.icon, name: TOUCH_NAMES.name };
     default:
       return { kind: 'words', text: '' };
   }

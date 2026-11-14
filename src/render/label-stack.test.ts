@@ -1,34 +1,90 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { foldPiles, stackLabels } from './label-stack.ts';
-import type { LabelBox } from './label-stack.ts';
+import { LABEL_EDGE } from './label-edge.ts';
+import { foldPiles, settleLabels } from './label-stack.ts';
+import type { LabelSpot, RankedBox, ScreenRect, SettleView } from './label-stack.ts';
 
-function box(id: number, x: number, y: number): LabelBox {
-  return { id, x, y, width: 80, height: 18 };
+const VIEW: SettleView = { width: 1280, height: 720 };
+
+function box(id: number, x: number, y: number, rank: number = 0): RankedBox {
+  return { id, x, y, width: 80, height: 18, rank };
 }
 
-void test('labels far apart are left alone', (): void => {
-  const lifts: Map<number, number> = stackLabels([box(1, 0, 100), box(2, 300, 100)], 2);
-  assert.equal(lifts.get(1), 0);
-  assert.equal(lifts.get(2), 0);
+function settled(boxes: readonly RankedBox[], view: SettleView = VIEW, blockers: readonly ScreenRect[] = []): Map<number, ScreenRect> {
+  const spots: Map<number, LabelSpot> = settleLabels(boxes, 2, view, blockers);
+  const rects: Map<number, ScreenRect> = new Map<number, ScreenRect>();
+  for (const entry of boxes) {
+    const spot: LabelSpot | undefined = spots.get(entry.id);
+    assert.ok(spot !== undefined, `${entry.id} has no spot`);
+    rects.set(entry.id, { left: spot.x - entry.width / 2, top: spot.y - entry.height, right: spot.x + entry.width / 2, bottom: spot.y });
+  }
+  return rects;
+}
+
+function overlap(a: ScreenRect, b: ScreenRect): boolean {
+  return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+function assertApart(rects: ReadonlyMap<number, ScreenRect>): void {
+  for (const [a, first] of rects) {
+    for (const [b, second] of rects) {
+      if (a < b) assert.ok(!overlap(first, second), `${a} and ${b} overlap`);
+    }
+  }
+}
+
+function assertInView(rects: ReadonlyMap<number, ScreenRect>, view: SettleView): void {
+  for (const [id, rect] of rects) {
+    assert.ok(rect.left >= 0 && rect.right <= view.width && rect.top >= 0 && rect.bottom <= view.height, `${id} leaves the view`);
+  }
+}
+
+void test('labels far apart are left where they are', (): void => {
+  const spots: Map<number, LabelSpot> = settleLabels([box(1, 100, 300), box(2, 400, 300)], 2, VIEW, []);
+  assert.deepEqual(spots.get(1), { x: 100, y: 300 });
+  assert.deepEqual(spots.get(2), { x: 400, y: 300 });
 });
 
 void test('labels on the same spot stack upward without overlapping', (): void => {
-  const boxes: LabelBox[] = [box(1, 50, 100), box(2, 50, 100), box(3, 55, 104)];
-  const lifts: Map<number, number> = stackLabels(boxes, 2);
-  const placed: LabelBox[] = boxes.map((entry: LabelBox): LabelBox => box(entry.id, entry.x, entry.y + (lifts.get(entry.id) ?? 0)));
-  for (const a of placed) {
-    for (const b of placed) {
-      if (a.id >= b.id) continue;
-      assert.ok(Math.abs(a.y - b.y) >= 18 + 2, `${a.id} and ${b.id} overlap`);
-    }
-  }
+  const rects = settled([box(1, 500, 400), box(2, 500, 400), box(3, 505, 404)]);
+  assertApart(rects);
+  for (const rect of rects.values()) assert.ok(rect.bottom <= 404);
 });
 
-void test('the lowest label on screen keeps its place', (): void => {
-  const lifts: Map<number, number> = stackLabels([box(1, 50, 100), box(2, 50, 90)], 2);
-  assert.equal(lifts.get(1), 0);
-  assert.ok((lifts.get(2) ?? 0) < 0);
+void test('the rarest label keeps the place nearest its item', (): void => {
+  const spots: Map<number, LabelSpot> = settleLabels([box(1, 500, 400, 0), box(2, 500, 400, 2)], 2, VIEW, []);
+  assert.deepEqual(spots.get(2), { x: 500, y: 400 });
+  assert.ok((spots.get(1)?.y ?? 400) < 400);
+});
+
+void test('a dozen labels dropped together never overlap and stay on screen', (): void => {
+  const pile: RankedBox[] = Array.from({ length: 12 }, (_: unknown, index: number): RankedBox => ({ id: index + 1, x: 640 + (index % 4) * 7, y: 360 + (index % 3) * 5, width: 90 + (index % 5) * 20, height: 20, rank: index % 4 }));
+  const rects = settled(pile);
+  assertApart(rects);
+  assertInView(rects, VIEW);
+});
+
+void test('a pile near the top of the screen spreads downward instead of off the edge', (): void => {
+  const view: SettleView = { width: 844, height: 390 };
+  const pile: RankedBox[] = Array.from({ length: 10 }, (_: unknown, index: number): RankedBox => box(index + 1, 420, 70, index % 3));
+  const rects = settled(pile, view);
+  assertApart(rects);
+  assertInView(rects, view);
+  assert.ok([...rects.values()].every((rect: ScreenRect): boolean => rect.top >= LABEL_EDGE.topClear));
+});
+
+void test('a pile at the side of the screen is pulled inside it', (): void => {
+  const rects = settled([box(1, 4, 300), box(2, 1278, 300), box(3, 2, 300)]);
+  assertApart(rects);
+  assertInView(rects, VIEW);
+});
+
+void test('labels never settle under a HUD panel', (): void => {
+  const panel: ScreenRect = { left: 400, top: 200, right: 900, bottom: 330 };
+  const pile: RankedBox[] = Array.from({ length: 8 }, (_: unknown, index: number): RankedBox => box(index + 1, 640, 360, index % 2));
+  const rects = settled(pile, VIEW, [panel]);
+  assertApart(rects);
+  for (const [id, rect] of rects) assert.ok(!overlap(rect, panel), `${id} is under the panel`);
 });
 
 void test('a pile of many labels keeps the three rarest and counts the rest on the last kept one', (): void => {

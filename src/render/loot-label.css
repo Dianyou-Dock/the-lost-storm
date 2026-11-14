@@ -33,6 +33,10 @@
   opacity: 0;
 }
 
+.loot-label.dim span {
+  scale: 0.9;
+}
+
 .loot-label.dim span,
 .loot-label.folded span,
 .loot-label.taken span {

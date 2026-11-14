@@ -15,10 +15,13 @@ import { createLootTip } from './loot-tip.ts';
 import type { LootTip, TipCheck } from './loot-tip.ts';
 import { anchorInView, heldReach, keepApart, keepTagInView, LABEL_EDGE, placeTag, stackAtEdges } from './label-edge.ts';
 import type { EdgeStack, EdgeTag, ItemPoint, TagPlace, ViewSize } from './label-edge.ts';
-import { foldPiles, stackLabels } from './label-stack.ts';
+import { foldPiles, settleLabels } from './label-stack.ts';
+import { lootShown, pilesFold } from './loot-shown.ts';
+import type { ItemNames } from './item-names.ts';
+import { createItemNames, ITEM_NAMES, sessionFlag, watchItemNames } from './item-names.ts';
 import type { LabelGlide } from './label-glide.ts';
 import { createGlide, glideToward } from './label-glide.ts';
-import type { Folding, RankedBox, ScreenRect } from './label-stack.ts';
+import type { Folding, LabelSpot, RankedBox, ScreenRect } from './label-stack.ts';
 import type { TagSize, TagSizes } from './tag-sizes.ts';
 import { browserTagMeasure, createTagSizes } from './tag-sizes.ts';
 
@@ -38,7 +41,6 @@ export const OVERLAYS = {
   labelShownRank: 1,
   arrowFloor: 0.001,
   arrowGap: 1,
-  altKey: 'Alt',
   numberHeight: 0.75,
   exitLift: 2.6,
   npcLift: 0.5,
@@ -112,6 +114,7 @@ interface LeavingLabel {
 
 export interface OverlayHooks {
   readonly findLabel: string;
+  nameKeys(): readonly string[];
   heightOf(actorId: number): number;
   onPickup(groundId: number): void;
   onLootEnter(item: ItemInstance, x: number, y: number): void;
@@ -123,6 +126,7 @@ export interface OverlayHooks {
 }
 
 export interface Overlays {
+  readonly itemNames: ItemNames;
   handle(events: readonly WorldEvent[], world: World): void;
   update(dt: number, world: World, hoveredId: number | null): void;
   aimExit(exit: string | null): void;
@@ -176,7 +180,6 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
     view = { width: root.clientWidth, height: root.clientHeight };
   }).observe(root);
   let labelHoverId: number | null = null;
-  let showAll: boolean = false;
   let exitsOf: ZoneDef | null = null;
   let aimed: string | null = null;
   let aimedItem: number | null = null;
@@ -248,17 +251,10 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
     layer.className = 'world-layer';
     root.append(layer);
   }
+  const itemNames: ItemNames = createItemNames((): readonly string[] => hooks.nameKeys(), sessionFlag(ITEM_NAMES.sessionKey));
+  watchItemNames(itemNames, window);
   const healthBars: HealthBars = createHealthBars(root, camera);
   const targetBar: TargetBar = createTargetBar(root);
-
-  const setAlt = (event: KeyboardEvent): void => {
-    if (event.key === OVERLAYS.altKey) showAll = event.type === 'keydown';
-  };
-  window.addEventListener('keydown', setAlt);
-  window.addEventListener('keyup', setAlt);
-  window.addEventListener('blur', (): void => {
-    showAll = false;
-  });
 
   const float = (text: string, kind: string, x: number, y: number, z: number): void => {
     const element: HTMLDivElement = document.createElement('div');
@@ -397,6 +393,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
   };
 
   return {
+    itemNames,
     aimItem(groundId: number | null): void {
       if (groundId === aimedItem) return;
       aimedItem = groundId;
@@ -577,6 +574,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
       const settled: RankedBox[] = [];
       const items: Map<number, ItemPoint> = new Map<number, ItemPoint>();
       const moved: Set<number> = new Set<number>();
+      const all: boolean = itemNames.shown();
       for (const [id, label] of labels) {
         if (label.leaving >= 0) {
           label.leaving -= dt;
@@ -590,7 +588,8 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           label.element.classList.add('taken');
         }
         const near: boolean = Math.hypot(label.ground.pos.x - world.player.pos.x, label.ground.pos.z - world.player.pos.z) <= OVERLAYS.labelNear;
-        const shown: boolean = showAll || near || label.ground.find !== null || label.rank >= OVERLAYS.labelShownRank;
+        camera.project(label.ground.pos.x, label.ground.find === null ? OVERLAYS.labelLift : OVERLAYS.findLift, label.ground.pos.z, point);
+        const shown: boolean = lootShown({ all, near, find: label.ground.find !== null, rank: label.rank, shownRank: OVERLAYS.labelShownRank, inView: anchorInView(point.x, point.y, view) });
         if (shown !== label.shown) {
           label.shown = shown;
           label.element.classList.toggle('dim', !shown);
@@ -601,7 +600,6 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           label.width = size.width;
           label.height = size.height;
         }
-        camera.project(label.ground.pos.x, label.ground.find === null ? OVERLAYS.labelLift : OVERLAYS.findLift, label.ground.pos.z, point);
         if (shown) {
           const first: TagPlace = placeTag(point.x, point.y, label.width, label.height, view, hudRects);
           items.set(id, { x: point.x, y: point.y });
@@ -615,18 +613,18 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           glidePlace(label.element, label.glide, anchor, point, dt);
         }
       }
-      const folding: Folding = foldPiles(showAll ? [] : settled, OVERLAYS.pileReach, OVERLAYS.pileKeep);
+      const folding: Folding = foldPiles(pilesFold(all) ? settled : [], OVERLAYS.pileReach, OVERLAYS.pileKeep);
       for (const [id, label] of labels) foldLabel(label, folding.folded.has(id), folding.more.get(id) ?? 0);
-      const lifts: Map<number, number> = stackLabels(boxes.filter((box: RankedBox): boolean => !folding.folded.has(box.id)), OVERLAYS.labelGap);
+      const spots: Map<number, LabelSpot> = settleLabels(boxes.filter((box: RankedBox): boolean => !folding.folded.has(box.id)), OVERLAYS.labelGap, view, hudRects);
       for (const box of boxes) {
         const label: LootLabel | undefined = labels.get(box.id);
         const item: ItemPoint | undefined = items.get(box.id);
         if (label === undefined || item === undefined) continue;
-        const target: TagPlace = placeTag(box.x, box.y + (lifts.get(box.id) ?? 0), box.width, box.height, view, hudRects, item);
+        const target: LabelSpot = spots.get(box.id) ?? box;
         anchor.set(item.x, item.y);
         point.set(target.x, target.y);
         glidePlace(label.element, label.glide, anchor, point, dt);
-        const spot: TagPlace = { ...target, x: point.x, y: point.y, turn: Math.atan2(item.y - (point.y - box.height / 2), item.x - point.x) };
+        const spot: TagPlace = { x: point.x, y: point.y, away: Math.abs(target.x - box.x) > LABEL_EDGE.awayDistance || target.y - box.y > LABEL_EDGE.awayDistance, turn: Math.atan2(item.y - (point.y - box.height / 2), item.x - point.x) };
         const away: boolean = spot.away || moved.has(box.id);
         label.element.classList.toggle('away', away);
         if (away) {

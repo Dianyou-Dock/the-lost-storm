@@ -1,3 +1,9 @@
+import { LABEL_EDGE } from './label-edge.ts';
+
+export const SETTLE = {
+  downWeight: 4,
+} as const;
+
 export interface LabelBox {
   readonly id: number;
   readonly x: number;
@@ -13,25 +19,65 @@ export interface ScreenRect {
   readonly bottom: number;
 }
 
-function overlaps(a: LabelBox, b: LabelBox, gap: number): boolean {
-  return Math.abs(a.x - b.x) < (a.width + b.width) / 2 + gap && a.y > b.y - b.height - gap && a.y - a.height - gap < b.y;
+export interface LabelSpot {
+  readonly x: number;
+  readonly y: number;
 }
 
-export function stackLabels(boxes: readonly LabelBox[], gap: number): Map<number, number> {
-  const ordered: LabelBox[] = boxes.toSorted((a: LabelBox, b: LabelBox): number => (a.y === b.y ? a.id - b.id : b.y - a.y));
-  const placed: LabelBox[] = [];
-  const lifts: Map<number, number> = new Map<number, number>();
+export interface SettleView {
+  readonly width: number;
+  readonly height: number;
+}
+
+function rectOf(box: LabelBox, x: number, y: number): ScreenRect {
+  return { left: x - box.width / 2, top: y - box.height, right: x + box.width / 2, bottom: y };
+}
+
+function touches(a: ScreenRect, b: ScreenRect, gap: number): boolean {
+  return a.left < b.right + gap && b.left - gap < a.right && a.top < b.bottom + gap && b.top - gap < a.bottom;
+}
+
+function centred(x: number, width: number, view: SettleView): number {
+  const low: number = LABEL_EDGE.side + width / 2;
+  const high: number = view.width - LABEL_EDGE.side - width / 2;
+  return low > high ? view.width / 2 : Math.min(high, Math.max(low, x));
+}
+
+export function settleLabels(boxes: readonly RankedBox[], gap: number, view: SettleView, blockers: readonly ScreenRect[]): Map<number, LabelSpot> {
+  const ordered: RankedBox[] = boxes.toSorted((a: RankedBox, b: RankedBox): number => (a.rank !== b.rank ? b.rank - a.rank : a.y !== b.y ? b.y - a.y : a.id - b.id));
+  const placed: ScreenRect[] = [];
+  const spots: Map<number, LabelSpot> = new Map<number, LabelSpot>();
+  const hudGap: number = LABEL_EDGE.hudGap + 1;
   for (const box of ordered) {
-    let current: LabelBox = box;
-    for (;;) {
-      const blocker: LabelBox | undefined = placed.find((other: LabelBox): boolean => overlaps(current, other, gap));
-      if (blocker === undefined) break;
-      current = { ...box, y: blocker.y - blocker.height - gap };
-    }
-    placed.push(current);
-    lifts.set(box.id, current.y - box.y);
+    const free = (x: number, y: number): boolean => {
+      if (y - box.height < LABEL_EDGE.topClear || y > view.height - LABEL_EDGE.side) return false;
+      const rect: ScreenRect = rectOf(box, x, y);
+      return !placed.some((other: ScreenRect): boolean => touches(rect, other, gap)) && !blockers.some((other: ScreenRect): boolean => touches(rect, other, LABEL_EDGE.hudGap));
+    };
+    const ys: number[] = [box.y, ...placed.flatMap((rect: ScreenRect): number[] => [rect.top - gap, rect.bottom + gap + box.height]), ...blockers.flatMap((rect: ScreenRect): number[] => [rect.top - hudGap, rect.bottom + hudGap + box.height])];
+    const home: number = centred(box.x, box.width, view);
+    const lean = (x: number, y: number): number => Math.abs(x - home) + (y <= box.y ? box.y - y : (y - box.y) * SETTLE.downWeight);
+    const pick = (xs: readonly number[]): LabelSpot | null => {
+      let best: LabelSpot | null = null;
+      let cost: number = Infinity;
+      for (const raw of xs) {
+        const x: number = centred(raw, box.width, view);
+        for (const y of ys) {
+          const option: number = lean(x, y);
+          if (option < cost && free(x, y)) {
+            cost = option;
+            best = { x, y };
+          }
+        }
+      }
+      return best;
+    };
+    const sides: number[] = [...placed, ...blockers].flatMap((rect: ScreenRect): number[] => [rect.left - gap - box.width / 2 - LABEL_EDGE.hudGap, rect.right + gap + box.width / 2 + LABEL_EDGE.hudGap]);
+    const spot: LabelSpot = pick([home]) ?? pick([home, ...sides]) ?? { x: home, y: Math.min(view.height - LABEL_EDGE.side, Math.max(LABEL_EDGE.topClear + box.height, box.y)) };
+    placed.push(rectOf(box, spot.x, spot.y));
+    spots.set(box.id, spot);
   }
-  return lifts;
+  return spots;
 }
 
 export interface RankedBox extends LabelBox {
