@@ -25,7 +25,7 @@ export const USAGE: string = [
   '  level <n>             from waking until level n, farming after the slice (--minutes caps it, default 120)',
   '  over <n>              the slice, then the hero raised to level n farms N minutes in wild zones fixed at --zone (default 1)',
   '  boss <a,b,…>          farm to each level in turn and fight the boss in its lair N times there (--repeats, default 5; --minutes caps each climb)',
-  '  pack <monster> <a,b,…> farm to each level in turn and fight one pack of the monster at that level N times in the Hall (--count, default 4; --repeats, default 5); a mix such as wolf:3+spider:1 fights them together',
+  '  pack <monster> <a,b,…> farm to each level in turn and fight one pack of the monster at that level N times in the Hall (--count, default 4; --repeats, default 5); a mix such as wolf:3+spider:1 fights them together; --groups N spreads N such packs --gap metres apart in a line, only the first awake',
   '  replay <file.jsonl>…  read recorded measurement streams (from --record or storm.saveMeasurements() in a dev build) into the same report',
   '',
   'options',
@@ -122,17 +122,20 @@ function scenarioOf(words: readonly string[], args: readonly string[]): Scenario
       const levels: number[] | string = risingLevels(words[2], 'pack');
       const count: number | null = whole(option(args, 'count'), PACK.count);
       const repeats: number | null = whole(option(args, 'repeats'), PACK.repeats);
+      const groups: number | null = whole(option(args, 'groups'), PACK.groups);
+      const gap: number | null = whole(option(args, 'gap'), PACK.gap);
       if (value === undefined) return 'pack needs a monster id and hero levels, such as wolf 9,11,13';
       if (!packMix(value)) return 'pack names monster ids joined by +, each with an optional count, such as wolf:3+spider:1';
       if (typeof levels === 'string') return levels;
-      return count === null || repeats === null ? '--count and --repeats must be whole numbers' : { kind, monster: value, count, levels, repeats, minutes };
+      if (groups === null || gap === null) return '--groups and --gap must be whole numbers';
+      return count === null || repeats === null ? '--count and --repeats must be whole numbers' : { kind, monster: value, count, levels, repeats, minutes, groups, gap };
     }
     default:
       return `unknown scenario ${kind}`;
   }
 }
 
-const OPTIONS: ReadonlySet<string> = new Set<string>(['runs', 'skill', 'build', 'seed', 'workers', 'out', 'record', 'minutes', 'repeats', 'count', 'zone', 'danger', 'toughness']);
+const OPTIONS: ReadonlySet<string> = new Set<string>(['runs', 'skill', 'build', 'seed', 'workers', 'out', 'record', 'minutes', 'repeats', 'count', 'groups', 'gap', 'zone', 'danger', 'toughness']);
 
 export function parseArgs(args: readonly string[], policies: Policies, moments: ReadonlySet<string>, cores: number): Command {
   const words: string[] = positional(args);

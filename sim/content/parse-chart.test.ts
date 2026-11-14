@@ -31,6 +31,11 @@ void test('unknown paths, groups and variant skills are problems', (): void => {
   assert.ok(chartProblems(withNode({ variants: [{ skill: 'cleave', becomes: 'cleave_whirl' }, { skill: 'cleave', becomes: 'cleave_heave' }] })).some((line: string): boolean => line.includes('two ways')));
 });
 
+void test('a skill the tree makes from another is turned again by one place only, so a rival to the Millwheel turn is refused', (): void => {
+  assert.ok(chartProblems(withNode({ variants: [{ skill: 'cleave_whirl', becomes: 'cleave_heave' }] })).some((line: string): boolean => line.includes('cleave_whirl is made on the tree and turned again by more than one place: endless_turn, probe')));
+  assert.deepEqual(chartProblems(withNode({ variants: [{ skill: 'storm_bolt', becomes: 'cleave_heave' }] })), []);
+});
+
 void test('the chart needs whole points per level and a plain colour for each path', (): void => {
   const base = { title: 'The Skill Tree', pointsPerLevel: 2, respec: { goldPerPoint: 1, goldPerLevel: 1 }, grants: [], twist: 0.08, paths: [{ id: 'a', name: 'A', tint: '#aabbcc', description: '' }], groups: [] };
   assert.equal(chartDef(base, 'chart').pointsPerLevel, 2);

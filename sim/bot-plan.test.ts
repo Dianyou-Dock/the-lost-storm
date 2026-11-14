@@ -1,13 +1,16 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { BotPlan } from './bot-plan.ts';
-import { STAND_WEIGHTS, flaskCommands, junkIndex, nextPlace, planAttack, powerOf, releaseCommands, rollCommand, upgradeIndex } from './bot-plan.ts';
+import { STAND_WEIGHTS, flaskCommands, junkIndex, nextPlace, planAttack, powerOf, releaseCommands, rollCommand, spinAim, upgradeIndex } from './bot-plan.ts';
 import { generateItem } from './items.ts';
 import { holdingParts } from './progression.ts';
 import { loadContent } from './content/content.ts';
 import type { Content, SkillDef, SkillTreeNodeDef } from './content/types.ts';
 import { createWorld } from './world/create.ts';
-import type { Command, ItemInstance, World } from './world/types.ts';
+import { spawnPackNear } from './world/monsters.ts';
+import { resolveSkill } from './stats.ts';
+import { stepWorld } from './world/step.ts';
+import type { Command, ItemInstance, MonsterState, World } from './world/types.ts';
 
 const content: Content = loadContent();
 
@@ -180,4 +183,33 @@ void test('a build fills its spare points by path without taking a keystone its 
     walked.push(next);
   }
   assert.ok(walked.includes('edge_without_rest'));
+});
+
+void test('a spinning hero keeps holding and steers into the thickest crowd, and lets go once nothing is left in sight', (): void => {
+  const world: World = createWorld(content, { seed: 9, save: null });
+  const cleave: SkillDef | undefined = content.skills.get('cleave');
+  assert.ok(cleave !== undefined);
+  const spin: SkillDef = resolveSkill(content, cleave, ['whirling_cleave', 'endless_turn']);
+  assert.ok(spin.momentum !== null);
+  world.player.skills = [spin, null, null, null, null, null];
+  world.player.mana = 200;
+  world.monsters = [];
+  const at = world.player.pos;
+  const lone: MonsterState[] = spawnPackNear(world, 'unfinished_taker', 1, { x: at.x + 3, z: at.z });
+  const crowd: MonsterState[] = spawnPackNear(world, 'unfinished_taker', 5, { x: at.x, z: at.z + 7 });
+  assert.equal(lone.length + crowd.length, 6);
+  const aim = spinAim(world, spin);
+  assert.ok(aim !== null && aim.z > at.z + 4, JSON.stringify(aim));
+  const target = lone[0];
+  assert.ok(target !== undefined);
+  const press: Command[] = planAttack(world, PLAN, target, [...lone, ...crowd]);
+  assert.deepEqual(press[0], { type: 'hold', slot: 0, down: true });
+  stepWorld(world, press, 1 / 60);
+  assert.equal(world.player.action?.phase !== undefined, true);
+  const held: Command[] = releaseCommands(world);
+  assert.equal(held.length, 1);
+  assert.equal(held[0]?.type, 'steer');
+  for (const monster of [...lone, ...crowd]) monster.alive = false;
+  assert.equal(spinAim(world, spin), null);
+  assert.deepEqual(releaseCommands(world), [{ type: 'hold', slot: 0, down: false }]);
 });

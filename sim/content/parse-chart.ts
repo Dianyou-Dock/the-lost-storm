@@ -129,5 +129,15 @@ export function chartProblems(content: Content): string[] {
     }
     problems.push(...variantProblems(content, node));
   }
+  problems.push(...rivalProblems(nodes));
   return problems;
+}
+
+function rivalProblems(nodes: readonly SkillTreeNodeDef[]): string[] {
+  const made: ReadonlySet<string> = new Set<string>(nodes.flatMap((node: SkillTreeNodeDef): string[] => node.variants.map((variant: SkillVariant): string => variant.becomes)));
+  const turners: Map<string, string[]> = new Map<string, string[]>();
+  for (const node of nodes) {
+    for (const { skill } of node.variants) if (made.has(skill)) turners.set(skill, [...(turners.get(skill) ?? []), node.id]);
+  }
+  return [...turners].filter(([, places]: [string, string[]]): boolean => places.length > 1).map(([skill, places]: [string, string[]]): string => `${skill} is made on the tree and turned again by more than one place: ${places.join(', ')}`);
 }

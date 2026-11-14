@@ -88,7 +88,7 @@ function skillModText(content: Content, mod: SkillMod): string {
   const name: string = targetName(content, mod.target);
   const sign: string = mod.value < 0 ? '-' : '+';
   const size: number = Math.abs(mod.value);
-  const amount: string = mod.field === 'projectiles' || mod.field === 'pierce' || mod.field === 'chains' ? String(size) : `${Math.round(size * 100)}%`;
+  const amount: string = mod.field === 'projectiles' || mod.field === 'pierce' || mod.field === 'chains' || mod.field === 'lifePerHit' ? String(size) : `${Math.round(size * 100)}%`;
   return `${sign}${amount} ${mod.field.replace(/Percent$/, '')} (${name})`;
 }
 

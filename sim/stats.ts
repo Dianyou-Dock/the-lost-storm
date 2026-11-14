@@ -116,10 +116,21 @@ function varied(content: Content, chosen: ChosenSkill, variants: readonly SkillV
   return chosen;
 }
 
+function chained(content: Content, chosen: ChosenSkill, variants: readonly SkillVariant[]): ChosenSkill {
+  let current: ChosenSkill = chosen;
+  for (let step: number = 0; step < variants.length; step += 1) {
+    const next: ChosenSkill = varied(content, current, variants);
+    const reached: string | undefined = next.through[next.through.length - 1];
+    if (next === current || reached === undefined || current.through.includes(reached)) return current;
+    current = next;
+  }
+  return current;
+}
+
 export function variantChain(content: Content, skill: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = []): ChosenSkill {
   const fromTree: readonly SkillVariant[] = allocatedNodes(content, allocated).flatMap((node: SkillTreeNodeDef): readonly SkillVariant[] => node.variants);
   const fromPowers: readonly SkillVariant[] = powers.flatMap((power: PowerDef): readonly SkillVariant[] => power.variants);
-  return varied(content, varied(content, { skill, through: [skill.id] }, worn), [...fromPowers, ...fromTree]);
+  return chained(content, varied(content, { skill, through: [skill.id] }, worn), [...fromPowers, ...fromTree]);
 }
 
 export function chosenVariant(content: Content, skill: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = []): SkillDef {
@@ -152,6 +163,7 @@ export function resolveSkill(content: Content, base: SkillDef, allocated: readon
     manaCost: Math.round(skill.manaCost * scaleOf(mods, 'manaCostPercent')),
     knockback: skill.knockback * (1 + sumSkillMod(mods, 'knockbackPercent')),
     stagger: skill.stagger * scaleOf(mods, 'staggerPercent'),
+    momentum: skill.momentum === null ? null : { ...skill.momentum, cap: Math.max(skill.momentum.perHit, skill.momentum.cap * scaleOf(mods, 'momentumCapPercent')), grace: skill.momentum.grace * scaleOf(mods, 'momentumGracePercent'), lifePerHit: skill.momentum.lifePerHit + sumSkillMod(mods, 'lifePerHit') },
   };
 }
 

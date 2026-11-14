@@ -5,7 +5,7 @@ import { loadContent } from '../sim/content/content.ts';
 import type { BookDef, PageDef } from '../sim/content/story-types.ts';
 import type { Content, MonsterDef, MonsterScaling, ScalingRamp, ZoneDef, ZoneExit } from '../sim/content/types.ts';
 import type { Vec2 } from '../sim/math.ts';
-import { distance } from '../sim/math.ts';
+import { distance, normalize } from '../sim/math.ts';
 import type { BossOutcome, Measurement, Meter } from '../sim/measure.ts';
 import { closeMeter, createMeter, readMeter, sessionHeader } from '../sim/measure.ts';
 import { isWalkable, lineWalkable, nearestWalkable } from '../sim/nav/grid.ts';
@@ -19,7 +19,7 @@ import { readablePages } from '../sim/world/story.ts';
 import type { GroundItem, ItemInstance, MomentState, MonsterState, World, WorldEvent } from '../sim/world/types.ts';
 import type { PackFight } from './simulate-pack.ts';
 import type { PackMember } from './simulate-pack.ts';
-import { packFoe, packMembers } from './simulate-pack.ts';
+import { packLabel, packMembers } from './simulate-pack.ts';
 import type { BuildPolicy, Policies, SkillPolicy } from './simulate-policies.ts';
 import { planFor } from './simulate-policies.ts';
 import { forkBot } from './simulate-fork.ts';
@@ -39,6 +39,7 @@ export const RUN = {
   bossApproach: 60,
   bossRest: 30,
   packLimit: 120,
+  groupReach: 4,
 } as const;
 
 export type Scenario = { readonly kind: 'slice' } | { readonly kind: 'farm'; readonly minutes: number } | { readonly kind: 'fight'; readonly moment: string; readonly repeats: number } | { readonly kind: 'level'; readonly level: number; readonly minutes: number } | { readonly kind: 'over'; readonly hero: number; readonly zone: number; readonly minutes: number } | { readonly kind: 'boss'; readonly levels: readonly number[]; readonly repeats: number; readonly minutes: number } | PackFight;
@@ -85,7 +86,7 @@ export function scenarioName(scenario: Scenario): string {
     case 'boss':
       return `boss at ${scenario.levels.join(', ')}`;
     case 'pack':
-      return `${packFoe(scenario)} at ${scenario.levels.join(', ')}`;
+      return `${packLabel(scenario)} at ${scenario.levels.join(', ')}`;
   }
   return 'unknown';
 }
@@ -303,18 +304,24 @@ function fightPack(bot: Bot, scenario: PackFight, origin: number): Measurement |
   const hall: ZoneDef = world.zone;
   const level: number = world.player.level;
   world.zone = { ...hall, level, levelUpTo: level, surge: null };
-  const pack: MonsterState[] = packMembers(scenario).flatMap((member: PackMember): MonsterState[] => spawnPackNear(world, member.monster, member.count, spot));
+  const way: Vec2 = normalize({ x: spot.x - world.player.pos.x, z: spot.z - world.player.pos.z }, { x: 1, z: 0 });
+  const groups: MonsterState[][] = Array.from({ length: scenario.groups }, (_unused: unknown, index: number): MonsterState[] => {
+    const at: Vec2 = nearestWalkable(world.grid, { x: spot.x + way.x * scenario.gap * index, z: spot.z + way.z * scenario.gap * index }, RUN.groupReach) ?? spot;
+    return packMembers(scenario).flatMap((member: PackMember): MonsterState[] => spawnPackNear(world, member.monster, member.count, at));
+  });
   world.zone = hall;
+  const pack: MonsterState[] = groups.flat();
   if (pack.length === 0) return null;
-  for (const monster of pack) monster.aggro = true;
+  for (const monster of groups[0] ?? []) monster.aggro = true;
+  const prefer: string | null = scenario.groups > 1 ? packMembers(scenario)[0]?.monster ?? null : null;
   const lying: ReadonlySet<number> = new Set<number>(world.ground.map((ground: GroundItem): number => ground.id));
   const deaths: number = bot.deaths;
   const start: number = world.time;
   const cleared = (): boolean => pack.every((monster: MonsterState): boolean => !monster.alive);
   const over = (): boolean => cleared() || bot.deaths > deaths || world.zone.id !== zone || world.time >= start + RUN.packLimit;
-  while (!over()) botFight(bot, over, null);
+  while (!over()) botFight(bot, over, prefer);
   const lost: boolean = bot.deaths > deaths;
-  const measured: Measurement = { kind: 'boss', t: Math.round((world.time - origin) * 100) / 100, boss: packFoe(scenario), level, outcome: cleared() ? 'won' : lost ? 'lost' : 'timeout', seconds: Math.round((world.time - start) * 10) / 10, lifeLeft: lost ? 0 : Math.round((world.player.life / world.player.maxLife) * 100) / 100 };
+  const measured: Measurement = { kind: 'boss', t: Math.round((world.time - origin) * 100) / 100, boss: packLabel(scenario), level, outcome: cleared() ? 'won' : lost ? 'lost' : 'timeout', seconds: Math.round((world.time - start) * 10) / 10, lifeLeft: lost ? 0 : Math.round((world.player.life / world.player.maxLife) * 100) / 100 };
   world.monsters = world.monsters.filter((monster: MonsterState): boolean => !pack.includes(monster));
   for (let waited: number = 0; !world.player.alive && waited < RUN.bossRest; waited += BOT.step) botStep(bot, []);
   if (world.zone.id === zone) for (const monster of pack) if (!monster.alive) lootAround(bot, monster.pos);

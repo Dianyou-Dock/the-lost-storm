@@ -6,8 +6,10 @@ import { canAllocate, placeLinks, startingPlaces } from './progression.ts';
 import { wornPowers, wornVariants } from './powers.ts';
 import { armourReduction, computeStats, damagePerSecond, resolveSkill } from './stats.ts';
 import { canDash } from './world/dash.ts';
+import { playerMayStrike } from './world/factions.ts';
 import { blockedFlask } from './world/flasks.ts';
-import { chargeOf } from './world/skills.ts';
+import { glidesWith } from './world/momentum.ts';
+import { chargeOf, spunSkill } from './world/skills.ts';
 import type { Command, Equipment, FlaskState, ItemInstance, MonsterState, PlayerState, World } from './world/types.ts';
 
 export const BOT_PLAN = {
@@ -17,6 +19,8 @@ export const BOT_PLAN = {
   crowd: 2,
   manaFloor: 0.25,
   upgradeMargin: 1.02,
+  spinSight: 14,
+  spinGapCost: 0.15,
 } as const;
 
 export type PlayStyle = 'stand' | 'range' | 'kite';
@@ -238,12 +242,43 @@ export function flaskCommands(world: World, plan: BotPlan): Command[] {
   return player.flasks.flatMap((flask: FlaskState, slot: number): Command[] => (wantsFlask(player, flask, plan) ? [{ type: 'flask', slot }] : []));
 }
 
+function reachOf(skill: SkillDef): number {
+  const delivery = skill.delivery;
+  return delivery.type === 'nova' ? delivery.radius : BOT_PLAN.crowdReach;
+}
+
+export function spinAim(world: World, skill: SkillDef): ReadonlyVec2 | null {
+  const player: PlayerState = world.player;
+  const reach: number = reachOf(spunSkill(player, skill));
+  const foes: MonsterState[] = world.monsters.filter((monster: MonsterState): boolean => monster.alive && playerMayStrike(world, monster) && distance(monster.pos, player.pos) <= BOT_PLAN.spinSight);
+  let best: MonsterState | null = null;
+  let bestScore: number = -Infinity;
+  for (const foe of foes) {
+    const score: number = crowdNear(foes, foe.pos, reach) - distance(foe.pos, player.pos) * BOT_PLAN.spinGapCost;
+    if (score > bestScore) {
+      best = foe;
+      bestScore = score;
+    }
+  }
+  return best === null ? null : { x: best.pos.x, z: best.pos.z };
+}
+
 export function releaseCommands(world: World): Command[] {
   const player: PlayerState = world.player;
   const action = player.action;
-  if (action === null || action.slot === null || action.skill.press === null || !player.held.includes(action.slot)) return [];
-  const done: boolean = action.skill.press.type === 'charge' ? chargeOf(action) >= BOT_PLAN.chargeRelease : action.elapsed >= BOT_PLAN.channelSeconds;
-  return done ? [{ type: 'hold', slot: action.slot, down: false }] : [];
+  const press = action?.skill.press ?? null;
+  if (action === null || action.slot === null || press === null || !player.held.includes(action.slot)) return [];
+  const up: Command = { type: 'hold', slot: action.slot, down: false };
+  switch (press.type) {
+    case 'charge':
+      return chargeOf(action) >= BOT_PLAN.chargeRelease ? [up] : [];
+    case 'channel': {
+      if (!glidesWith(press)) return action.elapsed >= BOT_PLAN.channelSeconds ? [up] : [];
+      const aim: ReadonlyVec2 | null = spinAim(world, action.skill);
+      return aim === null ? [up] : [{ type: 'steer', aim }];
+    }
+  }
+  return [];
 }
 
 function deals(skill: SkillDef): boolean {
@@ -296,7 +331,9 @@ export function planAttack(world: World, plan: BotPlan, target: MonsterState, fo
     const press: Command[] = skill.press === null ? [] : [{ type: 'hold', slot, down: true }];
     return [...press, { type: 'skill', slot, aim: target.pos, targetId: target.id }];
   }
-  return [{ type: 'skill', slot: 0, aim: target.pos, targetId: target.id }];
+  const first: SkillDef | null = player.skills[0] ?? null;
+  const basic: Command[] = first === null || first.press === null ? [] : [{ type: 'hold', slot: 0, down: true }];
+  return [...basic, { type: 'skill', slot: 0, aim: target.pos, targetId: target.id }];
 }
 
 export function rollCommand(world: World, refuge: ReadonlyVec2): Command | null {

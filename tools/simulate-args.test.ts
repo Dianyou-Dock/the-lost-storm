@@ -70,7 +70,10 @@ void test('boss takes rising hero levels and a repeat count, and says why when t
 void test('pack names a monster, rising hero levels, a pack size and a repeat count, and says why when one is missing', (): void => {
   const pack: Command = parse(['pack', 'wolf', '9,11,13', '--count', '5', '--repeats', '3']);
   assert.ok(pack.kind === 'simulate');
-  assert.deepEqual(pack.scenario, { kind: 'pack', monster: 'wolf', count: 5, levels: [9, 11, 13], repeats: 3, minutes: pack.scenario.kind === 'pack' ? pack.scenario.minutes : 0 });
+  assert.deepEqual(pack.scenario, { kind: 'pack', monster: 'wolf', count: 5, levels: [9, 11, 13], repeats: 3, minutes: pack.scenario.kind === 'pack' ? pack.scenario.minutes : 0, groups: 1, gap: 8 });
+  const spread: Command = parse(['pack', 'wolf', '9', '--groups', '3', '--gap', '16']);
+  assert.ok(spread.kind === 'simulate' && spread.scenario.kind === 'pack' && spread.scenario.groups === 3 && spread.scenario.gap === 16);
+  assert.deepEqual(parse(['pack', 'wolf', '9', '--gap', 'far']), { kind: 'help', problem: '--groups and --gap must be whole numbers' });
   const plain: Command = parse(['pack', 'wolf', '9']);
   assert.ok(plain.kind === 'simulate' && plain.scenario.kind === 'pack' && plain.scenario.count === 4 && plain.scenario.repeats === 5);
   assert.deepEqual(parse(['pack']), { kind: 'help', problem: 'pack needs a monster id and hero levels, such as wolf 9,11,13' });

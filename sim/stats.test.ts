@@ -271,6 +271,36 @@ void test('a tree node that changes Cleave also changes the shot a crossbow make
   assert.equal(resolveSkill(content, skillOf('cleave'), [], [], CROSSBOW).name, skillOf('quarrel').name);
 });
 
+const MILLRACE: readonly string[] = ['whirling_cleave', 'endless_turn'];
+
+void test('tree variants chain, so the Millwheel node turns the full turn Whirling Cleave made of Cleave into the Millwheel', (): void => {
+  assert.deepEqual(variantChain(content, skillOf('cleave'), MILLRACE).through, ['cleave', 'cleave_whirl', 'cleave_millwheel']);
+  const spun: SkillDef = resolveSkill(content, skillOf('cleave'), MILLRACE);
+  assert.equal(spun.id, 'cleave');
+  assert.equal(spun.name, skillOf('cleave_millwheel').name);
+  assert.deepEqual(variantChain(content, skillOf('cleave'), ['endless_turn']).through, ['cleave']);
+  assert.deepEqual(variantChain(content, skillOf('cleave'), MILLRACE, wornPowerDefs('the_millwheel')).through, ['cleave', 'cleave_millwheel']);
+  assert.deepEqual(variantChain(content, skillOf('cleave'), MILLRACE, [], CROSSBOW).through, ['cleave', 'quarrel', 'quarrel_fan']);
+});
+
+void test('variants that lead back to a skill already passed stop instead of turning forever', (): void => {
+  const loop: readonly SkillVariant[] = [{ skill: 'cleave_whirl', becomes: 'cleave' }];
+  const power: PowerDef = { family: 'test', text: 'turns', skillMods: [], triggers: [], variants: [{ skill: 'cleave', becomes: 'cleave_whirl' }, ...loop] };
+  assert.deepEqual(variantChain(content, skillOf('cleave'), [], [power]).through, ['cleave', 'cleave_whirl']);
+});
+
+void test('the Millstone widens the momentum cap and heals for every enemy struck, and the Long Wake stretches the grace', (): void => {
+  const base = must(skillOf('cleave_millwheel').momentum, 'momentum');
+  const stone = must(resolveSkill(content, skillOf('cleave'), [...MILLRACE, 'millstone']).momentum, 'momentum');
+  assert.equal(stone.cap, base.cap * 1.5);
+  assert.equal(stone.lifePerHit, base.lifePerHit + 1);
+  assert.equal(stone.grace, base.grace);
+  const wake = must(resolveSkill(content, skillOf('cleave'), [...MILLRACE, 'long_wake']).momentum, 'momentum');
+  assert.ok(Math.abs(wake.grace - base.grace * 1.6) < 1e-9);
+  assert.equal(wake.cap, base.cap);
+  assert.equal(resolveSkill(content, skillOf('cleave'), ['whirling_cleave', 'millstone']).momentum, null);
+});
+
 void test('bolt range from the Storm path reaches the crossbow shot, and a mod naming Cleave still reaches it', (): void => {
   const plain: SkillDef = resolveSkill(content, skillOf('cleave'), [], [], CROSSBOW);
   const reached: SkillDef = resolveSkill(content, skillOf('cleave'), ['storm_6'], [], CROSSBOW);

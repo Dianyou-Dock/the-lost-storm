@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { packFoe, packMembers, packMix } from './simulate-pack.ts';
+import { packFoe, packLabel, packMembers, packMix } from './simulate-pack.ts';
 
 void test('a pack of one kind takes the pack size, and a mix names its own counts', (): void => {
   assert.deepEqual(packMembers({ monster: 'wolf', count: 4 }), [{ monster: 'wolf', count: 4 }]);
@@ -10,6 +10,11 @@ void test('a pack of one kind takes the pack size, and a mix names its own count
     { monster: 'spider', count: 1 },
   ]);
   assert.equal(packFoe({ monster: 'rat:10+crawler', count: 2 }), '10 rat + 2 crawler');
+});
+
+void test('one pack is named by its members, and packs spread in a line say how many and how far apart', (): void => {
+  assert.equal(packLabel({ monster: 'wolf', count: 4, groups: 1, gap: 8 }), '4 wolf');
+  assert.equal(packLabel({ monster: 'wolf', count: 4, groups: 3, gap: 16 }), '3 packs of 4 wolf, 16 m apart');
 });
 
 void test('a mix is ids joined by plus, each with an optional whole count', (): void => {

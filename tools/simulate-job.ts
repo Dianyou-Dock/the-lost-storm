@@ -34,7 +34,7 @@ function readScenario(value: unknown): Scenario {
     case 'pack': {
       const levels: unknown = source['levels'];
       if (!Array.isArray(levels) || !levels.every((level: unknown): level is number => typeof level === 'number')) throw new Error('scenario.levels must be a list of levels');
-      return { kind, monster: text(source, 'monster', 'scenario'), count: numeric(source, 'count', 'scenario'), levels, repeats: numeric(source, 'repeats', 'scenario'), minutes: numeric(source, 'minutes', 'scenario') };
+      return { kind, monster: text(source, 'monster', 'scenario'), count: numeric(source, 'count', 'scenario'), levels, repeats: numeric(source, 'repeats', 'scenario'), minutes: numeric(source, 'minutes', 'scenario'), groups: numeric(source, 'groups', 'scenario'), gap: numeric(source, 'gap', 'scenario') };
     }
     default:
       throw new Error(`unknown scenario ${kind}`);
