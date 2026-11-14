@@ -1,5 +1,5 @@
 import type { Content } from '../../sim/content/types.ts';
-import type { Command, World } from '../../sim/world/types.ts';
+import type { Command, ItemInstance, World } from '../../sim/world/types.ts';
 import type { Backend } from '../backend/backend.ts';
 import { createBrowserAuctionHouse } from '../backend/browser.ts';
 import type { AuctionHouse } from '../backend/auction.ts';
@@ -14,6 +14,7 @@ export interface AuctionStart {
   readonly world: World;
   readonly send: (command: Command) => void;
   readonly save: () => void;
+  readonly unverified: (item: ItemInstance) => boolean;
 }
 
 export function foldCommand(fold: SaveFold): Command {
@@ -29,6 +30,7 @@ export function startAuction(start: AuctionStart): AuctionFlow | null {
     house,
     world: (): World => start.world,
     send,
+    unverified: start.unverified,
     sync: (): Promise<void> => {
       start.save();
       return backend.sync();

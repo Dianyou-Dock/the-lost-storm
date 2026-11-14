@@ -6,7 +6,7 @@ import type { ItemSpot } from '../../sim/world/purse.ts';
 import type { ItemInstance, World } from '../../sim/world/types.ts';
 import type { AuctionFlow, AuctionState } from '../auction/auction-flow.ts';
 import type { AuctionTab, ShownItems } from '../auction/auction-model.ts';
-import { AUCTION_TABS, choiceFilter, createShownItems, parseLevel, parsePrice, proceeds, saleLine, SORTS, TAB_NAMES, termsLine, timeLeft } from '../auction/auction-model.ts';
+import { AUCTION_TABS, choiceFilter, createShownItems, parseLevel, parsePrice, proceeds, saleLine, SORTS, TAB_NAMES, termsLine, timeLeft, UNSELLABLE_HINT } from '../auction/auction-model.ts';
 import type { AuctionRules, AuctionSort, Listing, Sale } from '../backend/auction-api.ts';
 import type { HudContext, PanelView } from './context.ts';
 import { el, label, setText } from './dom.ts';
@@ -16,6 +16,7 @@ import { iconSvg } from './icons.ts';
 import type { ItemCell } from './item-cell.ts';
 import { createItemCell, showItem } from './item-cell.ts';
 import { shownTitle } from './npc-title.ts';
+import { unsellable } from './trade-actions.ts';
 import { promptText, use } from './prompts.ts';
 import { domRows, placeRows } from './row-order.ts';
 
@@ -180,7 +181,7 @@ export function createAuctionPanel(parent: HTMLElement, context: HudContext): Pa
   label('panel-subtitle', AUCTION_PANEL.stash, sellView);
   const stashGrid: HTMLDivElement = el('div', 'inv-grid stash-grid auction-stash', sellView);
   const stashCells: ItemCell[] = Array.from({ length: context.api.world.content.trade.stashSize }, (_: unknown, index: number): ItemCell => {
-    const view: ItemCell = createItemCell(context, stashGrid, (item: ItemInstance): string => (item.ledger === null ? '' : promptText(context.api.touch, use(AUCTION_PANEL.stashHint))));
+    const view: ItemCell = createItemCell(context, stashGrid, (item: ItemInstance): string => (unsellable(context.api.world, item, context.api.unverified(item)) ? UNSELLABLE_HINT : item.ledger === null ? '' : promptText(context.api.touch, use(AUCTION_PANEL.stashHint))));
     view.cell.addEventListener('click', (): void => {
       if (view.current === null) return;
       context.tooltip.hide();

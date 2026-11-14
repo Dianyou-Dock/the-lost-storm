@@ -37,6 +37,7 @@ void test('refusals and picks read as short lines', (): void => {
   assert.equal(refusalLine('too_many_listings', RULES).text, 'At most 10 listings can be open.');
   assert.equal(refusalLine('not_enough_gold', null).tone, 'refusal');
   assert.equal(pickLine('empty').tone, 'note');
+  assert.deepEqual(pickLine('unverified'), { text: 'This item was never recorded, so it cannot be sold. Trader purchases and some early or offline finds are not recorded.', tone: 'refusal' });
   assert.equal(collectedLine(0, 2).text, 'Collected 2 items.');
   assert.equal(collectedLine(0, 0).tone, 'note');
 });

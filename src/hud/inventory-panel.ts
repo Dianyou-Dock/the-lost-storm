@@ -138,7 +138,7 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
       const content = context.api.world.content;
       const slot: ItemSlot | null = slotOf(content, item);
       const equipped: ItemInstance | null = slot === null ? null : context.api.world.player.equipped[slot];
-      return itemTooltip(context.api, item, equipped, inventoryHint(context.api.world, item, context.api.touch));
+      return itemTooltip(context.api, item, equipped, inventoryHint(context.api.world, item, context.api.touch, context.api.unverified(item)));
     });
     let hold: Hold | null = null;
     let held: boolean = false;

@@ -9,7 +9,7 @@ import type { AuctionAnswer, AuctionFilters, Listed, Listing, ListingPage, MyAuc
 import type { AuctionHouse } from '../backend/auction.ts';
 import { createAuctionFlow } from './auction-flow.ts';
 import type { AuctionFlow } from './auction-flow.ts';
-import { AUCTION_LINES } from './auction-model.ts';
+import { AUCTION_LINES, RECORDING_LINE } from './auction-model.ts';
 
 const content: Content = loadContent();
 const LEDGER: string = 'itm_AAAAAAAAAAAAAAAAAAAAAA';
@@ -41,6 +41,7 @@ interface Rig {
   readonly sent: Command[];
   readonly order: string[];
   readonly answers: Answers;
+  readonly recording: Set<number>;
 }
 
 function settle(): Promise<void> {
@@ -56,6 +57,7 @@ function rig(): Rig {
   world.player.level = 5;
   const calls: Call[] = [];
   const sent: Command[] = [];
+  const recording: Set<number> = new Set<number>();
   const order: string[] = [];
   const answers: Answers = {
     browse: { kind: 'ok', value: { listings: [LISTING], page: 1, more: false } },
@@ -104,8 +106,8 @@ function rig(): Rig {
     order.push('sync');
     return Promise.resolve();
   };
-  const flow: AuctionFlow = createAuctionFlow({ house, world: (): World => world, send: (command: Command): void => void sent.push(command), sync });
-  return { flow, world, calls, sent, order, answers };
+  const flow: AuctionFlow = createAuctionFlow({ house, world: (): World => world, send: (command: Command): void => void sent.push(command), sync, unverified: (item: ItemInstance): boolean => !recording.has(item.uid) });
+  return { flow, world, calls, sent, order, answers, recording };
 }
 
 function named(calls: readonly Call[], name: string): Call[] {
@@ -147,7 +149,16 @@ void test('an unverified item cannot be picked and says why', async (): Promise<
   state.flow.pick({ place: 'bag', index: 0 });
   assert.equal(state.flow.state().picked, null);
   assert.equal(state.flow.state().tab, 'sell');
-  assert.match(state.flow.state().line?.text ?? '', /not verified/);
+  assert.match(state.flow.state().line?.text ?? '', /never recorded/);
+});
+
+void test('an item still being recorded says so instead of never recorded', async (): Promise<void> => {
+  const state: Rig = await opened();
+  state.world.player.inventory[0] = { uid: 51, base: 'rusted_blade', rarity: 'magic', level: 3, affixes: [], ledger: null };
+  state.recording.add(51);
+  state.flow.pick({ place: 'bag', index: 0 });
+  assert.equal(state.flow.state().picked, null);
+  assert.deepEqual(state.flow.state().line, RECORDING_LINE);
 });
 
 void test('listing sends the picked ledger id and price, and the item leaves only on the answer', async (): Promise<void> => {

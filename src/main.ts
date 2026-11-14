@@ -324,7 +324,7 @@ async function start(): Promise<void> {
     touch: mobile.touch,
     qualityTier: (): string => (mobile.quality.tier.name === 'desktop' ? gameSettings.get().graphics.quality : `${gameSettings.get().graphics.quality} ${mobile.quality.tier.name}`),
     overlays: overlayManager,
-    auction: startAuction({ content, serverUrl: import.meta.env.VITE_SERVER_URL, backend, world, send, save: (): void => saveNow() }),
+    auction: startAuction({ content, serverUrl: import.meta.env.VITE_SERVER_URL, backend, world, send, save: (): void => saveNow(), unverified: (item: ItemInstance): boolean => minter?.unverified(world, item) ?? true }),
   });
   const overlays: Overlays = createOverlays(element('overlays', HTMLDivElement), camera, {
     findLabel: findLabel(mobile.touch),

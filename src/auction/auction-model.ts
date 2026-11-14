@@ -51,9 +51,11 @@ const REFUSAL_LINES: Readonly<Record<AuctionRefusal, string>> = {
 
 const PICK_LINES: Readonly<Record<ListRefusal, string>> = {
   empty: 'Pick an item from your bags or stash.',
-  unverified: 'This item is not verified yet, so it cannot be sold.',
+  unverified: 'This item was never recorded, so it cannot be sold. Trader purchases and some early or offline finds are not recorded.',
   story: 'This cannot be sold.',
 };
+
+export const RECORDING_LINE: AuctionLine = { text: 'This item is still being recorded. Try again in a moment.', tone: 'note' };
 
 export const AUCTION_LINES: {
   readonly closed: AuctionLine;
@@ -80,6 +82,8 @@ export function refusalLine(code: AuctionRefusal, rules: AuctionRules | null): A
   if (code === 'too_many_listings' && rules !== null) return { text: `At most ${rules.maxListings} listings can be open.`, tone: 'refusal' };
   return { text: REFUSAL_LINES[code], tone: 'refusal' };
 }
+
+export const UNSELLABLE_HINT: string = "Can't be sold here: never recorded";
 
 export function pickLine(reason: ListRefusal): AuctionLine {
   return { text: PICK_LINES[reason], tone: reason === 'empty' ? 'note' : 'refusal' };

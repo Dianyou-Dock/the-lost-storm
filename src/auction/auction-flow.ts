@@ -1,11 +1,11 @@
-import type { ItemSpot, Listable } from '../../sim/world/purse.ts';
-import { findLedger, freeSlots, hasRoom, listable } from '../../sim/world/purse.ts';
+import type { ItemSpot, Listable, ListRefusal } from '../../sim/world/purse.ts';
+import { findLedger, freeSlots, hasRoom, itemAt, listable } from '../../sim/world/purse.ts';
 import type { PurseEntry } from '../../sim/world/ledger.ts';
-import type { Command, World } from '../../sim/world/types.ts';
+import type { Command, ItemInstance, World } from '../../sim/world/types.ts';
 import type { AuctionAnswer, AuctionFilters, AuctionRules, Listed, Listing, ListingPage, MyAuction, Sale } from '../backend/auction-api.ts';
 import type { AuctionHouse } from '../backend/auction.ts';
 import type { AuctionLine, AuctionTab } from './auction-model.ts';
-import { AUCTION_LINES, collectedLine, FIRST_PAGE, parsePrice, pickLine, priceLine, refusalLine } from './auction-model.ts';
+import { AUCTION_LINES, collectedLine, FIRST_PAGE, parsePrice, pickLine, priceLine, RECORDING_LINE, refusalLine } from './auction-model.ts';
 
 export type AuctionWork = 'list' | 'buy' | 'cancel' | 'collect';
 
@@ -44,6 +44,7 @@ export interface AuctionFlowOptions {
   readonly world: () => World;
   readonly send: (command: Command) => void;
   readonly sync: () => Promise<void>;
+  readonly unverified: (item: ItemInstance) => boolean;
 }
 
 export interface AuctionFlow {
@@ -67,6 +68,10 @@ type Unanswered = Exclude<AuctionAnswer<never>, { readonly kind: 'ok' }>;
 
 export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
   const { house } = options;
+  const refusedLine = (reason: ListRefusal, spot: ItemSpot): AuctionLine => {
+    const item: ItemInstance | null = itemAt(options.world(), spot);
+    return reason === 'unverified' && item !== null && !options.unverified(item) ? RECORDING_LINE : pickLine(reason);
+  };
   const state: FlowState = { tab: 'browse', filters: FIRST_PAGE, page: null, mine: null, history: null, picked: null, price: '', confirm: null, work: null, loading: false, line: null, closed: false };
   let changes: number = 0;
   let browseTurn: number = 0;
@@ -191,7 +196,7 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
       state.tab = 'sell';
       state.confirm = null;
       if (found.kind === 'refused') {
-        say(pickLine(found.reason));
+        say(refusedLine(found.reason, spot));
         return;
       }
       state.picked = found.ledger;
@@ -211,7 +216,7 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
       }
       const found: Listable = listable(world, spot);
       if (found.kind === 'refused') {
-        say(pickLine(found.reason));
+        say(refusedLine(found.reason, spot));
         return;
       }
       if (world.player.level < (rules()?.sellLevel ?? 0)) {

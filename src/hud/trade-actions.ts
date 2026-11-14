@@ -3,6 +3,7 @@ import type { ServiceKind } from '../../sim/content/trade-types.ts';
 import { baseOf, isStoryItem } from '../../sim/items.ts';
 import { sellPrice } from '../../sim/world/trade.ts';
 import type { Command, ItemInstance, World } from '../../sim/world/types.ts';
+import { UNSELLABLE_HINT } from '../auction/auction-model.ts';
 import type { Prompt } from './prompts.ts';
 import { alternate, promptText, use } from './prompts.ts';
 
@@ -89,6 +90,11 @@ function inventoryPrompts(world: World, item: ItemInstance): readonly Prompt[] {
   return kind === null ? INVENTORY_HINTS.equip : SERVICE_HINTS[kind](world, item);
 }
 
-export function inventoryHint(world: World, item: ItemInstance, touch: boolean): string {
+export function unsellable(world: World, item: ItemInstance, unverified: boolean): boolean {
+  return unverified && !isStoryItem(world.content, item);
+}
+
+export function inventoryHint(world: World, item: ItemInstance, touch: boolean, unverified: boolean): string {
+  if (serviceOf(world) === 'auction' && unsellable(world, item, unverified)) return UNSELLABLE_HINT;
   return promptText(touch, ...inventoryPrompts(world, item));
 }
