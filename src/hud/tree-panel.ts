@@ -49,7 +49,7 @@ const CHART = {
   emptyLine: 'No points yet. Moments in the storm and each new level bring them.',
 } as const;
 
-const STATUS_CLASSES: readonly TreeNodeStatus['kind'][] = ['allocated', 'available', 'no_points', 'locked'];
+const STATUS_CLASSES: readonly TreeNodeStatus['kind'][] = ['allocated', 'available', 'no_points', 'locked', 'rival'];
 
 export interface ChartPanel extends PanelView {
   update(dt: number): void;
@@ -181,6 +181,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
     const steps: number = chartRoute(content, player().allocated, node.id).length;
     if (status.kind === 'available') return `${statusLine(status, context.api.touch)} · ${TREE_NODE_COST} point`;
     if (status.kind === 'no_points') return `Needs ${TREE_NODE_COST} point · you have none`;
+    if (status.kind === 'rival') return statusLine(status, context.api.touch);
     return lockedLine(status, steps, context.api.touch);
   };
 
@@ -208,7 +209,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
     const refund: ChartChange = refundState(content, player(), node.id);
     const refundable: boolean = status.kind === 'allocated' && refund !== 'not_allowed';
     const ability: AbilityCard | null = abilityCard(content, node, player().bar);
-    const key: string = `${node.id}:${status.kind}:${refundable ? goldFor(1) : -1}:${player().skillPoints}:${ability?.slot ?? -1}`;
+    const key: string = `${node.id}:${status.kind}${status.kind === 'rival' ? status.node.id : ''}:${refundable ? goldFor(1) : -1}:${player().skillPoints}:${ability?.slot ?? -1}`;
     showRoute(node.id);
     card.style.setProperty('--tint', pathTint(content, node.path));
     action.classList.toggle('shown', refundable);
@@ -493,6 +494,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
           break;
         case 'no_points':
         case 'locked':
+        case 'rival':
           retrigger(button, 'deny');
           retrigger(card, 'deny');
           break;

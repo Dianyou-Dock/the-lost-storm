@@ -116,10 +116,24 @@ export function joinBlock(content: Content, allocated: readonly string[], node: 
   return near.some((id: string): boolean => allocated.includes(id)) ? 'branch' : 'connect';
 }
 
-export function rivalVariant(content: Content, allocated: readonly string[], node: SkillTreeNodeDef): SkillTreeNodeDef | null {
+export interface RivalBlock {
+  readonly node: SkillTreeNodeDef;
+  readonly skill: string;
+}
+
+export function rivalBlock(content: Content, allocated: readonly string[], node: SkillTreeNodeDef): RivalBlock | null {
   const varied: ReadonlySet<string> = new Set<string>(node.variants.map((variant: SkillVariant): string => variant.skill));
   if (varied.size === 0) return null;
-  return content.skillTree.find((other: SkillTreeNodeDef): boolean => other.id !== node.id && allocated.includes(other.id) && other.variants.some((variant: SkillVariant): boolean => varied.has(variant.skill))) ?? null;
+  for (const other of content.skillTree) {
+    if (other.id === node.id || !allocated.includes(other.id)) continue;
+    const shared: SkillVariant | undefined = other.variants.find((variant: SkillVariant): boolean => varied.has(variant.skill));
+    if (shared !== undefined) return { node: other, skill: shared.skill };
+  }
+  return null;
+}
+
+export function rivalVariant(content: Content, allocated: readonly string[], node: SkillTreeNodeDef): SkillTreeNodeDef | null {
+  return rivalBlock(content, allocated, node)?.node ?? null;
 }
 
 export function canAllocate(content: Content, allocated: readonly string[], skillPoints: number, nodeId: string): boolean {

@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadContent } from './content/content.ts';
 import type { Content, SkillTreeNodeDef, XpCurve } from './content/types.ts';
-import { adoptLearned, applyXp, gapBand, gapScale, canAllocate, canRefund, findNode, holdingParts, holdingTrunk, joinBlock, placeLinks, reachablePlaces, refundBlock, refundCost, refundState, respecState, rivalVariant, startingPlaces, xpToNextLevel } from './progression.ts';
-import type { XpResult } from './progression.ts';
+import { adoptLearned, applyXp, gapBand, gapScale, canAllocate, canRefund, findNode, holdingParts, holdingTrunk, joinBlock, placeLinks, reachablePlaces, refundBlock, refundCost, refundState, respecState, rivalBlock, rivalVariant, startingPlaces, xpToNextLevel } from './progression.ts';
+import type { RivalBlock, XpResult } from './progression.ts';
 
 const content: Content = loadContent();
 const curve: XpCurve = { base: 60, growth: 1.42, maxLevel: 30, gap: { band: 5, widenEvery: 10, soft: 2, power: 3, floor: 0.05, above: true } };
@@ -170,6 +170,21 @@ void test('two nodes are rivals when any of the skills they change is the same',
   const onlyShot: SkillTreeNodeDef = { ...heaving, id: 'only_shot', variants: [{ skill: 'quarrel', becomes: 'quarrel_heave' }] };
   assert.equal(rivalVariant(content, ['whirling_cleave'], onlyShot)?.id, 'whirling_cleave');
   assert.equal(rivalVariant(content, ['storm_lance'], onlyShot), null);
+});
+
+void test('a rival block names the held place and the skill both places change', (): void => {
+  const lance: SkillTreeNodeDef | null = findNode(content, 'storm_lance');
+  assert.ok(lance !== null);
+  const block: RivalBlock | null = rivalBlock(content, ['twice_told_bolt'], lance);
+  assert.ok(block !== null);
+  assert.equal(block.node.id, 'twice_told_bolt');
+  assert.equal(block.skill, 'storm_bolt');
+  assert.equal(rivalBlock(content, ['storm_lance'], lance), null);
+  assert.equal(rivalBlock(content, [], lance), null);
+  const plain: SkillTreeNodeDef | null = findNode(content, 'tempered_body');
+  assert.ok(plain !== null);
+  assert.equal(rivalBlock(content, ['twice_told_bolt'], plain), null);
+  assert.ok(!canAllocate(content, ['twice_told_bolt'], 2, 'storm_lance'));
 });
 
 const GAP_CHECK = { cliff: 0.5, drastic: 0.25 } as const;

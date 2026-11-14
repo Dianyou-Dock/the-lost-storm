@@ -258,7 +258,8 @@
   height: 18px;
 }
 
-.tree-socket.locked {
+.tree-socket.locked,
+.tree-socket.rival {
   opacity: 0.8;
 }
 
@@ -676,6 +677,7 @@ body:has(.hud.chart-open) #overlays {
 }
 
 .tree-tip-status.locked,
+.tree-tip-status.rival,
 .tree-tip-status.no_points {
   color: #d98572;
 }
