@@ -6,7 +6,7 @@ export const SHAPES = {
   phiTo: 90,
   pushPasses: 3,
   weld: 1e5,
-  sliver: 1e-12,
+  sliver: 1e-24,
   uvDigits: 1e4,
   normalDigits: 1e3,
   uvRadius: 0.11,

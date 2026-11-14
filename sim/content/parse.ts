@@ -2,6 +2,7 @@ import { packRanks, rankProblems } from './parse-ranks.ts';
 import { atlasProblems } from './atlas.ts';
 import { affix, family, itemBase, rarity } from './parse-items.ts';
 import { itemProblems } from './item-rules.ts';
+import { fitProblems } from './fit-rules.ts';
 import { powerRuleProblems } from './power-rules.ts';
 import { books } from './parse-story.ts';
 import { storyFlagNames, storyProblems } from './story.ts';
@@ -274,6 +275,8 @@ function wearable(value: unknown, where: string): WearableDef {
     pieces: source['pieces'] === undefined ? [] : textList(source, 'pieces', where),
     region: choice(source, 'region', WEAR_REGIONS, where),
     covers: source['covers'] === undefined ? [] : choiceList(source, 'covers', WEAR_REGIONS, where),
+    fit: source['fit'] === undefined ? null : text(source, 'fit', where),
+    fits: dressing(source['fits'], `${where}.fits`),
     surfaces: dressing(source['surfaces'], `${where}.surfaces`),
     tint: text(source, 'tint', where),
     hides: textList(source, 'hides', where),
@@ -563,6 +566,7 @@ export function contentProblems(content: Content): string[] {
     for (const [material, surfaceId] of Object.entries(def.surfaces)) need(content.surfaces.has(surfaceId), `attachment ${def.id} dresses ${material} in unknown surface ${surfaceId}`);
   }
   for (const def of content.wearables.values()) for (const [material, surfaceId] of Object.entries(def.surfaces)) need(content.surfaces.has(surfaceId), `wearable ${def.id} dresses ${material} in unknown surface ${surfaceId}`);
+  for (const problem of fitProblems(content)) problems.push(problem);
   need(content.zones.has(content.world.start), `world starts in unknown zone ${content.world.start}`);
   need(content.world.opening === null || content.zones.get(content.world.opening)?.kind === 'void', `world opens in ${content.world.opening ?? ''}, which is not a void zone`);
   need(content.zones.get(content.world.town)?.kind === 'town', `world names ${content.world.town} as its town, which is not a town zone`);

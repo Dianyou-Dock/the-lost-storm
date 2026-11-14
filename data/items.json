@@ -1078,7 +1078,9 @@
       "dropWeight": 7,
       "minLevel": 1,
       "visual": null,
-      "wear": [],
+      "wear": [
+        "gale_charm"
+      ],
       "implicit": [
         {
           "stat": "maxMana",
@@ -1092,9 +1094,9 @@
         }
       ],
       "ground": {
-        "model": "pouch",
-        "scale": 1,
-        "pitch": 0,
+        "model": "worn",
+        "scale": 1.6,
+        "pitch": -90,
         "roll": 0,
         "yawJitter": 180
       }
@@ -1108,7 +1110,9 @@
       "dropWeight": 5,
       "minLevel": 2,
       "visual": null,
-      "wear": [],
+      "wear": [
+        "ember_charm"
+      ],
       "implicit": [
         {
           "stat": "critChance",
@@ -1117,9 +1121,9 @@
         }
       ],
       "ground": {
-        "model": "pouch",
-        "scale": 1,
-        "pitch": 0,
+        "model": "worn",
+        "scale": 1.6,
+        "pitch": -90,
         "roll": 0,
         "yawJitter": 180
       }
@@ -2172,7 +2176,9 @@
       "dropWeight": 4,
       "minLevel": 3,
       "visual": null,
-      "wear": [],
+      "wear": [
+        "gilded_token"
+      ],
       "implicit": [
         {
           "stat": "critMultiplier",
@@ -2186,9 +2192,9 @@
         }
       ],
       "ground": {
-        "model": "pouch",
-        "scale": 1,
-        "pitch": 0,
+        "model": "worn",
+        "scale": 1.6,
+        "pitch": -90,
         "roll": 0,
         "yawJitter": 180
       }
@@ -2202,7 +2208,9 @@
       "dropWeight": 5,
       "minLevel": 4,
       "visual": null,
-      "wear": [],
+      "wear": [
+        "tidestone_charm"
+      ],
       "implicit": [
         {
           "stat": "lifeRegen",
@@ -2216,9 +2224,9 @@
         }
       ],
       "ground": {
-        "model": "pouch",
-        "scale": 1,
-        "pitch": 0,
+        "model": "worn",
+        "scale": 1.6,
+        "pitch": -90,
         "roll": 0,
         "yawJitter": 180
       }
@@ -2232,7 +2240,9 @@
       "dropWeight": 3,
       "minLevel": 8,
       "visual": null,
-      "wear": [],
+      "wear": [
+        "storm_idol"
+      ],
       "implicit": [
         {
           "stat": "damagePercent",
@@ -2246,9 +2256,9 @@
         }
       ],
       "ground": {
-        "model": "pouch",
-        "scale": 1,
-        "pitch": 0,
+        "model": "worn",
+        "scale": 1.6,
+        "pitch": -90,
         "roll": 0,
         "yawJitter": 180
       }
@@ -2324,7 +2334,9 @@
       "dropWeight": 1,
       "minLevel": 1,
       "visual": null,
-      "wear": [],
+      "wear": [
+        "lantern_of_second_sounds"
+      ],
       "implicit": [
         {
           "stat": "maxMana",
@@ -2338,9 +2350,9 @@
         }
       ],
       "ground": {
-        "model": "pouch",
-        "scale": 1,
-        "pitch": 0,
+        "model": "worn",
+        "scale": 1.6,
+        "pitch": -90,
         "roll": 0,
         "yawJitter": 180
       },

@@ -33,7 +33,7 @@ void test('a base with a stat outside the item stats, a line that rolls backward
 });
 
 void test('every wearable base lies on the ground as a real model except the ones listed here, which still use a generic bundle or pouch', (): void => {
-  assert.deepEqual(groundGenerics(content), ['gale_charm', 'ember_charm', 'gilded_token', 'tidestone_charm', 'storm_idol', 'lantern_of_second_sounds', 'crown_of_the_struck_hour']);
+  assert.deepEqual(groundGenerics(content), ['crown_of_the_struck_hour']);
   const blade: ItemBaseDef | undefined = content.itemBases.get('rusted_blade');
   assert.ok(blade !== undefined);
   const unheld: ItemBaseDef = { ...blade, visual: null };
@@ -100,4 +100,13 @@ void test('a weapon may turn one skill into another the hero can play in the sta
   const unplayed: string[] = itemProblems({ ...content, rigs: new Map<string, RigDef>([...content.rigs, [hero.id, stanceless]]) });
   assert.ok(unplayed.some((problem: string): boolean => problem.includes(`item hand_crossbow turns cleave into quarrel, but rig ${hero.id} has no action clip shoot`)));
   assert.ok(unplayed.some((problem: string): boolean => problem.includes(`tree node whirling_cleave turns quarrel into quarrel_fan while hand_crossbow is held, but rig ${hero.id} has no action clip shoot`)));
+});
+
+void test('a charm wears what hangs at the neck, and a charm dressed in a chest piece is reported', (): void => {
+  const charm: ItemBaseDef = must(content.itemBases.get('storm_idol'), 'storm_idol');
+  assert.equal(must(content.wearables.get(must(charm.wear[0], 'wear')), 'wearable').region, 'neck');
+  const misworn: ItemBaseDef = { ...charm, id: 'misworn_charm', wear: ['linen_shirt'] };
+  const problems: string[] = itemProblems({ ...content, itemBases: new Map<string, ItemBaseDef>([...content.itemBases, [misworn.id, misworn]]) });
+  assert.ok(problems.some((problem: string): boolean => problem.includes('item misworn_charm in slot charm wears linen_shirt, which covers chest')));
+  assert.ok(!problems.some((problem: string): boolean => problem.includes('storm_idol')));
 });

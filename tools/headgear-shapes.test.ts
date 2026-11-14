@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { Vector3 } from 'three';
 import type { Envelope, ShellLevel, ShellPlan, Triangle } from './headgear-shapes.ts';
-import { anglesOf, buildLathe, buildShell, buildTube, direction, envelopeOf, innerRadius, smoothParts, smoothstep, triangleCount, wrapDegrees } from './headgear-shapes.ts';
+import { addTriangle, anglesOf, buildLathe, buildShell, buildTube, direction, envelopeOf, innerRadius, smoothParts, smoothstep, triangleCount, wrapDegrees } from './headgear-shapes.ts';
 
 const SPHERE = {
   radius: 0.1,
@@ -101,4 +101,11 @@ void test('a lathe and a tube close into outward-facing solids, and smoothing ke
   const parts = smoothParts([...soup, ...tube], 40, new Vector3());
   assert.equal(triangleCount(parts), soup.length + tube.length);
   assert.deepEqual(parts.map((part): string => part.material).toSorted(), ['lens', 'trim']);
+});
+
+void test('a triangle a fraction of a millimetre across is kept, and one with no area is dropped', (): void => {
+  const soup: Triangle[] = [];
+  addTriangle(soup, new Vector3(), new Vector3(0.0003, 0, 0), new Vector3(0, 0.0003, 0), 'tiny', null);
+  addTriangle(soup, new Vector3(), new Vector3(0.001, 0, 0), new Vector3(0.002, 0, 0), 'flat', null);
+  assert.deepEqual(soup.map((triangle: Triangle): string => triangle.material), ['tiny']);
 });
