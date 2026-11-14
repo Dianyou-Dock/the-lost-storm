@@ -3,7 +3,15 @@
   "private": true,
   "license": "MIT",
   "type": "module",
-  "description": "The Lost Storm: a single-player isometric action RPG on Three.js, in TypeScript.",
+  "description": "The Lost Storm: a free isometric action RPG that runs in the browser, on Three.js and TypeScript.",
+  "homepage": "https://theloststorm.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/marginsystems/the-lost-storm.git"
+  },
+  "bugs": {
+    "url": "https://github.com/marginsystems/the-lost-storm/issues"
+  },
   "scripts": {
     "dev": "vite",
     "build": "tsc -p tsconfig.json && vite build",
