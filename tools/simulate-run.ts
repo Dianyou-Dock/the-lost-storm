@@ -2,7 +2,7 @@ import type { Bot } from '../sim/bot.ts';
 import { BOT, botFight, botPause, botPlay, botStep, botTravelTo, botWalkTo, createBot } from '../sim/bot.ts';
 import { loadContent } from '../sim/content/content.ts';
 import type { BookDef, PageDef } from '../sim/content/story-types.ts';
-import type { Content, MonsterDef, ZoneDef, ZoneExit } from '../sim/content/types.ts';
+import type { Content, MonsterDef, MonsterScaling, ScalingRamp, ZoneDef, ZoneExit } from '../sim/content/types.ts';
 import type { Vec2 } from '../sim/math.ts';
 import { distance } from '../sim/math.ts';
 import type { BossOutcome, Measurement, Meter } from '../sim/measure.ts';
@@ -77,8 +77,9 @@ function record(bot: Bot, recorder: Recorder, events: readonly WorldEvent[]): vo
 
 export function harder(content: Content, danger: number, toughness: number): Content {
   if (danger === 1 && toughness === 1) return content;
-  const scaling = content.world.scaling;
-  return { ...content, world: { ...content.world, scaling: { ...scaling, damagePerLevel: scaling.damagePerLevel * danger, lifePerLevel: scaling.lifePerLevel * toughness } } };
+  const scaling: MonsterScaling = content.world.scaling;
+  const ramp: ScalingRamp | null = scaling.ramp === null ? null : { ...scaling.ramp, damagePerLevel: scaling.ramp.damagePerLevel * danger, lifePerLevel: scaling.ramp.lifePerLevel * toughness };
+  return { ...content, world: { ...content.world, scaling: { ...scaling, damagePerLevel: scaling.damagePerLevel * danger, lifePerLevel: scaling.lifePerLevel * toughness, ramp } } };
 }
 
 export function fixedLevel(content: Content, level: number): Content {

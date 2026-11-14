@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { OUTPOST_CONTENT, OUTPOST_ZONE } from '../../test/road-support.ts';
 import { armed, finishQuests, must, withoutGlitches, worldIn } from '../../test/support.ts';
 import type { Content, ZoneDef, ZoneExit } from '../content/types.ts';
+import { monsterScale } from './monster-scale.ts';
 import { distance } from '../math.ts';
 import { isWalkable } from '../nav/grid.ts';
 import { choicesOpen } from './death.ts';
@@ -181,8 +182,8 @@ void test('monster level is the zone level, raised by the surge only in a surge 
   const world: World = armed(worldIn(content, deep.id, 7));
   const thrall: MonsterState = must(world.monsters.find((monster: MonsterState): boolean => monster.def.id === 'mended'), 'thrall');
   assert.equal(thrall.level, 4);
-  assert.equal(thrall.maxLife, Math.round(thrall.def.life * (1 + content.world.scaling.lifePerLevel * 3)));
-  assert.ok(Math.abs(thrall.damageMin - thrall.def.damageMin * (1 + content.world.scaling.damagePerLevel * 3)) < 1e-9);
+  assert.equal(thrall.maxLife, Math.round(thrall.def.life * monsterScale(content.world.scaling, 4).life));
+  assert.ok(Math.abs(thrall.damageMin - thrall.def.damageMin * monsterScale(content.world.scaling, 4).damage) < 1e-9);
 });
 
 void test('a checkpoint is taken once when the hero walks into it', (): void => {

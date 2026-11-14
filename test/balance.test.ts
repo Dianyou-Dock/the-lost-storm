@@ -4,7 +4,7 @@ import type { SkillDef } from '../sim/content/types.ts';
 import type { Build, Clear, Encounter } from './balance-support.ts';
 import { BALANCE_CONTENT, BUILDS, clearEncounter, ENCOUNTERS } from './balance-support.ts';
 
-const LEVELS: readonly number[] = [4, 5, 7];
+const LEVELS: readonly number[] = [3, 4, 5];
 const SEEDS: readonly number[] = [1, 2, 3];
 const LIMITS = {
   paceSpread: 1.65,

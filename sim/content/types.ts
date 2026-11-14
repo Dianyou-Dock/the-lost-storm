@@ -494,10 +494,18 @@ export interface NpcDef {
   readonly faction: string | null;
 }
 
+export interface ScalingRamp {
+  readonly from: number;
+  readonly to: number;
+  readonly lifePerLevel: number;
+  readonly damagePerLevel: number;
+}
+
 export interface MonsterScaling {
   readonly lifePerLevel: number;
   readonly damagePerLevel: number;
   readonly xpPerLevel: number;
+  readonly ramp: ScalingRamp | null;
 }
 
 export interface MapPlace {

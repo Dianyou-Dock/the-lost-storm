@@ -1,6 +1,8 @@
-import type { MonsterDef, MonsterScaling } from '../content/types.ts';
+import type { MonsterDef } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { nearestWalkable, routedGrid } from '../nav/grid.ts';
+import type { MonsterScale } from './monster-scale.ts';
+import { monsterScale } from './monster-scale.ts';
 import type { MonsterState, World } from './types.ts';
 
 export const SPAWN = {
@@ -26,22 +28,21 @@ export function monsterLevel(world: World): number {
 }
 
 export function spawnMonster(world: World, def: MonsterDef, packId: number, center: Vec2, origin: SpawnOrigin): MonsterState {
-  const scaling: MonsterScaling = world.content.world.scaling;
   const level: number = monsterLevel(world);
+  const scale: MonsterScale = monsterScale(world.content.world.scaling, level);
   const angle: number = world.rng.range(0, Math.PI * 2);
   const reach: number = world.rng.range(0, origin.scatter);
   const wanted: Vec2 = { x: center.x + Math.cos(angle) * reach, z: center.z + Math.sin(angle) * reach };
   const pos: Vec2 = nearestWalkable(routedGrid(world.grid), wanted, SPAWN.spawnSnap) ?? { x: center.x, z: center.z };
-  const life: number = Math.round(def.life * (1 + scaling.lifePerLevel * (level - 1)));
-  const damageScale: number = 1 + scaling.damagePerLevel * (level - 1);
+  const life: number = Math.round(def.life * scale.life);
   const monster: MonsterState = {
     kind: 'monster',
     id: world.nextId,
     def,
     level,
     packId,
-    damageMin: def.damageMin * damageScale,
-    damageMax: def.damageMax * damageScale,
+    damageMin: def.damageMin * scale.damage,
+    damageMax: def.damageMax * scale.damage,
     home: { x: pos.x, z: pos.z },
     strafeSign: world.rng.chance(0.5) ? 1 : -1,
     pos,

@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { OUTPOST_CONTENT, OUTPOST_ZONE } from '../../test/road-support.ts';
 import { armed, must, worldIn } from '../../test/support.ts';
 import type { Content, PackMember, ZoneDef, ZonePack } from '../content/types.ts';
+import { monsterScale } from './monster-scale.ts';
 import { generateItem } from '../items.ts';
 import type { Vec2 } from '../math.ts';
 import { distance, facingOf } from '../math.ts';
@@ -536,7 +537,7 @@ void test('clearing every monster fires surge_cleared and then a stronger surge 
   assert.ok(world.monsters.every((monster: MonsterState): boolean => monster.alive && monster.level === 2));
   const secondLife: number = must(monstersOf(world, 'mended')[0], 'thrall').maxLife;
   assert.ok(secondLife > firstLife);
-  assert.equal(secondLife, Math.round(firstLife * (1 + content.world.scaling.lifePerLevel)));
+  assert.equal(secondLife, Math.round(firstLife * monsterScale(content.world.scaling, 2).life));
   assert.equal(ofType(all, 'monster_spawn').length, initial);
 });
 

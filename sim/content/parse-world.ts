@@ -19,6 +19,7 @@ import type {
   PackReturn,
   SurgeRules,
   TalkDef,
+  ScalingRamp,
   WorldDef,
   ZoneAmbience,
   ZoneCheckpoint,
@@ -390,6 +391,15 @@ export function quest(value: unknown, where: string): QuestDef {
   return { id: text(source, 'id', where), name: text(source, 'name', where), requires: textList(source, 'requires', where), when: conditions(source, 'when', where), objectives };
 }
 
+function scalingRamp(value: unknown, where: string): ScalingRamp | null {
+  if (value === undefined || value === null) return null;
+  const source: Fields = fields(value, where);
+  const from: number = positive(source, 'from', where);
+  const to: number = positive(source, 'to', where);
+  if (to <= from) throw new ContentError(`${where}.to`, 'a ramp must end at a higher level than it starts');
+  return { from, to, lifePerLevel: nonNegative(source, 'lifePerLevel', where), damagePerLevel: nonNegative(source, 'damagePerLevel', where) };
+}
+
 export function worldDef(value: unknown, where: string): WorldDef {
   const source: Fields = fields(value, where);
   const scaling: Fields = fields(source['scaling'], `${where}.scaling`);
@@ -404,6 +414,7 @@ export function worldDef(value: unknown, where: string): WorldDef {
       lifePerLevel: numeric(scaling, 'lifePerLevel', `${where}.scaling`),
       damagePerLevel: numeric(scaling, 'damagePerLevel', `${where}.scaling`),
       xpPerLevel: numeric(scaling, 'xpPerLevel', `${where}.scaling`),
+      ramp: scalingRamp(scaling['ramp'], `${where}.scaling.ramp`),
     },
   };
 }

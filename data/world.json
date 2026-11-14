@@ -8,7 +8,8 @@
   "scaling": {
     "lifePerLevel": 0.3,
     "damagePerLevel": 0.28,
-    "xpPerLevel": 0.15
+    "xpPerLevel": 0.15,
+    "ramp": { "from": 5, "to": 10, "lifePerLevel": 1.2, "damagePerLevel": 1.12 }
   },
   "acts": [
     {

@@ -4,6 +4,7 @@ import { ARENA_CENTRE, ARENA_CONTENT, arena, place } from '../../test/arena-supp
 import { must } from '../../test/support.ts';
 import type { MonsterModDef } from '../content/combat-types.ts';
 import type { MonsterDef } from '../content/types.ts';
+import { monsterScale } from './monster-scale.ts';
 import { modsNamed, withMods } from './elites.ts';
 import type { MonsterState, World } from './types.ts';
 
@@ -45,6 +46,6 @@ void test('a pack member spawns with the modifiers its zone gives it', (): void 
   const world: World = arena(11);
   const elite: MonsterState = place(world, 'mended', ARENA_CENTRE, ['test_swift']);
   assert.deepEqual(elite.def.mods, ['test_swift']);
-  assert.equal(elite.maxLife, Math.round(thrall.life * swift.lifeScale * (1 + world.content.world.scaling.lifePerLevel * (elite.level - 1))));
+  assert.equal(elite.maxLife, Math.round(thrall.life * swift.lifeScale * monsterScale(world.content.world.scaling, elite.level).life));
   assert.ok(elite.radius > thrall.radius * thrall.scale);
 });
