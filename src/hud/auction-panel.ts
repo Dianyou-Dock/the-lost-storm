@@ -5,9 +5,9 @@ import { findLedger, itemAt } from '../../sim/world/purse.ts';
 import type { ItemSpot } from '../../sim/world/purse.ts';
 import type { ItemInstance, World } from '../../sim/world/types.ts';
 import type { AuctionFlow, AuctionState } from '../auction/auction-flow.ts';
-import type { AuctionTab, ShownItems } from '../auction/auction-model.ts';
-import { AUCTION_TABS, choiceFilter, createShownItems, parseLevel, parsePrice, proceeds, saleLine, SORTS, TAB_NAMES, termsLine, timeLeft, UNSELLABLE_HINT } from '../auction/auction-model.ts';
-import type { AuctionRules, AuctionSort, Listing, Sale } from '../backend/auction-api.ts';
+import type { AuctionTab, SalesView, ShownItems } from '../auction/auction-model.ts';
+import { agoLine, AUCTION_TABS, choiceFilter, createShownItems, parseLevel, parsePrice, proceeds, saleLine, SORTS, TAB_NAMES, termsLine, timeLeft, tradeLine, UNSELLABLE_HINT } from '../auction/auction-model.ts';
+import type { AuctionRules, AuctionSort, Listing, PublicSale, Sale } from '../backend/auction-api.ts';
 import type { HudContext, PanelView } from './context.ts';
 import { el, label, setText } from './dom.ts';
 import type { Dropdown, DropdownChoice } from './dropdown.ts';
@@ -39,6 +39,9 @@ const AUCTION_PANEL = {
   stashHint: 'pick to sell',
   noSeller: 'Someone',
   history: 'Closed sales',
+  recent: 'Recent sales',
+  noSales: 'Nothing has sold yet.',
+  salesMissing: 'The sale history is not open yet.',
 } as const;
 
 const SLOT_NAMES: Readonly<Record<ItemSlot, string>> = { weapon: 'Weapon', head: 'Head', chest: 'Chest', hands: 'Hands', legs: 'Legs', feet: 'Feet', charm: 'Charm' };
@@ -62,8 +65,23 @@ interface SaleRow {
   sale: Sale;
 }
 
+interface PublicRow {
+  readonly element: HTMLElement;
+  readonly cell: ItemCell;
+  readonly name: HTMLElement;
+  readonly sub: HTMLElement;
+  readonly price: HTMLElement;
+  sale: PublicSale;
+}
+
 interface Leaving {
   readonly element: HTMLElement;
+}
+
+const SALES_TEXT: Readonly<Record<SalesView['kind'], string>> = { loading: AUCTION_PANEL.loading, missing: AUCTION_PANEL.salesMissing, ready: AUCTION_PANEL.noSales };
+
+function publicSub(sale: PublicSale, now: number): string {
+  return `${tradeLine(sale)} · ${agoLine(sale.soldAt, now)}`;
 }
 
 function leave(row: Leaving): void {
@@ -201,7 +219,12 @@ export function createAuctionPanel(parent: HTMLElement, context: HudContext): Pa
   label('panel-subtitle', AUCTION_PANEL.history, history);
   const historyRows: HTMLDivElement = el('div', 'auction-rows', history);
 
-  const bodies: Readonly<Record<AuctionTab, HTMLElement>> = { browse: browseView, sell: sellView, mine: mineView };
+  const salesView: HTMLDivElement = el('div', 'auction-view', views);
+  label('panel-subtitle', AUCTION_PANEL.recent, salesView);
+  const salesRows: HTMLDivElement = el('div', 'auction-rows auction-public', salesView);
+  const salesEmpty: HTMLDivElement = label('auction-empty', AUCTION_PANEL.loading, salesView);
+
+  const bodies: Readonly<Record<AuctionTab, HTMLElement>> = { browse: browseView, sell: sellView, mine: mineView, history: salesView };
 
   minLevel.addEventListener('change', (): void => flow?.filter({ minLevel: parseLevel(minLevel.value) }));
   maxLevel.addEventListener('change', (): void => flow?.filter({ maxLevel: parseLevel(maxLevel.value) }));
@@ -229,6 +252,46 @@ export function createAuctionPanel(parent: HTMLElement, context: HudContext): Pa
   const browseKept: Map<string, Row> = new Map<string, Row>();
   const mineKept: Map<string, Row> = new Map<string, Row>();
   const salesKept: Map<string, SaleRow> = new Map<string, SaleRow>();
+  const publicKept: Map<string, PublicRow> = new Map<string, PublicRow>();
+
+  const makePublic = (sale: PublicSale): PublicRow => {
+    const row: HTMLDivElement = el('div', 'auction-row sale', salesRows);
+    settleRow(row);
+    const cell: ItemCell = createItemCell(context, row, (): string => '');
+    const text: HTMLDivElement = el('div', 'auction-row-text', row);
+    const name: HTMLDivElement = label('auction-row-name', '', text);
+    const sub: HTMLDivElement = label('auction-row-sub', '', text);
+    const cost: HTMLElement = coins(row, 'auction-row-price');
+    return { element: row, cell, name, sub, price: cost, sale };
+  };
+
+  const renderPublic = (state: AuctionState, world: World): void => {
+    const sales: readonly PublicSale[] = state.sales.kind === 'ready' ? state.sales.sales : [];
+    const wanted: Set<string> = new Set<string>(sales.map((sale: PublicSale): string => sale.id));
+    for (const [id, row] of publicKept) {
+      if (wanted.has(id)) continue;
+      publicKept.delete(id);
+      leave(row);
+    }
+    const placed: HTMLElement[] = [];
+    const now: number = Date.now();
+    for (const sale of sales) {
+      const row: PublicRow = publicKept.get(sale.id) ?? makePublic(sale);
+      row.sale = sale;
+      publicKept.set(sale.id, row);
+      placed.push(row.element);
+      const item: ItemInstance = items.shown(sale.item);
+      showItem(context, row.cell, item);
+      setText(row.name, itemName(world.content, item), false);
+      row.name.style.setProperty('--rarity', rarityOf(world.content, item).color);
+      row.element.classList.toggle('yours', sale.you !== null);
+      setText(row.sub, publicSub(sale, now), false);
+      setText(row.price, String(sale.price), true);
+    }
+    placeRows(domRows(salesRows, 'leaving'), placed);
+    setText(salesEmpty, SALES_TEXT[state.sales.kind], false);
+    shown(salesEmpty, sales.length === 0);
+  };
 
   const makeSale = (sale: Sale): SaleRow => {
     const row: HTMLDivElement = el('div', 'auction-row sale', historyRows);
@@ -411,9 +474,11 @@ export function createAuctionPanel(parent: HTMLElement, context: HudContext): Pa
         shown(line, text !== '');
         renderBrowse(state, world);
         renderMine(state, world, rules);
+        renderPublic(state, world);
       }
       renderSell(state, world, rules);
       if (state.tab === 'mine') for (const row of mineKept.values()) setText(row.sub, timeLeft(row.listing.endsAt, Date.now()), false);
+      if (state.tab === 'history') for (const row of publicKept.values()) setText(row.sub, publicSub(row.sale, Date.now()), false);
     },
   };
 }

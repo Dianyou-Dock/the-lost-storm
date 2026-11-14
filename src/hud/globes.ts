@@ -50,6 +50,7 @@ export interface Globes {
   setRestoring(resource: FlaskResource, on: boolean): void;
   count(resource: FlaskResource): HTMLElement;
   key(resource: FlaskResource): HTMLElement;
+  setWaiting(text: string): void;
 }
 
 function buildStorm(liquid: HTMLElement): Storm {
@@ -129,6 +130,9 @@ export function createGlobes(root: HTMLElement): Globes {
   coin.innerHTML = iconSvg('coin');
   const goldText: HTMLSpanElement = el('span', 'gold-text', gold);
   tagPart(gold, 'gold');
+  const waiting: HTMLDivElement = el('div', 'hud-gold-waiting', gold);
+  el('span', 'gold-icon', waiting).innerHTML = iconSvg('coin');
+  const waitingText: HTMLSpanElement = el('span', 'gold-waiting-text', waiting);
   const life: GlobeView = buildGlobe(lifeGroup, 'life');
   const mana: GlobeView = buildGlobe(manaGroup, 'mana');
   tagPart(mana.globe, 'mana');
@@ -153,6 +157,10 @@ export function createGlobes(root: HTMLElement): Globes {
     },
     key(resource: FlaskResource): HTMLElement {
       return viewOf(resource).key;
+    },
+    setWaiting(text: string): void {
+      if (text !== '') setText(waitingText, text, true);
+      waiting.classList.toggle('shown', text !== '');
     },
   };
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { Sale } from '../backend/auction-api.ts';
-import { choiceFilter, collectedLine, createShownItems, parseLevel, parsePrice, pickLine, proceeds, refusalLine, saleLine, termsLine, timeLeft } from './auction-model.ts';
+import type { MyAuction, PublicSale, Sale } from '../backend/auction-api.ts';
+import { agoLine, AUCTION_WATCH, choiceFilter, collectedLine, createShownItems, parseLevel, parsePrice, peekDue, pickLine, proceeds, refusalLine, saleLine, termsLine, timeLeft, tradeLine, waitingCue } from './auction-model.ts';
 
 const RULES = { minPrice: 5, maxPrice: 1000, maxListings: 10, cut: 0.1, lifeHours: 48, sellLevel: 3 };
 
@@ -69,4 +69,35 @@ void test('each choice from a filter dropdown becomes the filter it names', (): 
   assert.deepEqual(choiceFilter('sort', 'newest'), { sort: 'newest' });
   assert.deepEqual(choiceFilter('sort', 'price'), { sort: 'price' });
   assert.deepEqual(choiceFilter('sort', 'bogus'), { sort: 'price' });
+});
+
+void test('a public sale says who sold to whom, and speaks to the reader on their own side', (): void => {
+  const sale: PublicSale = { id: 'lst_BBBBBBBBBBBBBBBBBBBBBB', item: { id: 'itm_AAAAAAAAAAAAAAAAAAAAAA', base: 'rusted_blade', rarity: 'magic', level: 3, affixes: [] }, price: 250, seller: 'Grey Heron', buyer: 'Ash', soldAt: '2026-11-15T10:00:00.000Z', you: null };
+  assert.equal(tradeLine(sale), 'Grey Heron sold to Ash');
+  assert.equal(tradeLine({ ...sale, you: 'seller' }), 'You sold to Ash');
+  assert.equal(tradeLine({ ...sale, you: 'buyer' }), 'You bought from Grey Heron');
+  assert.equal(tradeLine({ ...sale, seller: null, buyer: null }), 'Someone sold to Someone');
+});
+
+void test('a sale time reads as how long ago, in minutes, hours or days', (): void => {
+  const now: number = Date.parse('2026-11-15T10:00:00.000Z');
+  assert.equal(agoLine('2026-11-15T09:59:40.000Z', now), 'just now');
+  assert.equal(agoLine('2026-11-15T09:15:00.000Z', now), '45m ago');
+  assert.equal(agoLine('2026-11-15T07:00:00.000Z', now), '3h ago');
+  assert.equal(agoLine('2026-11-12T10:00:00.000Z', now), '3d ago');
+  assert.equal(agoLine('2026-11-15T10:05:00.000Z', now), 'just now');
+});
+
+function mine(open: number): MyAuction {
+  return { listings: Array.from({ length: open }, (_: unknown, index: number) => ({ id: `lst_${String(index).padStart(22, 'B')}`, item: { id: 'itm_AAAAAAAAAAAAAAAAAAAAAA', base: 'rusted_blade', rarity: 'magic', level: 3, affixes: [] }, price: 5, seller: null, listedAt: '2026-11-15T10:00:00.000Z', endsAt: '2026-11-17T10:00:00.000Z', yours: true })), waiting: { gold: 0, items: [] }, rules: RULES, entries: [] };
+}
+
+void test('the house is asked about waiting gold once, then again only while listings are open', (): void => {
+  assert.equal(peekDue(null, 0, null), true);
+  assert.equal(peekDue(0, AUCTION_WATCH.everyMs - 1, mine(1)), false);
+  assert.equal(peekDue(0, AUCTION_WATCH.everyMs, mine(1)), true);
+  assert.equal(peekDue(0, AUCTION_WATCH.everyMs * 10, mine(0)), false);
+  assert.equal(peekDue(0, AUCTION_WATCH.everyMs, null), true);
+  assert.equal(waitingCue(225), '225 at the auctioneer');
+  assert.equal(waitingCue(0), '');
 });

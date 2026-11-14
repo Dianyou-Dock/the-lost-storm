@@ -2,10 +2,10 @@ import type { ItemSpot, Listable, ListRefusal } from '../../sim/world/purse.ts';
 import { findLedger, freeSlots, hasRoom, itemAt, listable } from '../../sim/world/purse.ts';
 import type { PurseEntry } from '../../sim/world/ledger.ts';
 import type { Command, ItemInstance, World } from '../../sim/world/types.ts';
-import type { AuctionAnswer, AuctionFilters, AuctionRules, Listed, Listing, ListingPage, MyAuction, Sale } from '../backend/auction-api.ts';
+import type { AuctionAnswer, AuctionFilters, AuctionRules, Listed, Listing, ListingPage, MyAuction, PublicSale, Sale } from '../backend/auction-api.ts';
 import type { AuctionHouse } from '../backend/auction.ts';
-import type { AuctionLine, AuctionTab } from './auction-model.ts';
-import { AUCTION_LINES, collectedLine, FIRST_PAGE, parsePrice, pickLine, priceLine, RECORDING_LINE, refusalLine } from './auction-model.ts';
+import type { AuctionLine, AuctionTab, SalesView } from './auction-model.ts';
+import { AUCTION_LINES, collectedLine, FIRST_PAGE, parsePrice, peekDue, pickLine, priceLine, RECORDING_LINE, refusalLine } from './auction-model.ts';
 
 export type AuctionWork = 'list' | 'buy' | 'cancel' | 'collect';
 
@@ -15,6 +15,7 @@ export interface AuctionState {
   readonly page: ListingPage | null;
   readonly mine: MyAuction | null;
   readonly history: readonly Sale[] | null;
+  readonly sales: SalesView;
   readonly picked: string | null;
   readonly price: string;
   readonly confirm: string | null;
@@ -30,6 +31,7 @@ interface FlowState {
   page: ListingPage | null;
   mine: MyAuction | null;
   history: readonly Sale[] | null;
+  sales: SalesView;
   picked: string | null;
   price: string;
   confirm: string | null;
@@ -62,6 +64,8 @@ export interface AuctionFlow {
   buy(listing: string): Promise<void>;
   cancel(listing: string): Promise<void>;
   collect(): Promise<void>;
+  watch(now: number, open: boolean): void;
+  waitingGold(): number;
 }
 
 type Unanswered = Exclude<AuctionAnswer<never>, { readonly kind: 'ok' }>;
@@ -72,11 +76,14 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
     const item: ItemInstance | null = itemAt(options.world(), spot);
     return reason === 'unverified' && item !== null && !options.unverified(item) ? RECORDING_LINE : pickLine(reason);
   };
-  const state: FlowState = { tab: 'browse', filters: FIRST_PAGE, page: null, mine: null, history: null, picked: null, price: '', confirm: null, work: null, loading: false, line: null, closed: false };
+  const state: FlowState = { tab: 'browse', filters: FIRST_PAGE, page: null, mine: null, history: null, sales: { kind: 'loading' }, picked: null, price: '', confirm: null, work: null, loading: false, line: null, closed: false };
   let changes: number = 0;
   let browseTurn: number = 0;
   let mineTurn: number = 0;
   let historyTurn: number = 0;
+  let salesTurn: number = 0;
+  let peekedAt: number | null = null;
+  let peeking: boolean = false;
 
   const touch = (): void => {
     changes += 1;
@@ -129,6 +136,36 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
     touch();
   };
 
+  const refreshSales = async (): Promise<void> => {
+    salesTurn += 1;
+    const turn: number = salesTurn;
+    const answer: AuctionAnswer<readonly PublicSale[]> = await house.sales();
+    if (turn !== salesTurn) return;
+    switch (answer.kind) {
+      case 'ok':
+        state.sales = { kind: 'ready', sales: answer.value };
+        break;
+      case 'closed':
+        state.sales = { kind: 'missing' };
+        break;
+      case 'refused':
+      case 'failed':
+        if (state.sales.kind === 'loading') state.sales = { kind: 'missing' };
+        break;
+    }
+    touch();
+  };
+
+  const peek = async (): Promise<void> => {
+    peeking = true;
+    const answer: AuctionAnswer<MyAuction> = await house.mine(purse());
+    peeking = false;
+    if (answer.kind !== 'ok') return;
+    state.mine = answer.value;
+    apply(answer.value.entries);
+    touch();
+  };
+
   const refreshMine = async (): Promise<void> => {
     mineTurn += 1;
     const turn: number = mineTurn;
@@ -169,6 +206,7 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
       say(null);
       void refreshMine();
       void browse();
+      if (state.tab === 'history') void refreshSales();
     },
     setTab(tab: AuctionTab): void {
       if (state.tab === tab) return;
@@ -176,6 +214,7 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
       state.confirm = null;
       say(tab === 'sell' && state.picked === null ? AUCTION_LINES.pick : null);
       if (tab === 'mine') void refreshMine();
+      if (tab === 'history') void refreshSales();
     },
     filter(next: Partial<AuctionFilters>): void {
       state.filters = { ...state.filters, ...next, page: 1 };
@@ -264,6 +303,7 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
           apply(entries);
           state.line = AUCTION_LINES.bought;
           void refreshMine();
+          void refreshSales();
         },
       );
       void browse();
@@ -304,5 +344,15 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
       );
       void refreshMine();
     },
+    watch(now: number, open: boolean): void {
+      if (open || peeking) {
+        if (open) peekedAt = now;
+        return;
+      }
+      if (!peekDue(peekedAt, now, state.mine)) return;
+      peekedAt = now;
+      void peek();
+    },
+    waitingGold: (): number => state.mine?.waiting.gold ?? 0,
   };
 }

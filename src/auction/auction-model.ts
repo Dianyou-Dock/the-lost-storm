@@ -2,13 +2,25 @@ import { ITEM_SLOTS } from '../../sim/content/types.ts';
 import type { LedgerItem } from '../../sim/world/ledger.ts';
 import type { ListRefusal } from '../../sim/world/purse.ts';
 import type { ItemInstance } from '../../sim/world/types.ts';
-import type { AuctionFilters, AuctionRefusal, AuctionRules, AuctionSort, Sale } from '../backend/auction-api.ts';
+import type { AuctionFilters, AuctionRefusal, AuctionRules, AuctionSort, MyAuction, PublicSale, Sale } from '../backend/auction-api.ts';
 
-export type AuctionTab = 'browse' | 'sell' | 'mine';
+export type AuctionTab = 'browse' | 'sell' | 'mine' | 'history';
 
-export const AUCTION_TABS: readonly AuctionTab[] = ['browse', 'sell', 'mine'];
+export const AUCTION_TABS: readonly AuctionTab[] = ['browse', 'sell', 'mine', 'history'];
 
-export const TAB_NAMES: Readonly<Record<AuctionTab, string>> = { browse: 'Browse', sell: 'Sell', mine: 'Mine' };
+export const TAB_NAMES: Readonly<Record<AuctionTab, string>> = { browse: 'Browse', sell: 'Sell', mine: 'Mine', history: 'History' };
+
+export type SalesView = { readonly kind: 'loading' } | { readonly kind: 'ready'; readonly sales: readonly PublicSale[] } | { readonly kind: 'missing' };
+
+export const AUCTION_WATCH: { readonly everyMs: number } = {
+  everyMs: 120_000,
+};
+
+export function peekDue(peekedAt: number | null, now: number, mine: MyAuction | null): boolean {
+  if (peekedAt === null) return true;
+  if (mine === null) return now - peekedAt >= AUCTION_WATCH.everyMs;
+  return mine.listings.length > 0 && now - peekedAt >= AUCTION_WATCH.everyMs;
+}
 
 export type LineTone = 'note' | 'done' | 'refusal';
 
@@ -139,6 +151,29 @@ export function saleLine(sale: Sale): string {
   if (sale.outcome === 'cancelled') return 'Cancelled';
   if (sale.outcome === 'expired') return sale.collected ? 'Expired · back with you' : 'Expired · waiting';
   return sale.collected ? `Sold for ${sale.price} · you got ${sale.proceeds}` : `Sold for ${sale.price} · ${sale.proceeds} waiting`;
+}
+
+const SOMEONE: string = 'Someone';
+const MINUTES_PER_DAY: number = 1440;
+
+export function agoLine(at: string, now: number): string {
+  const minutes: number = Math.max(0, Math.floor((now - Date.parse(at)) / MS_PER_MINUTE));
+  if (minutes < 1) return 'just now';
+  if (minutes < MINUTES_PER_HOUR) return `${minutes}m ago`;
+  if (minutes < MINUTES_PER_DAY) return `${Math.floor(minutes / MINUTES_PER_HOUR)}h ago`;
+  return `${Math.floor(minutes / MINUTES_PER_DAY)}d ago`;
+}
+
+export function tradeLine(sale: PublicSale): string {
+  const seller: string = sale.seller ?? SOMEONE;
+  const buyer: string = sale.buyer ?? SOMEONE;
+  if (sale.you === 'seller') return `You sold to ${buyer}`;
+  if (sale.you === 'buyer') return `You bought from ${seller}`;
+  return `${seller} sold to ${buyer}`;
+}
+
+export function waitingCue(gold: number): string {
+  return gold > 0 ? `${gold} at the auctioneer` : '';
 }
 
 export interface ShownItems {

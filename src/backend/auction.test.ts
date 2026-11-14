@@ -40,3 +40,14 @@ void test('the house sends the token this server issued', async (): Promise<void
   assert.deepEqual(await other.collect(3), { kind: 'refused', code: 'no_character' });
   assert.equal(net.urls.length, 1);
 });
+
+void test('the public sale history is asked for even without a saved account, with the token when there is one', async (): Promise<void> => {
+  const net = counting();
+  const store = createMemoryStore();
+  const house = createAuctionHouse({ serverUrl: SERVER, store, api: createAuctionApi(SERVER, net.fetch, content) });
+  await house.sales();
+  store.write(SYNC_KEY, serializeSyncRecord({ serverUrl: SERVER, accountId: 'acc', token: 'tok-9', revision: 1, updatedAt: null, savedAt: null, pending: false, overwriteCloud: false }));
+  await house.sales();
+  assert.deepEqual(net.urls, [`${SERVER}/v1/auction/sales`, `${SERVER}/v1/auction/sales`]);
+  assert.deepEqual(net.tokens, [null, 'Bearer tok-9']);
+});

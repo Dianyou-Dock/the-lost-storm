@@ -87,6 +87,7 @@ import { mountPlayerTrade } from './player-trade-panel.ts';
 import type { PlayerTrade } from '../player-trade/trade-flow.ts';
 import dropdownCss from './dropdown.css?inline';
 import { createTradeHud } from './trade-hud.ts';
+import { waitingCue } from '../auction/auction-model.ts';
 import type { TradeHud } from './trade-hud.ts';
 import volumeCss from './volume.css?inline';
 import { createFeedbackButton } from './feedback-button.ts';
@@ -300,6 +301,8 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
       playerTrade?.update(Date.now());
       fps.frame(performance.now(), view);
       globes.update(world.player, dt);
+      api.auction?.watch(Date.now(), world.service?.kind === 'auction');
+      globes.setWaiting(waitingCue(api.auction?.waitingGold() ?? 0));
       flasks.update(world.player);
       skillBar.update(world.player);
       xp.update(world.player, world.content);

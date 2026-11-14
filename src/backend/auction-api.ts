@@ -11,11 +11,12 @@ import { readEntries } from './purse-read.ts';
 
 export const LISTING_ID: RegExp = /^lst_[A-Za-z0-9_-]{22}$/;
 
-export const AUCTION_API: { readonly listingsPath: string; readonly mePath: string; readonly collectPath: string; readonly historyPath: string; readonly closedCode: string; readonly maxPage: number } = {
+export const AUCTION_API: { readonly listingsPath: string; readonly mePath: string; readonly collectPath: string; readonly historyPath: string; readonly salesPath: string; readonly closedCode: string; readonly maxPage: number } = {
   listingsPath: '/v1/auction/listings',
   mePath: '/v1/auction/me',
   collectPath: '/v1/auction/collect',
   historyPath: '/v1/auction/history',
+  salesPath: '/v1/auction/sales',
   closedCode: 'not_found',
   maxPage: 10_000,
 };
@@ -91,6 +92,19 @@ export interface Sale {
   readonly collected: boolean;
 }
 
+export const SALE_SIDES = ['seller', 'buyer'] as const;
+export type SaleSide = (typeof SALE_SIDES)[number];
+
+export interface PublicSale {
+  readonly id: string;
+  readonly item: LedgerItem;
+  readonly price: number;
+  readonly seller: string | null;
+  readonly buyer: string | null;
+  readonly soldAt: string;
+  readonly you: SaleSide | null;
+}
+
 export type AuctionAnswer<T> = { readonly kind: 'ok'; readonly value: T } | { readonly kind: 'refused'; readonly code: AuctionRefusal } | { readonly kind: 'closed' } | { readonly kind: 'failed' };
 
 export interface AuctionApi {
@@ -101,6 +115,7 @@ export interface AuctionApi {
   cancel(token: string, listing: string, purse: number, signal: AbortSignal): Promise<AuctionAnswer<readonly PurseEntry[]>>;
   collect(token: string, purse: number, signal: AbortSignal): Promise<AuctionAnswer<readonly PurseEntry[]>>;
   history(token: string, signal: AbortSignal): Promise<AuctionAnswer<readonly Sale[]>>;
+  sales(token: string | null, signal: AbortSignal): Promise<AuctionAnswer<readonly PublicSale[]>>;
 }
 
 function wholeOf(source: Fields, key: string, min: number): number | null {
@@ -202,6 +217,35 @@ export function readHistory(content: Content, value: unknown): Sale[] | null {
   return list.map((entry: unknown): Sale | null => readSale(content, entry)).filter((entry: Sale | null): entry is Sale => entry !== null);
 }
 
+function nameOf(value: unknown): string | null | undefined {
+  if (value === null) return null;
+  return typeof value === 'string' && value !== '' ? value : undefined;
+}
+
+function sideOf(value: unknown): SaleSide | null | undefined {
+  if (value === null || value === undefined) return null;
+  return SALE_SIDES.find((side: SaleSide): boolean => side === value);
+}
+
+export function readPublicSale(content: Content, value: unknown): PublicSale | null {
+  if (!isFields(value)) return null;
+  const id: unknown = value['id'];
+  const item: LedgerItem | null = readLedgerItem(content, value['item']);
+  const price: number | null = wholeOf(value, 'price', 1);
+  const seller: string | null | undefined = nameOf(value['seller']);
+  const buyer: string | null | undefined = nameOf(value['buyer']);
+  const soldAt: string | null = timeOf(value, 'soldAt');
+  const you: SaleSide | null | undefined = sideOf(value['you']);
+  if (typeof id !== 'string' || id === '' || item === null || price === null || seller === undefined || buyer === undefined || soldAt === null || you === undefined) return null;
+  return { id, item, price, seller, buyer, soldAt, you };
+}
+
+export function readPublicSales(content: Content, value: unknown): PublicSale[] | null {
+  if (!isFields(value) || !Array.isArray(value['sales'])) return null;
+  const list: readonly unknown[] = value['sales'];
+  return list.map((entry: unknown): PublicSale | null => readPublicSale(content, entry)).filter((entry: PublicSale | null): entry is PublicSale => entry !== null);
+}
+
 function entriesOf(content: Content, value: unknown): PurseEntry[] | null {
   return isFields(value) ? readEntries(content, value['entries']) : null;
 }
@@ -263,5 +307,11 @@ export function createAuctionApi(baseUrl: string, fetchFn: FetchFn, content: Con
     cancel: async (token: string, listing: string, purse: number, signal: AbortSignal): Promise<AuctionAnswer<readonly PurseEntry[]>> => settled(await post(token, listingPath(listing, 'cancel'), { purse }, signal), entries, [200]),
     collect: async (token: string, purse: number, signal: AbortSignal): Promise<AuctionAnswer<readonly PurseEntry[]>> => settled(await post(token, AUCTION_API.collectPath, { purse }, signal), entries, [200]),
     history: async (token: string, signal: AbortSignal): Promise<AuctionAnswer<readonly Sale[]>> => settled(await get(token, AUCTION_API.historyPath, signal), (body: unknown): Sale[] | null => readHistory(content, body), [200]),
+    sales: async (token: string | null, signal: AbortSignal): Promise<AuctionAnswer<readonly PublicSale[]>> =>
+      settled(
+        await exchange(fetchFn, `${baseUrl}${AUCTION_API.salesPath}`, token === null ? { method: 'GET', signal } : { method: 'GET', headers: headers(token), signal }),
+        (body: unknown): PublicSale[] | null => readPublicSales(content, body),
+        [200],
+      ),
   };
 }

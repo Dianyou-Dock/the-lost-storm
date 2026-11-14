@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { content } from '../../test/backend-support.ts';
 import { must } from '../../test/support.ts';
 import type { FetchFn } from './api.ts';
-import { createAuctionApi, filterQuery, readHistory, readListing, readListingPage, readMyAuction, readRules, readSale } from './auction-api.ts';
+import { createAuctionApi, filterQuery, readHistory, readListing, readListingPage, readMyAuction, readPublicSale, readPublicSales, readRules, readSale } from './auction-api.ts';
 import type { AuctionApi, AuctionFilters } from './auction-api.ts';
 
 const SERVER: string = 'http://localhost:8787';
@@ -165,4 +165,26 @@ void test('the history is asked for with the token, and an older server without 
   assert.equal(only(seen).url, `${SERVER}/v1/auction/history`);
   assert.deepEqual(await client(404, { error: { code: 'not_found', message: 'no route' } }).api.history('tok', SIGNAL), { kind: 'closed' });
   assert.deepEqual(await client(429, { error: { code: 'rate_limited', message: 'slow' } }).api.history('tok', SIGNAL), { kind: 'refused', code: 'rate_limited' });
+});
+
+const PUBLIC_SALE = { id: 'lst_BBBBBBBBBBBBBBBBBBBBBB', item: ITEM, price: 250, seller: 'Grey Heron', buyer: 'Ash', soldAt: '2026-11-15T10:00:00.000Z', you: null };
+
+void test('a public sale is read with both names, the time and which side the reader was, and nothing else', (): void => {
+  assert.deepEqual(readPublicSale(content, PUBLIC_SALE), PUBLIC_SALE);
+  assert.deepEqual(readPublicSale(content, { ...PUBLIC_SALE, seller: null, buyer: null, you: 'seller' }), { ...PUBLIC_SALE, seller: null, buyer: null, you: 'seller' });
+  assert.deepEqual(readPublicSale(content, { ...PUBLIC_SALE, account: 'acc_1' }), PUBLIC_SALE);
+  for (const value of [{ ...PUBLIC_SALE, seller: 3 }, { ...PUBLIC_SALE, buyer: '' }, { ...PUBLIC_SALE, you: 'thief' }, { ...PUBLIC_SALE, soldAt: 'later' }, { ...PUBLIC_SALE, price: 0 }, { ...PUBLIC_SALE, item: { ...ITEM, base: 'no_such_base' } }]) assert.equal(readPublicSale(content, value), null);
+  assert.deepEqual(readPublicSales(content, { sales: [PUBLIC_SALE, { id: 'x' }] }), [PUBLIC_SALE]);
+  assert.equal(readPublicSales(content, { sales: 'none' }), null);
+});
+
+void test('the public sale history is asked for without a token, or with one to learn which side the reader was', async (): Promise<void> => {
+  const open = client(200, { sales: [PUBLIC_SALE] });
+  assert.deepEqual(await open.api.sales(null, SIGNAL), { kind: 'ok', value: [PUBLIC_SALE] });
+  assert.equal(only(open.seen).url, `${SERVER}/v1/auction/sales`);
+  assert.equal(new Headers(only(open.seen).init.headers).get('authorization'), null);
+  const signed = client(200, { sales: [] });
+  await signed.api.sales('tok', SIGNAL);
+  assert.equal(new Headers(only(signed.seen).init.headers).get('authorization'), 'Bearer tok');
+  assert.deepEqual(await client(404, { error: { code: 'not_found', message: 'no route' } }).api.sales(null, SIGNAL), { kind: 'closed' });
 });

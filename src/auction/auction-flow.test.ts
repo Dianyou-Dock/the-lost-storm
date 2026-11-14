@@ -5,11 +5,11 @@ import type { Content } from '../../sim/content/types.ts';
 import type { PurseEntry } from '../../sim/world/ledger.ts';
 import type { Command, ItemInstance, World } from '../../sim/world/types.ts';
 import { worldIn } from '../../test/support.ts';
-import type { AuctionAnswer, AuctionFilters, Listed, Listing, ListingPage, MyAuction, Sale } from '../backend/auction-api.ts';
+import type { AuctionAnswer, AuctionFilters, Listed, Listing, ListingPage, MyAuction, PublicSale, Sale } from '../backend/auction-api.ts';
 import type { AuctionHouse } from '../backend/auction.ts';
 import { createAuctionFlow } from './auction-flow.ts';
 import type { AuctionFlow } from './auction-flow.ts';
-import { AUCTION_LINES, RECORDING_LINE } from './auction-model.ts';
+import { AUCTION_LINES, AUCTION_WATCH, RECORDING_LINE } from './auction-model.ts';
 
 const content: Content = loadContent();
 const LEDGER: string = 'itm_AAAAAAAAAAAAAAAAAAAAAA';
@@ -17,6 +17,7 @@ const ITEM = { id: LEDGER, base: 'rusted_blade', rarity: 'magic', level: 3, affi
 const LISTING: Listing = { id: 'lst_BBBBBBBBBBBBBBBBBBBBBB', item: { ...ITEM, id: 'itm_CCCCCCCCCCCCCCCCCCCCCC' }, price: 40, seller: 'Ash', listedAt: '2026-11-14T10:00:00.000Z', endsAt: '2026-11-16T10:00:00.000Z', yours: false };
 const RULES = { minPrice: 1, maxPrice: 1000, maxListings: 10, cut: 0.1, lifeHours: 48, sellLevel: 3 };
 const SALE: Sale = { id: 'lst_DDDDDDDDDDDDDDDDDDDDDD', item: LISTING.item, price: 40, cut: 4, proceeds: 36, outcome: 'sold', closedAt: '2026-11-14T12:00:00.000Z', collected: false };
+const PUBLIC: PublicSale = { id: SALE.id, item: SALE.item, price: 40, seller: 'Ash', buyer: 'Grey Heron', soldAt: SALE.closedAt, you: null };
 const BOUGHT: PurseEntry = { id: 9, kind: 'buy', gold: -40, item: LISTING.item, direction: 'in' };
 
 interface Call {
@@ -32,6 +33,7 @@ interface Answers {
   cancel: AuctionAnswer<readonly PurseEntry[]>;
   collect: AuctionAnswer<readonly PurseEntry[]>;
   history: AuctionAnswer<readonly Sale[]>;
+  sales: AuctionAnswer<readonly PublicSale[]>;
 }
 
 interface Rig {
@@ -67,6 +69,7 @@ function rig(): Rig {
     cancel: { kind: 'failed' },
     collect: { kind: 'failed' },
     history: { kind: 'ok', value: [SALE] },
+    sales: { kind: 'ok', value: [PUBLIC] },
   };
   const note = (name: string, args: readonly unknown[]): void => {
     calls.push({ name, args });
@@ -100,6 +103,10 @@ function rig(): Rig {
     history: (): Promise<AuctionAnswer<readonly Sale[]>> => {
       note('history', []);
       return Promise.resolve(answers.history);
+    },
+    sales: (): Promise<AuctionAnswer<readonly PublicSale[]>> => {
+      note('sales', []);
+      return Promise.resolve(answers.sales);
     },
   };
   const sync = (): Promise<void> => {
@@ -292,4 +299,74 @@ void test('a hero under the selling level is told so before any request', async 
   await state.flow.list();
   assert.equal(named(state.calls, 'list').length, 0);
   assert.equal(state.flow.state().line?.text, 'Selling needs level 3.');
+});
+
+void test('the history tab asks for the public sales when it is chosen and when the panel opens on it', async (): Promise<void> => {
+  const state: Rig = await opened();
+  assert.equal(named(state.calls, 'sales').length, 0);
+  assert.deepEqual(state.flow.state().sales, { kind: 'loading' });
+  state.flow.setTab('history');
+  await settle();
+  assert.deepEqual(state.flow.state().sales, { kind: 'ready', sales: [PUBLIC] });
+  state.flow.open();
+  await settle();
+  assert.equal(named(state.calls, 'sales').length, 2);
+});
+
+void test('a server without the public history shows it missing and keeps the house open; a later failure keeps what was shown', async (): Promise<void> => {
+  const state: Rig = await opened();
+  state.answers.sales = { kind: 'closed' };
+  state.flow.setTab('history');
+  await settle();
+  assert.deepEqual(state.flow.state().sales, { kind: 'missing' });
+  assert.equal(state.flow.state().closed, false);
+  state.answers.sales = { kind: 'ok', value: [PUBLIC] };
+  state.flow.open();
+  await settle();
+  state.answers.sales = { kind: 'failed' };
+  state.flow.open();
+  await settle();
+  assert.deepEqual(state.flow.state().sales, { kind: 'ready', sales: [PUBLIC] });
+});
+
+void test('a buy refreshes the public sales too', async (): Promise<void> => {
+  const state: Rig = await opened();
+  state.answers.buy = { kind: 'ok', value: [BOUGHT] };
+  state.flow.ask(LISTING.id);
+  await state.flow.buy(LISTING.id);
+  await settle();
+  assert.equal(named(state.calls, 'sales').length, 1);
+});
+
+void test('while the panel is shut the house is asked about waiting gold quietly: at once, then only while listings are open', async (): Promise<void> => {
+  const state: Rig = rig();
+  state.answers.mine = { kind: 'ok', value: { listings: [LISTING], waiting: { gold: 0, items: [] }, rules: RULES, entries: [BOUGHT] } };
+  state.flow.watch(1000, false);
+  await settle();
+  assert.equal(named(state.calls, 'mine').length, 1);
+  assert.equal(named(state.calls, 'history').length, 0);
+  assert.deepEqual(state.sent, [{ type: 'purse', entries: [BOUGHT], stripped: [], unverified: [] }]);
+  state.flow.watch(1000 + AUCTION_WATCH.everyMs - 1, false);
+  await settle();
+  assert.equal(named(state.calls, 'mine').length, 1);
+  state.answers.mine = { kind: 'ok', value: { listings: [], waiting: { gold: 225, items: [] }, rules: RULES, entries: [] } };
+  state.flow.watch(1000 + AUCTION_WATCH.everyMs, false);
+  await settle();
+  assert.equal(state.flow.waitingGold(), 225);
+  state.flow.watch(1000 + AUCTION_WATCH.everyMs * 5, false);
+  await settle();
+  assert.equal(named(state.calls, 'mine').length, 2);
+  assert.equal(state.flow.state().line, null);
+});
+
+void test('the quiet check stays silent on a refusal and waits while the panel is open', async (): Promise<void> => {
+  const state: Rig = rig();
+  state.answers.mine = { kind: 'refused', code: 'no_character' };
+  state.flow.watch(0, false);
+  await settle();
+  assert.equal(state.flow.state().line, null);
+  state.flow.watch(AUCTION_WATCH.everyMs, true);
+  state.flow.watch(AUCTION_WATCH.everyMs * 2 - 1, false);
+  await settle();
+  assert.equal(named(state.calls, 'mine').length, 1);
 });

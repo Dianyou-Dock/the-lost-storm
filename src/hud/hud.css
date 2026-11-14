@@ -97,6 +97,7 @@
 }
 
 .hud-gold {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 5px;
@@ -110,6 +111,50 @@
   display: block;
   width: 15px;
   height: 15px;
+}
+
+.hud-gold-waiting {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 4px);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 7px;
+  border-radius: 4px;
+  background: rgba(12, 14, 20, 0.62);
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--ember);
+  opacity: 0;
+  transform: translateY(6px);
+  pointer-events: none;
+  transition:
+    opacity var(--spring-smooth-ms) var(--spring-smooth),
+    transform var(--spring-smooth-ms) var(--spring-smooth);
+}
+
+.hud-gold-waiting.shown {
+  opacity: 0.92;
+  transform: translateY(0);
+}
+
+body.touch .hud-gold-waiting {
+  right: auto;
+  bottom: auto;
+  left: calc(100% + 6px);
+  top: 50%;
+  transform: translate(-6px, -50%);
+}
+
+body.touch .hud-gold-waiting.shown {
+  transform: translate(0, -50%);
+}
+
+.hud-gold-waiting .gold-icon {
+  width: 12px;
+  height: 12px;
 }
 
 .hud-top {

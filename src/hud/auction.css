@@ -197,6 +197,10 @@
   opacity: 1;
 }
 
+.auction-row.yours .auction-row-sub {
+  color: var(--ember);
+}
+
 .auction-row.settled {
   animation: none;
 }
