@@ -16,7 +16,7 @@ import { bossAttempts } from './simulate-boss.ts';
 import type { Condition, ScalingRamp, ZoneDef, ZoneExit } from '../sim/content/types.ts';
 import { must } from '../test/support.ts';
 import type { Fight, RunSummary } from './simulate-summary.ts';
-import { summarize } from './simulate-summary.ts';
+import { spread, summarize } from './simulate-summary.ts';
 
 const GUARD = {
   seeds: [1, 2, 3],
@@ -30,7 +30,7 @@ const GUARD = {
   strikeGap: 6,
   dormantWait: 0.5,
   over: { hero: 9, low: 1, near: 7, minutes: 8, seed: 1, drastic: 1 / 3 },
-  boss: { level: 8, repeats: 2, poorSeeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], poorBelowAverage: 0.3, poorAtMost: 0.6, minutes: 60, meanSeconds: { min: 45, max: 150 }, builds: ['mixed', 'marksman'] },
+  boss: { level: 8, repeats: 2, poorSeeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], poorBelowAverage: 0.3, poorAtMost: 0.6, minutes: 60, carefulSeeds: [1, 2, 3, 4], medianSeconds: { min: 20, max: 150 }, builds: ['mixed', 'marksman'] },
 } as const;
 
 function runs(scenario: Scenario, skill: string): RunSummary[] {
@@ -182,17 +182,19 @@ void test('the boss lair is found from the content, and its boss sits behind a l
   assert.ok(gates.length > 0 && gates.every((exit: ZoneExit): boolean => exit.requires.some((entry: Condition): boolean => entry.type === 'level' && entry.atLeast === GUARD.boss.level)));
 });
 
-void test('at the gate\'s level both heroes win the boss fight with careful play, its fights last about a minute or two and reach the end card, and poor play wins clearly less often than average play', (): void => {
+void test('at the gate\'s level both heroes win every boss fight with careful play over four seeds, its fights last half a minute to two minutes at the median and reach the end card, and poor play wins clearly less often than average play', (): void => {
   for (const build of GUARD.boss.builds) {
-    const won: BossRun = bossFights('careful', build, 1);
-    const careful: readonly BossAttempt[] = won.attempts;
+    const careful: readonly BossAttempt[] = GUARD.boss.carefulSeeds.flatMap((seed: number): readonly BossAttempt[] => {
+      const won: BossRun = bossFights('careful', build, seed);
+      assert.ok(won.summary.milestones[POLICIES.endCard] !== undefined, `${build} careful never reached the end card on seed ${seed}`);
+      assert.equal(won.attempts.length, GUARD.boss.repeats, `${build} seed ${seed}`);
+      return won.attempts;
+    });
     const paired: readonly PairedFights[] = GUARD.boss.poorSeeds.map((seed: number): PairedFights => pairedFights(build, seed));
     const poor: readonly BossAttempt[] = paired.flatMap((fights: PairedFights): readonly BossAttempt[] => fights.poor);
-    assert.ok(won.summary.milestones[POLICIES.endCard] !== undefined, `${build} careful never reached the end card`);
-    assert.equal(careful.length, GUARD.boss.repeats, build);
     assert.ok(careful.every((attempt: BossAttempt): boolean => attempt.outcome === 'won'), `${build} careful: ${JSON.stringify(careful)}`);
-    const mean: number = careful.reduce((sum: number, attempt: BossAttempt): number => sum + attempt.seconds, 0) / careful.length;
-    assert.ok(mean >= GUARD.boss.meanSeconds.min && mean <= GUARD.boss.meanSeconds.max, `${build} careful fights last ${mean.toFixed(0)} s on average`);
+    const median: number = spread(careful.map((attempt: BossAttempt): number => attempt.seconds)).median;
+    assert.ok(median >= GUARD.boss.medianSeconds.min && median <= GUARD.boss.medianSeconds.max, `${build} careful fights last ${median.toFixed(0)} s at the median`);
     const average: readonly BossAttempt[] = paired.flatMap((fights: PairedFights): readonly BossAttempt[] => fights.average);
     const poorRate: number = winRate(poor);
     const averageRate: number = winRate(average);

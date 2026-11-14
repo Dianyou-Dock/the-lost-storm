@@ -11,7 +11,7 @@ void test('a build whose time is more than the share away from the median of all
   assert.deepEqual(outsideBand(new Map<string, number>([['a', 100], ['b', 60], ['c', 100]]), 0.2), ['b']);
 });
 
-void test('every archetype reaches the same level in a time within a fifth of the median archetype', (): void => {
+void test('every archetype\'s median time to the same level over four seeds is within three tenths of the median archetype\'s', (): void => {
   const medians: Map<string, number> = new Map<string, number>();
   for (const build of BAND.archetypes) {
     assert.ok(POLICIES.builds.has(build), build);

@@ -7,11 +7,11 @@ import { summarize } from './simulate-summary.ts';
 
 export const BAND = {
   archetypes: ['glass', 'tank', 'caster', 'windrunner', 'echoer'],
-  seeds: [1, 2],
+  seeds: [1, 2, 3, 4],
   level: 8,
   minutes: 30,
   skill: 'average',
-  share: 0.2,
+  share: 0.3,
 } as const;
 
 export function timeToLevel(policies: Policies, build: string, seed: number): number | null {

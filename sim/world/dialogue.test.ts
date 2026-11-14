@@ -228,7 +228,7 @@ void test('at the fire the Guide follows his lesson with the gap, then names the
   assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_lesson']);
   assert.equal(world.flags['fire_lesson'], 'given');
   assert.equal(hasNews(world, guide), true);
-  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_born', 'warden_guide_far_apart', 'warden_guide_gap']);
+  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_born', 'warden_guide_far_apart', 'warden_guide_gap', 'warden_guide_counting', 'warden_guide_no_one', 'warden_guide_ledger']);
   assert.equal(hasNews(world, guide), true);
   assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_reckoner', 'warden_guide_stronger']);
   const gate: QuestDef = must(SHIPPED.quests.get('the_gate'), 'the Gate quest');
@@ -247,7 +247,7 @@ void test('a hero who beat the Reckoner before the fire talks existed hears the 
   world.quests['wardens_lesson'] = 1;
   world.flags['fire_lesson'] = 'given';
   world.flags['keeper_defeated'] = 'yes';
-  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_born', 'warden_guide_far_apart', 'warden_guide_gap']);
+  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_born', 'warden_guide_far_apart', 'warden_guide_gap', 'warden_guide_counting', 'warden_guide_no_one', 'warden_guide_ledger']);
   assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_short']);
   assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_road']);
 });

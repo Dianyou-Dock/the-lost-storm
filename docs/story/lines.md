@@ -12,11 +12,14 @@ A **conversation** opens the dialogue box and advances on a click. A **bark** is
 |---|---|---|
 | `warden_guide_lesson` | You carry the storm and swing it like a stick. Hold it so, and throw. There. It goes where you look. | Conversation, once, while The Warden's Lesson asks you to talk to the Guide; teaches Storm Bolt. |
 | `warden_guide_fell` | You fell out of your line. So did I. | Spoken in the Hall of Time, the first time the hero nears its far end: he cuts down the moment the hero is fighting in, then speaks. |
-| `warden_guide_counted` | They count every moment. Yours is missing. They will come for it. | Spoken next, in the same meeting. |
+| `warden_guide_counted` | Between two moments there should be nothing. Now there is you. They will come for you. | Spoken next, in the same meeting. |
 | `warden_guide_road` | Stay close. | Conversation, any talk; also the last line of the meeting in the Hall, after which he walks the hero to the east way out and goes through it with him. |
 | `warden_guide_born` | You think you were born. You think yesterday happened. You only remember it. | Conversation at the fire, once, after his lesson. |
 | `warden_guide_far_apart` | A moment, then another, far apart. Each one remembers the last, so it feels like a life. | The same conversation. |
 | `warden_guide_gap` | You are standing in the gap between two of them. I used to guard it. Now I get people out. | The same conversation. |
+| `warden_guide_counting` | They did not make time. They learned to count it, and called that owning it. | The same conversation. |
+| `warden_guide_no_one` | No one should own the gap. Not them. Not me. Not you. | The same conversation. |
+| `warden_guide_ledger` | I mean to burn the ledger. Then no one is counted again. | The same conversation. |
 | `warden_guide_reckoner` | At the Last Gate stands the Reckoner. It will put you back, and you will not remember you ever left. | Conversation at the fire, once, after the one above, until the Reckoner is beaten. |
 | `warden_guide_stronger` | Come back when you are stronger. | The same conversation. |
 | `warden_guide_short` | It counted you and came up short. Good. | Conversation at the fire, once, after the hero has beaten the Reckoner. |
