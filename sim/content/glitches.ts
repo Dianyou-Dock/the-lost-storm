@@ -2,7 +2,8 @@ import glitches from '../../data/glitches.json' with { type: 'json' };
 import { condition } from './parse-conditions.ts';
 import type { Fields } from './read.ts';
 import { ContentError, choice, choiceList, each, fields, flag, fraction, numeric, positive, text, textList } from './read.ts';
-import type { Condition, Content } from './types.ts';
+import type { Condition, Content, ZoneKind } from './types.ts';
+import { ZONE_KINDS } from './types.ts';
 
 export const GLITCH_KINDS = ['hard_cut', 'stutter', 'wrong_word', 'quiet_pass'] as const;
 export type GlitchKind = (typeof GLITCH_KINDS)[number];
@@ -21,6 +22,21 @@ export interface GlitchRules {
   readonly grace: number;
   readonly combatRadius: number;
   readonly combatTick: number;
+  readonly fightQuiet: number;
+  readonly arrival: number;
+  readonly gap: number;
+  readonly overlayQuiet: number;
+  readonly newCharacter: number;
+  readonly clockStep: number;
+  readonly zones: readonly ZoneKind[];
+}
+
+export interface SeamTimes {
+  readonly buildUp: number;
+  readonly guard: number;
+  readonly tear: number;
+  readonly tearBack: number;
+  readonly settle: number;
 }
 
 export interface GlitchStage {
@@ -28,6 +44,7 @@ export interface GlitchStage {
   readonly kinds: readonly GlitchKind[];
   readonly edits: readonly string[];
   readonly combatChancePerMinute: number;
+  readonly seamChancePerMinute: number;
   readonly zoneChance: number;
   readonly mist: GlitchSpan;
   readonly quietPass: boolean;
@@ -104,6 +121,7 @@ export interface GlitchDef {
   readonly seed: number;
   readonly mistZone: string;
   readonly rules: GlitchRules;
+  readonly seam: SeamTimes;
   readonly stages: readonly GlitchStage[];
   readonly progress: readonly GlitchProgress[];
   readonly triggers: readonly GlitchTrigger[];
@@ -142,7 +160,27 @@ function rules(value: unknown, where: string): GlitchRules {
     grace: nonNegative(source, 'grace', where),
     combatRadius: positive(source, 'combatRadius', where),
     combatTick: positive(source, 'combatTick', where),
+    fightQuiet: nonNegative(source, 'fightQuiet', where),
+    arrival: nonNegative(source, 'arrival', where),
+    gap: nonNegative(source, 'gap', where),
+    overlayQuiet: nonNegative(source, 'overlayQuiet', where),
+    newCharacter: nonNegative(source, 'newCharacter', where),
+    clockStep: nonNegative(source, 'clockStep', where),
+    zones: choiceList(source, 'zones', ZONE_KINDS, where),
   };
+}
+
+function seam(value: unknown, where: string): SeamTimes {
+  const source: Fields = fields(value, where);
+  const times: SeamTimes = {
+    buildUp: positive(source, 'buildUp', where),
+    guard: positive(source, 'guard', where),
+    tear: positive(source, 'tear', where),
+    tearBack: positive(source, 'tearBack', where),
+    settle: positive(source, 'settle', where),
+  };
+  if (times.guard > times.buildUp) throw new ContentError(`${where}.guard`, 'the guard must fit inside the build-up');
+  return times;
 }
 
 function stage(value: unknown, where: string): GlitchStage {
@@ -152,6 +190,7 @@ function stage(value: unknown, where: string): GlitchStage {
     kinds: choiceList(source, 'kinds', GLITCH_KINDS, where),
     edits: textList(source, 'edits', where),
     combatChancePerMinute: nonNegative(source, 'combatChancePerMinute', where),
+    seamChancePerMinute: nonNegative(source, 'seamChancePerMinute', where),
     zoneChance: nonNegative(source, 'zoneChance', where),
     mist: span(source['mist'], `${where}.mist`),
     quietPass: flag(source, 'quietPass', where),
@@ -229,12 +268,14 @@ function conditionQuests(list: readonly Condition[]): string[] {
 function check(def: GlitchDef): void {
   def.stages.forEach((entry: GlitchStage, index: number): void => {
     if (entry.kinds.length === 0) throw new ContentError(`glitches.stages[${index}].kinds`, 'expected at least one kind');
+    if (entry.seamChancePerMinute > 0 && !entry.kinds.includes('hard_cut')) throw new ContentError(`glitches.stages[${index}].seamChancePerMinute`, 'a stage without hard cuts cannot roll a seam');
     if (entry.kinds.includes('hard_cut') && entry.edits.length === 0) throw new ContentError(`glitches.stages[${index}].edits`, 'a stage with hard cuts needs at least one edit');
     if (entry.kinds.includes('hard_cut') && ![...def.edits.values()].some((candidate: GlitchEdit): boolean => candidate.type === 'hero_turn')) throw new ContentError(`glitches.stages[${index}].edits`, 'a stage with hard cuts needs a hero_turn edit to fall back on');
     for (const id of entry.edits) if (!def.edits.has(id)) throw new ContentError(`glitches.stages[${index}]`, `unknown edit ${id}`);
     const previous: GlitchStage | undefined = def.stages[index - 1];
     if (previous !== undefined && previous.from >= entry.from) throw new ContentError(`glitches.stages[${index}]`, 'stages must rise in from');
   });
+  if (def.rules.zones.length === 0) throw new ContentError('glitches.rules.zones', 'expected at least one zone kind');
   if (def.stages[0]?.from !== 0) throw new ContentError('glitches.stages', 'the first stage must start from 0');
   const ids: Set<string> = new Set<string>();
   for (const entry of def.triggers) {
@@ -272,6 +313,7 @@ export function parseGlitches(value: unknown): GlitchDef {
     seed: Math.floor(nonNegative(source, 'seed', where)),
     mistZone: text(source, 'mistZone', where),
     rules: rules(source['rules'], `${where}.rules`),
+    seam: seam(source['seam'], `${where}.seam`),
     stages: each(source['stages'], `${where}.stages`, stage),
     progress: each(source['progress'], `${where}.progress`, progress),
     triggers: each(source['triggers'], `${where}.triggers`, trigger),

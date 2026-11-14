@@ -457,6 +457,8 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           case 'player_respawn':
           case 'notice':
           case 'glitch_start':
+          case 'glitch_clock':
+          case 'glitch_phase':
           case 'glitch_end':
           case 'glitch_word':
           case 'silence':

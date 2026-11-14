@@ -1,5 +1,12 @@
 {
   "defaults": { "volume": 1, "maxVoices": 4, "cooldown": 0, "reach": 30 },
+  "seam": {
+    "worldFloor": 0.18,
+    "buildUp": { "synth": true, "cues": [] },
+    "tear": { "synth": true, "cues": [] },
+    "tearBack": { "synth": true, "cues": [] },
+    "settle": { "synth": true, "cues": [] }
+  },
   "skillStart": {
     "cleave": [{ "sound": "sword_swing_light", "volume": 0.9, "maxVoices": 3 }],
     "dodge_roll": [{ "sound": "dodge_whoosh", "volume": 0.75, "maxVoices": 2 }, { "sound": "footstep_stone", "volume": 0.6, "maxVoices": 2 }],

@@ -1,8 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { worldIn, zoneOf } from '../../test/support.ts';
-import { TOWN_CONTENT } from '../../test/town-support.ts';
-import type { Content, QuestDef } from '../content/types.ts';
+import { worldIn } from '../../test/support.ts';
+import type { Content } from '../content/types.ts';
 import { requestGlitch } from './glitch.ts';
 import { loadContent } from '../content/content.ts';
 import { toSave } from '../save.ts';
@@ -14,24 +13,24 @@ import { HUD_FRAME, hudBegun, hudHidden, hudView, partShown } from './hud.ts';
 import { stepWorld } from './step.ts';
 import type { ItemInstance, World } from './types.ts';
 
-const errand: QuestDef = { id: 'errand', name: 'An Errand', requires: [], when: [], objectives: [{ id: 'ask', type: 'talk', npc: 'keeper', text: 'Ask', waiting: '', when: [], sets: {} }] };
-const shipped: Content = { ...TOWN_CONTENT, quests: new Map<string, QuestDef>([[errand.id, errand]]) };
-
-function town(): World {
-  return worldIn(shipped, zoneOf(shipped, 'hub').id, 1);
-}
+const real: Content = loadContent();
 
 void test('while a glitch holds the hero in the mist the HUD is hidden, and it returns after', (): void => {
-  const world: World = town();
+  const world: World = worldIn(real, 'hall_of_time', 3);
   world.monsters = [];
   requestGlitch(world, 'hard_cut', 'debug');
   stepWorld(world, [], 1 / 30);
-  assert.equal(hudHidden(world), true);
-  for (let step: number = 0; step < 120; step += 1) stepWorld(world, [], 1 / 30);
+  assert.equal(hudHidden(world), false);
+  let hidden: boolean = false;
+  for (let step: number = 0; step < 600 && world.glitch.active !== null; step += 1) {
+    stepWorld(world, [], 1 / 30);
+    hidden ||= hudHidden(world);
+  }
+  assert.equal(hidden, true);
+  assert.equal(world.glitch.active, null);
   assert.equal(hudHidden(world), false);
 });
 
-const real: Content = loadContent();
 
 function newHero(): World {
   return createWorld(real, { seed: 2, save: null, opening: true });

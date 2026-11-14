@@ -4,7 +4,14 @@ import type { QualityName } from '../mobile/quality.ts';
 import type { GlitchKind } from '../../sim/content/glitches.ts';
 import type { ZoneAmbience, ZoneDef } from '../../sim/content/types.ts';
 import type { Vec2 } from '../../sim/math.ts';
-import { isMist } from '../../sim/world/glitch.ts';
+import { inMist, isMist, seamMoment } from '../../sim/world/glitch.ts';
+import type { SeamMoment } from '../../sim/world/seam.ts';
+import type { SeamPass } from '../render/seam-pass.ts';
+import type { SeamAudio } from './seam-audio.ts';
+import type { SeamLook } from './seam-look.ts';
+import { CALM_LOOK, hudTear, seamLook } from './seam-look.ts';
+import type { HudTearView } from './hud-tear.ts';
+import { createHudTear } from './hud-tear.ts';
 import type { Silhouette } from '../../sim/world/glitch-types.ts';
 import type { Command, World, WorldEvent } from '../../sim/world/types.ts';
 import { createOverlayWatch } from '../hud/overlay-mark.ts';
@@ -17,7 +24,7 @@ import type { Ghost } from './ghost.ts';
 import { createGhost } from './ghost.ts';
 import type { GlitchSettings, GlitchSettingsStore, SettingRequest, SettingStep } from './glitch-settings.ts';
 import { heroRig } from '../../sim/hero.ts';
-import { settingStep } from './glitch-settings.ts';
+import { seamIsGentle, settingStep } from './glitch-settings.ts';
 import { SHADOW_OWNERS } from '../render/contact-shadow.ts';
 import glitchCss from './glitch.css?inline';
 
@@ -33,6 +40,9 @@ export const GLITCH_VIEW = {
   shadeTint: 0xf2f4f6,
   shadeOpacity: 0.2,
   historySeconds: 1.2,
+  calledOffFade: 0.35,
+  mistHoldAt: 0.94,
+  whiteVar: '--seam-white',
   mistClass: 'glitch-mist',
   softClass: 'soft',
 } as const;
@@ -44,6 +54,10 @@ export interface GlitchViewDeps {
   readonly mistZone: ZoneDef;
   readonly quality: QualityName;
   readonly settings: GlitchSettingsStore;
+  readonly overlays: HTMLElement;
+  readonly seamPass: SeamPass;
+  readonly seamAudio: SeamAudio;
+  reducedMotion(): boolean;
   hero(): Object3D;
   send(command: Command): void;
   setAmbience(ambience: ZoneAmbience): void;
@@ -66,6 +80,13 @@ interface Sample {
 }
 
 type Phase = { readonly type: 'idle' } | { readonly type: 'entering'; left: number } | { readonly type: 'mist' } | { readonly type: 'leaving'; left: number };
+
+type SeamHold = 'none' | 'tear' | 'mist_end';
+
+interface SeamFade {
+  readonly look: SeamLook;
+  left: number;
+}
 
 interface Stutter {
   readonly ghost: Ghost;
@@ -94,6 +115,12 @@ export function createGlitchView(deps: GlitchViewDeps): GlitchView {
   let pendingShades: readonly Silhouette[] = [];
   let stutter: Stutter | null = null;
   let clock: number = 0;
+  let seamMist: boolean = false;
+  let seamHeld: SeamHold = 'none';
+  let seamSilenced: boolean = false;
+  let lastLook: SeamLook = CALM_LOOK;
+  let fade: SeamFade | null = null;
+  const tear: HudTearView = createHudTear(app);
 
   let asked: SettingRequest | null = null;
   const apply = (next: GlitchSettings): void => {
@@ -162,6 +189,65 @@ export function createGlitchView(deps: GlitchViewDeps): GlitchView {
     }
     setWhite(1, false);
     phase = { type: 'entering', left: GLITCH_VIEW.whiteHold };
+  };
+
+  const gentleNow = (): boolean => seamIsGentle(settings.get(), deps.reducedMotion());
+
+  const resumeSeam = (): void => {
+    if (!seamSilenced) return;
+    seamSilenced = false;
+    deps.resume();
+  };
+
+  const endSeam = (): void => {
+    if (seamMist) {
+      hideMist();
+      seamMist = false;
+    }
+    seamHeld = 'none';
+    deps.seamPass.release();
+    deps.seamAudio.end();
+    resumeSeam();
+  };
+
+  const showSeam = (moment: SeamMoment, now: number): void => {
+    const look: SeamLook = seamLook(moment, gentleNow());
+    if (moment.phase === 'tear' && seamHeld === 'none') {
+      deps.seamPass.hold();
+      seamHeld = 'tear';
+    }
+    if (moment.phase === 'mist' && moment.progress >= GLITCH_VIEW.mistHoldAt && seamHeld !== 'mist_end') {
+      deps.seamPass.hold();
+      seamHeld = 'mist_end';
+    }
+    if (look.swapped && !seamMist) {
+      showMist();
+      phase = { type: 'idle' };
+      seamMist = true;
+    } else if (!look.swapped && seamMist) {
+      hideMist();
+      seamMist = false;
+    }
+    document.body.classList.toggle(GLITCH_VIEW.mistClass, inMist(world));
+    deps.seamPass.show(look, now);
+    tear.show(hudTear(look), now);
+    document.body.style.setProperty(GLITCH_VIEW.whiteVar, look.white.toFixed(3));
+    lastLook = look;
+  };
+
+  const showFade = (dt: number, now: number): void => {
+    if (fade === null) return;
+    fade.left -= dt;
+    const share: number = Math.max(0, fade.left / GLITCH_VIEW.calledOffFade);
+    const look: SeamLook = { ...fade.look, split: fade.look.split * share, slip: fade.look.slip * share, density: fade.look.density, blocks: fade.look.blocks * share, tear: fade.look.tear * share, white: fade.look.white * share };
+    deps.seamPass.show(look, now);
+    tear.show(hudTear(look), now);
+    document.body.style.setProperty(GLITCH_VIEW.whiteVar, look.white.toFixed(3));
+    if (fade.left <= 0) {
+      fade = null;
+      deps.seamPass.show(CALM_LOOK, now);
+      tear.calm();
+    }
   };
 
   const leave = (): void => {
@@ -243,10 +329,26 @@ export function createGlitchView(deps: GlitchViewDeps): GlitchView {
   return {
     handle(events: readonly WorldEvent[]): void {
       for (const event of events) {
-        if (event.type === 'silence') deps.silence();
-        else if (event.type === 'glitch_start' && isMist(event.kind)) enter(event.kind, event.silhouettes);
+        if (event.type === 'silence') {
+          deps.silence();
+          if (world.glitch.active?.kind === 'hard_cut') seamSilenced = true;
+        } else if (event.type === 'glitch_start' && event.kind === 'quiet_pass') enter(event.kind, event.silhouettes);
+        else if (event.type === 'glitch_start' && event.kind === 'hard_cut') fade = null;
         else if (event.type === 'glitch_start' && event.kind === 'stutter') startStutter(event.duration);
-        else if (event.type === 'glitch_end' && isMist(event.kind)) {
+        else if (event.type === 'glitch_phase') {
+          deps.seamAudio.phase(event.phase);
+          if (event.phase === 'settle') resumeSeam();
+        } else if (event.type === 'glitch_end' && event.kind === 'hard_cut') {
+          if (event.calledOff) fade = { look: lastLook, left: GLITCH_VIEW.calledOffFade };
+          else {
+            deps.seamPass.show(CALM_LOOK, clock);
+            document.body.style.setProperty(GLITCH_VIEW.whiteVar, '0');
+          }
+          if (!event.calledOff) tear.calm();
+          document.body.classList.remove(GLITCH_VIEW.mistClass);
+          lastLook = CALM_LOOK;
+          endSeam();
+        } else if (event.type === 'glitch_end' && isMist(event.kind)) {
           leave();
           deps.resume();
         }
@@ -254,12 +356,12 @@ export function createGlitchView(deps: GlitchViewDeps): GlitchView {
     },
     refresh(): void {
       asked = null;
-      if (phase.type === 'idle') return;
+      if (phase.type === 'idle' && !seamMist) return;
       deps.silence();
       if (mist !== null) deps.setAmbience(deps.mistZone.ambience);
     },
     silences(events: readonly WorldEvent[]): boolean {
-      return phase.type !== 'idle' || events.some((event: WorldEvent): boolean => event.type === 'silence');
+      return phase.type !== 'idle' || inMist(world) || events.some((event: WorldEvent): boolean => event.type === 'silence');
     },
     update(now: number, dt: number, simDt: number): void {
       apply(settings.get());
@@ -267,6 +369,10 @@ export function createGlitchView(deps: GlitchViewDeps): GlitchView {
       record(simDt);
       stepPhase(dt);
       stepStutter(simDt);
+      const active = world.glitch.active;
+      const moment: SeamMoment | null = active === null ? null : seamMoment(active);
+      if (moment !== null) showSeam(moment, now);
+      else showFade(dt, now);
       if (mist !== null) {
         sweep();
         mist.update(now, dt, world, { look: null, figure: figureGauge.measure(deps.hero(), now), flash: 0 });

@@ -1,10 +1,12 @@
-import type { GlitchDef, GlitchEdit, GlitchKind, GlitchProgress, GlitchStage, TriggerMoment } from '../content/glitches.ts';
+import type { GlitchDef, GlitchEdit, GlitchKind, GlitchProgress, GlitchRules, GlitchStage, TriggerMoment } from '../content/glitches.ts';
 import { distance, facingOf } from '../math.ts';
 import type { Rng } from '../rng.ts';
 import { createRng, pickWeighted } from '../rng.ts';
 import { allHold } from './conditions.ts';
 import { applyEdit, turnHero } from './glitch-edits.ts';
 import type { ActiveGlitch, GlitchRequest, GlitchSave, GlitchSource, GlitchState, PathEntry, Silhouette } from './glitch-types.ts';
+import type { SeamMoment, SeamPhase, SeamPlan } from './seam.ts';
+import { guardStart, hidesWorld, seamAt, seamLength } from './seam.ts';
 import type { Command, MomentState, MonsterState, World, WorldEvent } from './types.ts';
 
 export const GLITCH = {
@@ -12,15 +14,7 @@ export const GLITCH = {
   freshSilhouetteSeconds: 20,
 } as const;
 
-export const CALM = {
-  fightQuiet: 8,
-  arrival: 60,
-  mistGap: 150,
-  mistCap: 1.6,
-  overlayQuiet: 4,
-} as const;
-
-export type GlitchBlock = 'off' | 'dead' | 'active' | 'cooldown' | 'low_life' | 'telegraph' | 'busy' | 'fight' | 'overlay' | 'arrival' | 'spacing';
+export type GlitchBlock = 'off' | 'dead' | 'active' | 'cooldown' | 'low_life' | 'telegraph' | 'busy' | 'scene' | 'boss' | 'zone' | 'fight' | 'overlay' | 'new' | 'arrival' | 'spacing';
 
 export function createGlitchState(def: GlitchDef, seed: number, save: GlitchSave | null): GlitchState {
   return {
@@ -29,6 +23,8 @@ export function createGlitchState(def: GlitchDef, seed: number, save: GlitchSave
     enabled: true,
     progress: save?.progress ?? 0,
     fired: save === null ? [] : [...save.fired],
+    played: save === null ? 0 : (save.played ?? def.rules.newCharacter),
+    banked: save === null ? 0 : (save.played ?? def.rules.newCharacter),
     active: null,
     holdUntil: 0,
     readyAt: 0,
@@ -44,7 +40,7 @@ export function createGlitchState(def: GlitchDef, seed: number, save: GlitchSave
 }
 
 export function glitchToSave(state: GlitchState): GlitchSave {
-  return { progress: state.progress, fired: [...state.fired] };
+  return { progress: state.progress, fired: [...state.fired], played: state.banked };
 }
 
 export function stageOf(def: GlitchDef, progress: number): GlitchStage {
@@ -66,11 +62,30 @@ export function isMist(kind: GlitchKind): boolean {
 
 export function inMist(world: World): boolean {
   const active: ActiveGlitch | null = world.glitch.active;
-  return active !== null && isMist(active.kind);
+  if (active === null || !isMist(active.kind)) return false;
+  return active.phase === null || hidesWorld(active.phase);
+}
+
+export function seamMoment(active: ActiveGlitch): SeamMoment | null {
+  return active.seam === null ? null : seamAt(active.seam, active.elapsed);
 }
 
 function lethalTelegraph(world: World): boolean {
   return world.monsters.some((monster: MonsterState): boolean => monster.alive && monster.action?.phase === 'windup' && (monster.def.boss !== null || monster.damageMax >= world.player.life));
+}
+
+function bossEngaged(world: World): boolean {
+  return world.monsters.some((monster: MonsterState): boolean => monster.alive && monster.aggro && monster.def.boss !== null);
+}
+
+function worldBlock(world: World): GlitchBlock | null {
+  if (!world.player.alive || world.death !== null) return 'dead';
+  if (world.dialogue !== null || world.service !== null) return 'busy';
+  if (world.scene !== null || world.escort !== null) return 'scene';
+  if (bossEngaged(world)) return 'boss';
+  if (!world.glitch.def.rules.zones.includes(world.zone.kind)) return 'zone';
+  if (world.glitch.overlay) return 'overlay';
+  return null;
 }
 
 export function glitchBlock(world: World, request: GlitchRequest): GlitchBlock | null {
@@ -82,8 +97,8 @@ export function glitchBlock(world: World, request: GlitchRequest): GlitchBlock |
   if (request.source !== 'debug' && world.time < state.readyAt) return 'cooldown';
   if (lethalTelegraph(world)) return 'telegraph';
   if (player.life < player.maxLife * state.def.rules.minLifeFraction) return 'low_life';
-  if (isMist(request.kind) && (world.dialogue !== null || world.service !== null)) return 'busy';
-  return isMist(request.kind) ? calmBlock(world, request) : null;
+  if (!isMist(request.kind)) return null;
+  return worldBlock(world) ?? calmBlock(world, request);
 }
 
 function momentFight(world: World, moment: MomentState): boolean {
@@ -91,16 +106,18 @@ function momentFight(world: World, moment: MomentState): boolean {
 }
 
 export function fighting(world: World): boolean {
-  return inCombat(world) || world.time - world.glitch.lastFight < CALM.fightQuiet || world.moments.some((moment: MomentState): boolean => momentFight(world, moment));
+  return inCombat(world) || world.time - world.glitch.lastFight < world.glitch.def.rules.fightQuiet || world.moments.some((moment: MomentState): boolean => momentFight(world, moment));
 }
 
 function calmBlock(world: World, request: GlitchRequest): GlitchBlock | null {
   const state: GlitchState = world.glitch;
-  if (fighting(world)) return 'fight';
-  if (state.overlay || world.time - state.overlayShut < CALM.overlayQuiet) return 'overlay';
+  const rules = state.def.rules;
+  if (request.kind === 'quiet_pass' && fighting(world)) return 'fight';
+  if (world.time - state.overlayShut < rules.overlayQuiet) return 'overlay';
   if (request.source === 'debug' || (request.source === 'zone' && request.kind === 'quiet_pass')) return null;
-  if (world.time - state.zoneSince < CALM.arrival) return 'arrival';
-  if (world.time - state.lastMist < CALM.mistGap) return 'spacing';
+  if (state.played < rules.newCharacter) return 'new';
+  if (world.time - state.zoneSince < rules.arrival) return 'arrival';
+  if (world.time - state.lastMist < rules.gap) return 'spacing';
   return null;
 }
 
@@ -120,7 +137,9 @@ export function setOverlay(world: World, open: boolean): void {
   if (state.overlay && !open) state.overlayShut = world.time;
   state.overlay = open;
   const active: ActiveGlitch | null = state.active;
-  if (open && active !== null && isMist(active.kind)) finish(world, active);
+  if (!open || active === null || !isMist(active.kind)) return;
+  if (active.phase === 'build_up') callOff(world, active);
+  else finish(world, active);
 }
 
 export function setGlitchesEnabled(world: World, enabled: boolean): void {
@@ -232,6 +251,23 @@ function still(world: World): void {
   player.queued = null;
 }
 
+function holdFor(world: World, seconds: number): void {
+  const state: GlitchState = world.glitch;
+  state.holdUntil = Math.max(state.holdUntil, world.time + seconds + state.def.rules.grace);
+  interruptMonsters(world);
+}
+
+function beginSeam(world: World, request: GlitchRequest, stage: GlitchStage): void {
+  const state: GlitchState = world.glitch;
+  const plan: SeamPlan = { times: state.def.seam, mist: state.rng.range(stage.mist.min, stage.mist.max) };
+  const duration: number = seamLength(plan);
+  state.active = { kind: request.kind, source: request.source, duration, seam: plan, phase: 'build_up', guarded: false, edit: null, turn: false, elapsed: 0 };
+  state.lastMist = world.time;
+  world.events.push({ type: 'glitch_start', kind: request.kind, duration, edit: null, silhouettes: [] });
+  world.events.push({ type: 'glitch_phase', phase: 'build_up', edit: null });
+  if (guardStart(plan) <= 0) guard(world, state.active);
+}
+
 function begin(world: World, request: GlitchRequest): void {
   const state: GlitchState = world.glitch;
   const stage: GlitchStage = stageOf(state.def, state.progress);
@@ -242,25 +278,82 @@ function begin(world: World, request: GlitchRequest): void {
     world.events.push({ type: 'glitch_start', kind: request.kind, duration: 0, edit: null, silhouettes: [] });
     return;
   }
-  const duration: number = request.kind === 'hard_cut' ? Math.min(CALM.mistCap, state.rng.range(stage.mist.min, stage.mist.max)) : request.kind === 'stutter' ? state.def.stutter : state.def.quietPass;
+  if (request.kind === 'hard_cut') {
+    beginSeam(world, request, stage);
+    return;
+  }
+  const duration: number = request.kind === 'stutter' ? state.def.stutter : state.def.quietPass;
   const silhouettes: Silhouette[] = request.kind === 'quiet_pass' ? pickSilhouettes(world, stage.silhouettes) : [];
-  const chosen = request.kind === 'hard_cut' ? chooseEdit(world, stage, state.rng) : { edit: null, turn: false };
-  state.active = { kind: request.kind, source: request.source, duration, edit: chosen.edit, turn: chosen.turn, elapsed: 0 };
-  const held: number = duration + state.def.rules.grace;
-  state.holdUntil = world.time + held;
-  interruptMonsters(world);
+  state.active = { kind: request.kind, source: request.source, duration, seam: null, phase: null, guarded: true, edit: null, turn: false, elapsed: 0 };
+  holdFor(world, duration);
   if (isMist(request.kind)) {
     state.lastMist = world.time;
     still(world);
     world.events.push({ type: 'silence', duration });
   }
-  world.events.push({ type: 'glitch_start', kind: request.kind, duration, edit: chosen.edit, silhouettes });
+  world.events.push({ type: 'glitch_start', kind: request.kind, duration, edit: null, silhouettes });
+}
+
+function guard(world: World, active: ActiveGlitch): void {
+  active.guarded = true;
+  holdFor(world, active.duration - active.elapsed);
+}
+
+function enterPhase(world: World, active: ActiveGlitch, plan: SeamPlan, phase: SeamPhase): void {
+  active.phase = phase;
+  switch (phase) {
+    case 'build_up':
+      break;
+    case 'tear':
+      still(world);
+      world.events.push({ type: 'silence', duration: plan.times.tear + plan.mist + plan.times.tearBack });
+      break;
+    case 'mist': {
+      const chosen = chooseEdit(world, stageOf(world.glitch.def, world.glitch.progress), world.glitch.rng);
+      active.edit = chosen.edit;
+      active.turn = chosen.turn;
+      break;
+    }
+    case 'tear_back':
+      if (active.turn) turnHero(world);
+      active.turn = false;
+      break;
+    case 'settle':
+      break;
+  }
+  world.events.push({ type: 'glitch_phase', phase, edit: phase === 'mist' ? active.edit : null });
+}
+
+function calledOff(world: World): boolean {
+  return worldBlock(world) !== null || world.events.some((event: WorldEvent): boolean => event.type === 'zone_changed');
+}
+
+function callOff(world: World, active: ActiveGlitch): void {
+  world.glitch.active = null;
+  world.events.push({ type: 'glitch_end', kind: active.kind, calledOff: true });
+}
+
+function stepSeam(world: World, active: ActiveGlitch, plan: SeamPlan): void {
+  const moment: SeamMoment = seamAt(plan, active.elapsed);
+  if (active.phase === 'build_up' && moment.phase === 'build_up' && calledOff(world)) {
+    callOff(world, active);
+    return;
+  }
+  if (!active.guarded && active.elapsed >= guardStart(plan)) guard(world, active);
+  if (active.phase !== null && active.phase !== moment.phase) {
+    const order: readonly SeamPhase[] = ['build_up', 'tear', 'mist', 'tear_back', 'settle'];
+    for (let at: number = order.indexOf(active.phase) + 1; at <= order.indexOf(moment.phase); at += 1) {
+      const next: SeamPhase | undefined = order[at];
+      if (next !== undefined) enterPhase(world, active, plan, next);
+    }
+  }
+  if (active.elapsed >= active.duration) finish(world, active);
 }
 
 function finish(world: World, active: ActiveGlitch): void {
   world.glitch.active = null;
   if (active.turn) turnHero(world);
-  world.events.push({ type: 'glitch_end', kind: active.kind });
+  world.events.push({ type: 'glitch_end', kind: active.kind, calledOff: false });
 }
 
 function inCombat(world: World): boolean {
@@ -283,6 +376,10 @@ function rollCombat(world: World, stage: GlitchStage, dt: number): void {
   while (state.combatTime >= tick) {
     state.combatTime -= tick;
     if (state.active !== null || state.requests.length > 0 || world.time < state.readyAt) continue;
+    if (stage.seamChancePerMinute > 0 && state.rng.chance((stage.seamChancePerMinute * tick) / GLITCH.secondsPerMinute)) {
+      state.requests.push({ kind: 'hard_cut', source: 'combat', trigger: null });
+      continue;
+    }
     const kinds: GlitchKind[] = stage.kinds.filter((kind: GlitchKind): boolean => !isMist(kind));
     if (!state.rng.chance((stage.combatChancePerMinute * tick) / GLITCH.secondsPerMinute)) continue;
     const kind: GlitchKind | undefined = kinds[Math.min(kinds.length - 1, Math.floor(state.rng.next() * kinds.length))];
@@ -335,12 +432,24 @@ function serve(world: World): void {
   state.requests = waiting;
 }
 
+function tickClock(world: World, dt: number): void {
+  const state: GlitchState = world.glitch;
+  const rules: GlitchRules = state.def.rules;
+  if (state.banked >= rules.newCharacter) return;
+  state.played = Math.min(rules.newCharacter, state.played + dt);
+  if (state.played - state.banked < rules.clockStep && state.played < rules.newCharacter) return;
+  state.banked = state.played;
+  world.events.push({ type: 'glitch_clock' });
+}
+
 export function stepGlitch(world: World, dt: number): void {
   const state: GlitchState = world.glitch;
   const active: ActiveGlitch | null = state.active;
+  tickClock(world, dt);
   if (active !== null) {
     active.elapsed += dt;
-    if (active.elapsed >= active.duration) finish(world, active);
+    if (active.seam !== null) stepSeam(world, active, active.seam);
+    else if (active.elapsed >= active.duration) finish(world, active);
   }
   noteFights(world);
   state.progress = storyProgress(world);

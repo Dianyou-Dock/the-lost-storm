@@ -16,7 +16,7 @@ void test('the shipped glitches read cleanly and every prop and quest they name 
   const first: GlitchStage = must(def.stages[0], 'first stage');
   assert.equal(first.from, 0);
   assert.equal(first.kinds.includes('hard_cut'), false);
-  assert.ok(def.stages.every((stage): boolean => stage.mist.min >= 1 && stage.mist.max <= 3));
+  assert.ok(def.stages.every((stage): boolean => stage.mist.min >= 1.5 && stage.mist.max <= 3));
 });
 
 void test('glitches that name a missing prop or quest are reported', (): void => {
@@ -51,4 +51,15 @@ void test('silhouettes whose far ring is not beyond the near one, or hard cuts w
   const first = must(raw.stages[0], 'first stage');
   const turnless = { ...first, kinds: ['hard_cut'], edits: ['lamp_out'] };
   assert.throws((): GlitchDef => parseGlitches({ ...raw, edits: raw.edits.filter((entry): boolean => entry.type !== 'hero_turn'), stages: [turnless] }), ContentError);
+});
+
+void test('a guard longer than the build-up, a seam roll on a stage without hard cuts, or no zones for seams are refused', (): void => {
+  const first = must(raw.stages[0], 'first stage');
+  assert.throws((): GlitchDef => parseGlitches({ ...raw, seam: { ...raw.seam, guard: raw.seam.buildUp + 1 } }), ContentError);
+  assert.throws((): GlitchDef => parseGlitches({ ...raw, stages: [{ ...first, seamChancePerMinute: 0.5 }] }), ContentError);
+  assert.throws((): GlitchDef => parseGlitches({ ...raw, rules: { ...raw.rules, zones: [] } }), ContentError);
+  assert.throws((): GlitchDef => parseGlitches({ ...raw, rules: { ...raw.rules, zones: ['castle'] } }), ContentError);
+  const def: GlitchDef = loadGlitches();
+  assert.deepEqual(def.rules.zones, ['wild']);
+  assert.ok(def.rules.newCharacter >= 300);
 });

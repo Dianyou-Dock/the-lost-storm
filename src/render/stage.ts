@@ -108,6 +108,7 @@ export interface Stage {
   applyQuality(tier: QualityTier): void;
   compileAsync(target: Object3D, viewer: Camera): Promise<Object3D>;
   setFinish(pass: Pass | null): void;
+  setSeam(pass: Pass | null): void;
 }
 
 export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): Stage {
@@ -176,6 +177,8 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
   let finish: Pass | null = null;
   let builtBloom: boolean = false;
   let builtFinish: Pass | null = null;
+  let seam: Pass | null = null;
+  let builtSeam: Pass | null = null;
 
   const buildComposer = (): EffectComposer => {
     const target: WebGLRenderTarget = new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: Math.min(STAGE.samples, tier.msaaSamples) });
@@ -187,6 +190,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
     }
     if (builtFinish !== null) made.addPass(builtFinish);
     made.addPass(ditheredOutputPass());
+    if (builtSeam !== null) made.addPass(builtSeam);
     return made;
   };
 
@@ -217,13 +221,14 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
       storm.shadow.mapSize.set(shadowSize, shadowSize);
     }
     texel = (STAGE.shadowExtent * 2) / shadowSize;
-    if (composer !== null && (bloom !== builtBloom || finish !== builtFinish)) {
-      for (const pass of composer.passes) if (pass !== builtFinish) pass.dispose();
+    if (composer !== null && (bloom !== builtBloom || finish !== builtFinish || seam !== builtSeam)) {
+      for (const pass of composer.passes) if (pass !== builtFinish && pass !== builtSeam) pass.dispose();
       composer.dispose();
       composer = null;
     }
     builtBloom = bloom;
     builtFinish = finish;
+    builtSeam = seam;
     composer ??= buildComposer();
     resize();
   };
@@ -291,6 +296,11 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
     setFinish(pass: Pass | null): void {
       if (pass === finish) return;
       finish = pass;
+      apply();
+    },
+    setSeam(pass: Pass | null): void {
+      if (pass === seam) return;
+      seam = pass;
       apply();
     },
     render(): void {

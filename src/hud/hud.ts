@@ -422,6 +422,8 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
           }
 
           case 'glitch_start':
+          case 'glitch_clock':
+          case 'glitch_phase':
           case 'glitch_end':
           case 'glitch_word':
           case 'silence':

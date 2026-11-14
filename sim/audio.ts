@@ -9,7 +9,7 @@ export interface SoundCue extends CueDef {
 
 const NONE: readonly SoundCue[] = [];
 
-type CueTableName = Exclude<keyof AudioDef, 'defaults' | 'ambience'>;
+type CueTableName = Exclude<keyof AudioDef, 'defaults' | 'ambience' | 'seam'>;
 
 const WARM_TABLES: readonly CueTableName[] = ['world', 'skillStart', 'hit', 'critHit', 'skillHit', 'skillImpact', 'projectileSpawn', 'projectileExpire', 'death', 'aggro', 'pickup', 'drop', 'notice', 'ui'];
 
@@ -142,6 +142,8 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
     case 'monster_remove':
     case 'xp':
     case 'glitch_start':
+    case 'glitch_clock':
+    case 'glitch_phase':
     case 'glitch_end':
     case 'glitch_word':
     case 'silence':

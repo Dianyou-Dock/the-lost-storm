@@ -91,6 +91,10 @@ import type { JournalCount } from './journal-count/journal-count.ts';
 import { createJournalCount } from './journal-count/journal-count.ts';
 import type { GlitchView } from './glitch/glitch-view.ts';
 import { createGlitchView } from './glitch/glitch-view.ts';
+import { createSeamAudio } from './glitch/seam-audio.ts';
+import { REDUCED_MOTION } from './render/effect-kit.ts';
+import type { SeamPass } from './render/seam-pass.ts';
+import { createSeamPass } from './render/seam-pass.ts';
 import { createGlitchSettings } from './glitch/glitch-settings.ts';
 import type { GlitchSettingsStore } from './glitch/glitch-settings.ts';
 import type { Actors } from './render/actors.ts';
@@ -366,6 +370,8 @@ async function start(): Promise<void> {
       if (playing && !transition.blocking) pauseMenu.open(null);
     } });
   const opening: Opening = createOpening({ world, camera, hud: element('hud', HTMLDivElement), touch: mobile.touch, overlays: overlayManager, send, nameOf: (): string | null => heroName ?? readHeroName(createBrowserStore()), fetchVoice: (): Promise<SpokenName | null> => (nameVoice === null || heroName === null ? Promise.resolve(null) : nameVoice.fetch()), playVoice: (clip: ArrayBuffer): Promise<void> => audio.playEcho(clip), setAmbience: (light: ZoneLight): void => stage.setAmbience(light), setRain: (amount: number): void => rain.setWeather({ ...world.zone.weather, rain: amount }), refreshName: (): Promise<void> => (lobby === null ? Promise.resolve() : lobby.feed.refresh(true)) });
+  const seamPass: SeamPass = createSeamPass();
+  stage.setSeam(seamPass.pass);
   const glitches: GlitchView = createGlitchView({
     world,
     scene: stage.scene,
@@ -373,6 +379,10 @@ async function start(): Promise<void> {
     mistZone: content.zones.get(world.glitch.def.mistZone) ?? world.zone,
     quality: mobile.quality.tier.name,
     settings: glitchSettings,
+    overlays: element('overlays', HTMLDivElement),
+    seamPass,
+    seamAudio: createSeamAudio(audio, audioDef.seam, world.glitch.def.seam),
+    reducedMotion: (): boolean => window.matchMedia(REDUCED_MOTION).matches,
     hero: () => actors.hero(),
     send,
     setAmbience: (ambience): void => stage.setAmbience(ambience),

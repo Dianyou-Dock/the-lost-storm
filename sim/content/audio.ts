@@ -1,7 +1,7 @@
 import audio from '../../data/audio.json' with { type: 'json' };
 import type { NoticeReason } from '../world/types.ts';
 import type { Fields } from './read.ts';
-import { ContentError, each, fields, isFields, numeric, text } from './read.ts';
+import { ContentError, each, fields, flag, isFields, numeric, text } from './read.ts';
 import type { Content, RarityDef } from './types.ts';
 
 export const UI_ACTIONS = ['click', 'panel_open', 'panel_close', 'error', 'skill_point', 'equip', 'title_gone'] as const;
@@ -61,8 +61,22 @@ export interface ZoneAmbience {
   readonly stingers: readonly AmbienceStinger[];
 }
 
+export const SEAM_PARTS = ['buildUp', 'tear', 'tearBack', 'settle'] as const;
+export type SeamPart = (typeof SEAM_PARTS)[number];
+
+export interface SeamPartSound {
+  readonly synth: boolean;
+  readonly cues: readonly CueDef[];
+}
+
+export interface SeamSound {
+  readonly worldFloor: number;
+  readonly parts: Readonly<Record<SeamPart, SeamPartSound>>;
+}
+
 export interface AudioDef {
   readonly defaults: CueDefaults;
+  readonly seam: SeamSound;
   readonly skillStart: CueTable;
   readonly skillImpact: CueTable;
   readonly projectileSpawn: CueTable;
@@ -167,6 +181,22 @@ function zone(value: unknown, where: string): ZoneAmbience {
   };
 }
 
+function seamPart(value: unknown, defaults: CueDefaults, where: string): SeamPartSound {
+  const source: Fields = fields(value, where);
+  return { synth: flag(source, 'synth', where), cues: each(source['cues'], `${where}.cues`, (entry: unknown, entryWhere: string): CueDef => cue(entry, defaults, entryWhere)) };
+}
+
+function seamSound(value: unknown, defaults: CueDefaults, where: string): SeamSound {
+  const source: Fields = fields(value, where);
+  const parts: Record<SeamPart, SeamPartSound> = {
+    buildUp: seamPart(source['buildUp'], defaults, `${where}.buildUp`),
+    tear: seamPart(source['tear'], defaults, `${where}.tear`),
+    tearBack: seamPart(source['tearBack'], defaults, `${where}.tearBack`),
+    settle: seamPart(source['settle'], defaults, `${where}.settle`),
+  };
+  return { worldFloor: required(source, 'worldFloor', 0, 1, where), parts };
+}
+
 export function parseAudio(value: unknown, known: KnownIds): AudioDef {
   const where: string = 'audio';
   const source: Fields = fields(value, where);
@@ -183,6 +213,7 @@ export function parseAudio(value: unknown, known: KnownIds): AudioDef {
   const items: ReadonlySet<string> = withExtras(known.rarities, GOLD_KEY);
   return {
     defaults,
+    seam: seamSound(source['seam'], defaults, `${where}.seam`),
     skillStart: read('skillStart', known.skills),
     skillImpact: read('skillImpact', known.skills),
     projectileSpawn: read('projectileSpawn', known.projectileSkills),

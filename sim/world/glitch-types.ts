@@ -1,5 +1,6 @@
 import type { GlitchDef, GlitchKind } from '../content/glitches.ts';
 import type { Rng } from '../rng.ts';
+import type { SeamPhase, SeamPlan } from './seam.ts';
 
 export const GLITCH_SOURCES = ['combat', 'zone', 'story', 'debug'] as const;
 export type GlitchSource = (typeof GLITCH_SOURCES)[number];
@@ -14,8 +15,11 @@ export interface ActiveGlitch {
   readonly kind: GlitchKind;
   readonly source: GlitchSource;
   readonly duration: number;
-  readonly edit: string | null;
-  readonly turn: boolean;
+  readonly seam: SeamPlan | null;
+  phase: SeamPhase | null;
+  guarded: boolean;
+  edit: string | null;
+  turn: boolean;
   elapsed: number;
 }
 
@@ -31,6 +35,8 @@ export interface GlitchState {
   enabled: boolean;
   progress: number;
   fired: string[];
+  played: number;
+  banked: number;
   active: ActiveGlitch | null;
   holdUntil: number;
   readyAt: number;
@@ -47,6 +53,7 @@ export interface GlitchState {
 export interface GlitchSave {
   readonly progress: number;
   readonly fired: readonly string[];
+  readonly played: number | null;
 }
 
 export const PATH_ACTS = ['step', 'zone', 'kill', 'level', 'death', 'quest', 'glitch'] as const;
@@ -70,3 +77,10 @@ export interface PathLogSave {
   readonly zones: readonly string[];
   readonly entries: readonly (readonly number[])[];
 }
+
+export type GlitchEvent =
+  | { readonly type: 'glitch_clock' }
+  | { readonly type: 'glitch_start'; readonly kind: GlitchKind; readonly duration: number; readonly edit: string | null; readonly silhouettes: readonly Silhouette[] }
+  | { readonly type: 'glitch_phase'; readonly phase: SeamPhase; readonly edit: string | null }
+  | { readonly type: 'glitch_end'; readonly kind: GlitchKind; readonly calledOff: boolean }
+  | { readonly type: 'glitch_word'; readonly npc: string; readonly name: string };
