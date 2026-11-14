@@ -8,6 +8,12 @@ The Lost Storm is an isometric action RPG. You wake in a white mist with a worn 
 
 It is built with Three.js, TypeScript and Vite, with no game engine on top, and all of it is in this repository.
 
+![The title screen](docs/images/title.webp)
+
+![The Hideout at the fire](docs/images/town.webp)
+
+![The Skill Tree](docs/images/skills.webp)
+
 ## Run it on your own machine
 
 You only need this to change the game or to look at how it works. To play, use [theloststorm.com](https://theloststorm.com).
