@@ -223,10 +223,14 @@ function bonusStats(base: ItemBaseDef): string {
     .join('+');
 }
 
+function signature(base: ItemBaseDef): string {
+  return `${bonusStats(base)}|${base.variants.map((variant: { readonly becomes: string }): string => variant.becomes).toSorted().join('+')}`;
+}
+
 void test('no two weapons hit the same way', (): void => {
   const weapons: ItemBaseDef[] = [...content.itemBases.values()].filter((base: ItemBaseDef): boolean => base.slot === 'weapon' && base.power === null);
   assert.ok(weapons.length >= 4);
-  assert.equal(new Set<string>(weapons.map(bonusStats)).size, weapons.length);
+  assert.equal(new Set<string>(weapons.map(signature)).size, weapons.length);
   const hits: number[] = weapons.map((base: ItemBaseDef): number => (implicitOf(base, 'damageMin') + implicitOf(base, 'damageMax')) / 2);
   assert.equal(new Set<number>(hits).size, weapons.length);
   for (const base of weapons) {

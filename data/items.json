@@ -111,6 +111,11 @@
           "stat": "attackSpeed",
           "op": "add",
           "value": 0.05
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.1
         }
       ],
       "ground": {
@@ -227,6 +232,11 @@
           "stat": "critChance",
           "op": "add",
           "value": 0.04
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.1
         }
       ],
       "ground": {
@@ -1049,6 +1059,11 @@
           "stat": "moveSpeed",
           "op": "percent",
           "value": 0.03
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.1
         }
       ],
       "ground": {
@@ -1385,6 +1400,11 @@
           "stat": "critMultiplier",
           "op": "add",
           "value": 0.15
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.1
         }
       ],
       "ground": {
@@ -1481,6 +1501,11 @@
           "stat": "moveSpeed",
           "op": "percent",
           "value": 0.04
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.1
         }
       ],
       "ground": {
