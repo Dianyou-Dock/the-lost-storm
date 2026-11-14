@@ -354,4 +354,4 @@ Before adding any asset: confirm the licence on the author's own page, download 
 
 ## Audit before publishing
 
-Checked on 2026-11-11, across the tracked files and the full git history: the only binary assets are the models listed above, plus three KayKit character models (CC0) that an early commit carried. There are no Mixamo or Splice files, no secrets and no personal data. `skeleton.glb` and `humanoid.glb` came through an earlier prototype's processed copies; their inputs are CC BY 4.0 and CC0, so they may be redistributed with the credit above.
+Checked on 2026-11-15. Every model and texture in the tracked files has a row above, and every licence text is in `licenses/`. Models and textures removed in earlier commits stay in the git history; each was CC0 or made for this project, and the only other binary files the history carries are screenshots of the game. There are no Mixamo, Splice or store-bought files, no secrets and no personal data. `skeleton.glb` and `humanoid.glb` came through an earlier prototype's processed copies; their inputs are CC BY 4.0 and CC0, so they may be redistributed with the credit above.

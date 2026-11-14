@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { basename, resolve } from 'node:path';
 import { test } from 'node:test';
 import type { TestContext } from 'node:test';
 import { must } from '../../test/support.ts';
@@ -161,7 +161,8 @@ void test('the fixed id lists are not empty and have no repeats', (): void => {
 });
 
 const MANIFEST_VARIABLE: string = 'ASSET_MANIFEST';
-const SIBLING_MANIFEST: string = '../the-lost-storm-assets/manifest.json';
+const SIBLING_SUFFIX: string = '-assets';
+const MANIFEST_FILE: string = 'manifest.json';
 
 function soundIdsIn(value: unknown, found: Set<string>): void {
   if (Array.isArray(value)) {
@@ -178,7 +179,7 @@ function soundIdsIn(value: unknown, found: Set<string>): void {
 function manifestPath(): string | null {
   const named: string | undefined = process.env[MANIFEST_VARIABLE];
   if (named !== undefined && named.length > 0) return resolve(named);
-  const sibling: string = resolve(SIBLING_MANIFEST);
+  const sibling: string = resolve('..', `${basename(resolve('.'))}${SIBLING_SUFFIX}`, MANIFEST_FILE);
   return existsSync(sibling) ? sibling : null;
 }
 
@@ -192,7 +193,7 @@ function soundIdsOf(manifest: unknown): ReadonlySet<string> {
 void test('every sound id in data/audio.json exists in the assets manifest', (t: TestContext): void => {
   const path: string | null = manifestPath();
   if (path === null) {
-    t.skip(`no assets manifest: set ${MANIFEST_VARIABLE} or check out the-lost-storm-assets beside this repository`);
+    t.skip(`no sound manifest: set ${MANIFEST_VARIABLE} to one`);
     return;
   }
   const available: ReadonlySet<string> = soundIdsOf(JSON.parse(readFileSync(path, 'utf8')));
