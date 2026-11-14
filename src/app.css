@@ -543,26 +543,45 @@ body:has(.banner.zone) .exit-label span {
   color: rgba(239, 230, 214, 0.62);
 }
 
-.npc-label i {
+.npc-label i,
+.exit-label i {
   position: absolute;
   left: 50%;
-  top: -16px;
-  width: 9px;
-  height: 9px;
-  margin-left: -4.5px;
-  background: var(--ember);
-  box-shadow: 0 0 10px rgba(232, 184, 102, 0.9);
-  rotate: 45deg;
+  bottom: calc(100% + 3px);
+  font-family: var(--serif);
+  font-style: normal;
+  font-weight: 700;
+  font-size: 32px;
+  line-height: 1;
+  color: #ffdf9a;
+  text-shadow:
+    0 0 6px rgba(255, 214, 140, 0.95),
+    0 0 16px rgba(232, 160, 70, 0.75),
+    0 0 30px rgba(232, 140, 50, 0.4);
+  pointer-events: none;
+  translate: -50% 0;
+  transform-origin: 50% 100%;
   opacity: 0;
-  scale: 0.4;
+  scale: 0.3;
   transition:
     opacity var(--spring-smooth-ms) var(--spring-smooth),
     scale var(--spring-bouncy-ms) var(--spring-bouncy);
+  animation: quest-pin-bob calc(var(--drift-ms) / 4) var(--drift-ease) infinite alternate;
 }
 
-.npc-label.news i {
+.npc-label.pinned i,
+.exit-label.pinned i {
   opacity: 1;
   scale: 1;
+}
+
+@keyframes quest-pin-bob {
+  from {
+    translate: -50% 0;
+  }
+  to {
+    translate: -50% -5px;
+  }
 }
 
 .npc-label:hover span,

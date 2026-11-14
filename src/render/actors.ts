@@ -58,6 +58,12 @@ interface NpcEntry {
   readonly view: ActorView;
   pose: ActorPose;
   shown: number;
+  fade: number;
+}
+
+function easedFade(amount: number): number {
+  const clamped: number = Math.min(1, Math.max(0, amount));
+  return clamped * clamped * (3 - 2 * clamped);
 }
 
 export interface Actors {
@@ -145,7 +151,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
     view.rig.setGear(npc.def.gear);
     dress(content, npc.def.rig, view.rig, npc.def.wear, null);
     scene.add(view.rig.root);
-    const entry: NpcEntry = { view, pose: npcPose(npc), shown: arriving ? 0 : 1 };
+    const entry: NpcEntry = { view, pose: npcPose(npc), shown: arriving ? 0 : 1, fade: 1 };
     npcs.set(npc.id, entry);
     return entry;
   };
@@ -284,13 +290,18 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
         entry.pose = npcPose(npc);
         entry.shown += (1 - entry.shown) * ease;
         if (1 - entry.shown < ACTORS.npcSettledWithin) entry.shown = 1;
+        if (npc.fade !== entry.fade) {
+          entry.fade = npc.fade;
+          entry.view.rig.setFade(easedFade(npc.fade));
+          entry.view.setShadowOpacity(easedFade(npc.fade));
+        }
         entry.view.setHover(npc.id === hoveredId);
         entry.view.sync(dt, entry.pose, { rise: entry.shown, floor, turnRate: ACTOR.npcTurnRate, seen: seen(entry.view, entry.pose.pos.x, entry.pose.pos.z) });
       }
       for (const [id, entry] of npcs) {
         if (current.npcs.some((npc: NpcState): boolean => npc.id === id)) continue;
         entry.shown -= entry.shown * ease;
-        if (!sameZone || entry.shown < ACTORS.npcSettledWithin) {
+        if (!sameZone || entry.shown < ACTORS.npcSettledWithin || entry.fade < 1) {
           entry.view.dispose();
           npcs.delete(id);
           continue;

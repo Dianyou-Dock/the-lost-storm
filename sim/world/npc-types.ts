@@ -13,4 +13,5 @@ export interface NpcState {
   gait: number;
   route: Vec2[];
   pace: number;
+  fade: number;
 }

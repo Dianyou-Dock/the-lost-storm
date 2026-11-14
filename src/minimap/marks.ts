@@ -4,6 +4,8 @@ import { exitShown } from '../../sim/world/exits.ts';
 import { isExplored } from '../../sim/world/exploration.ts';
 import type { EncounterMark, QuestMark } from '../../sim/world/map-marks.ts';
 import { encounterMarks, questMarks } from '../../sim/world/map-marks.ts';
+import { questPins } from '../../sim/world/quest-pins.ts';
+import type { QuestPin } from '../../sim/world/quest-pins.ts';
 import type { GroundItem, MomentState, World } from '../../sim/world/types.ts';
 import type { MapMatrix, MapPoint } from './projection.ts';
 import { edgeMark, headingOnMap, toMap } from './projection.ts';
@@ -17,6 +19,12 @@ export const MARKS = {
   gold: 1.4,
   quest: 4.6,
   questArrow: 6.5,
+  bangTop: 1.25,
+  bangFoot: 0.35,
+  bangWidth: 0.34,
+  bangTaper: 0.55,
+  bangDot: 0.3,
+  bangDotAt: 0.85,
   exit: 4,
   waypoint: 4.2,
   edgeMargin: 9,
@@ -62,6 +70,23 @@ function diamond(context: CanvasRenderingContext2D, at: MapPoint, size: number, 
   context.lineTo(at.x, at.y + size);
   context.lineTo(at.x - size, at.y);
   context.closePath();
+  context.fillStyle = colour;
+  context.fill();
+  context.stroke();
+}
+
+function bang(context: CanvasRenderingContext2D, at: MapPoint, size: number, colour: string): void {
+  const top: number = at.y - size * MARKS.bangTop;
+  const foot: number = at.y + size * MARKS.bangFoot;
+  const half: number = size * MARKS.bangWidth;
+  context.beginPath();
+  context.moveTo(at.x - half, top);
+  context.lineTo(at.x + half, top);
+  context.lineTo(at.x + half * MARKS.bangTaper, foot);
+  context.lineTo(at.x - half * MARKS.bangTaper, foot);
+  context.closePath();
+  context.moveTo(at.x + size * MARKS.bangDot, at.y + size * MARKS.bangDotAt);
+  context.arc(at.x, at.y + size * MARKS.bangDotAt, size * MARKS.bangDot, 0, Math.PI * 2);
   context.fillStyle = colour;
   context.fill();
   context.stroke();
@@ -159,9 +184,12 @@ export function drawMarks(context: CanvasRenderingContext2D, matrix: MapMatrix, 
     const at: MapPoint = toMap(matrix, ground.pos.x, ground.pos.z);
     if (visible(at, options, unit * MARKS.loot)) dot(context, at, (ground.content.kind === 'gold' ? MARKS.gold : MARKS.loot) * unit, lootColour(world, ground));
   }
+  const pins: readonly QuestPin[] = questPins(world);
   for (const npc of world.npcs) {
     if (!isExplored(world, npc.pos.x, npc.pos.z)) continue;
-    diamond(context, toMap(matrix, npc.pos.x, npc.pos.z), MARKS.npc * unit, MARKS.npcColour);
+    const at: MapPoint = toMap(matrix, npc.pos.x, npc.pos.z);
+    if (pins.some((pin: QuestPin): boolean => pin.kind === 'npc' && pin.npcId === npc.id)) bang(context, at, MARKS.quest * unit, MARKS.questColour);
+    else diamond(context, at, MARKS.npc * unit, MARKS.npcColour);
   }
   for (const monster of world.monsters) {
     if (!monster.alive || !isExplored(world, monster.pos.x, monster.pos.z)) continue;
@@ -181,7 +209,7 @@ function drawQuest(context: CanvasRenderingContext2D, matrix: MapMatrix, mark: Q
   const at: MapPoint = toMap(matrix, mark.pos.x, mark.pos.z);
   const pinned = edgeMark(at, options.width, options.height, MARKS.edgeMargin * unit);
   if (pinned.inside || !options.edgeArrows) {
-    diamond(context, at, MARKS.quest * unit, MARKS.questColour);
+    bang(context, at, MARKS.quest * unit, MARKS.questColour);
     context.beginPath();
     context.arc(at.x, at.y, MARKS.quest * unit * 1.9, 0, Math.PI * 2);
     context.strokeStyle = MARKS.questColour;

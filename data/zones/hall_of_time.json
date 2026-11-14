@@ -189,7 +189,8 @@
         "z": 26.5,
         "ahead": 6,
         "walk": 3.4,
-        "run": 6.4
+        "run": 6.4,
+        "through": 0.7
       },
       "sets": {
         "warden_met": "yes"

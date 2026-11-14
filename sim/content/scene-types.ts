@@ -8,6 +8,7 @@ export interface SceneLead {
   readonly ahead: number;
   readonly walk: number;
   readonly run: number;
+  readonly through: number | null;
 }
 
 export interface SceneDef {

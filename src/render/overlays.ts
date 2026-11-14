@@ -4,7 +4,8 @@ import type { ZoneDef } from '../../sim/content/types.ts';
 import { itemName, rarityOf } from '../../sim/items.ts';
 import type { ItemInstance } from '../../sim/world/types.ts';
 import { allHold } from '../../sim/world/conditions.ts';
-import { hasNews } from '../../sim/world/dialogue.ts';
+import { questPins } from '../../sim/world/quest-pins.ts';
+import type { QuestPin } from '../../sim/world/quest-pins.ts';
 import type { GroundItem, NpcState, World, WorldEvent } from '../../sim/world/types.ts';
 import { createTargetBar } from '../hud/target-bar.ts';
 import type { TargetBar } from '../hud/target-bar.ts';
@@ -26,6 +27,7 @@ import type { TagSize, TagSizes } from './tag-sizes.ts';
 import { browserTagMeasure, createTagSizes } from './tag-sizes.ts';
 
 export const OVERLAYS = {
+  pinGlyph: '!',
   numberLife: 1,
   numberDrift: 26,
   chestHeight: 1.6,
@@ -82,12 +84,13 @@ interface ExitLabel {
   readonly secret: boolean;
   readonly glide: LabelGlide;
   readonly stack: LabelGlide;
+  pinned: boolean;
 }
 
 interface NpcLabel {
   readonly element: HTMLDivElement;
   readonly npc: NpcState;
-  news: boolean | null;
+  pinned: boolean | null;
   readonly glide: LabelGlide;
   readonly stack: LabelGlide;
 }
@@ -320,6 +323,9 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
       element.className = world.zone.kind === 'void' ? 'exit-label distant' : 'exit-label';
       const inner: HTMLSpanElement = document.createElement('span');
       inner.textContent = world.content.zones.get(exit.to)?.name ?? exit.to;
+      const pin: HTMLElement = document.createElement('i');
+      pin.textContent = OVERLAYS.pinGlyph;
+      inner.append(pin);
       element.append(inner);
       element.addEventListener('pointerdown', (event: PointerEvent): void => {
         event.preventDefault();
@@ -327,7 +333,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
         if (event.button === 0) hooks.onTravel(exit.id);
       });
       labelLayer.append(element);
-      return { element, id: exit.id, x: exit.x, z: exit.z, open: (current: World): boolean => allHold(current, exit.requires), secret: exit.hiddenWhenLocked, glide: createGlide(), stack: createGlide() };
+      return { element, id: exit.id, x: exit.x, z: exit.z, open: (current: World): boolean => allHold(current, exit.requires), secret: exit.hiddenWhenLocked, glide: createGlide(), stack: createGlide(), pinned: false };
     });
     const waypoint = world.zone.waypoint;
     if (waypoint === null) return;
@@ -342,7 +348,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
       if (event.button === 0) hooks.onWaypoint();
     });
     labelLayer.append(element);
-    exits.push({ element, id: OVERLAYS.waypointId, x: waypoint.x, z: waypoint.z, open: (current: World): boolean => current.waypoints.includes(current.zone.id), secret: false, glide: createGlide(), stack: createGlide() });
+    exits.push({ element, id: OVERLAYS.waypointId, x: waypoint.x, z: waypoint.z, open: (current: World): boolean => current.waypoints.includes(current.zone.id), secret: false, glide: createGlide(), stack: createGlide(), pinned: false });
   };
 
   const showPeople = (world: World): void => {
@@ -369,12 +375,13 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
       const element: HTMLDivElement = document.createElement('div');
       element.className = 'npc-label';
       const inner: HTMLSpanElement = document.createElement('span');
-      const news: HTMLElement = document.createElement('i');
+      const pin: HTMLElement = document.createElement('i');
+      pin.textContent = OVERLAYS.pinGlyph;
       const name: HTMLElement = document.createElement('b');
       name.textContent = npc.def.name;
       const title: HTMLElement = document.createElement('small');
       title.textContent = shownTitle(npc.def);
-      inner.append(news, name, title);
+      inner.append(pin, name, title);
       element.append(inner);
       element.addEventListener('pointerenter', (): void => {
         labelHoverId = npc.id;
@@ -388,7 +395,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
         if (event.button === 0) hooks.onTalk(npc.id);
       });
       labelLayer.append(element);
-      return { element, npc, news: null, glide: createGlide(), stack: createGlide() };
+      return { element, npc, pinned: null, glide: createGlide(), stack: createGlide() };
     });
   };
 
@@ -507,7 +514,13 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
       if (exitsOf !== world.zone) showExits(world);
       tagRects.length = 0;
       for (const rect of hudRects) tagRects.push(rect);
+      const pins: readonly QuestPin[] = questPins(world);
       for (const label of exits) {
+        const pinned: boolean = pins.some((pin: QuestPin): boolean => pin.kind === 'exit' && pin.exit === label.id);
+        if (pinned !== label.pinned) {
+          label.pinned = pinned;
+          label.element.classList.toggle('pinned', pinned);
+        }
         const open: boolean = label.open(world);
         label.element.classList.toggle('locked', !open);
         label.element.classList.toggle('secret', !open && label.secret);
@@ -519,10 +532,10 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
       }
       if (peopleOf !== world.npcs) showPeople(world);
       for (const label of people) {
-        const news: boolean = hasNews(world, label.npc.def);
-        if (news !== label.news) {
-          label.news = news;
-          label.element.classList.toggle('news', news);
+        const pinned: boolean = pins.some((pin: QuestPin): boolean => pin.kind === 'npc' && pin.npcId === label.npc.id);
+        if (pinned !== label.pinned) {
+          label.pinned = pinned;
+          label.element.classList.toggle('pinned', pinned);
         }
         label.element.classList.toggle('aimed', label.npc.id === hoveredId);
         camera.project(label.npc.pos.x, hooks.heightOf(label.npc.id) + OVERLAYS.npcLift, label.npc.pos.z, point);

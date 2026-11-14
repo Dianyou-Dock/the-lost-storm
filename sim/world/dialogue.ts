@@ -17,7 +17,7 @@ export function npcAt(world: World, placed: ZoneNpc): NpcState | null {
   const def: NpcDef | undefined = world.content.npcs.get(placed.npc);
   if (def === undefined) return null;
   const facing: number = placed.facingDegrees * DEGREES_TO_RADIANS;
-  const npc: NpcState = { id: world.nextId, def, placement: placed, pos: { x: placed.x, z: placed.z }, homeFacing: facing, facing, motion: 'still', gait: 0, route: [], pace: 0 };
+  const npc: NpcState = { id: world.nextId, def, placement: placed, pos: { x: placed.x, z: placed.z }, homeFacing: facing, facing, motion: 'still', gait: 0, route: [], pace: 0, fade: 1 };
   world.nextId += 1;
   return npc;
 }

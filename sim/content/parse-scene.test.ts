@@ -26,7 +26,9 @@ const RAW = {
 
 void test('a scene reads who comes, where it begins, the moment it brings, the strike, the lines, the walk and the flags it sets', (): void => {
   const scenes: SceneDef[] = zoneScenes([RAW], 'zone.scenes');
-  assert.deepEqual(scenes, [{ ...RAW, when: [{ type: 'visited', zone: 'hideout', not: true }], lines: [...RAW.lines], lead: { ...RAW.lead }, sets: { ...RAW.sets } }]);
+  assert.deepEqual(scenes, [{ ...RAW, when: [{ type: 'visited', zone: 'hideout', not: true }], lines: [...RAW.lines], lead: { ...RAW.lead, through: null }, sets: { ...RAW.sets } }]);
+  const through: SceneDef = must(zoneScenes([{ ...RAW, lead: { ...RAW.lead, through: 0.7 } }], 'zone.scenes')[0], 'a scene that ends through its exit');
+  assert.equal(through.lead.through, 0.7);
   assert.deepEqual(zoneScenes(undefined, 'zone.scenes'), []);
 });
 
@@ -34,6 +36,7 @@ void test('a scene with no lines, a run slower than its walk, a missing field or
   assert.throws((): unknown => zoneScenes([{ ...RAW, lines: [] }], 'zone.scenes'), ContentError);
   assert.throws((): unknown => zoneScenes([{ ...RAW, lead: { ...RAW.lead, run: 1 } }], 'zone.scenes'), ContentError);
   assert.throws((): unknown => zoneScenes([{ ...RAW, fight: 0 }], 'zone.scenes'), ContentError);
+  assert.throws((): unknown => zoneScenes([{ ...RAW, lead: { ...RAW.lead, through: 0 } }], 'zone.scenes'), ContentError);
   assert.throws((): unknown => zoneScenes([RAW, RAW], 'zone.scenes'), ContentError);
 });
 

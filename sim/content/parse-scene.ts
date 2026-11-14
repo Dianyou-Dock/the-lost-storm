@@ -11,7 +11,7 @@ function lead(value: unknown, where: string): SceneLead {
   const walk: number = positive(source, 'walk', where);
   const run: number = positive(source, 'run', where);
   if (run < walk) throw new ContentError(`${where}.run`, 'a run cannot be slower than a walk');
-  return { exit: text(source, 'exit', where), x: numeric(source, 'x', where), z: numeric(source, 'z', where), ahead: positive(source, 'ahead', where), walk, run };
+  return { exit: text(source, 'exit', where), x: numeric(source, 'x', where), z: numeric(source, 'z', where), ahead: positive(source, 'ahead', where), walk, run, through: source['through'] === undefined ? null : positive(source, 'through', where) };
 }
 
 function scene(value: unknown, where: string): SceneDef {

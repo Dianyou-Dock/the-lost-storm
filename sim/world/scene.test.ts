@@ -11,6 +11,7 @@ import { parseSaveText, toSave } from '../save.ts';
 import { createWorld } from './create.ts';
 import { echoMonsters, forceStrike, wakeMoment } from './moments.ts';
 import { lineSeconds } from './reading.ts';
+import { questPins } from './quest-pins.ts';
 import { SCENE } from './scene.ts';
 import { spawnMonster } from './spawn.ts';
 import { stepWorld } from './step.ts';
@@ -319,4 +320,81 @@ void test('a hero who reaches the way out before any fight is met at the door, t
   assert.equal(world.zone.id, exit.to);
   assert.equal(world.flags['warden_met'], 'yes');
   assert.ok(must(world.npcs.find((npc: NpcState): boolean => npc.def.id === meeting().npc), 'the Guide').route.length > 0, 'he came through with the hero');
+});
+
+function following(world: World): () => Command[] {
+  return (): Command[] => {
+    const npc: NpcState | undefined = world.npcs.find((entry: NpcState): boolean => entry.id === world.scene?.npcId);
+    return npc === undefined ? [] : [{ type: 'move', held: true, dest: { x: npc.pos.x, z: npc.pos.z } }];
+  };
+}
+
+void test('with the hero beside him at the way out he does not stop: he walks on into it and fades out as he passes in, and the way out keeps the hero', (): void => {
+  const world: World = hall();
+  untilPhase(world, 'lead', towardExit(world));
+  const npc: NpcState = warden(world);
+  const exit: ZoneExit = exitOf(world, meeting().lead.exit);
+  const fade: number = must(meeting().lead.through, 'the meeting ends through its exit');
+  untilPhase(world, 'through', following(world));
+  const fades: number[] = [];
+  let entered: number | null = null;
+  for (let elapsed: number = 0; elapsed < LIMIT.walk && world.scene !== null; elapsed += DT) {
+    stepWorld(world, [], DT);
+    if (npc.fade < 1 && entered === null) entered = distance(npc.pos, exit);
+    fades.push(npc.fade);
+  }
+  assert.equal(world.scene, null);
+  assert.ok(!world.npcs.includes(npc), 'he is gone through the way out');
+  assert.ok(entered !== null && entered <= exit.radius + DOORSTEP, 'he fades only as he passes into the way out');
+  assert.ok(fades.every((value: number, index: number): boolean => index === 0 || value <= (fades[index - 1] ?? 1)), 'the fade never comes back');
+  const fading: number = fades.filter((value: number): boolean => value < 1).length * DT;
+  assert.ok(fading >= fade - DT * 2 && fading <= fade + DT * 2, 'a short eased fade, not a pop');
+  assert.equal(world.zone.id, HALL, 'he does not take the hero with him');
+  assert.equal(world.flags['warden_met'], 'yes');
+  run(world, 1);
+  assert.ok(!world.npcs.some((entry: NpcState): boolean => entry.def.id === meeting().npc), 'he does not come back');
+});
+
+void test('a hero who stays far behind is waited for at the way out, and once the hero comes back he goes on through', (): void => {
+  const world: World = hall();
+  untilPhase(world, 'lead', towardExit(world));
+  const npc: NpcState = warden(world);
+  world.player.pos = { ...LAGGING };
+  run(world, 2);
+  const waiting: Vec2 = { x: npc.pos.x, z: npc.pos.z };
+  run(world, 5);
+  assert.equal(world.scene?.phase, 'lead', 'he never leaves without the hero');
+  assert.equal(npc.fade, 1);
+  assert.ok(distance(npc.pos, waiting) < 1e-6, 'he holds where he is');
+  run(world, LIMIT.walk, following(world), (): boolean => phaseOf(world) === 'through');
+  assert.equal(phaseOf(world), 'through');
+});
+
+void test('a hero who falls back while he walks into the way out is waited for there, until the fade has begun', (): void => {
+  const world: World = hall();
+  untilPhase(world, 'lead', towardExit(world));
+  untilPhase(world, 'through', following(world));
+  const npc: NpcState = warden(world);
+  world.player.pos = { ...LAGGING };
+  run(world, 3);
+  assert.equal(world.scene?.phase, 'through');
+  assert.equal(npc.fade, 1, 'he waits rather than going without the hero');
+  assert.equal(npc.pace, 0);
+});
+
+void test('once he has gone through, the way out he took carries the quest pin until the hero follows, and the hero finds him at the fire', (): void => {
+  const world: World = hall();
+  world.quests = { out_of_the_mist: 1, the_first_taker: 1, to_the_waystation: 0 };
+  untilPhase(world, 'lead', towardExit(world));
+  const exit: ZoneExit = exitOf(world, meeting().lead.exit);
+  assert.deepEqual(questPins(world), [{ kind: 'npc', npcId: warden(world).id }], 'while he leads, he carries the pin');
+  untilPhase(world, 'through', following(world));
+  assert.deepEqual(questPins(world), [{ kind: 'exit', exit: exit.id }], 'the pin moves to the way out as he walks into it');
+  run(world, LIMIT.walk, following(world), (): boolean => world.scene === null);
+  assert.deepEqual(questPins(world), [{ kind: 'exit', exit: exit.id }]);
+  run(world, LIMIT.walk, (): Command[] => [{ type: 'travel', exit: exit.id }], (): boolean => world.zone.id !== HALL);
+  assert.equal(world.zone.id, exit.to);
+  const guide: NpcState = must(world.npcs.find((npc: NpcState): boolean => npc.def.id === meeting().npc), 'the Guide at the fire');
+  assert.deepEqual({ x: guide.pos.x, z: guide.pos.z }, { x: guide.placement.x, z: guide.placement.z });
+  assert.equal(guide.fade, 1);
 });

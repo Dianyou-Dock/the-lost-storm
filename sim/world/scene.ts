@@ -120,7 +120,7 @@ function arrive(world: World, scene: SceneState, moment: MomentState | null): vo
     world.scene = null;
     return;
   }
-  world.npcs.push(npc);
+  world.npcs = [...world.npcs, npc];
   scene.placement = placement;
   scene.npcId = npc.id;
   scene.momentId = moment?.id ?? null;
@@ -231,17 +231,48 @@ function speak(world: World, scene: SceneState, dt: number): void {
   scene.elapsed = lineSeconds(spoken.text);
 }
 
+function lags(world: World, npc: NpcState, ahead: number): boolean {
+  const waiting: boolean = npc.pace === 0;
+  return distance(npc.pos, world.player.pos) > (waiting ? ahead - SCENE.slack : ahead);
+}
+
 function lead(world: World, scene: SceneState): void {
   const npc: NpcState | null = npcOf(world, scene);
   if (npc === null) return;
   const def = scene.def.lead;
   const hero: Vec2 = world.player.pos;
-  const gap: number = distance(npc.pos, hero);
   const ahead: boolean = distance(hero, def) < distance(npc.pos, def);
-  const waiting: boolean = npc.pace === 0;
-  const lags: boolean = gap > (waiting ? def.ahead - SCENE.slack : def.ahead);
-  npc.pace = npc.route.length === 0 ? 0 : ahead ? def.run : lags ? 0 : def.walk;
+  const behind: boolean = lags(world, npc, def.ahead);
+  const exit: ZoneExit | null = exitOf(world, scene.def);
+  if (npc.route.length === 0 && def.through !== null && exit !== null && !behind) {
+    npc.route = findPath(world.grid, npc.pos, exit);
+    scene.phase = 'through';
+    scene.elapsed = 0;
+    npc.pace = def.walk;
+    return;
+  }
+  npc.pace = npc.route.length === 0 ? 0 : ahead ? def.run : behind ? 0 : def.walk;
   if (npc.pace === 0) faceHero(world, npc);
+}
+
+function through(world: World, scene: SceneState, dt: number): void {
+  const npc: NpcState | null = npcOf(world, scene);
+  const exit: ZoneExit | null = exitOf(world, scene.def);
+  const fade: number | null = scene.def.lead.through;
+  if (npc === null || exit === null || fade === null) {
+    dropScene(world);
+    return;
+  }
+  const passing: boolean = scene.elapsed > 0 || distance(npc.pos, exit) <= exit.radius || npc.route.length === 0;
+  if (!passing) {
+    npc.pace = lags(world, npc, scene.def.lead.ahead) ? 0 : scene.def.lead.walk;
+    if (npc.pace === 0) faceHero(world, npc);
+    return;
+  }
+  npc.pace = scene.def.lead.walk;
+  scene.elapsed += dt;
+  npc.fade = Math.max(0, 1 - scene.elapsed / fade);
+  if (npc.fade <= 0) dropScene(world);
 }
 
 function begin(world: World): void {
@@ -283,18 +314,21 @@ export function stepScene(world: World, dt: number): void {
     case 'lead':
       lead(world, scene);
       return;
+    case 'through':
+      through(world, scene, dt);
+      return;
   }
 }
 
 export function exitWaits(world: World, exitId: string): boolean {
   const scene: SceneState | null = world.scene;
-  return scene !== null && scene.def.lead.exit === exitId && scene.phase !== 'lead';
+  return scene !== null && scene.def.lead.exit === exitId && scene.phase !== 'lead' && scene.phase !== 'through';
 }
 
 export function leavingWith(world: World, exitId: string): Escort | null {
   const scene: SceneState | null = world.scene;
   if (scene === null || scene.npcId === null || scene.def.lead.exit !== exitId) return null;
-  if (scene.phase !== 'speak' && scene.phase !== 'lead') return null;
+  if (scene.phase !== 'speak' && scene.phase !== 'lead' && scene.phase !== 'through') return null;
   setFlags(world, scene.def.sets);
   return { npc: scene.def.npc, pace: scene.def.lead.walk };
 }
