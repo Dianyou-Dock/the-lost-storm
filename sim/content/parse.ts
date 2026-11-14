@@ -580,6 +580,7 @@ export function contentProblems(content: Content): string[] {
     if (shorePathSurface !== null) need(content.surfaces.has(shorePathSurface), `${at} shore path uses unknown surface ${shorePathSurface}`);
     for (const stone of zoneDef.void?.shore?.path?.rubble ?? []) need(content.props.has(stone), `${at} shore path strews unknown prop ${stone}`);
     for (const placed of zoneDef.void?.shore?.props ?? []) need(content.props.has(placed.prop), `${at} shore places unknown prop ${placed.prop}`);
+    for (const glimpse of zoneDef.void?.glimpses ?? []) for (const piece of glimpse.pieces) need(content.props.has(piece.prop), `${at} glimpse shows unknown prop ${piece.prop}`);
     for (const model of zoneDef.walls === null ? [] : [...zoneDef.walls.tall, zoneDef.walls.low, zoneDef.walls.corner]) need(content.props.has(model), `${at} wall uses unknown prop ${model}`);
     for (const placed of zoneDef.props) {
       const def: PropDef | undefined = content.props.get(placed.prop);

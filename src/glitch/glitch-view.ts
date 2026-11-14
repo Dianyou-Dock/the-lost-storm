@@ -159,7 +159,7 @@ export function createGlitchView(deps: GlitchViewDeps): GlitchView {
 
   const showMist = (): void => {
     mist?.dispose();
-    mist = buildVoidView({ ...deps.mistZone, floorHeight: world.zone.floorHeight }, deps.quality, null);
+    mist = buildVoidView({ ...deps.mistZone, floorHeight: world.zone.floorHeight }, deps.quality, null, null);
     scene.add(mist.group);
     deps.setAmbience(deps.mistZone.ambience);
     document.body.classList.add(GLITCH_VIEW.mistClass);

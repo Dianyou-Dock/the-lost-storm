@@ -52,6 +52,18 @@ export interface ShoreProp {
   readonly rotationDegrees: number;
 }
 
+export interface GlimpsePiece {
+  readonly prop: string;
+  readonly x: number;
+  readonly z: number;
+  readonly rotationDegrees: number;
+  readonly scale: number;
+}
+
+export interface VoidGlimpse {
+  readonly pieces: readonly GlimpsePiece[];
+}
+
 export interface ShorePath {
   readonly surface: string;
   readonly width: number;
@@ -87,6 +99,7 @@ export interface ZoneVoid {
   readonly encounters: readonly ZoneEncounter[];
   readonly emptyHanded: boolean;
   readonly shore: VoidShore | null;
+  readonly glimpses: readonly VoidGlimpse[];
 }
 
 export interface PageDef {

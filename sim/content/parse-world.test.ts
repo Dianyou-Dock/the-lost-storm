@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import world from '../../data/world.json' with { type: 'json' };
 import hall from '../../data/zones/hall_of_time.json' with { type: 'json' };
+import between from '../../data/zones/between.json' with { type: 'json' };
 import type { WorldDef, ZoneDef } from './types.ts';
 import { worldDef, zone } from './parse-world.ts';
 
@@ -23,6 +24,18 @@ void test('pack return rules are read when given and absent otherwise', (): void
   assert.deepEqual(parsed({ packReturn: { after: 30, away: 12 } }).packReturn, { after: 30, away: 12 });
   assert.equal(parsed({ packReturn: undefined }).packReturn, null);
   assert.throws((): ZoneDef => parsed({ packReturn: { after: 0, away: 12 } }));
+});
+
+function withGlimpses(glimpses: unknown): ZoneDef {
+  return zone({ ...between, void: { ...between.void, glimpses } }, 'zone');
+}
+
+void test('void glimpses are read with a scale of one when none is given, and an empty glimpse is refused', (): void => {
+  const read: ZoneDef = withGlimpses([{ pieces: [{ prop: 'castle_doorway', x: 1, z: -2, rotationDegrees: 15 }, { prop: 'castle_pier', x: 4, z: 0, rotationDegrees: 0, scale: 1.8 }] }]);
+  assert.deepEqual(read.void?.glimpses, [{ pieces: [{ prop: 'castle_doorway', x: 1, z: -2, rotationDegrees: 15, scale: 1 }, { prop: 'castle_pier', x: 4, z: 0, rotationDegrees: 0, scale: 1.8 }] }]);
+  assert.deepEqual(withGlimpses(undefined).void?.glimpses, []);
+  assert.throws((): ZoneDef => withGlimpses([{ pieces: [] }]), /at least one piece/);
+  assert.throws((): ZoneDef => withGlimpses([{ pieces: [{ prop: 'castle_pier', x: 0, z: 0, rotationDegrees: 0, scale: 0 }] }]));
 });
 
 function withScaling(scaling: Readonly<Record<string, unknown>>): WorldDef {

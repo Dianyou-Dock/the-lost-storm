@@ -1,5 +1,5 @@
 import type { IUniform } from 'three';
-import { BoxGeometry, BufferAttribute, BufferGeometry, Color, DataTexture, DirectionalLight, Group, LinearFilter, Mesh, MeshBasicMaterial, PlaneGeometry, Points, RedFormat, RepeatWrapping, ShaderMaterial, UniformsLib, UniformsUtils, Vector2, Vector3, Vector4 } from 'three';
+import { BufferAttribute, BufferGeometry, Color, DataTexture, DirectionalLight, Group, LinearFilter, Mesh, PlaneGeometry, Points, RedFormat, RepeatWrapping, ShaderMaterial, UniformsLib, UniformsUtils, Vector2, Vector3, Vector4 } from 'three';
 import type { SurfaceDef, ZoneDef, ZoneExit } from '../../sim/content/types.ts';
 import { allHold } from '../../sim/world/conditions.ts';
 import type { Vec2 } from '../../sim/math.ts';
@@ -26,6 +26,8 @@ import { CAMERA } from './iso-camera.ts';
 import type { MistWallView } from './mist-wall.ts';
 import { buildMistWall } from './mist-wall.ts';
 import type { WakeWisps } from './wake-wisps.ts';
+import type { VoidGlimpses } from './void-glimpse.ts';
+import { glimpseOrder, glimpseTurn } from './void-glimpse.ts';
 import { createWakeWisps } from './wake-wisps.ts';
 
 export const VOID_VIEW = {
@@ -75,15 +77,9 @@ export const VOID_VIEW = {
   shoreFray: 9,
   shoreRate: 0.8,
   wallLight: 0.18,
-  glimpseColor: 0x6d747d,
-  glimpseOpacity: 0.75,
+  glimpseOpacity: 0.9,
   glimpseRate: 2.4,
   glimpseShare: 0.86,
-  glimpseStones: [
-    { x: 0, z: 0, width: 1.1, height: 9.5 },
-    { x: 1.6, z: 0.7, width: 0.8, height: 6.2 },
-    { x: -1.3, z: 0.9, width: 0.6, height: 4.4 },
-  ],
   stillBelow: 0.4,
   seedStep: 17.3,
   moteRise: 0.5,
@@ -159,21 +155,6 @@ function shiftedEddies(eddies: readonly Eddy[], target: Vector4[]): void {
   });
 }
 
-function buildGlimpse(floor: number): { readonly group: Group; readonly material: MeshBasicMaterial; readonly geometries: BoxGeometry[] } {
-  const group: Group = new Group();
-  const material: MeshBasicMaterial = new MeshBasicMaterial({ color: VOID_VIEW.glimpseColor, transparent: true, opacity: 0, depthWrite: false });
-  const geometries: BoxGeometry[] = VOID_VIEW.glimpseStones.map((stone): BoxGeometry => {
-    const geometry: BoxGeometry = new BoxGeometry(stone.width, stone.height, stone.width);
-    const mesh: Mesh = new Mesh(geometry, material);
-    mesh.position.set(stone.x, floor + stone.height / 2, stone.z);
-    mesh.renderOrder = 5;
-    group.add(mesh);
-    return geometry;
-  });
-  group.visible = false;
-  return { group, material, geometries };
-}
-
 function landShare(ashore: number): number {
   const t: number = Math.min(1, Math.max(0, (ashore - VOID_VIEW.land.from) / (VOID_VIEW.land.to - VOID_VIEW.land.from)));
   return t * t * (3 - 2 * t);
@@ -195,7 +176,7 @@ function findsIn(world: World): Vec2[] {
   return [...items, ...lights];
 }
 
-export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: SurfaceDef | null): ZoneView {
+export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: SurfaceDef | null, glimpse: VoidGlimpses | null): ZoneView {
   const tier: VoidTier = VOID_VIEW.tiers[quality];
   const defines: Record<string, number> = { VOID_OCTAVES: tier.octaves, VOID_EDDIES: MIST.eddies };
   const group: Group = new Group();
@@ -234,8 +215,7 @@ export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: 
   group.add(wakeLights.group);
   const wakeWisps: WakeWisps = createWakeWisps(quality, time, body, dither);
   group.add(wakeWisps.mesh);
-  const glimpse = buildGlimpse(zone.floorHeight);
-  group.add(glimpse.group);
+  if (glimpse !== null) group.add(glimpse.group);
   const rock: ShoreRock | null = rockSurface === null ? null : createShoreRock(rockSurface);
   if (rock !== null) group.add(rock.mesh);
 
@@ -296,6 +276,7 @@ export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: 
   let speed: number = 0;
   let glimpseAlpha: number = 0;
   let glimpseFor: MistDrive['gust'] = null;
+  let glimpseWhich: number = -1;
   let onLand: number = 0;
 
   const strike = (world: World): void => {
@@ -319,18 +300,22 @@ export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: 
     flashPos.value.copy(lightning.at);
   };
 
-  const stepGlimpse = (world: World, dt: number): void => {
+  const stepGlimpse = (shown: VoidGlimpses, world: World, dt: number): void => {
     const gust: MistDrive['gust'] = drive.gust;
     if (gust !== null && gust !== glimpseFor && !gust.aimed) {
       glimpseFor = gust;
       const reach: number = MIST.gustReach * VOID_VIEW.glimpseShare;
-      glimpse.group.position.set(world.player.pos.x + gust.dir.x * reach, 0, world.player.pos.z + gust.dir.z * reach);
-      glimpse.group.rotation.y = Math.random() * Math.PI;
+      shown.group.position.set(world.player.pos.x + gust.dir.x * reach, zone.floorHeight, world.player.pos.z + gust.dir.z * reach);
+      shown.group.rotation.y = glimpseTurn(CAMERA.yawDegrees, Math.random());
+      glimpseWhich = glimpseOrder(shown.count, glimpseWhich, Math.random());
+      shown.show(glimpseWhich);
     }
     const wanted: number = gust !== null && !gust.aimed ? gust.strength * VOID_VIEW.glimpseOpacity : 0;
     glimpseAlpha += (wanted - glimpseAlpha) * Math.min(1, dt * VOID_VIEW.glimpseRate);
-    glimpse.material.opacity = glimpseAlpha;
-    glimpse.group.visible = glimpseAlpha > 0.01;
+    shown.uniforms.uVeilShow.value = glimpseAlpha;
+    shown.uniforms.uVeilTime.value = time.value;
+    shown.uniforms.uVeilHero.value.set(world.player.pos.x, world.player.pos.z);
+    shown.group.visible = shown.count > 0 && glimpseAlpha > 0.01;
   };
 
   const follow = (world: World, dt: number, look: Vec2 | null): void => {
@@ -341,8 +326,7 @@ export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: 
     lastShift = { x: world.shift.x, z: world.shift.z };
     lightning.at.x += moved.x;
     lightning.at.y += moved.z;
-    glimpse.group.position.x += moved.x;
-    glimpse.group.position.z += moved.z;
+    if (glimpse !== null) glimpse.group.position.set(glimpse.group.position.x + moved.x, zone.floorHeight, glimpse.group.position.z + moved.z);
     const arriving: boolean = last === null;
     last ??= { x: pos.x, z: pos.z };
     const stepX: number = pos.x - last.x - moved.x;
@@ -412,7 +396,7 @@ export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: 
       landFlash.intensity = flash.value * VOID_VIEW.landFlash.intensity * shoreLook.value.y;
       landFlash.target.position.set(pos.x, zone.floorHeight, pos.z);
       landFlash.position.set(pos.x + (lightning.at.x - pos.x) * VOID_VIEW.landFlash.lean, zone.floorHeight + VOID_VIEW.landFlash.height, pos.z + (lightning.at.y - pos.z) * VOID_VIEW.landFlash.lean);
-      stepGlimpse(world, dt);
+      if (glimpse !== null) stepGlimpse(glimpse, world, dt);
       light.update(world, now, dt);
       ground.position.set(world.player.pos.x, zone.floorHeight, world.player.pos.z);
       for (const layer of layers) layer.position.set(world.player.pos.x, layer.position.y, world.player.pos.z);
@@ -426,8 +410,7 @@ export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: 
       moteGeometryBuilt.dispose();
       moteMaterial.dispose();
       fieldTexture.dispose();
-      glimpse.material.dispose();
-      for (const geometry of glimpse.geometries) geometry.dispose();
+      glimpse?.dispose();
       light.dispose();
       wakeLights.dispose();
       WAKE_LAMPS.value = 0;

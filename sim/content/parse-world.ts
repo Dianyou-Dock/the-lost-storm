@@ -38,7 +38,7 @@ import type {
   ZoneWaypoint,
 } from './types.ts';
 import { service } from './parse-trade.ts';
-import type { ShorePath, ShoreProp, ShoreRoom, VoidShore, ZoneVoid, ZoneWake } from './story-types.ts';
+import type { GlimpsePiece, ShorePath, ShoreProp, ShoreRoom, VoidGlimpse, VoidShore, ZoneVoid, ZoneWake } from './story-types.ts';
 import { ATLAS_FEATURE_KINDS, ZONE_KINDS } from './types.ts';
 import { zoneScatter } from './parse-scatter.ts';
 import { zoneBarrier } from './parse-barrier.ts';
@@ -173,6 +173,18 @@ function shoreProp(value: unknown, where: string): ShoreProp {
   return { prop: text(source, 'prop', where), x: numeric(source, 'x', where), z: numeric(source, 'z', where), rotationDegrees: numeric(source, 'rotationDegrees', where) };
 }
 
+function glimpsePiece(value: unknown, where: string): GlimpsePiece {
+  const source: Fields = fields(value, where);
+  return { prop: text(source, 'prop', where), x: numeric(source, 'x', where), z: numeric(source, 'z', where), rotationDegrees: numeric(source, 'rotationDegrees', where), scale: source['scale'] === undefined ? 1 : positive(source, 'scale', where) };
+}
+
+function voidGlimpse(value: unknown, where: string): VoidGlimpse {
+  const source: Fields = fields(value, where);
+  const pieces: GlimpsePiece[] = each(source['pieces'], `${where}.pieces`, glimpsePiece);
+  if (pieces.length === 0) throw new ContentError(`${where}.pieces`, 'expected at least one piece');
+  return { pieces };
+}
+
 function shorePath(value: unknown, where: string): ShorePath | null {
   if (value === undefined || value === null) return null;
   const source: Fields = fields(value, where);
@@ -202,6 +214,7 @@ function zoneVoid(value: unknown, where: string): ZoneVoid {
     sets: storyFlags(source['sets'], `${where}.sets`),
     encounters: [...byId(each(source['encounters'] ?? [], `${where}.encounters`, encounter), `${where}.encounters`).values()],
     shore: voidShore(source['shore'], `${where}.shore`),
+    glimpses: each(source['glimpses'] ?? [], `${where}.glimpses`, voidGlimpse),
     emptyHanded: source['emptyHanded'] === undefined ? false : flag(source, 'emptyHanded', where),
   };
 }

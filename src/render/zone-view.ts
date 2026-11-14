@@ -14,6 +14,8 @@ import { buildMistWall } from './mist-wall.ts';
 import { buildVoidView } from './void-view.ts';
 import type { ShoreProps } from './shore-props.ts';
 import { createShoreProps } from './shore-props.ts';
+import type { VoidGlimpses } from './void-glimpse.ts';
+import { createVoidGlimpses } from './void-glimpse.ts';
 import type { ReadonlyVec2, Vec2 } from '../../sim/math.ts';
 import type { QualityName } from '../mobile/quality.ts';
 import type { Ground } from './ground.ts';
@@ -146,7 +148,8 @@ function propWidth(def: PropDef): number {
 export async function buildZoneView(loader: GLTFLoader, content: Content, zone: ZoneDef, scene: Scene, quality: QualityName): Promise<ZoneView> {
   if (zone.kind === 'void') {
     const rockId: string | null = zone.void?.shore?.surface ?? null;
-    const empty: ZoneView = buildVoidView(zone, quality, rockId === null ? null : (content.surfaces.get(rockId) ?? null));
+    const glimpses: VoidGlimpses = createVoidGlimpses(loader, content, zone.void?.glimpses ?? [], zone.floorHeight);
+    const empty: ZoneView = buildVoidView(zone, quality, rockId === null ? null : (content.surfaces.get(rockId) ?? null), glimpses);
     const rocks: ShoreProps = createShoreProps(loader, content, zone.void?.shore ?? null, zone.floorHeight);
     empty.group.add(rocks.group);
     scene.add(empty.group);
