@@ -41,7 +41,7 @@ function layItem(world: World, met: ZoneEncounter, state: EncounterState, base: 
   state.groundId = ground.id;
 }
 
-function place(world: World, met: ZoneEncounter, state: EncounterState, ahead: number): void {
+function place(world: World, met: ZoneEncounter, state: EncounterState, ahead: number): Vec2 {
   const aim: Vec2 = insideRoom(world, { x: world.player.pos.x + world.heading.x * ahead, z: world.player.pos.z + world.heading.z * ahead });
   const pos: Vec2 = isWalkable(world.grid, aim.x, aim.z) ? aim : (nearestWalkable(world.grid, aim, ENCOUNTER.clearReach) ?? aim);
   state.pos = pos;
@@ -54,6 +54,7 @@ function place(world: World, met: ZoneEncounter, state: EncounterState, ahead: n
       moveExit(world, met.find.exit, pos);
       break;
   }
+  return pos;
 }
 
 function withdraw(world: World, state: EncounterState): void {
@@ -79,14 +80,20 @@ function stepOne(world: World, rules: ZoneVoid, met: ZoneEncounter, travelled: n
     world.encounters.splice(index, 1);
     return;
   }
-  const state: EncounterState = existing ?? { id: met.id, walked: 0, moving: 0, pos: null, off: 0, groundId: null };
+  const state: EncounterState = existing ?? { id: met.id, walked: 0, moving: 0, neared: false, pos: null, off: 0, groundId: null };
   if (existing === undefined) world.encounters.push(state);
   state.walked += travelled;
   if (travelled > 0) state.moving += dt;
   const late: boolean = met.latest !== null && state.moving >= met.latest;
   if (state.pos === null) {
-    if (late) place(world, met, state, 0);
-    else if (state.walked >= met.after) place(world, met, state, met.ahead);
+    if (!state.neared && met.nearing !== null && state.walked >= met.after * met.nearing) {
+      state.neared = true;
+      world.events.push({ type: 'encounter_nearing', encounter: met.id });
+    }
+    const ahead: number | null = late ? 0 : state.walked >= met.after ? met.ahead : null;
+    if (ahead === null) return;
+    const laid: Vec2 = place(world, met, state, ahead);
+    world.events.push({ type: 'encounter_shown', encounter: met.id, pos: { x: laid.x, z: laid.z } });
     return;
   }
   if (met.find.type === 'item' && groundOf(world, state) === null) return;

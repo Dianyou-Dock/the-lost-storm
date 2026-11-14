@@ -11,12 +11,12 @@ const NONE: readonly SoundCue[] = [];
 
 type CueTableName = Exclude<keyof AudioDef, 'defaults' | 'ambience' | 'seam'>;
 
-const WARM_TABLES: readonly CueTableName[] = ['world', 'skillStart', 'hit', 'critHit', 'skillHit', 'skillImpact', 'projectileSpawn', 'projectileExpire', 'death', 'aggro', 'pickup', 'drop', 'notice', 'ui'];
+const WARM_TABLES: readonly CueTableName[] = ['world', 'encounterNearing', 'encounterShown', 'skillStart', 'hit', 'critHit', 'skillHit', 'skillImpact', 'projectileSpawn', 'projectileExpire', 'death', 'aggro', 'pickup', 'drop', 'notice', 'ui'];
 
 function cues(table: CueTable, key: string, position: Vec2 | null): readonly SoundCue[] {
   const list: readonly CueDef[] | undefined = table.get(key);
   if (list === undefined || list.length === 0) return NONE;
-  return list.map((entry: CueDef): SoundCue => ({ sound: entry.sound, volume: entry.volume, maxVoices: entry.maxVoices, cooldown: entry.cooldown, reach: entry.reach, position }));
+  return list.map((entry: CueDef): SoundCue => ({ sound: entry.sound, volume: entry.volume, maxVoices: entry.maxVoices, cooldown: entry.cooldown, reach: entry.reach, holdForVoice: entry.holdForVoice, position }));
 }
 
 function monsterOf(world: World, id: number): MonsterState | undefined {
@@ -126,6 +126,12 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
       break;
     case 'wake':
       found = worldCues(audio, WAKE_SOUNDS[event.beat], positionOf(world, world.player.id));
+      break;
+    case 'encounter_nearing':
+      found = cues(audio.encounterNearing, event.encounter, null);
+      break;
+    case 'encounter_shown':
+      found = cues(audio.encounterShown, event.encounter, null);
       break;
     case 'hazard':
       if (event.burst) found = cues(audio.skillImpact, event.hazard.skill.id, event.hazard.pos);

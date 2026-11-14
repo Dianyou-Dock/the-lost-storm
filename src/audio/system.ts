@@ -19,6 +19,8 @@ import type { AudioControls, AudioSettings } from './settings.ts';
 import { pickVariant, pitchRate, delayBetween, volumeScale } from './variation.ts';
 import type { SpokenClip, VoiceLines } from './voice-lines.ts';
 import { createVoiceLines } from './voice-lines.ts';
+import type { VoiceHold } from './voice-hold.ts';
+import { createVoiceHold } from './voice-hold.ts';
 import type { VoiceLimiter } from './voices.ts';
 import { createVoiceLimiter } from './voices.ts';
 import { warmPaths } from './warm.ts';
@@ -115,6 +117,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
   const lastVariant: Map<string, number> = new Map<string, number>();
   const listeners: ((trigger: Trigger) => void)[] = [];
   const health: LoadHealth = createLoadHealth();
+  const hold: VoiceHold = createVoiceHold();
   const loops: Running[] = [];
   let timers: StingerTimer[] = [];
   const loader: ManifestLoader = createManifestLoader({
@@ -378,7 +381,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
       }
     },
     play(cue: SoundCue, place: Placement): void {
-      trigger('effects', cue, place);
+      if (hold.offer(cue, place, clock(), echoes > 0 || lines.speaking().length > 0)) trigger('effects', cue, place);
     },
     playVoice(speaker: string, clipId: string): Promise<void> {
       return lines.say(speaker, clipId);
@@ -467,6 +470,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
     },
     update(dt: number): void {
       ensureManifest();
+      for (const held of hold.release(clock(), echoes > 0 || lines.speaking().length > 0)) trigger('effects', held.cue, held.place);
       loopRetryLeft -= dt;
       if (loopRetryLeft <= 0) {
         loopRetryLeft = SYSTEM.loopRetrySeconds;
@@ -476,7 +480,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
         timer.left -= dt;
         if (timer.left > 0) continue;
         timer.left = delayBetween(timer.stinger.minDelay, timer.stinger.maxDelay, random);
-        const cue: SoundCue = { sound: timer.stinger.sound, volume: timer.stinger.volume, maxVoices: 1, cooldown: 0, reach: MIX.farDistance, position: null };
+        const cue: SoundCue = { sound: timer.stinger.sound, volume: timer.stinger.volume, maxVoices: 1, cooldown: 0, reach: MIX.farDistance, holdForVoice: 0, position: null };
         trigger('ambience', cue, { gain: CENTRE.gain, pan: (random() * 2 - 1) * SYSTEM.stingerPan });
       }
     },

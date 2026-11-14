@@ -12,7 +12,7 @@ import { shoreDepth } from './shore.ts';
 import { hudHidden } from './hud.ts';
 import { stepWorld } from './step.ts';
 import { wakeLength } from './wake.ts';
-import type { Command, GroundItem, ItemInstance, World } from './types.ts';
+import type { Command, EncounterState, GroundItem, ItemInstance, World } from './types.ts';
 
 const content: Content = loadContent();
 const DT: number = 1 / 60;
@@ -340,4 +340,61 @@ void test('walking into the light and stopping in it never carries the hero thro
   assert.equal(world.zone.id, opening.id);
   clickLight(world);
   assert.notEqual(world.zone.id, opening.id);
+});
+
+interface Heard {
+  readonly type: 'encounter_nearing' | 'encounter_shown';
+  readonly walked: number;
+  readonly laid: boolean;
+}
+
+const HEARD = {
+  seconds: 40,
+  leg: 3,
+  stepSlack: 1,
+} as const;
+
+function journalWalked(world: World): number {
+  return world.encounters.find((state: EncounterState): boolean => state.id === journalFind.id)?.walked ?? -1;
+}
+
+function listen(world: World, dirAt: (seconds: number) => Vec2, seconds: number): Heard[] {
+  const heard: Heard[] = [];
+  for (let at: number = 0; at < seconds; at += DT) {
+    for (const event of stepWorld(world, [walk(world, dirAt(at))], DT)) {
+      if ((event.type === 'encounter_nearing' || event.type === 'encounter_shown') && event.encounter === journalFind.id) heard.push({ type: event.type, walked: journalWalked(world), laid: found(world) !== null });
+    }
+  }
+  return heard;
+}
+
+void test('halfway along the walk that lays the journal the nearing moment comes once, then the moment the journal is laid it is shown once', (): void => {
+  const nearing: number = must(journalFind.nearing, 'journal nearing share');
+  const world: World = fresh(41);
+  const heard: Heard[] = listen(world, (): Vec2 => ({ x: 1, z: 0 }), HEARD.seconds);
+  assert.deepEqual(heard.map((entry: Heard): string => entry.type), ['encounter_nearing', 'encounter_shown']);
+  const near: Heard = must(heard[0], 'nearing');
+  const shown: Heard = must(heard[1], 'shown');
+  const half: number = journalFind.after * nearing;
+  assert.ok(near.walked >= half && near.walked < half + HEARD.stepSlack, `near at ${near.walked} m`);
+  assert.equal(near.laid, false);
+  assert.ok(shown.laid && shown.walked >= journalFind.after && shown.walked < journalFind.after + HEARD.stepSlack, `shown at ${shown.walked} m`);
+});
+
+void test('walking back and forth, and the journal moving back in front of him, never brings either moment twice', (): void => {
+  const world: World = fresh(42);
+  const heard: Heard[] = listen(world, (seconds: number): Vec2 => (Math.floor(seconds / HEARD.leg) % 2 === 0 ? { x: 0, z: 1 } : { x: 0, z: -1 }), HEARD.seconds * 2);
+  assert.notEqual(found(world), null);
+  assert.deepEqual(heard.map((entry: Heard): string => entry.type), ['encounter_nearing', 'encounter_shown']);
+});
+
+void test('a hero who already took the journal hears neither moment', (): void => {
+  const world: World = fresh(43);
+  world.flags['first_choice'] = 'took_journal';
+  assert.deepEqual(listen(world, (): Vec2 => ({ x: 1, z: 0 }), HEARD.seconds), []);
+});
+
+void test('only the first find of the opening draws near', (): void => {
+  const nearing: readonly string[] = rules.encounters.filter((met: ZoneEncounter): boolean => met.nearing !== null).map((met: ZoneEncounter): string => met.id);
+  assert.deepEqual(nearing, [journalFind.id]);
 });

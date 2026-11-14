@@ -564,6 +564,8 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
           case 'zone_changed':
           case 'hero_step':
           case 'wake':
+          case 'encounter_nearing':
+          case 'encounter_shown':
           case 'explored':
           case 'dialogue_line':
           case 'dialogue_closed':

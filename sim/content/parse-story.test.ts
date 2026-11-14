@@ -17,3 +17,9 @@ void test('a page may name the line that speaks it, and a page that names none i
   assert.deepEqual(read.get('diary')?.pages.map((entry): string | null => entry.voice), ['diary_look', null]);
   assert.throws((): unknown => books([{ id: 'diary', title: 'A diary', pages: [{ ...page, voice: 7 }] }], 'books'), (error: unknown): boolean => error instanceof ContentError && error.message.includes('voice'));
 });
+
+void test('an encounter may name a share of its walk at which the find draws near, and it must be a share', (): void => {
+  assert.equal(encounter({ id: 'journal', when: [], after: 10, ahead: 16, find: ITEM_FIND }, 'journal').nearing, null);
+  assert.equal(encounter({ id: 'journal', when: [], after: 10, ahead: 16, nearing: 0.5, find: ITEM_FIND }, 'journal').nearing, 0.5);
+  for (const nearing of [0, 1, 1.5, -0.2]) assert.throws((): unknown => encounter({ id: 'journal', when: [], after: 10, ahead: 16, nearing, find: ITEM_FIND }, 'journal'), (error: unknown): boolean => error instanceof ContentError && error.message.includes('nearing'));
+});

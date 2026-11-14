@@ -579,6 +579,8 @@ export type WorldEvent =
   | { readonly type: 'checkpoint'; readonly checkpoint: string; readonly pos: Vec2 }
   | { readonly type: 'hero_step'; readonly pos: Vec2 }
   | { readonly type: 'wake'; readonly beat: WakeBeat }
+  | { readonly type: 'encounter_nearing'; readonly encounter: string }
+  | { readonly type: 'encounter_shown'; readonly encounter: string; readonly pos: Vec2 }
   | { readonly type: 'explored'; readonly zone: string }
   | { readonly type: 'dialogue_line'; readonly npcId: number; readonly npc: string; readonly talk: string; readonly line: LineDef; readonly index: number; readonly last: boolean }
   | { readonly type: 'dialogue_closed'; readonly npcId: number; readonly npc: string; readonly talk: string; readonly finished: boolean; readonly replay: boolean }
@@ -621,6 +623,7 @@ export interface EncounterState {
   readonly id: string;
   walked: number;
   moving: number;
+  neared: boolean;
   pos: Vec2 | null;
   off: number;
   groundId: number | null;

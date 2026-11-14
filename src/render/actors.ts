@@ -412,6 +412,8 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           case 'notice':
           case 'hero_step':
           case 'wake':
+          case 'encounter_nearing':
+          case 'encounter_shown':
           case 'revive':
           case 'glitch_clock':
           case 'explored':

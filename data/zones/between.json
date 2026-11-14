@@ -94,6 +94,7 @@
         "when": [{"type": "flag", "flag": "first_choice", "not": true}],
         "after": 170,
         "ahead": 16,
+        "nearing": 0.5,
         "find": {"type": "item", "item": "worn_journal", "marker": "bolt", "sets": {"first_choice": "took_journal"}}
       },
       {

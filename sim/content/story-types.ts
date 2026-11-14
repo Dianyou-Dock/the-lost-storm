@@ -36,6 +36,7 @@ export interface ZoneEncounter {
   readonly after: number;
   readonly ahead: number;
   readonly latest: number | null;
+  readonly nearing: number | null;
   readonly find: EncounterFind;
 }
 

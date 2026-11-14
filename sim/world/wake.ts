@@ -20,7 +20,7 @@ function exitBehind(world: World, met: ZoneEncounter, back: Vec2): void {
   const away: number = exit.radius + RETURN.exitGap;
   const pos: Vec2 = { x: world.player.pos.x + back.x * away, z: world.player.pos.z + back.z * away };
   moveExit(world, exitId, pos);
-  world.encounters.push({ id: met.id, walked: 0, moving: 0, pos, off: 0, groundId: null });
+  world.encounters.push({ id: met.id, walked: 0, moving: 0, neared: false, pos, off: 0, groundId: null });
 }
 
 function returnToShore(world: World, rules: ZoneVoid): void {

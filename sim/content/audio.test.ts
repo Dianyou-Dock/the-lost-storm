@@ -63,8 +63,8 @@ void test('cues take the defaults for what they leave out', (): void => {
     draft['ui'] = { click: [{ sound: 'ui_click' }, { sound: 'ui_click', volume: 0.5, maxVoices: 2, cooldown: 1, reach: 60 }] };
   }), known);
   const [plain, tuned]: readonly CueDef[] = must(audio.ui.get('click'), 'click cues');
-  assert.deepEqual(plain, { sound: 'ui_click', volume: 1, maxVoices: 4, cooldown: 0, reach: 30 });
-  assert.deepEqual(tuned, { sound: 'ui_click', volume: 0.5, maxVoices: 2, cooldown: 1, reach: 60 });
+  assert.deepEqual(plain, { sound: 'ui_click', volume: 1, maxVoices: 4, cooldown: 0, reach: 30, holdForVoice: 0 });
+  assert.deepEqual(tuned, { sound: 'ui_click', volume: 0.5, maxVoices: 2, cooldown: 1, reach: 60, holdForVoice: 0 });
 });
 
 void test('a table that names an id the game does not have is rejected', (): void => {
@@ -87,8 +87,24 @@ void test('a table that names an id the game does not have is rejected', (): voi
     draft['ui'] = { shout: [{ sound: 'a' }] };
   }), /ui\.shout/);
   reject(variant((draft): void => {
+    draft['encounterNearing'] = { not_a_find: [{ sound: 'a' }] };
+  }), /encounterNearing\.not_a_find/);
+  reject(variant((draft): void => {
+    draft['encounterShown'] = { not_a_find: [{ sound: 'a' }] };
+  }), /encounterShown\.not_a_find/);
+  reject(variant((draft): void => {
     draft['ambience'] = { moon_base: { loops: [], stingers: [] } };
   }), /ambience\.moon_base/);
+});
+
+void test('a cue may wait a bounded time for a voice to finish, and waits for none unless it says so', (): void => {
+  const audio: AudioDef = loadAudio(content);
+  const nearing: readonly CueDef[] = must(audio.encounterNearing.get('journal'), 'journal nearing cues');
+  assert.ok(nearing.every((entry: CueDef): boolean => entry.holdForVoice > 0 && entry.maxVoices === 1));
+  assert.ok(must(audio.encounterShown.get('journal'), 'journal shown cues').every((entry: CueDef): boolean => entry.holdForVoice === 0 && entry.maxVoices === 1));
+  reject(variant((draft): void => {
+    draft['encounterNearing'] = { journal: [{ sound: 'a', holdForVoice: 31 }] };
+  }), /encounterNearing\.journal\[0\]\.holdForVoice/);
 });
 
 void test('only projectile skills can have projectile sounds', (): void => {

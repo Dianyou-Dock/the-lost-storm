@@ -2,7 +2,8 @@ import audio from '../../data/audio.json' with { type: 'json' };
 import type { NoticeReason } from '../world/types.ts';
 import type { Fields } from './read.ts';
 import { ContentError, each, fields, flag, isFields, numeric, text } from './read.ts';
-import type { Content, RarityDef } from './types.ts';
+import type { ZoneEncounter } from './story-types.ts';
+import type { Content, RarityDef, ZoneDef } from './types.ts';
 
 export const UI_ACTIONS = ['click', 'panel_open', 'panel_close', 'error', 'skill_point', 'equip', 'title_gone'] as const;
 export type UiAction = (typeof UI_ACTIONS)[number];
@@ -25,6 +26,7 @@ const LIMITS = {
   delayMax: 600,
   reachMin: 5,
   reachMax: 200,
+  holdMax: 30,
   cutMin: 0.05,
   cutMax: 10,
 } as const;
@@ -42,6 +44,7 @@ export interface CueDef {
   readonly maxVoices: number;
   readonly cooldown: number;
   readonly reach: number;
+  readonly holdForVoice: number;
 }
 
 export type CueTable = ReadonlyMap<string, readonly CueDef[]>;
@@ -93,6 +96,8 @@ export interface AudioDef {
   readonly pickup: CueTable;
   readonly notice: CueTable;
   readonly world: CueTable;
+  readonly encounterNearing: CueTable;
+  readonly encounterShown: CueTable;
   readonly ui: CueTable;
   readonly ambience: ReadonlyMap<string, ZoneAmbience>;
 }
@@ -103,6 +108,7 @@ export interface KnownIds {
   readonly monsters: ReadonlySet<string>;
   readonly rarities: ReadonlySet<string>;
   readonly zones: ReadonlySet<string>;
+  readonly encounters: ReadonlySet<string>;
 }
 
 function soundId(source: Fields, key: string, where: string): string {
@@ -134,6 +140,7 @@ function cue(value: unknown, defaults: CueDefaults, where: string): CueDef {
     maxVoices,
     cooldown: ranged(source, 'cooldown', defaults.cooldown, 0, LIMITS.cooldownMax, where),
     reach: ranged(source, 'reach', defaults.reach, LIMITS.reachMin, LIMITS.reachMax, where),
+    holdForVoice: ranged(source, 'holdForVoice', 0, 0, LIMITS.holdMax, where),
   };
 }
 
@@ -231,6 +238,8 @@ export function parseAudio(value: unknown, known: KnownIds): AudioDef {
     pickup: read('pickup', items),
     notice: read('notice', new Set<string>(NOTICE_REASONS)),
     world: read('world', new Set<string>(WORLD_SOUND_EVENTS)),
+    encounterNearing: read('encounterNearing', known.encounters),
+    encounterShown: read('encounterShown', known.encounters),
     ui: read('ui', new Set<string>(UI_ACTIONS)),
     ambience,
   };
@@ -244,6 +253,7 @@ export function knownIdsOf(content: Content): KnownIds {
     monsters: new Set<string>(content.monsters.keys()),
     rarities: new Set<string>(content.rarities.map((rarity: RarityDef): string => rarity.id)),
     zones: new Set<string>(content.zones.keys()),
+    encounters: new Set<string>([...content.zones.values()].flatMap((zoneDef: ZoneDef): string[] => (zoneDef.void?.encounters ?? []).map((met: ZoneEncounter): string => met.id))),
   };
 }
 
