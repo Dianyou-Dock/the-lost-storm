@@ -6,6 +6,7 @@ import type { SkillDef } from '../../sim/content/types.ts';
 import type { Vec2 } from '../../sim/math.ts';
 import { readyToRepeat } from '../../sim/world/skills.ts';
 import type { Command, FlaskState, MonsterState, World } from '../../sim/world/types.ts';
+import { cannotStep, isTimeHeld } from '../../sim/world/movement.ts';
 import type { KeyValueStore } from '../backend/backend.ts';
 import { el } from '../hud/dom.ts';
 import { flaskUses, paintUses } from '../hud/flask-belt.ts';
@@ -22,6 +23,7 @@ import type { PhoneLayout, Rect, SafeInsets } from './phone-layout.ts';
 import { PHONE, phoneLayout } from './phone-layout.ts';
 import touchCss from './touch.css?inline';
 import touchSheetCss from './touch-sheet.css?inline';
+import touchHeldCss from './touch-held.css?inline';
 
 export interface TouchSetup {
   readonly canvas: HTMLCanvasElement;
@@ -156,7 +158,7 @@ function retire(root: HTMLElement): void {
 
 export function createTouchControls(setup: TouchSetup): TouchControls {
   const style: HTMLStyleElement = document.createElement('style');
-  style.textContent = touchCss + touchSheetCss;
+  style.textContent = touchCss + touchSheetCss + touchHeldCss;
   document.head.append(style);
   const { canvas, hudRoot, world, input, hud } = setup;
   document.body.classList.add('touch');
@@ -579,6 +581,9 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
       const talking: boolean = world.dialogue !== null;
       if (talking !== document.body.classList.contains(TOUCH.talkingClass)) document.body.classList.toggle(TOUCH.talkingClass, talking);
       const player = world.player;
+      const stopped: boolean = player.alive && cannotStep(player);
+      const frozen: boolean = player.alive && isTimeHeld(player);
+      if (stick.classList.contains(TOUCH.heldClass) !== stopped) stick.classList.toggle(TOUCH.heldClass, stopped);
       for (const view of views) {
         if (view.spec.kind === 'flask') {
           const flask: FlaskState | undefined = player.flasks[view.spec.slot];
@@ -591,6 +596,7 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
         }
         if (!view.spec.filled) continue;
         const skill: SkillDef | undefined = player.skills[view.spec.slot] ?? undefined;
+        if (view.root.classList.contains(TOUCH.heldClass) !== (frozen && skill !== undefined)) view.root.classList.toggle(TOUCH.heldClass, frozen && skill !== undefined);
         if (skill === undefined) continue;
         const turn: number = cooldownTurn(player.cooldowns[skill.id] ?? 0, skill.cooldown);
         if (turn !== view.turn) {

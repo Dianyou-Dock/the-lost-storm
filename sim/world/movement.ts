@@ -115,6 +115,14 @@ export function beingKnocked(actor: ActorState): boolean {
   return actor.motion === 'knocked';
 }
 
+export function isTimeHeld(actor: ActorState): boolean {
+  return actor.tempo <= 0 && actor.tempoTime > 0;
+}
+
+export function cannotStep(actor: ActorState): boolean {
+  return isTimeHeld(actor) || actor.root > 0 || beingKnocked(actor);
+}
+
 export function strideOf(actor: ActorState, from: Vec2): Vec2 {
   return { x: actor.pos.x - from.x, z: actor.pos.z - from.z };
 }

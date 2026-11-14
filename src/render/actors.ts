@@ -1,7 +1,7 @@
 import type { Sight } from './sight.ts';
 import { SEES_ALL } from './sight.ts';
 import type { Box3, Object3D, Scene } from 'three';
-import { knockTime } from '../../sim/world/movement.ts';
+import { isTimeHeld, knockTime } from '../../sim/world/movement.ts';
 import { Color } from 'three';
 import type { Content, MonsterDef, ZoneDef } from '../../sim/content/types.ts';
 import type { Look } from '../../sim/wear.ts';
@@ -73,7 +73,7 @@ const HIT_WHITE: Color = new Color(0xffffff);
 const HIT_RED: Color = new Color(0xff6040);
 
 function poseOf(actor: ActorState): ActorPose {
-  return { pos: actor.pos, facing: actor.facing, motion: actor.motion, gait: actor.gait, knockTime: knockTime(actor), busy: actor.action !== null, deadTime: actor.deadTime };
+  return { pos: actor.pos, facing: actor.facing, motion: actor.motion, gait: actor.gait, knockTime: knockTime(actor), busy: actor.action !== null, held: isTimeHeld(actor), deadTime: actor.deadTime };
 }
 
 function monsterKey(def: MonsterDef): string {
@@ -81,7 +81,7 @@ function monsterKey(def: MonsterDef): string {
 }
 
 function npcPose(npc: NpcState): ActorPose {
-  return { pos: npc.pos, facing: npc.facing, motion: npc.motion, gait: npc.gait, knockTime: 0, busy: false, deadTime: 0 };
+  return { pos: npc.pos, facing: npc.facing, motion: npc.motion, gait: npc.gait, knockTime: 0, busy: false, held: false, deadTime: 0 };
 }
 
 

@@ -29,6 +29,12 @@ export const ACTOR = {
   hitFade: 0.05,
   hitSpeed: 1.7,
   hitTime: 0.28,
+  recoverFade: 0.3,
+  heldPace: 0.04,
+  heldGlow: 0.42,
+  heldPulse: 0.35,
+  heldPulseRate: 5.2,
+  heldTint: 0xa9bfdc,
   deathFade: 0.08,
   flashDecay: 9,
   punchDecay: 11,
@@ -81,6 +87,7 @@ export interface ActorPose {
   readonly gait: number;
   readonly knockTime: number;
   readonly busy: boolean;
+  readonly held: boolean;
   readonly deadTime: number;
 }
 
@@ -209,7 +216,13 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
   let lastKind: ClipKind = 'idle';
   let knockSpan: number = 0;
   let knockLeft: number = 0;
+  let recovering: boolean = false;
+  const pace: Spring = { value: 1, velocity: 0, target: 1 };
+  const heldLevel: Spring = { value: 0, velocity: 0, target: 0 };
+  let heldClock: number = 0;
   const flashColor: Color = new Color(0xffffff);
+  const heldColor: Color = new Color(ACTOR.heldTint);
+  const glowColor: Color = new Color();
   const hoverColor: Color = new Color(hoverTint);
   rig.root.scale.setScalar(scale);
   rig.root.rotation.order = 'YXZ';
@@ -255,10 +268,13 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
     current = next;
   };
 
-  const react = (): void => {
+  const react = (span: number): void => {
     if (rig.clips.hit.length === 0) return;
-    play(bodyClip(rig, 'hit', chance), ACTOR.hitFade, ACTOR.hitSpeed, true, true);
-    oneShot = ACTOR.hitTime;
+    const clip: AnimationClip = bodyClip(rig, 'hit', chance);
+    const length: number = Math.max(ACTOR.hitTime, span);
+    play(clip, ACTOR.hitFade, clip.duration > 0 ? clamped(clip.duration / length, ACTOR.minActionSpeed, ACTOR.hitSpeed) : ACTOR.hitSpeed, true, true);
+    oneShot = length;
+    recovering = true;
   };
 
   const reel = (actor: ActorPose): void => {
@@ -266,20 +282,22 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
     knockLeft = actor.knockTime;
     if (fresh) {
       knockSpan = actor.knockTime;
-      react();
+      react(actor.knockTime);
     }
-    oneShot = Math.max(oneShot, ACTOR.hitTime, actor.knockTime);
+    oneShot = Math.max(oneShot, actor.knockTime);
   };
 
   const locomote = (actor: ActorPose): void => {
     const choice: GaitChoice | null = chooseGait(rig.clips.gaits, scale, actor.gait, gaitIndex);
     const gait: GaitClip | undefined = choice === null ? undefined : rig.clips.gaits[choice.index];
+    const fade: number = recovering ? ACTOR.recoverFade : ACTOR.locomotionFade;
+    recovering = false;
     if (choice === null || gait === undefined) {
-      play(idleClip(rig), ACTOR.locomotionFade, 1, false, false);
+      play(idleClip(rig), fade, 1, false, false);
       return;
     }
     gaitIndex = choice.index;
-    play(gait.clip, ACTOR.locomotionFade, choice.rate, false, false);
+    play(gait.clip, fade, choice.rate, false, false);
   };
 
   return {
@@ -308,15 +326,15 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
         rig.root.rotation.y = yaw;
       } else {
         rig.root.position.y = options.floor - (1 - options.rise) * ACTOR.riseDepth + liftAt(rig.def.lift, scale, null, clock);
-        yaw = turnToward(yaw, actor.facing, options.turnRate * dt);
+        yaw = turnToward(yaw, actor.facing, options.turnRate * dt * pace.value);
         rig.root.rotation.y = yaw;
         const kind: ClipKind = clipKindOf(actor.motion);
         if (oneShot > 0) {
-          oneShot -= dt;
+          oneShot -= dt * pace.value;
           if (!actor.busy && kind === 'gait') oneShot = 0;
         }
         if (follow !== null) {
-          follow.left -= dt;
+          follow.left -= dt * pace.value;
           if (follow.left <= 0) {
             payOwed();
             current.timeScale = follow.speed;
@@ -331,6 +349,12 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
         lastKind = kind;
         if (oneShot <= 0) locomote(actor);
       }
+      springTo(pace, actor.held && !dead ? ACTOR.heldPace : 1);
+      stepSpring(pace, dt);
+      pace.value = clamped(pace.value, ACTOR.heldPace, 1);
+      springTo(heldLevel, actor.held && !dead ? 1 : 0);
+      stepSpring(heldLevel, dt);
+      heldClock = heldLevel.value > 0 ? heldClock + dt : 0;
       flash = Math.max(0, flash - ACTOR.flashDecay * dt);
       punch = Math.max(0, punch - ACTOR.punchDecay * dt);
       const squash: number = punch * ACTOR.punchSquash;
@@ -343,11 +367,13 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
       shadow.visible = rig.root.visible && (ownShadow === null || ownShadow.opacity > 0);
       springTo(hoverLevel, hover && !dead ? ACTOR.hoverGlow : 0);
       stepSpring(hoverLevel, dt);
-      rig.setFlash(flashColor, flash);
+      const cool: number = Math.max(0, heldLevel.value) * ACTOR.heldGlow * (1 - ACTOR.heldPulse * (0.5 - 0.5 * Math.cos(heldClock * ACTOR.heldPulseRate)));
+      glowColor.copy(flashColor).lerp(heldColor, flash + cool > 0 ? cool / (flash + cool) : 0);
+      rig.setFlash(glowColor, Math.max(flash, cool));
       rig.setHover(hoverColor, Math.max(0, hoverLevel.value));
       unlayer();
       const posing: boolean = lying || woke !== null;
-      const step: number | null = settled && !posing ? null : bank.take(dt, posing || options.seen);
+      const step: number | null = settled && !posing ? null : bank.take(dt * pace.value, posing || options.seen);
       if (step !== null) rig.mixer.update(step);
       rig.stepWear(dt);
       if (lying && woke !== null) {
@@ -369,13 +395,13 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
       return true;
     },
     interrupt(): void {
-      if (!dead) react();
+      if (!dead) react(0);
     },
     hit(color: Color, strength: number, stagger: boolean): void {
       flashColor.copy(color);
       flash = Math.max(flash, strength);
       punch = Math.max(punch, strength);
-      if (!dead && stagger) react();
+      if (!dead && stagger) react(0);
     },
     die(): void {
       if (dead) return;

@@ -7,19 +7,23 @@ import { loadContent } from '../../sim/content/content.ts';
 import type { Content, RigDef } from '../../sim/content/types.ts';
 import { HERO } from '../../sim/hero.ts';
 import { stepStride } from '../../sim/world/player.ts';
-import type { ActorView } from './actor-view.ts';
+import type { ActorPose, ActorView, SyncOptions } from './actor-view.ts';
 import { ACTOR, createActorView, easeIn, fallAt, liftAt } from './actor-view.ts';
-import type { CharacterLibrary, GaitClip, LoadedRig, RigClipSet } from './character-loader.ts';
+import type { ActionClip, CharacterLibrary, GaitClip, LoadedRig, RigClipSet } from './character-loader.ts';
 import { instantiateRig } from './character-loader.ts';
 
 const content: Content = loadContent();
 
 const SPEEDS: readonly number[] = [0.5, 1.2, 2.2, 2.8, 3, 3.4, 4.5, 7, 9, 6, 3.4, 3, 2.8, 2.2, 1.2, 0, 2.8, 3, 0.05, 3, 9, 0.5];
 
-function heroView(def: RigDef): { readonly view: ActorView; readonly gaits: readonly GaitClip[]; readonly idle: AnimationClip } {
+const STUNNED = { dt: 1 / 60, knock: 0.6, hold: 0.85, hitLength: 1, swingLength: 1.2, impact: 0.5, windup: 0.4, recovery: 0.3 } as const;
+
+const STUN_SYNC: SyncOptions = { rise: 1, floor: 0, turnRate: 10, seen: true };
+
+function heroView(def: RigDef, hit: readonly AnimationClip[] = [], actions: ReadonlyMap<string, ActionClip> = new Map()): { readonly view: ActorView; readonly gaits: readonly GaitClip[]; readonly idle: AnimationClip } {
   const gaits: GaitClip[] = def.gaits.map((gait): GaitClip => ({ clip: new AnimationClip(gait.clip, 1, []), groundSpeed: gait.groundSpeed }));
   const idle: AnimationClip = new AnimationClip('idle', 1, []);
-  const clips: RigClipSet = { idle, run: new AnimationClip('run', 1, []), gaits, hit: [], death: [], rise: null, actions: new Map(), unarmed: null, stances: new Map() };
+  const clips: RigClipSet = { idle, run: new AnimationClip('run', 1, []), gaits, hit: [...hit], death: [], rise: null, actions: new Map(actions), unarmed: null, stances: new Map() };
   const loaded: LoadedRig = { def, template: new Group(), clips, bodyParts: [], bodyMasks: new Map(), fitted: new Map() };
   const library: CharacterLibrary = { rigs: new Map([[def.id, loaded]]), attachments: new Map(), wearables: new Map() };
   const view: ActorView = createActorView(instantiateRig(loaded, library, { tint: '#ffffff', glow: '#ffffff', ghost: null, feather: false }), HERO.size, 0);
@@ -45,7 +49,7 @@ for (const hero of content.player.heroes) {
       const counted = stepStride(def, speed, held);
       held = counted.gait;
       for (let frame: number = 0; frame < 60; frame += 1) {
-        view.sync(1 / 30, { pos: { x: 0, z: 0 }, facing: 0, motion: speed > 0 ? 'stride' : 'still', gait: speed, knockTime: 0, busy: false, deadTime: 0 }, { rise: 1, floor: 0, turnRate: 10, seen: true });
+        view.sync(1 / 30, { pos: { x: 0, z: 0 }, facing: 0, motion: speed > 0 ? 'stride' : 'still', gait: speed, knockTime: 0, busy: false, held: false, deadTime: 0 }, { rise: 1, floor: 0, turnRate: 10, seen: true });
       }
       const shown: number = playing(view, clips) - 1;
       if (counted.metres === null) {
@@ -85,7 +89,7 @@ function opacityOf(body: Mesh): number {
   return Array.isArray(material) ? 1 : material.opacity;
 }
 
-const RUNNING = { pos: { x: 0, z: 0 }, facing: 0, motion: 'stride', gait: 1, knockTime: 0, busy: false, deadTime: 0 } as const;
+const RUNNING = { pos: { x: 0, z: 0 }, facing: 0, motion: 'stride', gait: 1, knockTime: 0, busy: false, held: false, deadTime: 0 } as const;
 const OPTIONS = { rise: 1, floor: 0, turnRate: 10, seen: true } as const;
 
 void test('a creature with no hit clip keeps its stride when struck: the flash and the squash show the hit, not a jump to idle', (): void => {
@@ -130,3 +134,59 @@ void test('a lifted creature hovers its lift above the floor with a small bob, i
   assert.equal(fallAt(ACTOR.fallTime * 2), 1);
   assert.equal(easeIn(0.5), 0.25);
 });
+
+function stunPose(motion: 'still' | 'knocked', knockTime: number, held: boolean, busy: boolean): ActorPose {
+  return { pos: { x: 0, z: 0 }, facing: 0, motion, gait: 0, knockTime, busy, held, deadTime: 0 };
+}
+
+function weightOf(view: ActorView, clip: AnimationClip): number {
+  const action = view.rig.mixer.existingAction(clip);
+  return action === null || !action.isRunning() ? 0 : action.getEffectiveWeight();
+}
+
+function timeOf(view: ActorView, clip: AnimationClip): number {
+  return view.rig.mixer.existingAction(clip)?.time ?? 0;
+}
+
+for (const hero of content.player.heroes) {
+  void test(`the ${hero.id} hero's hit reaction plays across the whole knockback instead of freezing early, then blends back to standing`, (): void => {
+    const def: RigDef = must(content.rigs.get(hero.rig), hero.rig);
+    const hit: AnimationClip = new AnimationClip('hit', STUNNED.hitLength, []);
+    const { view, idle } = heroView(def, [hit]);
+    view.sync(STUNNED.dt, stunPose('still', 0, false, false), STUN_SYNC);
+    const frames: number = Math.round(STUNNED.knock / STUNNED.dt);
+    const times: number[] = [];
+    for (let frame: number = 0; frame < frames; frame += 1) {
+      view.sync(STUNNED.dt, stunPose('knocked', STUNNED.knock - frame * STUNNED.dt, false, false), STUN_SYNC);
+      times.push(timeOf(view, hit));
+    }
+    const lastStill: number = times.findIndex((time: number, index: number): boolean => index > 0 && time === times[index - 1]);
+    assert.equal(lastStill, -1, `the hit clip stopped moving ${String(lastStill)} frames into a ${String(frames)}-frame knockback`);
+    const ends: number[] = [];
+    for (let frame: number = 0; frame < ACTOR.recoverFade / STUNNED.dt + 2; frame += 1) {
+      view.sync(STUNNED.dt, stunPose('still', 0, false, false), STUN_SYNC);
+      ends.push(weightOf(view, idle));
+    }
+    const jumps: number = Math.max(...ends.map((weight: number, index: number): number => weight - (ends[index - 1] ?? 0)));
+    assert.ok(jumps < 0.25, `standing weight jumped by ${String(jumps)} in one frame after the knockback`);
+    assert.ok((ends.at(-1) ?? 0) > 0.95, 'the hero never settled back to standing');
+  });
+
+  void test(`a held ${hero.id} hero keeps the pose the hit left for the whole hold, and a skill pressed then runs its full swing after`, (): void => {
+    const def: RigDef = must(content.rigs.get(hero.rig), hero.rig);
+    const hit: AnimationClip = new AnimationClip('hit', STUNNED.hitLength, []);
+    const swing: AnimationClip = new AnimationClip('swing', STUNNED.swingLength, []);
+    const { view } = heroView(def, [hit], new Map([['swing', { clip: swing, impactTime: STUNNED.impact }]]));
+    view.sync(STUNNED.dt, stunPose('still', 0, false, false), STUN_SYNC);
+    view.hit(new Color(0xffffff), 1, true);
+    const frames: number = Math.round(STUNNED.hold / STUNNED.dt);
+    for (let frame: number = 0; frame < frames / 2; frame += 1) view.sync(STUNNED.dt, stunPose('still', 0, true, false), STUN_SYNC);
+    const struck: number = timeOf(view, hit);
+    assert.ok(view.startAction('swing', STUNNED.windup, STUNNED.recovery));
+    for (let frame: number = frames / 2; frame < frames; frame += 1) view.sync(STUNNED.dt, stunPose('still', 0, true, true), STUN_SYNC);
+    assert.ok(struck < STUNNED.hitLength / 2, `the struck pose ran on to ${String(struck)} s of a ${String(STUNNED.hitLength)} s reaction during the hold`);
+    assert.ok(timeOf(view, swing) < STUNNED.impact * 0.2, `the swing ran ahead to ${String(timeOf(view, swing))} s while the hero was held`);
+    for (let frame: number = 0; frame < (STUNNED.windup + STUNNED.recovery) / STUNNED.dt; frame += 1) view.sync(STUNNED.dt, stunPose('still', 0, false, true), STUN_SYNC);
+    assert.ok(timeOf(view, swing) > STUNNED.impact, `the swing reached only ${String(timeOf(view, swing))} s after the hold ended`);
+  });
+}

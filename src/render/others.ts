@@ -135,7 +135,7 @@ function needsOf(content: Content, dressed: Dressed): CharacterNeeds {
 }
 
 function poseFrom(pose: TrackPose): ActorPose {
-  return { pos: { x: pose.x, z: pose.z }, facing: pose.facing, motion: pose.speed >= TRACK.walkFrom ? 'stride' : 'still', gait: pose.speed, knockTime: 0, busy: false, deadTime: 0 };
+  return { pos: { x: pose.x, z: pose.z }, facing: pose.facing, motion: pose.speed >= TRACK.walkFrom ? 'stride' : 'still', gait: pose.speed, knockTime: 0, busy: false, held: false, deadTime: 0 };
 }
 
 export function createOthers(options: OthersOptions): Others {

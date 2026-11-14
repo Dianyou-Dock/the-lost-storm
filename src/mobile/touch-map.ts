@@ -14,6 +14,7 @@ export const TOUCH = {
   phoneShortSide: 500,
   phoneLongSide: 932,
   talkingClass: 'ph-talking',
+  heldClass: 'held',
   bagTab: 'Bag',
   rotateSeenKey: 'the-lost-storm.rotate-hint.v1',
   moveLearnedKey: 'the-lost-storm.move-learned.v1',

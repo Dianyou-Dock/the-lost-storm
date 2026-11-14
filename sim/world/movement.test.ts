@@ -1,20 +1,22 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { must, worldIn } from '../../test/support.ts';
+import { armed, must, worldIn } from '../../test/support.ts';
 import { loadContent } from '../content/content.ts';
 import type { Content } from '../content/types.ts';
 import { findPath } from '../nav/path.ts';
 import type { Vec2 } from '../math.ts';
 import { isWalkable, lineWalkable, nearestWalkable, routedGrid } from '../nav/grid.ts';
 import type { NavGrid } from '../nav/grid.ts';
-import { placedProp, sceneZone } from '../../test/motion-support.ts';
+import { MOTION_DT, placedProp, sceneZone } from '../../test/motion-support.ts';
 import { enterZone } from './zones.ts';
 import type { Steering, SteerStep } from './movement.ts';
-import { alignedSpeed, separateActors, steerAlong, steerHeading, turnToward } from './movement.ts';
+import { alignedSpeed, cannotStep, isTimeHeld, separateActors, steerAlong, steerHeading, turnToward } from './movement.ts';
+import { setTempo } from './combat.ts';
+import { stepWorld } from './step.ts';
 import type { Bot } from '../bot.ts';
 import { botFight, CAREFUL, createBot } from '../bot.ts';
 import { arena, ARENA_CENTRE, place } from '../../test/arena-support.ts';
-import type { ActorState, MonsterState, World } from './types.ts';
+import type { ActorState, Command, MonsterState, World } from './types.ts';
 import { spawnPacks } from './monsters.ts';
 import { roadWorld, roadZone, SCENE_BASE } from '../../test/road-support.ts';
 
@@ -296,3 +298,127 @@ void test('the hero walking a path round any tall Hall prop slides along its cor
   }
   assert.deepEqual(stops, []);
 });
+
+const STUN = { knock: 11, hold: 0.85, root: 0.9, late: 0.1, settle: 3 } as const;
+
+type Stun = 'knockback' | 'hold' | 'root';
+
+function stunScene(name: string): World {
+  const content: Content = loadContent();
+  const world: World = armed(worldIn(content, content.world.start, 5));
+  enterZone(world, sceneZone(SCENE_BASE, `test_${name}`, { tiles: ['.......', '.......', '.......', '.......', '.......', '.......', '.......'], props: [], start: { x: 4, z: 6 } }), { type: 'start' });
+  world.events = [];
+  world.monsters = [];
+  return world;
+}
+
+function stun(world: World, kind: Stun): void {
+  switch (kind) {
+    case 'knockback':
+      world.player.knock = { x: STUN.knock, z: 0 };
+      return;
+    case 'hold':
+      setTempo(world.player, 0, STUN.hold);
+      return;
+    case 'root':
+      world.player.root = STUN.root;
+      return;
+  }
+}
+
+function lateInStun(world: World, kind: Stun): void {
+  for (let step: number = 0; step < STUN.settle / MOTION_DT; step += 1) {
+    const left: number = kind === 'hold' ? world.player.tempoTime : kind === 'root' ? world.player.root : step === 0 ? Infinity : world.player.motion === 'knocked' ? Math.hypot(world.player.knock.x, world.player.knock.z) / STUN.knock : 0;
+    if (left <= STUN.late) return;
+    stepWorld(world, [], MOTION_DT);
+  }
+}
+
+function phaseOf(world: World): string | null {
+  return world.player.action?.phase ?? null;
+}
+
+function slotOf(world: World, skill: string): number {
+  return world.player.skills.findIndex((entry): boolean => entry?.id === skill);
+}
+
+void test('a hero is held only while a hold has time left, and cannot step while held, rooted or knocked back', (): void => {
+  const world: World = stunScene('held_flags');
+  const player = world.player;
+  assert.equal(isTimeHeld(player), false);
+  assert.equal(cannotStep(player), false);
+  setTempo(player, 0, STUN.hold);
+  assert.equal(isTimeHeld(player), true);
+  assert.equal(cannotStep(player), true);
+  for (let step: number = 0; step < (STUN.hold + 0.1) / MOTION_DT; step += 1) stepWorld(world, [], MOTION_DT);
+  assert.equal(isTimeHeld(player), false);
+  assert.equal(cannotStep(player), false);
+  player.root = STUN.root;
+  assert.equal(cannotStep(player), true);
+  assert.equal(isTimeHeld(player), false);
+});
+
+for (const kind of ['knockback', 'hold', 'root'] as const) {
+  void test(`a move pressed late in a ${kind} is not lost: the hero stays put while it lasts and walks on the very step it ends`, (): void => {
+    const world: World = stunScene(`late_move_${kind}`);
+    const player = world.player;
+    stun(world, kind);
+    stepWorld(world, [], MOTION_DT);
+    lateInStun(world, kind);
+    const move: Command = { type: 'move', held: false, dest: { x: player.pos.x - 6, z: player.pos.z + 6 } };
+    stepWorld(world, [move], MOTION_DT);
+    let stunned: number = 0;
+    while (cannotStep(player) && stunned < STUN.settle / MOTION_DT) {
+      assert.equal(player.moving, false, `the hero walked ${String(stunned)} steps into the ${kind}`);
+      stepWorld(world, [], MOTION_DT);
+      stunned += 1;
+    }
+    assert.equal(cannotStep(player), false, `the ${kind} never ended`);
+    assert.equal(player.moving, true, `the hero did not walk on the step the ${kind} ended`);
+  });
+}
+
+void test('a skill pressed late in a hold starts in its wind-up, stays frozen there while the hold lasts, and strikes one full wind-up after it ends', (): void => {
+  const world: World = stunScene('late_skill_hold');
+  const player = world.player;
+  stun(world, 'hold');
+  stepWorld(world, [], MOTION_DT);
+  lateInStun(world, 'hold');
+  const slot: number = slotOf(world, 'cleave');
+  stepWorld(world, [{ type: 'skill', slot, aim: { x: player.pos.x + 2, z: player.pos.z }, targetId: null }], MOTION_DT);
+  const action = must(player.action, 'the skill pressed during the hold was dropped');
+  assert.equal(action.phase, 'windup');
+  const frozen: number = action.timeLeft;
+  while (isTimeHeld(player)) {
+    assert.equal(action.timeLeft, frozen);
+    stepWorld(world, [], MOTION_DT);
+  }
+  let after: number = 0;
+  while (phaseOf(world) === 'windup') {
+    stepWorld(world, [], MOTION_DT);
+    after += 1;
+  }
+  assert.equal(phaseOf(world), 'recovery');
+  assert.ok(Math.abs(after * MOTION_DT - frozen) <= MOTION_DT * 2, `struck ${String(after * MOTION_DT)} s after the hold, wind-up left ${String(frozen)} s`);
+});
+
+for (const kind of ['knockback', 'hold'] as const) {
+  void test(`a roll caught by a ${kind} still covers its full distance, and a hold freezes it where it was`, (): void => {
+    const free: World = stunScene(`roll_free_${kind}`);
+    const caught: World = stunScene(`roll_caught_${kind}`);
+    const slot: number = slotOf(free, 'dodge_roll');
+    for (const world of [free, caught]) stepWorld(world, [{ type: 'skill', slot, aim: { x: world.player.pos.x + 5, z: world.player.pos.z }, targetId: null }], MOTION_DT);
+    stepWorld(free, [], MOTION_DT);
+    stepWorld(caught, [], MOTION_DT);
+    if (kind === 'hold') stun(caught, 'hold');
+    else caught.player.knock = { x: 0, z: STUN.knock };
+    const at = { ...caught.player.pos };
+    stepWorld(caught, [], MOTION_DT);
+    if (kind === 'hold') assert.deepEqual(caught.player.pos, at);
+    for (let step: number = 0; step < STUN.settle / MOTION_DT; step += 1) {
+      stepWorld(free, [], MOTION_DT);
+      stepWorld(caught, [], MOTION_DT);
+    }
+    assert.ok(Math.abs(caught.player.pos.x - free.player.pos.x) < 0.05, `the caught roll ended at x ${String(caught.player.pos.x)}, the free one at ${String(free.player.pos.x)}`);
+  });
+}
