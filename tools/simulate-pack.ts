@@ -12,6 +12,26 @@ export interface PackFight {
   readonly minutes: number;
 }
 
+export interface PackMember {
+  readonly monster: string;
+  readonly count: number;
+}
+
+const MIX: RegExp = /^[a-z_]+(:[1-9]\d*)?(\+[a-z_]+(:[1-9]\d*)?)*$/;
+
+export function packMix(spec: string): boolean {
+  return MIX.test(spec);
+}
+
+export function packMembers(fight: Pick<PackFight, 'monster' | 'count'>): PackMember[] {
+  return fight.monster.split('+').map((part: string): PackMember => {
+    const [monster = '', count] = part.split(':');
+    return { monster, count: count === undefined ? fight.count : Number(count) };
+  });
+}
+
 export function packFoe(fight: Pick<PackFight, 'monster' | 'count'>): string {
-  return `${fight.count} ${fight.monster}`;
+  return packMembers(fight)
+    .map((member: PackMember): string => `${member.count} ${member.monster}`)
+    .join(' + ');
 }

@@ -178,6 +178,7 @@ export function combatProblems(content: Content): string[] {
     const used: SkillDef | undefined = content.skills.get(def.skill);
     if (used !== undefined) need(used.delivery.type !== 'revive', `monster ${def.id} attacks with ${def.skill}, which only raises the fallen`);
     if (def.behaviour.type === 'stalker' && used !== undefined) need(used.engageRange > def.behaviour.orbitRange, `monster ${def.id} circles at ${def.behaviour.orbitRange}, outside the reach of its skill ${def.skill}`);
+    if (def.behaviour.type === 'ambush' && used !== undefined) need(used.engageRange >= def.behaviour.spring, `monster ${def.id} springs from ${def.behaviour.spring}, beyond the reach of its skill ${def.skill}`);
   }
   for (const mod of content.monsterMods.values()) {
     blasts(content, `monster mod ${mod.id}`, mod.deathSkill, need);

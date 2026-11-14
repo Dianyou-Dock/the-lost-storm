@@ -18,7 +18,8 @@ import { spawnPackNear } from '../sim/world/monsters.ts';
 import { readablePages } from '../sim/world/story.ts';
 import type { GroundItem, ItemInstance, MomentState, MonsterState, World, WorldEvent } from '../sim/world/types.ts';
 import type { PackFight } from './simulate-pack.ts';
-import { packFoe } from './simulate-pack.ts';
+import type { PackMember } from './simulate-pack.ts';
+import { packFoe, packMembers } from './simulate-pack.ts';
 import type { BuildPolicy, Policies, SkillPolicy } from './simulate-policies.ts';
 import { planFor } from './simulate-policies.ts';
 import { forkBot } from './simulate-fork.ts';
@@ -302,7 +303,7 @@ function fightPack(bot: Bot, scenario: PackFight, origin: number): Measurement |
   const hall: ZoneDef = world.zone;
   const level: number = world.player.level;
   world.zone = { ...hall, level, levelUpTo: level, surge: null };
-  const pack: MonsterState[] = spawnPackNear(world, scenario.monster, scenario.count, spot);
+  const pack: MonsterState[] = packMembers(scenario).flatMap((member: PackMember): MonsterState[] => spawnPackNear(world, member.monster, member.count, spot));
   world.zone = hall;
   if (pack.length === 0) return null;
   for (const monster of pack) monster.aggro = true;

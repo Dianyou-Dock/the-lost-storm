@@ -1,7 +1,7 @@
 import type { Job, Scenario } from './simulate-run.ts';
 import { RUN } from './simulate-run.ts';
 import type { Policies } from './simulate-policies.ts';
-import { PACK } from './simulate-pack.ts';
+import { PACK, packMix } from './simulate-pack.ts';
 
 export const DEFAULTS = {
   runs: 12,
@@ -25,7 +25,7 @@ export const USAGE: string = [
   '  level <n>             from waking until level n, farming after the slice (--minutes caps it, default 120)',
   '  over <n>              the slice, then the hero raised to level n farms N minutes in wild zones fixed at --zone (default 1)',
   '  boss <a,b,…>          farm to each level in turn and fight the boss in its lair N times there (--repeats, default 5; --minutes caps each climb)',
-  '  pack <monster> <a,b,…> farm to each level in turn and fight one pack of the monster at that level N times in the Hall (--count, default 4; --repeats, default 5)',
+  '  pack <monster> <a,b,…> farm to each level in turn and fight one pack of the monster at that level N times in the Hall (--count, default 4; --repeats, default 5); a mix such as wolf:3+spider:1 fights them together',
   '  replay <file.jsonl>…  read recorded measurement streams (from --record or storm.saveMeasurements() in a dev build) into the same report',
   '',
   'options',
@@ -123,6 +123,7 @@ function scenarioOf(words: readonly string[], args: readonly string[]): Scenario
       const count: number | null = whole(option(args, 'count'), PACK.count);
       const repeats: number | null = whole(option(args, 'repeats'), PACK.repeats);
       if (value === undefined) return 'pack needs a monster id and hero levels, such as wolf 9,11,13';
+      if (!packMix(value)) return 'pack names monster ids joined by +, each with an optional count, such as wolf:3+spider:1';
       if (typeof levels === 'string') return levels;
       return count === null || repeats === null ? '--count and --repeats must be whole numbers' : { kind, monster: value, count, levels, repeats, minutes };
     }

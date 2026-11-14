@@ -2341,5 +2341,37 @@
     "sockets": {},
     "hiddenNodes": [],
     "bodyParts": {}
+  },
+  {
+    "id": "spider",
+    "url": "models/creatures/spider.glb",
+    "clipFolder": "models/animations/spider",
+    "scale": 0.4,
+    "yawOffsetDegrees": 0,
+    "height": 2.0,
+    "rootMotionBone": null,
+    "gaits": [
+      {
+        "clip": "Spider_Walk",
+        "groundSpeed": 0.938
+      }
+    ],
+    "clips": {
+      "idle": "Spider_Idle",
+      "run": "Spider_Walk",
+      "hit": [],
+      "death": [
+        "Spider_Death"
+      ],
+      "actions": {
+        "pounce": {
+          "clip": "Spider_Jump",
+          "impactFraction": 0.9
+        }
+      }
+    },
+    "sockets": {},
+    "hiddenNodes": [],
+    "bodyParts": {}
   }
 ]

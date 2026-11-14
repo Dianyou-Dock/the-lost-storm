@@ -72,6 +72,9 @@ function states(world: World, monster: MonsterState): MonsterLine[] {
     case 'swarm':
       texts.push('Surrounds you with its kind');
       break;
+    case 'ambush':
+      texts.push('Waits for you to come close, then springs');
+      break;
     case 'chaser':
       break;
   }

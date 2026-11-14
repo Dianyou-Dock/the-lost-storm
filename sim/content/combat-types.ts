@@ -21,6 +21,11 @@ export interface SwarmBehaviour {
   readonly ring: number;
 }
 
+export interface AmbushBehaviour {
+  readonly type: 'ambush';
+  readonly spring: number;
+}
+
 export interface MonsterPoise {
   readonly knockback: number;
   readonly stagger: number;
