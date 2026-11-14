@@ -11,6 +11,7 @@ interface Step {
 const PATH = {
   snapRadius: 8,
   maxExpansions: 6000,
+  pocketCells: 400,
   faceStep: 0.1,
   goalRing: 2,
 } as const;
@@ -88,7 +89,36 @@ function heuristic(grid: NavGrid, a: number, b: number): number {
   return Math.max(dc, dr) + (Math.SQRT2 - 1) * Math.min(dc, dr);
 }
 
+function stepTarget(grid: NavGrid, cell: number, step: Step): number {
+  const column: number = cell % grid.columns;
+  const row: number = Math.floor(cell / grid.columns);
+  const nextColumn: number = column + step.dc;
+  const nextRow: number = row + step.dr;
+  if (nextColumn < 0 || nextRow < 0 || nextColumn >= grid.columns || nextRow >= grid.rows) return -1;
+  if (step.dc !== 0 && step.dr !== 0 && (grid.walkable[row * grid.columns + nextColumn] !== 1 || grid.walkable[nextRow * grid.columns + column] !== 1)) return -1;
+  return nextRow * grid.columns + nextColumn;
+}
+
+function sealedFrom(grid: NavGrid, start: number, goal: number): boolean {
+  if (grid.walkable[goal] !== 1) return true;
+  const seen: Set<number> = new Set<number>([goal]);
+  const queue: number[] = [goal];
+  for (let at: number = 0; at < queue.length; at += 1) {
+    if (seen.size > PATH.pocketCells) return false;
+    const cell: number = queue[at] ?? -1;
+    for (const step of STEPS) {
+      const next: number = stepTarget(grid, cell, step);
+      if (next === start) return false;
+      if (next < 0 || grid.walkable[next] !== 1 || seen.has(next)) continue;
+      seen.add(next);
+      queue.push(next);
+    }
+  }
+  return true;
+}
+
 function searchCells(grid: NavGrid, start: number, goal: number): number[] | null {
+  if (goal !== start && sealedFrom(grid, start, goal)) return null;
   const total: number = grid.columns * grid.rows;
   const cost: Float32Array = new Float32Array(total).fill(Infinity);
   const parent: Int32Array = new Int32Array(total).fill(-1);

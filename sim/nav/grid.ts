@@ -184,7 +184,28 @@ function driftCells(zone: ZoneDef, drift: ZoneDrift, walkable: Uint8Array, groun
   return { drift, cells: indices, walkable: Uint8Array.from(indices, (index: number): number => walkable[index] ?? 0), ground: Uint8Array.from(indices, (index: number): number => ground[index] ?? 0), open: true };
 }
 
+interface GridTemplate {
+  readonly props: ReadonlyMap<string, PropDef>;
+  readonly surfaces: ReadonlyMap<string, SurfaceDef>;
+  readonly radius: number;
+  readonly grid: NavGrid;
+}
+
+const TEMPLATES: WeakMap<ZoneDef, GridTemplate> = new WeakMap<ZoneDef, GridTemplate>();
+
+function copyGrid(grid: NavGrid): NavGrid {
+  return { ...grid, walkable: grid.walkable.slice(), solid: grid.solid.slice(), ground: grid.ground.slice(), drifts: grid.drifts.map((drift: DriftCells): DriftCells => ({ ...drift })) };
+}
+
 export function buildNavGrid(zone: ZoneDef, props: ReadonlyMap<string, PropDef>, surfaces: ReadonlyMap<string, SurfaceDef>, agentRadius: number): NavGrid {
+  const template: GridTemplate | undefined = TEMPLATES.get(zone);
+  if (template !== undefined && template.props === props && template.surfaces === surfaces && template.radius === agentRadius) return copyGrid(template.grid);
+  const grid: NavGrid = freshNavGrid(zone, props, surfaces, agentRadius);
+  TEMPLATES.set(zone, { props, surfaces, radius: agentRadius, grid });
+  return copyGrid(grid);
+}
+
+function freshNavGrid(zone: ZoneDef, props: ReadonlyMap<string, PropDef>, surfaces: ReadonlyMap<string, SurfaceDef>, agentRadius: number): NavGrid {
   const columns: number = Math.ceil(((zone.tiles[0]?.length ?? 0) * zone.cellSize) / NAV.cellSize);
   const rows: number = Math.ceil((zone.tiles.length * zone.cellSize) / NAV.cellSize);
   const obstacles: Blocker[] = blockers(zone, props);

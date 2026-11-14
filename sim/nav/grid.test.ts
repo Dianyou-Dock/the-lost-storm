@@ -188,6 +188,18 @@ void test('a closed drift takes its cells out of the walkable grid and puts them
   assert.equal(isWalkable(local, 10, 8), true);
 });
 
+void test('every build of a zone\'s grid is its own copy, so closing cells in one leaves the next build open', (): void => {
+  const zone: ZoneDef = roadZone({ drifts: [{ id: 'patch', column: 2, row: 0, columns: 1, rows: 4, period: 10, open: 0.5, offset: 0, fade: 1 }] });
+  const surfaces: Content['surfaces'] = roadContent(zone).surfaces;
+  const first: NavGrid = buildNavGrid(zone, ROAD_CONTENT.props, surfaces, ROAD_CONTENT.player.radius);
+  setDriftOpen(first, must(first.drifts[0], 'patch'), false);
+  const second: NavGrid = buildNavGrid(zone, ROAD_CONTENT.props, surfaces, ROAD_CONTENT.player.radius);
+  assert.notEqual(second.walkable, first.walkable);
+  assert.equal(isWalkable(first, 10, 8), false);
+  assert.equal(isWalkable(second, 10, 8), true);
+  assert.equal(must(second.drifts[0], 'patch').open, true);
+});
+
 void test('a long prop blocks along its length as a capsule turned by its rotation, and a stamp closes and lifts its cells', (): void => {
   const log: PropDef = { ...must(content.props.get('dead_log'), 'dead_log'), blockRadius: 0.3, blockLength: 4 };
   const open: NavGrid = buildNavGrid(OUTPOST_ZONE, content.props, content.surfaces, content.player.radius);

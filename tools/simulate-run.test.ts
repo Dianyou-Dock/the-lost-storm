@@ -8,9 +8,9 @@ import { forceStrike } from '../sim/world/moments.ts';
 import { stepWorld } from '../sim/world/step.ts';
 import type { MomentState, World } from '../sim/world/types.ts';
 import { POLICIES } from './simulate-policies.ts';
-import type { Job, Scenario } from './simulate-run.ts';
+import type { Job, RivalRun, Scenario } from './simulate-run.ts';
 import type { BossLair } from './simulate-run.ts';
-import { bossLair, CONTENT, farm, harder, runJob, scenarioName } from './simulate-run.ts';
+import { bossLair, CONTENT, farm, harder, runJob, runRivals, scenarioName } from './simulate-run.ts';
 import type { BossAttempt } from './simulate-boss.ts';
 import { bossAttempts } from './simulate-boss.ts';
 import type { Condition, ScalingRamp, ZoneDef, ZoneExit } from '../sim/content/types.ts';
@@ -140,9 +140,23 @@ function winRate(attempts: readonly BossAttempt[]): number {
   return attempts.length === 0 ? 0 : attempts.filter((attempt: BossAttempt): boolean => attempt.outcome === 'won').length / attempts.length;
 }
 
+interface PairedFights {
+  readonly poor: readonly BossAttempt[];
+  readonly average: readonly BossAttempt[];
+}
+
+function bossJob(skill: string, build: string, seed: number): Job {
+  return { scenario: { kind: 'boss', levels: [GUARD.boss.level], repeats: GUARD.boss.repeats, minutes: GUARD.boss.minutes }, skill, build, seed, danger: 1, toughness: 1 };
+}
+
 function bossFights(skill: string, build: string, seed: number): BossRun {
-  const stream = runJob({ scenario: { kind: 'boss', levels: [GUARD.boss.level], repeats: GUARD.boss.repeats, minutes: GUARD.boss.minutes }, skill, build, seed, danger: 1, toughness: 1 }, POLICIES);
+  const stream = runJob(bossJob(skill, build, seed), POLICIES);
   return { attempts: bossAttempts(stream), summary: summarize(stream) };
+}
+
+function pairedFights(build: string, seed: number): PairedFights {
+  const run: RivalRun = runRivals(bossJob('poor', build, seed), POLICIES, ['average']);
+  return { poor: bossAttempts(run.stream), average: bossAttempts(run.rivals.get('average') ?? []) };
 }
 
 function zonesBefore(lair: string): ZoneDef[] {
@@ -172,13 +186,14 @@ void test('at the gate\'s level both heroes win the boss fight with careful play
   for (const build of GUARD.boss.builds) {
     const won: BossRun = bossFights('careful', build, 1);
     const careful: readonly BossAttempt[] = won.attempts;
-    const poor: readonly BossAttempt[] = GUARD.boss.poorSeeds.flatMap((seed: number): readonly BossAttempt[] => bossFights('poor', build, seed).attempts);
+    const paired: readonly PairedFights[] = GUARD.boss.poorSeeds.map((seed: number): PairedFights => pairedFights(build, seed));
+    const poor: readonly BossAttempt[] = paired.flatMap((fights: PairedFights): readonly BossAttempt[] => fights.poor);
     assert.ok(won.summary.milestones[POLICIES.endCard] !== undefined, `${build} careful never reached the end card`);
     assert.equal(careful.length, GUARD.boss.repeats, build);
     assert.ok(careful.every((attempt: BossAttempt): boolean => attempt.outcome === 'won'), `${build} careful: ${JSON.stringify(careful)}`);
     const mean: number = careful.reduce((sum: number, attempt: BossAttempt): number => sum + attempt.seconds, 0) / careful.length;
     assert.ok(mean >= GUARD.boss.meanSeconds.min && mean <= GUARD.boss.meanSeconds.max, `${build} careful fights last ${mean.toFixed(0)} s on average`);
-    const average: readonly BossAttempt[] = GUARD.boss.poorSeeds.flatMap((seed: number): readonly BossAttempt[] => bossFights('average', build, seed).attempts);
+    const average: readonly BossAttempt[] = paired.flatMap((fights: PairedFights): readonly BossAttempt[] => fights.average);
     const poorRate: number = winRate(poor);
     const averageRate: number = winRate(average);
     assert.ok(poor.length > 0 && average.length > 0, `${build}: ${poor.length} poor and ${average.length} average attempts`);
