@@ -1,5 +1,5 @@
 import { attacksHeld } from './glitch-hold.ts';
-import type { StalkerBehaviour, SummonDef } from '../content/combat-types.ts';
+import type { StalkerBehaviour, SummonDef, SwarmBehaviour } from '../content/combat-types.ts';
 import type { MonsterDef, RangedBehaviour, SkillDef, SurgeRules } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { clamp, directionOf, distance, facingOf, normalize, rotate } from '../math.ts';
@@ -41,6 +41,7 @@ const MONSTERS = {
   stuckLimit: 0.3,
   restTime: 0.6,
   queueRoom: 1,
+  queueBodies: 2,
   queuePatience: 2,
   stillStep: 1e-4,
   blockedGrace: 0.1,
@@ -51,6 +52,8 @@ const MONSTERS = {
   strandSeconds: 2,
   strandReach: 6,
   strandSpeed: 2.5,
+  swarmTurn: 2.399963,
+  swarmSide: 0.75,
 } as const;
 
 const STEERING: Steering = { maxTurnRate: 11.5, minTurnRate: 2, turnGain: 20, fullSpeedAngle: 0.25, sharpAngle: 1, sharpSpeed: 0.3, passRadius: 0.45, settleRadius: 0.2 };
@@ -164,6 +167,13 @@ function keepRange(world: World, monster: MonsterState, behaviour: RangedBehavio
   }
 }
 
+function circle(world: World, monster: MonsterState, foe: Actor, range: number, gap: number, dt: number): void {
+  monster.stance = 'hold';
+  const pull: number = clamp((gap - range) / MONSTERS.orbitBand, -1, 1);
+  const heading: Vec2 = rotate(towardOf(monster, foe.pos), (Math.PI / 2 - pull * MONSTERS.orbitPull) * monster.strafeSign);
+  travel(world, monster, heading, monster.def.moveSpeed * MONSTERS.orbitSpeed, foe.pos, dt);
+}
+
 function stalk(world: World, monster: MonsterState, behaviour: StalkerBehaviour, skill: SkillDef, foe: Actor, dt: number): void {
   const gap: number = distance(monster.pos, foe.pos) - foe.radius;
   const sight: boolean = lineOfSight(world.grid, monster.pos, foe.pos);
@@ -173,10 +183,49 @@ function stalk(world: World, monster: MonsterState, behaviour: StalkerBehaviour,
     approach(world, monster, foe.pos, dt);
     return;
   }
-  monster.stance = 'hold';
-  const pull: number = clamp((gap - behaviour.orbitRange) / MONSTERS.orbitBand, -1, 1);
-  const heading: Vec2 = rotate(towardOf(monster, foe.pos), (Math.PI / 2 - pull * MONSTERS.orbitPull) * monster.strafeSign);
-  travel(world, monster, heading, monster.def.moveSpeed * MONSTERS.orbitSpeed, foe.pos, dt);
+  circle(world, monster, foe, behaviour.orbitRange, gap, dt);
+}
+
+function sideOf(monster: MonsterState): Vec2 {
+  return directionOf(monster.id * MONSTERS.swarmTurn);
+}
+
+function flankOf(world: World, monster: MonsterState, foe: Actor, ring: number): Vec2 {
+  const side: Vec2 = sideOf(monster);
+  const flank: Vec2 = { x: foe.pos.x + side.x * (ring + foe.radius), z: foe.pos.z + side.z * (ring + foe.radius) };
+  return isWalkable(world.grid, flank.x, flank.z) ? flank : foe.pos;
+}
+
+function onItsSide(monster: MonsterState, foe: Actor): boolean {
+  const side: Vec2 = sideOf(monster);
+  const from: Vec2 = normalize({ x: monster.pos.x - foe.pos.x, z: monster.pos.z - foe.pos.z }, side);
+  return from.x * side.x + from.z * side.z >= MONSTERS.swarmSide;
+}
+
+function turnTowardSide(monster: MonsterState, foe: Actor): number {
+  const side: Vec2 = sideOf(monster);
+  const fromX: number = monster.pos.x - foe.pos.x;
+  const fromZ: number = monster.pos.z - foe.pos.z;
+  return fromX * side.z - fromZ * side.x >= 0 ? 1 : -1;
+}
+
+function swarm(world: World, monster: MonsterState, behaviour: SwarmBehaviour, skill: SkillDef, foe: Actor, dt: number): void {
+  const gap: number = distance(monster.pos, foe.pos) - foe.radius;
+  const sight: boolean = lineOfSight(world.grid, monster.pos, foe.pos);
+  if (sight && gap <= skill.engageRange && attack(world, monster, skill, foe)) return;
+  if (!sight || gap > behaviour.ring + MONSTERS.orbitBand) {
+    monster.stance = 'approach';
+    approach(world, monster, sight ? flankOf(world, monster, foe, behaviour.ring) : foe.pos, dt);
+    return;
+  }
+  const ready: boolean = blockedReason(monster, skill) === null;
+  if (ready && onItsSide(monster, foe)) {
+    monster.stance = 'approach';
+    approach(world, monster, foe.pos, dt);
+    return;
+  }
+  if (ready) monster.strafeSign = turnTowardSide(monster, foe);
+  circle(world, monster, foe, behaviour.ring, gap, dt);
 }
 
 function summonOf(world: World, monster: MonsterState, summon: SummonDef, dt: number): void {
@@ -197,7 +246,7 @@ function stillBlocked(world: World, monster: MonsterState, foe: Actor): boolean 
   if (monster.stalledFor === null || monster.stalledFor >= MONSTERS.queuePatience) return false;
   const skill: SkillDef | null = monster.nextSkill ?? world.content.skills.get(monster.def.skill) ?? null;
   if (monster.stance === 'hold') return skill !== null && blockedReason(monster, skill) !== null;
-  return roomAhead(world, monster, facingOf({ x: foe.pos.x - monster.pos.x, z: foe.pos.z - monster.pos.z })) < MONSTERS.queueRoom;
+  return roomAhead(world, monster, facingOf({ x: foe.pos.x - monster.pos.x, z: foe.pos.z - monster.pos.z })) < Math.min(MONSTERS.queueRoom, monster.radius * MONSTERS.queueBodies);
 }
 
 function trackProgress(monster: MonsterState, dt: number): void {
@@ -373,6 +422,9 @@ export function stepMonster(world: World, monster: MonsterState, dt: number): vo
       return;
     case 'stalker':
       stalk(world, monster, behaviour, skill, foe, local);
+      return;
+    case 'swarm':
+      swarm(world, monster, behaviour, skill, foe, local);
       return;
   }
 }

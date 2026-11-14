@@ -41,3 +41,11 @@ void test('a monster that spawns in a following zone has the hero level and the 
   assert.ok(strong.maxLife > weak.maxLife);
   assert.ok(strong.damageMax > weak.damageMax);
 });
+
+void test('a monster whose life does not scale keeps its base life at every level while its damage still grows', (): void => {
+  const def: MonsterDef = { ...must(OUTPOST_CONTENT.monsters.get('mended'), 'mended'), life: 1, scalesLife: false };
+  const low: MonsterState = spawnMonster(worldAt(FOLLOWING, 2), def, 0, { x: 28, z: 30 }, { summonerId: null, scatter: 0, revived: false });
+  const high: MonsterState = spawnMonster(worldAt(FOLLOWING, 8), def, 0, { x: 28, z: 30 }, { summonerId: null, scatter: 0, revived: false });
+  assert.deepEqual([low.maxLife, high.maxLife, high.life], [1, 1, 1]);
+  assert.ok(high.damageMax > low.damageMax);
+});

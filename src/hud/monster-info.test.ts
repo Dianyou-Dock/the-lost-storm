@@ -47,6 +47,11 @@ void test('a monster with default poise shows no resistance line, and a ranged o
   assert.ok(texts(lines, 'ability').includes(must(content.skills.get('mender_stitch'), 'stitch').name));
 });
 
+void test('a swarm says it surrounds you', (): void => {
+  const { world, monster } = spawn('rat');
+  assert.ok(texts(monsterLines(world, monster), 'state').includes('Surrounds you with its kind'));
+});
+
 void test('a boss names every phase skill once, takes no stagger and is marked as a boss', (): void => {
   const { world, monster } = spawn('unfinished_colossus');
   const lines: MonsterLine[] = monsterLines(world, monster);

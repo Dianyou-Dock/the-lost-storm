@@ -34,7 +34,7 @@ export function spawnMonster(world: World, def: MonsterDef, packId: number, cent
   const reach: number = world.rng.range(0, origin.scatter);
   const wanted: Vec2 = { x: center.x + Math.cos(angle) * reach, z: center.z + Math.sin(angle) * reach };
   const pos: Vec2 = nearestWalkable(routedGrid(world.grid), wanted, SPAWN.spawnSnap) ?? { x: center.x, z: center.z };
-  const life: number = Math.round(def.life * scale.life);
+  const life: number = def.scalesLife ? Math.round(def.life * scale.life) : def.life;
   const monster: MonsterState = {
     kind: 'monster',
     id: world.nextId,

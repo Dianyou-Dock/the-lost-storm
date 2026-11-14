@@ -167,9 +167,10 @@ function skill(value: unknown, where: string): SkillDef {
 
 function behaviour(value: unknown, where: string): MonsterBehaviour {
   const source: Fields = fields(value, where);
-  const type: MonsterBehaviour['type'] = choice(source, 'type', ['chaser', 'ranged', 'stalker'] as const, where);
+  const type: MonsterBehaviour['type'] = choice(source, 'type', ['chaser', 'ranged', 'stalker', 'swarm'] as const, where);
   if (type === 'chaser') return { type };
   if (type === 'stalker') return { type, orbitRange: positive(source, 'orbitRange', where) };
+  if (type === 'swarm') return { type, ring: positive(source, 'ring', where) };
   return { type, preferredRange: numeric(source, 'preferredRange', where), retreatRange: numeric(source, 'retreatRange', where) };
 }
 
@@ -236,6 +237,7 @@ function monster(value: unknown, where: string): MonsterDef {
     scale: numeric(source, 'scale', where),
     radius: numeric(source, 'radius', where),
     life: numeric(source, 'life', where),
+    scalesLife: source['scalesLife'] === undefined ? true : flag(source, 'scalesLife', where),
     damageMin: numeric(source, 'damageMin', where),
     damageMax: numeric(source, 'damageMax', where),
     moveSpeed: numeric(source, 'moveSpeed', where),

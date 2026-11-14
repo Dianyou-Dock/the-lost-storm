@@ -591,3 +591,29 @@ void test('a wolf circles, then springs across the gap and lands a bite that kno
   assert.ok(distance(sprang, ARENA_CENTRE) > 3, `it sprang from ${distance(sprang, ARENA_CENTRE).toFixed(1)} m, too close to call it a charge`);
   assert.ok(distance(wolf.pos, ARENA_CENTRE) < 2.5, `it landed ${distance(wolf.pos, ARENA_CENTRE).toFixed(1)} m away`);
 });
+
+function widestGap(angles: readonly number[]): number {
+  const sorted: number[] = angles.toSorted((a: number, b: number): number => a - b);
+  const first: number = must(sorted[0], 'an angle');
+  const last: number = must(sorted.at(-1), 'an angle');
+  return Math.max(first + Math.PI * 2 - last, ...sorted.slice(1).map((angle: number, index: number): number => angle - must(sorted[index], 'previous angle')));
+}
+
+void test('a swarm that comes from one side spreads round the hero, bites from all sides, and keeps to its ring while its bites recover', (): void => {
+  const world: World = arena(9);
+  const rats: MonsterState[] = Array.from({ length: 6 }, (_: unknown, index: number): MonsterState => place(world, 'rat', { x: ARENA_CENTRE.x + 9, z: ARENA_CENTRE.z - 2.5 + index }));
+  const ring: number = must(rats[0], 'a rat').def.behaviour.type === 'swarm' ? 2.2 : 0;
+  const biters: Set<number> = new Set<number>();
+  const gaps: number[] = [];
+  for (let step: number = 0; step < Math.round(8 / MOTION_DT); step += 1) {
+    world.player.pos = { ...ARENA_CENTRE };
+    world.player.life = world.player.maxLife;
+    for (const event of stepWorld(world, [], MOTION_DT)) if (event.type === 'damage' && event.targetId === world.player.id) biters.add(event.sourceId);
+    if (step * MOTION_DT > 4) gaps.push(widestGap(rats.map((rat: MonsterState): number => Math.atan2(rat.pos.x - ARENA_CENTRE.x, rat.pos.z - ARENA_CENTRE.z))));
+  }
+  assert.ok(ring > 0, 'the rat swarms');
+  assert.ok(biters.size >= 5, `only ${biters.size} of 6 rats bit`);
+  const open: number = gaps.reduce((sum: number, gap: number): number => sum + gap, 0) / gaps.length;
+  assert.ok(open < 3.2, `the swarm kept an open side of ${open.toFixed(2)} rad on average, as a line of chasers keeps about 5.8`);
+  for (const rat of rats) assert.ok(distance(rat.pos, ARENA_CENTRE) < ring + 2.5, `a rat strayed ${distance(rat.pos, ARENA_CENTRE).toFixed(1)} m out`);
+});

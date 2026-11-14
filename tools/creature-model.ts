@@ -38,6 +38,14 @@ export function clipNamesOf(document: Document): readonly string[] {
     .map((animation: Animation): string => animation.getName());
 }
 
+export function plainClipName(name: string): string {
+  return name.slice(name.lastIndexOf('|') + 1);
+}
+
+export function plainClipNames(document: Document): void {
+  for (const animation of document.getRoot().listAnimations()) animation.setName(plainClipName(animation.getName()));
+}
+
 export function dropClips(document: Document): void {
   for (const animation of document.getRoot().listAnimations()) {
     for (const channel of animation.listChannels()) channel.getSampler()?.dispose();

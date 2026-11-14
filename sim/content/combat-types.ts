@@ -16,6 +16,11 @@ export interface StalkerBehaviour {
   readonly orbitRange: number;
 }
 
+export interface SwarmBehaviour {
+  readonly type: 'swarm';
+  readonly ring: number;
+}
+
 export interface MonsterPoise {
   readonly knockback: number;
   readonly stagger: number;

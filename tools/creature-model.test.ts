@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { Animation, Material, Node } from '@gltf-transform/core';
 import { Document } from '@gltf-transform/core';
 import { must } from '../test/support.ts';
-import { clipNamesOf, dropClips, fixMaterials, keepOnlyClip } from './creature-model.ts';
+import { clipNamesOf, dropClips, fixMaterials, keepOnlyClip, plainClipName, plainClipNames } from './creature-model.ts';
 
 function creature(): Document {
   const document: Document = new Document();
@@ -49,6 +49,15 @@ void test('the body keeps its mesh and skeleton and loses every clip', (): void 
   assert.deepEqual(clipNamesOf(document), []);
   assert.equal(document.getRoot().listMeshes().length, 1);
   assert.equal(document.getRoot().listSkins().length, 1);
+});
+
+void test('a clip exported from Blender as armature|armature|action keeps only the action name', (): void => {
+  assert.equal(plainClipName('RatArmature|RatArmature|Rat_Attack'), 'Rat_Attack');
+  assert.equal(plainClipName('Gallop'), 'Gallop');
+  const document: Document = creature();
+  must(document.getRoot().listAnimations()[0], 'Idle').setName('Armature|Idle');
+  plainClipNames(document);
+  assert.deepEqual(clipNamesOf(document), ['Idle', 'Attack']);
 });
 
 void test('a clip file keeps one clip on bare joints, with no mesh, and drops the channels that never leave the rest pose', (): void => {

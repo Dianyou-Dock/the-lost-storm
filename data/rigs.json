@@ -2270,5 +2270,41 @@
     "sockets": {},
     "hiddenNodes": [],
     "bodyParts": {}
+  },
+  {
+    "id": "rat",
+    "url": "models/creatures/rat.glb",
+    "clipFolder": "models/animations/rat",
+    "scale": 0.24,
+    "yawOffsetDegrees": 0,
+    "height": 2.3,
+    "rootMotionBone": null,
+    "gaits": [
+      {
+        "clip": "Rat_Walk",
+        "groundSpeed": 0.342
+      },
+      {
+        "clip": "Rat_Run",
+        "groundSpeed": 1.853
+      }
+    ],
+    "clips": {
+      "idle": "Rat_Idle",
+      "run": "Rat_Run",
+      "hit": [],
+      "death": [
+        "Rat_Death"
+      ],
+      "actions": {
+        "bite": {
+          "clip": "Rat_Attack",
+          "impactFraction": 0.65
+        }
+      }
+    },
+    "sockets": {},
+    "hiddenNodes": [],
+    "bodyParts": {}
   }
 ]

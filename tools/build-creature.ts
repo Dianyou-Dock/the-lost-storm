@@ -6,7 +6,7 @@ import { MeshoptDecoder, MeshoptEncoder } from 'meshoptimizer';
 import { mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import type { MaterialFix } from './creature-model.ts';
-import { clipNamesOf, dropClips, fixMaterials, keepOnlyClip } from './creature-model.ts';
+import { clipNamesOf, dropClips, fixMaterials, keepOnlyClip, plainClipNames } from './creature-model.ts';
 
 async function writeBody(io: NodeIO, source: string, target: string): Promise<readonly MaterialFix[]> {
   const document: Document = await io.read(source);
@@ -20,6 +20,7 @@ async function writeBody(io: NodeIO, source: string, target: string): Promise<re
 
 async function writeClip(io: NodeIO, source: string, folder: string, name: string): Promise<string> {
   const document: Document = await io.read(source);
+  plainClipNames(document);
   keepOnlyClip(document, name);
   await document.transform(prune({ keepLeaves: true }));
   const target: string = join(folder, `${name}.glb`);
@@ -35,7 +36,9 @@ async function main(): Promise<void> {
   }
   await Promise.all([MeshoptEncoder.ready, MeshoptDecoder.ready]);
   const io: NodeIO = new NodeIO().registerExtensions(ALL_EXTENSIONS).registerDependencies({ 'meshopt.decoder': MeshoptDecoder, 'meshopt.encoder': MeshoptEncoder });
-  const names: readonly string[] = clipNamesOf(await io.read(source));
+  const named: Document = await io.read(source);
+  plainClipNames(named);
+  const names: readonly string[] = clipNamesOf(named);
   mkdirSync(folder, { recursive: true });
   const fixed: readonly MaterialFix[] = await writeBody(io, source, body);
   const clips: readonly string[] = await Promise.all(names.map((name: string): Promise<string> => writeClip(io, source, folder, name)));

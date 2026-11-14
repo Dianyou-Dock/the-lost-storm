@@ -50,16 +50,16 @@ void test('the hero is a dressed human: a human body, and starting clothes that 
   assert.ok(!content.player.startingItems.some((id: string): boolean => content.itemBases.get(id)?.slot === 'head'));
 });
 
-void test('every monster has its skill and rig, and every rig has every animation', (): void => {
+void test('every monster has its skill and rig, every rig has its actions, and every hero rig has hit and death clips', (): void => {
   for (const monster of content.monsters.values()) {
     assert.ok(content.skills.has(monster.skill), `${monster.id} skill`);
     assert.ok(content.rigs.has(monster.rig), `${monster.id} rig`);
   }
-  assert.ok(content.rigs.has(content.player.hero.rig));
-  for (const rig of content.rigs.values()) {
+  for (const hero of content.player.heroes) {
+    const rig: RigDef = must(content.rigs.get(hero.rig), `${hero.id} rig`);
     assert.ok(rig.clips.hit.length > 0 && rig.clips.death.length > 0, `${rig.id} hit and death`);
-    assert.ok(Object.keys(rig.clips.actions).length > 0, `${rig.id} actions`);
   }
+  for (const rig of content.rigs.values()) assert.ok(Object.keys(rig.clips.actions).length > 0, `${rig.id} actions`);
 });
 
 const GLB = { jsonLength: 12, jsonStart: 20 } as const;

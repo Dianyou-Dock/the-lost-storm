@@ -184,7 +184,8 @@
     "description": "Animals that hunt in the dark.",
     "palette": {
       "tints": [
-        "#a39a8c"
+        "#a39a8c",
+        "#b0a59a"
       ],
       "glow": "#c9b48a"
     },
