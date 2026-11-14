@@ -8,6 +8,7 @@ import type { SaveData } from '../save.ts';
 import type { LedgerItem, PurseEntry } from './ledger.ts';
 import { applyPurse, findLedger, hasRoom, listable, stripLedger, unverifyLedger } from './purse.ts';
 import { stepWorld } from './step.ts';
+import { sellPrice } from './trade.ts';
 import type { GroundItem, ItemInstance, World, WorldEvent } from './types.ts';
 
 const content: Content = loadContent();
@@ -105,6 +106,17 @@ void test('an item in goes to the bags, then the stash, then the ground beside t
   );
   assert.equal(ground.kept, true);
   assert.equal(findLedger(world, LEDGER_B), null);
+});
+
+void test('an item in that the hero never wears is paid out at its sell price instead of given', (): void => {
+  const world: World = worldAt(9);
+  const hood: LedgerItem = { ...rolled(LEDGER_A), base: 'wayfarer_hood', rarity: 'common' };
+  const price: number = sellPrice(content, { uid: 0, base: hood.base, rarity: hood.rarity, level: hood.level, affixes: [], ledger: hood.id });
+  applyPurse(world, [entry(1, 0, hood, 'in')]);
+  assert.equal(findLedger(world, LEDGER_A), null);
+  assert.equal(world.ground.some((ground: GroundItem): boolean => ground.content.kind === 'item' && ground.content.item.ledger === LEDGER_A), false);
+  assert.equal(world.player.gold, 100 + price);
+  assert.equal(world.purse, 1);
 });
 
 void test('an item given by the purse carries its ledger roll and a fresh uid', (): void => {

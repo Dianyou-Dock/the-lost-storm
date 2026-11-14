@@ -1,3 +1,5 @@
+import { heroWears } from '../../sim/content/item-rules.ts';
+import type { ItemBaseDef } from '../../sim/content/item-types.ts';
 import type { Fields } from '../../sim/content/read.ts';
 import { isFields } from '../../sim/content/read.ts';
 import type { Content, ItemSlot } from '../../sim/content/types.ts';
@@ -111,6 +113,11 @@ function timeOf(source: Fields, key: string): string | null {
   return typeof value === 'string' && Number.isFinite(Date.parse(value)) ? value : null;
 }
 
+function forHero(content: Content, base: string): boolean {
+  const def: ItemBaseDef | undefined = content.itemBases.get(base);
+  return def !== undefined && heroWears(content, def);
+}
+
 export function readListing(content: Content, value: unknown): Listing | null {
   if (!isFields(value)) return null;
   const id: unknown = value['id'];
@@ -136,7 +143,8 @@ export function readListingPage(content: Content, value: unknown): ListingPage |
   const listings: Listing[] | null = readListings(content, value['listings']);
   const page: number | null = wholeOf(value, 'page', 1);
   const more: unknown = value['more'];
-  return listings === null || page === null || typeof more !== 'boolean' ? null : { listings, page, more };
+  if (listings === null || page === null || typeof more !== 'boolean') return null;
+  return { listings: listings.filter((listing: Listing): boolean => listing.yours || forHero(content, listing.item.base)), page, more };
 }
 
 export function readRules(value: unknown): AuctionRules | null {

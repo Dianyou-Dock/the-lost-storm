@@ -56,6 +56,13 @@ void test('a listing is read only with its id shape, a ledger roll, a whole pric
   for (const value of bad) assert.equal(readListing(content, value), null);
 });
 
+void test('a page leaves out other players\' listings of a base the hero never wears and keeps the hero\'s own', (): void => {
+  const hood = { ...LISTING, id: 'lst_CCCCCCCCCCCCCCCCCCCCCC', item: { ...ITEM, id: 'itm_CCCCCCCCCCCCCCCCCCCCCC', base: 'wayfarer_hood', rarity: 'common' } };
+  const mine = { ...hood, id: 'lst_DDDDDDDDDDDDDDDDDDDDDD', yours: true };
+  assert.deepEqual(readListing(content, hood), hood);
+  assert.deepEqual(readListingPage(content, { listings: [LISTING, hood, mine], page: 1, more: false }), { listings: [LISTING, mine], page: 1, more: false });
+});
+
 void test('a page keeps the listings it can read and needs its page number and more flag', (): void => {
   assert.deepEqual(readListingPage(content, { listings: [LISTING, { id: 'nope' }], page: 2, more: true }), { listings: [LISTING], page: 2, more: true });
   assert.equal(readListingPage(content, { listings: [], page: 0, more: false }), null);

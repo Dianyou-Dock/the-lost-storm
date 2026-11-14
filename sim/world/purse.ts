@@ -1,8 +1,10 @@
 import { ITEM_SLOTS } from '../content/types.ts';
 import { isStoryItem } from '../items.ts';
+import { heroCanWear } from '../save-retire.ts';
 import { refreshPlayer } from './character.ts';
 import { dropOnGround, removeGround } from './ground.ts';
 import type { LedgerItem, PurseCommand, PurseEntry } from './ledger.ts';
+import { sellPrice } from './trade.ts';
 import type { GroundItem, ItemInstance, VendorStock, World } from './types.ts';
 
 export type ItemPlace = 'bag' | 'stash';
@@ -173,7 +175,9 @@ function applyItem(world: World, entry: PurseEntry): boolean {
   if (item === null || entry.direction === null) return false;
   if (entry.direction === 'out') return removeLedger(world, item.id);
   if (holds(world, item.id)) return false;
-  receive(world, fromLedger(world, item));
+  const made: ItemInstance = fromLedger(world, item);
+  if (heroCanWear(world.content, made)) receive(world, made);
+  else world.player.gold += sellPrice(world.content, made);
   return true;
 }
 
