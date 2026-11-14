@@ -1,9 +1,10 @@
-import type { DeathPenalty, XpCurve, ZoneDef, ZoneReturn } from '../content/types.ts';
+import type { DeathPenalty, XpCurve, ZoneCheckpoint, ZoneDef, ZoneReturn } from '../content/types.ts';
+import { distance } from '../math.ts';
 import { xpToNextLevel } from '../progression.ts';
 import { clearAreas } from './areas.ts';
 import { clearHazards } from './hazards.ts';
 import { clearProjectiles } from './skills.ts';
-import type { MonsterState, PlayerState, RespawnChoice, World, WorldEvent } from './types.ts';
+import type { MonsterState, PlayerState, RespawnChoice, RespawnPoint, World, WorldEvent } from './types.ts';
 import { enterZone, placePlayer, townZone } from './zones.ts';
 import { restEchoes } from './moments.ts';
 
@@ -73,6 +74,13 @@ function returnZone(world: World): ZoneDef | null {
   return back === null ? null : (world.content.zones.get(back.zone) ?? null);
 }
 
+export function restPoint(world: World): RespawnPoint {
+  if (world.respawn.type === 'checkpoint' || world.respawn.type === 'waypoint') return world.respawn;
+  const from = world.player.pos;
+  const nearest: ZoneCheckpoint | undefined = world.zone.checkpoints.toSorted((a: ZoneCheckpoint, b: ZoneCheckpoint): number => distance(from, a) - distance(from, b))[0];
+  return nearest === undefined ? world.respawn : { type: 'checkpoint', checkpoint: nearest.id };
+}
+
 export function respawnPlayer(world: World, choice: RespawnChoice): void {
   if (!choicesOpen(world)) return;
   const town = world.zone.kind === 'town' ? world.zone : townZone(world.content);
@@ -88,6 +96,7 @@ export function respawnPlayer(world: World, choice: RespawnChoice): void {
     enterZone(world, town, { type: 'start' });
     world.events.push({ type: 'zone_changed', from, to: town.id });
   } else {
+    if (choice === 'checkpoint') world.respawn = restPoint(world);
     placePlayer(world);
     clearProjectiles(world);
     clearHazards(world);

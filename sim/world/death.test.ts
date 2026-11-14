@@ -5,7 +5,9 @@ import { finishQuests, must, worldIn, zoneOf } from '../../test/support.ts';
 import type { Content, MonsterDef, ZoneDef, ZoneExit, ZonePack, ZoneReturn, ZoneWaypoint } from '../content/types.ts';
 import { loadContent } from '../content/content.ts';
 import { createWorld } from './create.ts';
-import { choicesOpen, penaltyFor } from './death.ts';
+import { choicesOpen, penaltyFor, respawnPlayer } from './death.ts';
+import { distance } from '../math.ts';
+import { nearestWalkable } from '../nav/grid.ts';
 import { stepWorld } from './step.ts';
 import type { Command, MonsterState, World, WorldEvent } from './types.ts';
 import { enterZone } from './zones.ts';
@@ -13,6 +15,7 @@ import { xpToNextLevel } from '../progression.ts';
 
 const content: Content = OUTPOST_CONTENT;
 const DT: number = 1 / 60;
+const REST = { clear: 12, ground: 0.5 } as const;
 
 function advance(world: World, seconds: number, first: readonly Command[] = []): WorldEvent[] {
   const events: WorldEvent[] = [];
@@ -259,4 +262,50 @@ void test('falling in a lair and choosing the town still goes to the town', (): 
   advance(world, shipped.player.respawnDelay + 0.1);
   advance(world, 0.05, [{ type: 'respawn', choice: 'town' }]);
   assert.equal(world.zone.id, shipped.world.town);
+});
+
+function fallen(world: World): void {
+  world.player.alive = false;
+  world.player.life = 0;
+  world.death = { killer: 'test', skill: 'test', elapsed: world.content.player.respawnDelay, xpLost: 0 };
+}
+
+void test('every checkpoint stands on open ground, well clear of every exit', (): void => {
+  const shipped: Content = loadContent();
+  const zones: ZoneDef[] = [...shipped.zones.values()].filter((zone: ZoneDef): boolean => zone.checkpoints.length > 0);
+  assert.ok(zones.length > 0);
+  for (const zone of zones) {
+    const world: World = worldIn(shipped, zone.id, 1);
+    for (const checkpoint of zone.checkpoints) {
+      for (const exit of zone.exits) assert.ok(distance(checkpoint, exit) >= REST.clear, `${zone.id} ${checkpoint.id} is ${distance(checkpoint, exit).toFixed(1)} m from ${exit.id}`);
+      const ground = must(nearestWalkable(world.grid, checkpoint, REST.ground), `${zone.id} ${checkpoint.id} ground`);
+      assert.ok(distance(ground, checkpoint) <= REST.ground, `${zone.id} ${checkpoint.id} is not on open ground`);
+    }
+  }
+});
+
+void test('a hero who dies in a zone with a checkpoint returns to it, never to the exit they came in by', (): void => {
+  const shipped: Content = loadContent();
+  for (const zone of [...shipped.zones.values()].filter((candidate: ZoneDef): boolean => candidate.checkpoints.length > 0)) {
+    for (const entry of zone.exits) {
+      const world: World = worldIn(shipped, zone.id, 2);
+      enterZone(world, zone, { type: 'exit', exit: entry.id });
+      fallen(world);
+      respawnPlayer(world, 'checkpoint');
+      assert.equal(world.zone.id, zone.id);
+      assert.equal(world.respawn.type, 'checkpoint');
+      for (const exit of zone.exits) assert.ok(distance(world.player.pos, exit) >= REST.clear, `came in by ${entry.id}, back ${distance(world.player.pos, exit).toFixed(1)} m from ${exit.id}`);
+    }
+  }
+});
+
+void test('a checkpoint already reached stays the place to return to', (): void => {
+  const shipped: Content = loadContent();
+  const zone: ZoneDef = must([...shipped.zones.values()].find((candidate: ZoneDef): boolean => candidate.checkpoints.length > 0), 'a zone with a checkpoint');
+  const touched = must(zone.checkpoints[zone.checkpoints.length - 1], 'checkpoint');
+  const world: World = worldIn(shipped, zone.id, 3);
+  world.respawn = { type: 'checkpoint', checkpoint: touched.id };
+  fallen(world);
+  respawnPlayer(world, 'checkpoint');
+  assert.deepEqual(world.player.pos, { x: touched.x, z: touched.z });
 });
