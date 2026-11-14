@@ -357,7 +357,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
             dialogue.show(event);
             break;
           case 'dialogue_closed':
-            dialogue.close();
+            dialogue.close(event);
             hovered.delete(dialogue.element);
             break;
           case 'quest_started':

@@ -7,7 +7,6 @@ const BARKS = {
   msPerSecond: 1000,
   leaveMs: 520,
   swapMs: 260,
-  voiceGraceMs: 6000,
   speakingClass: 'barking',
 } as const;
 
@@ -32,8 +31,8 @@ function after(ms: number): Promise<void> {
   });
 }
 
-export function barkHold(read: Promise<void>, spoken: Promise<void>, longest: Promise<void>): Promise<void> {
-  return Promise.race([Promise.all([read, spoken]).then((): void => undefined), longest]);
+export function barkHold(read: Promise<void>, spoken: Promise<void>): Promise<void> {
+  return Promise.all([read, spoken]).then((): void => undefined);
 }
 
 export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStrip {
@@ -64,7 +63,7 @@ export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStr
   };
 
   const holdThenNext = async (ticket: number, reading: number, spoken: Promise<void>): Promise<void> => {
-    await barkHold(after(reading), spoken, after(reading + BARKS.voiceGraceMs));
+    await barkHold(after(reading), spoken);
     if (ticket === shown) next();
   };
 
@@ -112,7 +111,6 @@ export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStr
       showing = false;
       root.classList.remove(BARKS.speakingClass);
       element.classList.remove('visible');
-      context.api.voice.stop();
     },
   };
 }

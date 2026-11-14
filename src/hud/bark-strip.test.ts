@@ -31,25 +31,25 @@ function settles(promise: Promise<void>): Promise<boolean> {
 void test('a bark is held until it has been read and its voice has ended, whichever is later', async (): Promise<void> => {
   const read: Latch = latch();
   const spoken: Latch = latch();
-  const hold: Promise<void> = barkHold(read.promise, spoken.promise, latch().promise);
+  const hold: Promise<void> = barkHold(read.promise, spoken.promise);
   read.open();
   assert.equal(await settles(hold), false);
   spoken.open();
   assert.equal(await settles(hold), true);
 
   const quick: Latch = latch();
-  const later: Promise<void> = barkHold(quick.promise, Promise.resolve(), latch().promise);
+  const later: Promise<void> = barkHold(quick.promise, Promise.resolve());
   assert.equal(await settles(later), false);
   quick.open();
   assert.equal(await settles(later), true);
 });
 
-void test('a voice that never ends holds the bark no longer than the longest wait', async (): Promise<void> => {
+void test('a long line holds the bark until its voice ends, however long after the reading time that is', async (): Promise<void> => {
   const read: Latch = latch();
-  const longest: Latch = latch();
-  const hold: Promise<void> = barkHold(read.promise, latch().promise, longest.promise);
+  const spoken: Latch = latch();
+  const hold: Promise<void> = barkHold(read.promise, spoken.promise);
   read.open();
   assert.equal(await settles(hold), false);
-  longest.open();
+  spoken.open();
   assert.equal(await settles(hold), true);
 });

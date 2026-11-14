@@ -21,7 +21,13 @@ type LineEvent = Extract<WorldEvent, { readonly type: 'dialogue_line' }>;
 export interface DialogueBox {
   readonly element: HTMLElement;
   show(event: LineEvent): void;
-  close(): void;
+  close(event: ClosedEvent): void;
+}
+
+type ClosedEvent = Extract<WorldEvent, { readonly type: 'dialogue_closed' }>;
+
+export function skipsVoice(event: ClosedEvent): boolean {
+  return event.finished;
 }
 
 export function createDialogueBox(root: HTMLElement, context: HudContext): DialogueBox {
@@ -102,14 +108,14 @@ export function createDialogueBox(root: HTMLElement, context: HudContext): Dialo
       }
       void context.api.voice.play(event.line);
     },
-    close(): void {
+    close(event: ClosedEvent): void {
       if (!open) return;
       open = false;
       if (swap !== null) window.clearTimeout(swap);
       swap = null;
       element.classList.remove('open');
       again.classList.remove('shown');
-      context.api.voice.stop();
+      if (skipsVoice(event)) context.api.voice.stop();
     },
   };
 }

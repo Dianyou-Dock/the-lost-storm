@@ -23,6 +23,8 @@ import type { VoiceHold } from './voice-hold.ts';
 import { createVoiceHold } from './voice-hold.ts';
 import type { VoiceLimiter } from './voices.ts';
 import { createVoiceLimiter } from './voices.ts';
+import type { VoiceMeasure } from './loudness.ts';
+import { measureVoice, spokenSeconds, voiceGain } from './loudness.ts';
 import { warmPaths } from './warm.ts';
 
 const SYSTEM = {
@@ -31,7 +33,7 @@ const SYSTEM = {
   bytesPerSample: 4,
   latePlaySeconds: 0.6,
   failedRetrySeconds: 30,
-  duckLevel: 0.3,
+  duckLevel: 0.6,
   duckAttack: 0.06,
   duckRelease: 0.35,
   settingsSmoothing: 0.03,
@@ -291,29 +293,57 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
     Promise.all(Array.from({ length: SYSTEM.warmLanes }, lane)).catch((): void => undefined);
   };
 
+  const measured: WeakMap<AudioBuffer, VoiceMeasure> = new WeakMap<AudioBuffer, VoiceMeasure>();
+  const measureOf = (buffer: AudioBuffer): VoiceMeasure => {
+    const known: VoiceMeasure | undefined = measured.get(buffer);
+    if (known !== undefined) return known;
+    const channels: Float32Array[] = Array.from({ length: buffer.numberOfChannels }, (_: unknown, index: number): Float32Array => buffer.getChannelData(index));
+    const fresh: VoiceMeasure = measureVoice(channels, buffer.sampleRate);
+    measured.set(buffer, fresh);
+    return fresh;
+  };
+
   const speak = (buffer: AudioBuffer, current: Graph): SpokenClip => {
+    const measure: VoiceMeasure = measureOf(buffer);
     const source: AudioBufferSourceNode = current.context.createBufferSource();
     source.buffer = buffer;
     const gain: GainNode = current.context.createGain();
+    gain.gain.value = voiceGain(measure);
     source.connect(gain);
     gain.connect(current.voice);
     duck(1);
-    const ended: Promise<void> = new Promise<void>((resolve: () => void): void => {
-      source.addEventListener('ended', (): void => {
-        source.disconnect();
-        gain.disconnect();
+    let speech: (() => void) | null = null;
+    let file: (() => void) | null = null;
+    const spoken: Promise<void> = new Promise<void>((resolve: () => void): void => {
+      speech = (): void => {
+        speech = null;
         duck(-1);
         resolve();
-      });
+      };
+    });
+    const ended: Promise<void> = new Promise<void>((resolve: () => void): void => {
+      file = resolve;
+    });
+    const finishSpeech = (): void => {
+      if (speech !== null) speech();
+    };
+    const lastSound: number = window.setTimeout(finishSpeech, spokenSeconds(measure) * SYSTEM.msPerSecond);
+    source.addEventListener('ended', (): void => {
+      window.clearTimeout(lastSound);
+      source.disconnect();
+      gain.disconnect();
+      finishSpeech();
+      if (file !== null) file();
     });
     source.start();
     return {
+      spoken,
       ended,
       fadeOut(seconds: number): void {
         const now: number = current.context.currentTime;
         gain.gain.cancelScheduledValues(now);
         gain.gain.setValueAtTime(gain.gain.value, now);
-        gain.gain.setTargetAtTime(0, now, seconds / SYSTEM.fadeTimeConstants);
+        gain.gain.linearRampToValueAtTime(0, now + seconds);
         try {
           source.stop(now + seconds);
         } catch {
@@ -333,9 +363,13 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
     load: (path: string): Promise<AudioBuffer | null> => (graph === null ? Promise.resolve(null) : load(path)),
     play: (buffer: AudioBuffer): SpokenClip => {
       const current: Graph | null = graph;
-      if (current === null) return { ended: Promise.resolve(), fadeOut: (): void => undefined };
+      if (current === null) return { spoken: Promise.resolve(), ended: Promise.resolve(), fadeOut: (): void => undefined };
       return speak(buffer, current);
     },
+    wait: (seconds: number): Promise<void> =>
+      new Promise<void>((resolve: () => void): void => {
+        window.setTimeout(resolve, seconds * SYSTEM.msPerSecond);
+      }),
   });
 
   loader.onFailed((): void => health.note(false));
@@ -396,9 +430,12 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
         return;
       }
       const echo: EchoChain = createEcho(current.context, current.voice);
+      const level: GainNode = current.context.createGain();
+      level.gain.value = voiceGain(measureOf(buffer));
+      level.connect(echo.input);
       const source: AudioBufferSourceNode = current.context.createBufferSource();
       source.buffer = buffer;
-      source.connect(echo.input);
+      source.connect(level);
       duck(1);
       echoes += 1;
       await new Promise<void>((resolve: () => void): void => {
@@ -410,6 +447,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
           }, echo.held * SYSTEM.msPerSecond);
           window.setTimeout((): void => {
             source.disconnect();
+            level.disconnect();
             echo.release();
           }, echo.tail * SYSTEM.msPerSecond);
         });
