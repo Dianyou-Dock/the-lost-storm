@@ -10,7 +10,7 @@ A **conversation** opens the dialogue box and advances on a click. A **bark** is
 
 | Id | Line | When |
 |---|---|---|
-| `warden_guide_lesson` | You carry the storm and swing it like a stick. Hold it so, and throw. There. It goes where you look. | Conversation, once, while The Warden's Lesson asks you to talk to the Guide; teaches Storm Bolt. |
+| `warden_guide_lesson` | You carry the storm and swing it like a stick. Don't swing it. Throw it. It goes where you look. | Conversation, once, while The Warden's Lesson asks you to talk to the Guide; teaches Storm Bolt. |
 | `warden_guide_fell` | You fell out of your line. So did I. | Spoken in the Hall of Time, the first time the hero nears its far end: he cuts down the moment the hero is fighting in, then speaks. |
 | `warden_guide_counted` | Between two moments there should be nothing. Now there is you. They will come for you. | Spoken next, in the same meeting. |
 | `warden_guide_road` | Stay close. | Conversation, any talk; also the last line of the meeting in the Hall, after which he walks the hero to the east way out and goes through it with him. |
@@ -69,8 +69,17 @@ The boss of the Last Gate, north of the Hall of Time: a Timekeeper come to put t
 | `timekeeper_gatekeeper_count` | Hold still. Let me count you. | Bark entering its third phase, below one third of its life. |
 | `timekeeper_gatekeeper_yours` | Then the hour is yours. | Bark as it dies. |
 
+## The worn journal (`journal`)
+
+The journal is a speaker of its own: its page names the line, and the line is spoken once each time the page opens, as the page settles.
+
+| Id | Line | When |
+|---|---|---|
+| `journal_do_not` | Do not. | The page of the worn journal, as it opens. |
+
 ## Voice direction
 
 - **Wardens**: plain and steady; people who walk the same road every day and expect to walk it tomorrow.
 - **The Unfinished Borrower**: says each borrowed sentence as if it were its own, warmly, and does not notice it is wrong.
+- **The worn journal**: a whisper; American accent.
 - **The Reckoner**: unhurried and exact, an official reading out a time that has already passed; American accent.

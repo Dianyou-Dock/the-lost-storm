@@ -647,7 +647,8 @@ export function contentProblems(content: Content): string[] {
       voiceZones.set(voice.id, zoneDef.id);
     }
   }
-  for (const spoken of content.lines.values()) need(content.npcs.has(spoken.speaker) || content.monsters.has(spoken.speaker), `line ${spoken.id} has unknown speaker ${spoken.speaker}`);
+  for (const spoken of content.lines.values()) need(content.npcs.has(spoken.speaker) || content.monsters.has(spoken.speaker) || content.books.has(spoken.speaker), `line ${spoken.id} has unknown speaker ${spoken.speaker}`);
+  for (const book of content.books.values()) for (const page of book.pages) if (page.voice !== null) need(content.lines.get(page.voice)?.speaker === book.id, `book ${book.id} page ${page.id} voices ${page.voice}, which is not a line spoken by the book`);
   for (const def of content.monsters.values()) {
     if (def.boss === null) continue;
     const at: string = `boss ${def.id}`;

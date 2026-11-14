@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { AudioControls, AudioSettings, SettingsStorage } from './settings.ts';
-import { createSettingsStore, DEFAULT_SETTINGS, parseSettings } from './settings.ts';
+import { createSettingsStore, DEFAULT_SETTINGS, parseSettings, voiceAudible } from './settings.ts';
 
 function memory(initial: string | null): SettingsStorage & { saved: string | null; writes: number } {
   const storage = {
@@ -53,4 +53,12 @@ void test('changes are saved, clamped, announced once and survive a reload', ():
   assert.equal(controls.get().muted, true);
   const reloaded: AudioControls = createSettingsStore(storage);
   assert.deepEqual(reloaded.get(), controls.get());
+});
+
+void test('a voice is heard only when sound is not muted and neither the master nor the voice level is at zero', (): void => {
+  assert.equal(voiceAudible(DEFAULT_SETTINGS), true);
+  assert.equal(voiceAudible({ ...DEFAULT_SETTINGS, muted: true }), false);
+  assert.equal(voiceAudible({ ...DEFAULT_SETTINGS, volumes: { ...DEFAULT_SETTINGS.volumes, master: 0 } }), false);
+  assert.equal(voiceAudible({ ...DEFAULT_SETTINGS, volumes: { ...DEFAULT_SETTINGS.volumes, voice: 0 } }), false);
+  assert.equal(voiceAudible({ ...DEFAULT_SETTINGS, volumes: { ...DEFAULT_SETTINGS.volumes, effects: 0, ambience: 0 } }), true);
 });

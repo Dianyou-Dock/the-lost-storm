@@ -46,6 +46,7 @@ const SYSTEM = {
   warmFill: 0.75,
   fadeTimeConstants: 4,
   cutFade: 0.12,
+  echoSpeaker: 'echo',
 } as const;
 
 export interface Trigger {
@@ -131,6 +132,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
   let graph: Graph | null = null;
   let muffled: boolean = false;
   let voicesPlaying: number = 0;
+  let echoes: number = 0;
   const zoneLoops: AmbienceTracker<AmbienceLoop> = createAmbienceTracker<AmbienceLoop>();
   let loopRetryLeft: number = 0;
   let warmIds: readonly string[] = [];
@@ -395,12 +397,14 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
       source.buffer = buffer;
       source.connect(echo.input);
       duck(1);
+      echoes += 1;
       await new Promise<void>((resolve: () => void): void => {
         source.addEventListener('ended', (): void => {
           window.setTimeout((): void => {
             source.disconnect();
             echo.release();
             duck(-1);
+            echoes -= 1;
             resolve();
           }, echo.tail * SYSTEM.msPerSecond);
         });
@@ -415,7 +419,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
       lines.hush();
     },
     speaking(): readonly string[] {
-      return lines.speaking();
+      return echoes > 0 ? [...lines.speaking(), SYSTEM.echoSpeaker] : lines.speaking();
     },
     startAmbience(zone: ZoneAmbience): void {
       this.stopAmbience();

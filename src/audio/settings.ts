@@ -39,6 +39,10 @@ function volumeOf(source: unknown, category: AudioCategory): number {
   return typeof value === 'number' && Number.isFinite(value) ? clamp01(value) : DEFAULT_SETTINGS.volumes[category];
 }
 
+export function voiceAudible(settings: AudioSettings): boolean {
+  return !settings.muted && settings.volumes.master > 0 && settings.volumes.voice > 0;
+}
+
 export function parseSettings(text: string | null): AudioSettings {
   if (text === null) return DEFAULT_SETTINGS;
   let parsed: unknown;

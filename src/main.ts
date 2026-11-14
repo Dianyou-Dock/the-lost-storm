@@ -31,7 +31,7 @@ import { readAssetBase } from './audio/manifest.ts';
 import type { Placement } from './audio/mix.ts';
 import { CENTRE } from './audio/mix.ts';
 import type { AudioControls } from './audio/settings.ts';
-import { browserSettingsStorage, createSettingsStore } from './audio/settings.ts';
+import { browserSettingsStorage, createSettingsStore, voiceAudible } from './audio/settings.ts';
 import type { AudioSystem, Trigger } from './audio/system.ts';
 import { createAudioSystem } from './audio/system.ts';
 import type { AccountService } from './backend/account.ts';
@@ -288,8 +288,8 @@ async function start(): Promise<void> {
     return piece === null ? null : (thumbnails.get(wornImageKey(piece)) ?? null);
   };
   const voice: VoicePlayer = {
-    play(line: LineDef): void {
-      audio.playVoice(line.speaker, line.id).catch((): void => undefined);
+    play(line: LineDef): Promise<void> {
+      return audio.playVoice(line.speaker, line.id).catch((): void => undefined);
     },
     stop(): void {
       audio.stopVoice();
@@ -371,7 +371,7 @@ async function start(): Promise<void> {
   const touch: Mobile = startMobile(mobile, { canvas, hudRoot: element('hud', HTMLDivElement), world, input, hud, camera, stage, itemNames: overlays.itemNames, feedback: launch.feedback, openMenu: (): void => {
       if (playing && !transition.blocking) pauseMenu.open(null);
     } });
-  const opening: Opening = createOpening({ world, camera, hud: element('hud', HTMLDivElement), touch: mobile.touch, overlays: overlayManager, send, nameOf: (): string | null => heroName ?? readHeroName(createBrowserStore()), fetchVoice: (): Promise<SpokenName | null> => (nameVoice === null || heroName === null ? Promise.resolve(null) : nameVoice.fetch()), playVoice: (clip: ArrayBuffer): Promise<void> => audio.playEcho(clip), setAmbience: (light: ZoneLight): void => stage.setAmbience(light), setRain: (amount: number): void => rain.setWeather({ ...world.zone.weather, rain: amount }), refreshName: (): Promise<void> => (lobby === null ? Promise.resolve() : lobby.feed.refresh(true)) });
+  const opening: Opening = createOpening({ world, camera, hud: element('hud', HTMLDivElement), touch: mobile.touch, overlays: overlayManager, pageVoice: { busy: (): boolean => audio.speaking().length > 0, soundOn: (): boolean => voiceAudible(controls.get()), say: (line: LineDef): void => void voice.play(line) }, send, nameOf: (): string | null => heroName ?? readHeroName(createBrowserStore()), fetchVoice: (): Promise<SpokenName | null> => (nameVoice === null || heroName === null ? Promise.resolve(null) : nameVoice.fetch()), playVoice: (clip: ArrayBuffer): Promise<void> => audio.playEcho(clip), setAmbience: (light: ZoneLight): void => stage.setAmbience(light), setRain: (amount: number): void => rain.setWeather({ ...world.zone.weather, rain: amount }), refreshName: (): Promise<void> => (lobby === null ? Promise.resolve() : lobby.feed.refresh(true)) });
   const seamPass: SeamPass = createSeamPass();
   stage.setSeam(seamPass.pass);
   const glitches: GlitchView = createGlitchView({

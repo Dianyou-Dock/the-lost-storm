@@ -43,6 +43,7 @@ function page(value: unknown, where: string): PageDef {
     lines,
     address: text(source, 'address', where),
     unnamed: text(source, 'unnamed', where),
+    voice: source['voice'] === undefined ? null : text(source, 'voice', where),
     when: conditions(source, 'when', where),
     sets: storyFlags(source['sets'], `${where}.sets`),
   };

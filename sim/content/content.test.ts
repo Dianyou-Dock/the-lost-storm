@@ -434,8 +434,16 @@ void test('every line has a known speaker, is spoken in exactly one conversation
       }
     }
   }
+  for (const book of content.books.values()) {
+    for (const page of book.pages) {
+      if (page.voice === null) continue;
+      assert.equal(must(content.lines.get(page.voice), `line ${page.voice}`).speaker, book.id, `${page.voice} speaker`);
+      assert.equal(used.get(page.voice), undefined, `${page.voice} is used twice`);
+      used.set(page.voice, page.id);
+    }
+  }
   for (const line of content.lines.values()) {
-    assert.ok(content.npcs.has(line.speaker) || content.monsters.has(line.speaker), `${line.id} speaker ${line.speaker}`);
+    assert.ok(content.npcs.has(line.speaker) || content.monsters.has(line.speaker) || content.books.has(line.speaker), `${line.id} speaker ${line.speaker}`);
     assert.ok(used.has(line.id), `${line.id} is never spoken`);
     assert.ok(line.text.trim().length > 0, `${line.id} is empty`);
     assert.ok(line.id.startsWith(`${line.speaker}_`), `${line.id} does not start with its speaker`);

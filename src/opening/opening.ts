@@ -21,6 +21,8 @@ import { createNameEcho } from './name-echo.ts';
 import type { Reader } from './reader.ts';
 import { createReader } from './reader.ts';
 import type { OverlayManager } from '../hud/overlays.ts';
+import type { PageVoice, PageVoiceDeps } from './page-voice.ts';
+import { createPageVoice, pageLine } from './page-voice.ts';
 
 const LIDS = { className: 'wake-lids', hostId: 'vignette' } as const;
 
@@ -43,6 +45,7 @@ export interface OpeningDeps {
   readonly hud: HTMLElement;
   readonly touch: boolean;
   readonly overlays: OverlayManager;
+  readonly pageVoice: PageVoiceDeps;
   send(command: Command): void;
   nameOf(): string | null;
   fetchVoice(): Promise<SpokenName | null>;
@@ -79,6 +82,7 @@ export function createOpening(deps: OpeningDeps): Opening {
   let lids: HTMLElement | null = null;
   let held: WakeState | null = null;
   const reader: Reader = createReader(hud, deps.touch, deps.overlays);
+  const pageVoice: PageVoice = createPageVoice(deps.pageVoice);
   const echo: NameEcho = createNameEcho({ root: hud, fetchVoice: (): Promise<SpokenName | null> => deps.fetchVoice(), play: (audio: ArrayBuffer): Promise<void> => deps.playVoice(audio), nameOf: (): string | null => deps.nameOf(), refreshName: (): Promise<void> => deps.refreshName() });
   let books: Set<number> = carriedBooks(world);
   let shownShore: number = 0;
@@ -98,7 +102,9 @@ export function createOpening(deps: OpeningDeps): Opening {
     return reader.open(
       book,
       pages.map((page: PageDef) => ({ page, name })),
+      (): void => pageVoice.settled(pageLine(world.content.lines, pages)),
       (): void => {
+        pageVoice.closed();
         for (const page of pages) deps.send({ type: 'read', book: book.id, page: page.id });
       },
       (): void => {
@@ -156,6 +162,7 @@ export function createOpening(deps: OpeningDeps): Opening {
         deps.setRain(shore.rain * depth);
       }
       noticeBooks();
+      pageVoice.update();
       followWorld(gate, world, reader.isOpen());
       echo.update(world);
     },

@@ -107,6 +107,7 @@ export interface PageDef {
   readonly lines: readonly string[];
   readonly address: string;
   readonly unnamed: string;
+  readonly voice: string | null;
   readonly when: readonly Condition[];
   readonly sets: StoryFlags;
 }

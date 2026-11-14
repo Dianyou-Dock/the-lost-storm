@@ -7,6 +7,7 @@ const BARKS = {
   msPerSecond: 1000,
   leaveMs: 520,
   swapMs: 260,
+  voiceGraceMs: 6000,
   speakingClass: 'barking',
 } as const;
 
@@ -25,6 +26,16 @@ function readingTime(text: string): number {
   return lineSeconds(text) * BARKS.msPerSecond;
 }
 
+function after(ms: number): Promise<void> {
+  return new Promise<void>((resolve: () => void): void => {
+    window.setTimeout(resolve, ms);
+  });
+}
+
+export function barkHold(read: Promise<void>, spoken: Promise<void>, longest: Promise<void>): Promise<void> {
+  return Promise.race([Promise.all([read, spoken]).then((): void => undefined), longest]);
+}
+
 export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStrip {
   const element: HTMLDivElement = el('div', 'hud-bark', root);
   const name: HTMLDivElement = el('div', 'bark-name', element);
@@ -33,6 +44,7 @@ export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStr
   let timer: number | null = null;
   let showing: boolean = false;
   let lingering: boolean = false;
+  let shown: number = 0;
 
   const nameOf = (speaker: string): string => {
     const content = context.api.world.content;
@@ -47,8 +59,13 @@ export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStr
     text.classList.remove('leaving');
     retrigger(text, 'line');
     element.classList.add('visible');
-    context.api.voice.play(bark.line);
-    timer = window.setTimeout(next, readingTime(bark.line.text));
+    shown += 1;
+    void holdThenNext(shown, readingTime(bark.line.text), context.api.voice.play(bark.line));
+  };
+
+  const holdThenNext = async (ticket: number, reading: number, spoken: Promise<void>): Promise<void> => {
+    await barkHold(after(reading), spoken, after(reading + BARKS.voiceGraceMs));
+    if (ticket === shown) next();
   };
 
   const hide = (): void => {
@@ -86,6 +103,7 @@ export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStr
       }
     },
     clear(): void {
+      shown += 1;
       queue.length = 0;
       if (timer !== null) window.clearTimeout(timer);
       timer = null;

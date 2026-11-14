@@ -10,6 +10,7 @@
         ],
         "address": "For {name}.",
         "unnamed": "For you.",
+        "voice": "journal_do_not",
         "when": [],
         "sets": {
           "opening": "read"

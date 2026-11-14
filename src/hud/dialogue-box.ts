@@ -100,7 +100,7 @@ export function createDialogueBox(root: HTMLElement, context: HudContext): Dialo
         open = true;
         element.classList.add('open');
       }
-      context.api.voice.play(event.line);
+      void context.api.voice.play(event.line);
     },
     close(): void {
       if (!open) return;
