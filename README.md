@@ -1,8 +1,12 @@
 # The Lost Storm
 
-A single-player isometric action RPG that runs in the browser. Three.js, TypeScript and Vite, with no game engine on top. The world is a set of zones joined by exits: the In-Between, and the Hall of Time under a night storm, with a fire at its edge where a trader, a stash and a waypoint wait. One hero, loot, levelling and a small skill tree.
+## Play it now: [theloststorm.com](https://theloststorm.com)
 
-**Play it:** [theloststorm.com/play](https://theloststorm.com/play/) (the site's front page, [theloststorm.com](https://theloststorm.com), says what the game is first)
+Free, in your browser, on a computer or a phone. Nothing to install and no account needed: open [theloststorm.com](https://theloststorm.com) and press play.
+
+The Lost Storm is an isometric action RPG. You wake in a white mist with a worn journal lying nearby, and walk out into a hall under a night storm, where lightning leaves pockets of somewhere else on the black rock and what is inside them turns on you. Fight, find loot, level up, and shape your character on a skill tree of 125 places. You fight alone; the Hideout, the chat, trading and the auction house are shared with everyone else who is playing. The game is in alpha and changes daily.
+
+It is built with Three.js, TypeScript and Vite, with no game engine on top, and all of it is in this repository.
 
 ![The title screen](docs/images/title.webp)
 
@@ -10,14 +14,16 @@ A single-player isometric action RPG that runs in the browser. Three.js, TypeScr
 
 ![The skill tree open over the town](docs/images/skills.webp)
 
-## Run it
+## Run it on your own machine
+
+You only need this to change the game or to look at how it works. To play, use [theloststorm.com](https://theloststorm.com).
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:5193/play/ for the game. http://localhost:5193/ is the landing page: a static page with its own small entry (`index.html`, `src/landing/`) that loads no Three.js. The game's page is `play/index.html`. With `VITE_SERVER_URL` set, the landing page shows how many players are online and the top of the ladder from `GET /v1/leaderboard`; without it, it makes no request and shows neither.
+Open http://localhost:5193/play/ for the game. A plain clone runs offline: the shared Hideout, chat, trading and the auction house need a server (see Cloud save below), so they are absent here. http://localhost:5193/ is the landing page: a static page with its own small entry (`index.html`, `src/landing/`) that loads no Three.js. The game's page is `play/index.html`. With `VITE_SERVER_URL` set, the landing page shows how many players are online and the top of the ladder from `GET /v1/leaderboard`; without it, it makes no request and shows neither.
 
 | Input | Action |
 |---|---|
