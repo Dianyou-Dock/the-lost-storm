@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and talk about the game
+    url: https://discord.gg/XTRePF4HJs
+    about: Ask on the Discord.
+  - name: Security problem
+    url: https://github.com/marginsystems/the-lost-storm/blob/main/SECURITY.md
+    about: Report it privately, not in an issue.

@@ -1,0 +1,37 @@
+name: Bug
+description: Something in the game does not work as it should.
+labels: []
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to see it again
+      description: As short as you can make it. Say where in the game you were.
+  - type: input
+    id: device
+    attributes:
+      label: Browser and device
+      placeholder: Chrome 131 on Windows 11, Safari on iPhone 15
+    validations:
+      required: true
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where you played
+      options:
+        - theloststorm.com
+        - A local clone
+    validations:
+      required: true
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshot or recording
+      description: Optional. Drag a file in.
