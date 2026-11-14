@@ -25,7 +25,9 @@ void test('combat traits are read and checked', (): void => {
   assert.throws(() => monsterTraits({ summon: { monster: null, count: 1.5, cooldown: 4, limit: 3 }, faction: 'f' }, 'm'), /whole numbers/);
   assert.throws(() => monsterTraits({ guard: { arcDegrees: 720, damageTaken: 0.2, breakStagger: 0.45, breakTime: 1.4 }, faction: 'f' }, 'm'), /at most 360/);
   assert.throws(() => skillMotion({ root: -1 }, 's'), /zero or more/);
-  assert.equal(skillMotion({ leap: { distance: 8, airTime: 0.3 } }, 's').leap?.stopShort, 0);
+  assert.deepEqual(skillMotion({ leap: { distance: 8, airTime: 0.3 } }, 's').leap, { distance: 8, stopShort: 0, airTime: 0.3, lane: false });
+  assert.equal(skillMotion({ leap: { distance: 4, airTime: 0.3, lane: true } }, 's').leap?.lane, true);
+  assert.throws(() => skillMotion({ leap: { distance: 4, airTime: 0.3, lane: 'yes' } }, 's'), /lane/);
 });
 
 void test('a monster modifier reads every field', (): void => {
@@ -41,7 +43,7 @@ void test('combat problems name bad bursts, bad summons, unknown pack mods, misp
   const zone: ZoneDef = must(ARENA_CONTENT.zones.get('hall_of_time'), 'zone');
   const broken: Content = {
     ...ARENA_CONTENT,
-    skills: new Map<string, SkillDef>([...ARENA_CONTENT.skills, ['bad_leap', { ...bolt, id: 'bad_leap', leap: { distance: 4, stopShort: 0, airTime: 9 } }]]),
+    skills: new Map<string, SkillDef>([...ARENA_CONTENT.skills, ['bad_leap', { ...bolt, id: 'bad_leap', leap: { distance: 4, stopShort: 0, airTime: 9, lane: false } }]]),
     monsters: new Map<string, MonsterDef>([
       ...ARENA_CONTENT.monsters,
       ['bad_boss', { ...must(ARENA_CONTENT.monsters.get('unfinished_colossus'), 'unfinished_colossus'), id: 'bad_boss', guard: { arcDegrees: 90, damageTaken: 0.5, breakStagger: 1, breakTime: 1 } }],

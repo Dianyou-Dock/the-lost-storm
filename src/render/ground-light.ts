@@ -166,7 +166,7 @@ export const GROUND_LIGHT_FRAGMENT: string = [
 
 export function groundLightExtent(form: GroundLightForm, look: GroundLightLook): number {
   const margin: number = Math.max(look.width, GROUND_LIGHT.minWidth) * GROUND_LIGHT.reachWidths + look.wobble * GROUND_LIGHT.wobbleBoost;
-  const reach: number = form.kind === 'round' ? form.radius : Math.max(form.halfWidth, form.start + form.length);
+  const reach: number = form.kind === 'round' ? form.radius : Math.max(form.halfWidth, Math.abs(form.start), form.start + form.length);
   return reach + margin;
 }
 

@@ -35,7 +35,7 @@ export const TELEGRAPHS = {
 export type TelegraphSource = 'actor' | 'hazard';
 
 export interface Telegraphs {
-  start(owner: number, source: TelegraphSource, at: Vec2, direction: Vec2, skill: SkillDef, windup: number, color: Color): void;
+  start(owner: number, source: TelegraphSource, at: Vec2, direction: Vec2, skill: SkillDef, windup: number, color: Color, path: number): void;
   field(owner: number, at: Vec2, radius: number, color: Color): void;
   cancel(owner: number): void;
   update(dt: number, world: World): void;
@@ -146,9 +146,9 @@ export function createTelegraphs(parent: Object3D): Telegraphs {
     get active(): number {
       return shown.length + fields.length;
     },
-    start(owner: number, source: TelegraphSource, at: Vec2, direction: Vec2, skill: SkillDef, windup: number, color: Color): void {
+    start(owner: number, source: TelegraphSource, at: Vec2, direction: Vec2, skill: SkillDef, windup: number, color: Color, path: number): void {
       for (const entry of shown) if (entry.owner === owner) settle(entry);
-      const shape: Telegraph = telegraphFor(skill.delivery, color);
+      const shape: Telegraph = telegraphFor(skill.delivery, color, path);
       place(shape.object, at, direction, parent);
       shown.push({ owner, source, skillId: skill.id, shape, windup, age: 0, progress: 0, rate: windup > 0 ? 1 / windup : 1, settling: -1 });
     },

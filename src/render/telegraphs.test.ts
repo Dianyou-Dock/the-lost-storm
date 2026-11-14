@@ -73,7 +73,7 @@ void test('a telegraph is one light over the whole area from the start, with no 
   const skill: SkillDef = windingUp(world, monster, 1);
   const parent: Group = new Group();
   const telegraphs: Telegraphs = createTelegraphs(parent);
-  telegraphs.start(monster.id, 'actor', monster.pos, { x: 0, z: 1 }, skill, 1, RED);
+  telegraphs.start(monster.id, 'actor', monster.pos, { x: 0, z: 1 }, skill, 1, RED, 0);
   const action = must(monster.action, 'action');
   const seen: number[] = [];
   for (const left of [0.9, 0.5, 0.05]) {
@@ -95,7 +95,7 @@ void test('a telegraph settles away once the windup ends and is gone after its s
   const monster: MonsterState = place(world, 'test_brute', { x: 14, z: 17 });
   const skill: SkillDef = windingUp(world, monster, 0.5);
   const telegraphs: Telegraphs = createTelegraphs(new Group());
-  telegraphs.start(monster.id, 'actor', monster.pos, { x: 0, z: 1 }, skill, 0.5, RED);
+  telegraphs.start(monster.id, 'actor', monster.pos, { x: 0, z: 1 }, skill, 0.5, RED, 0);
   for (let frame: number = 0; frame < 20; frame += 1) telegraphs.update(STEP, world);
   assert.equal(telegraphs.active, 1);
   monster.action = null;

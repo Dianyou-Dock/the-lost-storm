@@ -196,9 +196,37 @@ function laneTelegraph(halfWidth: number, length: number, color: Color): GroundL
   return ahead(createGroundLight(color, { kind: 'lane', halfWidth, start: SHAPES.laneStart, length: length - SHAPES.laneStart }, telegraphLook(halfWidth * 2)));
 }
 
-export function telegraphFor(delivery: Delivery, color: Color): Telegraph {
+function footprintOf(delivery: Delivery): number {
+  switch (delivery.type) {
+    case 'arc':
+      return delivery.reach * Math.sin(Math.min(Math.PI, (delivery.arcDegrees * Math.PI) / 180) / 2);
+    case 'nova':
+      return delivery.radius;
+    case 'projectile':
+    case 'dash':
+    case 'mark':
+    case 'revive':
+    case 'field':
+    case 'chain':
+    case 'area':
+    case 'blink':
+    case 'beam':
+      return 0;
+  }
+  return 0;
+}
+
+function pathTelegraph(delivery: Delivery, path: number, color: Color): GroundLight | null {
+  const halfWidth: number = footprintOf(delivery);
+  if (path <= 0 || halfWidth <= 0) return null;
+  return ahead(createGroundLight(color, { kind: 'lane', halfWidth, start: -path, length: path }, telegraphLook(halfWidth * 2)));
+}
+
+export function telegraphFor(delivery: Delivery, color: Color, path: number): Telegraph {
   const object: Group = new Group();
   const lights: GroundLight[] = [];
+  const trail: GroundLight | null = pathTelegraph(delivery, path, color);
+  if (trail !== null) lights.push(trail);
   switch (delivery.type) {
     case 'arc':
       lights.push(roundTelegraph((delivery.arcDegrees * Math.PI) / 180, 0, delivery.reach, color));

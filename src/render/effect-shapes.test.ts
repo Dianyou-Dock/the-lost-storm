@@ -19,7 +19,7 @@ void test('every telegraph is light drawn by the ground-light shader on one plan
   const shapes: Delivery[] = deliveries();
   assert.ok(shapes.length >= 4);
   for (const delivery of shapes) {
-    for (const light of telegraphFor(delivery, new Color(1, 0, 0)).lights) {
+    for (const light of telegraphFor(delivery, new Color(1, 0, 0), 0).lights) {
       assert.ok(light.mesh.geometry instanceof PlaneGeometry, `${delivery.type} draws on a plane`);
       assert.equal(light.mesh.material.fragmentShader, GROUND_LIGHT_FRAGMENT);
     }
@@ -28,7 +28,7 @@ void test('every telegraph is light drawn by the ground-light shader on one plan
 
 void test('a telegraph fills its area with feathered light and draws no band, so no ring shows at any frame', (): void => {
   for (const delivery of deliveries()) {
-    for (const light of telegraphFor(delivery, new Color(1, 0, 0)).lights) {
+    for (const light of telegraphFor(delivery, new Color(1, 0, 0), 0).lights) {
       assert.equal(light.mesh.material.uniforms['uBand']?.value, 0, `${delivery.type} draws no band`);
       assert.equal(light.mesh.material.uniforms['uFront']?.value, 1, `${delivery.type} covers its whole area`);
     }
@@ -53,7 +53,7 @@ void test('every effect shape draws with a shader a keeper holds, so freeing the
   const shapes: Mesh[] = [
     ...partsOf(projectileMesh('orb', red)),
     ...partsOf(projectileMesh('bolt', red)),
-    ...deliveries().flatMap((delivery: Delivery): Mesh[] => partsOf(telegraphFor(delivery, red))),
+    ...deliveries().flatMap((delivery: Delivery): Mesh[] => partsOf(telegraphFor(delivery, red, 0))),
     skyBolt(red),
     groundArcs(red, 2),
     lightningLine(new Vector3(0, 0, 0), new Vector3(3, 0, 0), red, 0.2, 0.3),
@@ -73,4 +73,19 @@ void test('a blade swing draws a thin streak along its reach with a hot leading 
   assert.match(shader, /exp\(-off \* off \*/);
   assert.match(shader, /mix\(0\.25, 1\.0, behind\)/);
   assert.match(shader, /float hot = smoothstep\(head - /);
+});
+
+void test('a leap that shows its path lays a feathered lane from where it springs to where it strikes, as wide as its strike', (): void => {
+  const strike: Delivery = { type: 'arc', reach: 2, arcDegrees: 60 };
+  assert.equal(telegraphFor(strike, new Color(1, 0, 0), 0).lights.length, 1);
+  const shown: Telegraph = telegraphFor(strike, new Color(1, 0, 0), 4);
+  assert.equal(shown.lights.length, 2);
+  const lane = shown.lights[0];
+  assert.ok(lane !== undefined);
+  assert.equal(lane.mesh.material.fragmentShader, GROUND_LIGHT_FRAGMENT);
+  assert.equal(lane.mesh.material.uniforms['uLane']?.value, 1);
+  assert.equal(lane.mesh.material.uniforms['uLaneStart']?.value, -4);
+  assert.equal(lane.mesh.material.uniforms['uLaneSpan']?.value, 4);
+  assert.ok(Math.abs(Number(lane.mesh.material.uniforms['uRadius']?.value) - 1) < 1e-9);
+  assert.ok(lane.mesh.scale.x / 2 > 4, 'the plane reaches back to where the leap began');
 });

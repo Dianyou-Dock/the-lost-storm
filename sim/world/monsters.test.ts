@@ -650,3 +650,38 @@ void test('a spider waits unseen until the hero comes close, springs with a tele
   assert.ok(farthest > spring - 1.5, `while its leap recovered the spider came no farther than ${farthest.toFixed(1)} m instead of backing off`);
   assert.ok(again, 'the spider never sprang a second time');
 });
+
+interface Lunge {
+  readonly struck: boolean;
+  readonly crossed: number;
+  readonly lane: boolean;
+}
+
+function lungeAt(dodge: number): Lunge {
+  const world: World = arena(10);
+  const crawler: MonsterState = place(world, 'crawler', { x: ARENA_CENTRE.x + 5, z: ARENA_CENTRE.z });
+  const from: Vec2 = { ...crawler.pos };
+  let hero: Vec2 = { ...ARENA_CENTRE };
+  let struck: boolean = false;
+  let lane: boolean = false;
+  for (let step: number = 0; step < Math.round(3 / MOTION_DT) && !struck; step += 1) {
+    world.player.pos = { ...hero };
+    world.player.life = world.player.maxLife;
+    for (const event of stepWorld(world, [], MOTION_DT)) {
+      if (event.type === 'skill_start' && event.actorId === crawler.id) {
+        lane = event.skill.leap?.lane === true && event.windup >= 1;
+        hero = { x: ARENA_CENTRE.x, z: ARENA_CENTRE.z + dodge };
+      }
+      if (event.type === 'damage' && event.sourceId === crawler.id) struck = true;
+    }
+  }
+  return { struck, crossed: distance(from, crawler.pos), lane };
+}
+
+void test('a crawler lunges down a telegraphed lane: a hero who stays in it is struck, a hero who steps out of it is not', (): void => {
+  const stood: Lunge = lungeAt(0);
+  assert.ok(stood.lane, 'the lunge never showed its lane with a readable wind-up');
+  assert.ok(stood.struck, 'the lunge missed a hero who stood in its lane');
+  assert.ok(stood.crossed > 2.5, `the crawler only crossed ${stood.crossed.toFixed(1)} m`);
+  assert.equal(lungeAt(3).struck, false, 'the lunge struck a hero who stepped out of its lane');
+});

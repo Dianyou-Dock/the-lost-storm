@@ -1,7 +1,8 @@
-import type { Accessor, Animation, AnimationChannel, Document, Material, Node } from '@gltf-transform/core';
+import type { Accessor, Animation, AnimationChannel, Document, Material, Node, Texture } from '@gltf-transform/core';
 
 export const CREATURE_MODEL = {
   restEpsilon: 1e-4,
+  stillSeconds: 1,
 } as const;
 
 export interface MaterialFix {
@@ -29,6 +30,28 @@ export function fixMaterials(document: Document): readonly MaterialFix[] {
     .listMaterials()
     .map(fixMaterial)
     .filter((fix: MaterialFix): boolean => fix.opacity || fix.emissive);
+}
+
+function linear(channel: number): number {
+  const value: number = channel / 255;
+  return value <= 0.04045 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+}
+
+export function flatColour(hex: string): readonly [number, number, number] | null {
+  const match: RegExpExecArray | null = /^#([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex);
+  if (match === null) return null;
+  const [, red = '0', green = '0', blue = '0'] = match;
+  return [linear(parseInt(red, 16)), linear(parseInt(green, 16)), linear(parseInt(blue, 16))];
+}
+
+export function flattenMaterials(document: Document, colour: readonly [number, number, number]): number {
+  for (const material of document.getRoot().listMaterials()) {
+    material.setBaseColorTexture(null).setNormalTexture(null).setMetallicRoughnessTexture(null).setOcclusionTexture(null).setEmissiveTexture(null);
+    material.setBaseColorFactor([colour[0], colour[1], colour[2], 1]);
+  }
+  const textures: Texture[] = document.getRoot().listTextures();
+  for (const texture of textures) texture.dispose();
+  return textures.length;
 }
 
 export function clipNamesOf(document: Document): readonly string[] {
@@ -102,4 +125,22 @@ export function keepOnlyClip(document: Document, name: string): void {
   for (const mesh of document.getRoot().listMeshes()) mesh.dispose();
   for (const skin of document.getRoot().listSkins()) skin.dispose();
   for (const material of document.getRoot().listMaterials()) material.dispose();
+}
+
+export function holdStillClips(document: Document): number {
+  let held: number = 0;
+  for (const animation of document.getRoot().listAnimations()) {
+    for (const sampler of animation.listSamplers()) {
+      const input: Accessor | null = sampler.getInput();
+      const output: Accessor | null = sampler.getOutput();
+      if (input === null || output === null || input.getCount() !== 1) continue;
+      const element: number[] = [];
+      output.getElement(0, element);
+      sampler.setInput(document.createAccessor().setType('SCALAR').setArray(new Float32Array([0, CREATURE_MODEL.stillSeconds])).setBuffer(input.getBuffer()));
+      sampler.setOutput(document.createAccessor().setType(output.getType()).setArray(new Float32Array([...element, ...element])).setBuffer(output.getBuffer()));
+      sampler.setInterpolation('LINEAR');
+      held += 1;
+    }
+  }
+  return held;
 }

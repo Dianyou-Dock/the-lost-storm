@@ -9,6 +9,7 @@ export interface SkillLeap {
   readonly distance: number;
   readonly stopShort: number;
   readonly airTime: number;
+  readonly lane: boolean;
 }
 
 export interface StalkerBehaviour {

@@ -275,7 +275,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     const type: Delivery['type'] = event.skill.delivery.type;
     const casts: boolean = type === 'projectile' || type === 'mark' || type === 'field' || type === 'revive';
     const lands: { readonly x: number; readonly z: number } = landsAhead(event.skill) || type === 'field' ? (monster.action?.target ?? monster.pos) : monster.pos;
-    if (!casts || type === 'projectile' || type === 'field') telegraphs.start(monster.id, 'actor', lands, event.direction, event.skill, event.windup, TELEGRAPH);
+    if (!casts || type === 'projectile' || type === 'field') telegraphs.start(monster.id, 'actor', lands, event.direction, event.skill, event.windup, TELEGRAPH, event.skill.leap?.lane === true ? Math.hypot(lands.x - monster.pos.x, lands.z - monster.pos.z) : 0);
     if (casts) spray(monster.pos.x + event.direction.x * 0.6, 1.7, monster.pos.z + event.direction.z * 0.6, colorOf(event.skill.vfx.color), 16, { speed: { min: 0.3, max: 1.6 }, lift: { min: 0.3, max: 2.2 }, life: { min: 0.3, max: event.windup + 0.1 }, gravity: -1, size: { min: 0.25, max: 0.55 } });
   };
 
@@ -382,7 +382,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     const color: Color = colorOf(hazard.skill.vfx.color);
     if (!event.burst) {
       if (hazard.skill.delivery.type === 'field') telegraphs.field(hazard.id, hazard.pos, hazard.radius, color);
-      else telegraphs.start(hazard.id, 'hazard', hazard.pos, { x: 0, z: 1 }, hazard.skill, hazard.delay, TELEGRAPH);
+      else telegraphs.start(hazard.id, 'hazard', hazard.pos, { x: 0, z: 1 }, hazard.skill, hazard.delay, TELEGRAPH, 0);
       spray(hazard.pos.x, 0.2, hazard.pos.z, color, 10, { speed: { min: 0.2, max: 1 }, lift: { min: 0.5, max: 2 }, life: { min: EFFECTS.markRise, max: hazard.delay }, gravity: -0.5, jitter: hazard.radius * 0.5 });
       return;
     }

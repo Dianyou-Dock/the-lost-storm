@@ -34,7 +34,7 @@ void test('a brand must burst as a nova, and a blink or a leap cannot be held', 
   const bad: readonly SkillDef[] = [
     { ...shapeSkill('test_brander'), id: 'bad_brand', brand: { duration: 3, burst: 'test_fork' } },
     { ...shapeSkill('test_step'), id: 'bad_step', press: { type: 'charge', max: 1, damageScale: 2, areaScale: 1 } },
-    { ...shapeSkill('test_heave'), id: 'bad_leap', leap: { distance: 4, stopShort: 1, airTime: 0.3 } },
+    { ...shapeSkill('test_heave'), id: 'bad_leap', leap: { distance: 4, stopShort: 1, airTime: 0.3, lane: false } },
   ];
   const content: Content = { ...SHAPE_CONTENT, skills: new Map<string, SkillDef>([...SHAPE_CONTENT.skills, ...bad.map((def: SkillDef): [string, SkillDef] => [def.id, def])]) };
   assert.equal(shapeProblems(content).length, 3);

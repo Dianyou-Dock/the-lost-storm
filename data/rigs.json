@@ -2373,5 +2373,37 @@
     "sockets": {},
     "hiddenNodes": [],
     "bodyParts": {}
+  },
+  {
+    "id": "crawler",
+    "url": "models/creatures/crawler.glb",
+    "clipFolder": "models/animations/crawler",
+    "scale": 0.35,
+    "yawOffsetDegrees": 0,
+    "height": 2.0,
+    "rootMotionBone": null,
+    "gaits": [
+      {
+        "clip": "Forward",
+        "groundSpeed": 0.332
+      }
+    ],
+    "clips": {
+      "idle": "Idle",
+      "run": "Forward",
+      "hit": [],
+      "death": [
+        "OnBack"
+      ],
+      "actions": {
+        "lunge": {
+          "clip": "Attack.000",
+          "impactFraction": 0.51
+        }
+      }
+    },
+    "sockets": {},
+    "hiddenNodes": [],
+    "bodyParts": {}
   }
 ]

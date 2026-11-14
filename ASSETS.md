@@ -16,6 +16,7 @@ Shipped models are CC0 (public domain), CC BY 4.0 with the credit below, or made
 | Ultimate Animated Animals | Quaternius (quaternius.com) | https://quaternius.com/packs/ultimateanimatedanimals.html | CC0 1.0 | [licenses/Quaternius-Ultimate-Animated-Animals.txt](licenses/Quaternius-Ultimate-Animated-Animals.txt) |
 | Easy Enemy Pack | Quaternius (quaternius.com) | https://quaternius.com/packs/easyenemy.html | CC0 1.0 | [licenses/Quaternius-Easy-Enemy.txt](licenses/Quaternius-Easy-Enemy.txt) |
 | Animated Monster Pack | Quaternius (quaternius.com) | https://quaternius.com/packs/animatedmonster.html | CC0 1.0 | [licenses/Quaternius-Animated-Monster.txt](licenses/Quaternius-Animated-Monster.txt) |
+| Swamp Limule | CDmir, with TinyWorlds (OpenGameArt) | https://opengameart.org/content/swamp-limule | CC0 1.0 | [licenses/CDmir-Swamp-Limule.txt](licenses/CDmir-Swamp-Limule.txt) |
 | MakeHuman community garments (suits02) | Donitz (makehumancommunity.org) | http://www.makehumancommunity.org/clothes.html | CC0 1.0 | [licenses/MakeHuman-community-assets.txt](licenses/MakeHuman-community-assets.txt) |
 | MakeHuman base mesh | The MakeHuman project: Data Collection AB, Joel Palmius, Jonas Hauquier (makehumancommunity.org) | https://github.com/makehumancommunity/makehuman | CC0 1.0 | [licenses/MakeHuman-community-assets.txt](licenses/MakeHuman-community-assets.txt) |
 | Poly Haven models and textures | The authors named in the tables below (polyhaven.com) | https://polyhaven.com | CC0 1.0 | [licenses/Poly-Haven-CC0.txt](licenses/Poly-Haven-CC0.txt) |
@@ -76,8 +77,10 @@ The creatures, each a body and its own clips on its own skeleton:
 | `public/models/animations/bat/Bat_Attack.glb`, `public/models/animations/bat/Bat_Death.glb`, `public/models/animations/bat/Bat_Flying.glb`, `public/models/animations/bat/Bat_Hit.glb` | The Bat's clips, one clip per file | `FBX/Bat.fbx` of the Animated Monster Pack by Quaternius, converted to GLB in Blender and built by the commands below | CC0 1.0 |
 | `public/models/creatures/spider.glb` | The Spider body, its two colour materials and its skeleton, with no clips | `FBX/Spider.fbx` of the Easy Enemy Pack by Quaternius, converted to GLB in Blender and built by the commands below | CC0 1.0 |
 | `public/models/animations/spider/Spider_Death.glb`, `public/models/animations/spider/Spider_Idle.glb`, `public/models/animations/spider/Spider_Jump.glb`, `public/models/animations/spider/Spider_Walk.glb` | The Spider's clips, one clip per file | `FBX/Spider.fbx` of the Easy Enemy Pack by Quaternius, converted to GLB in Blender and built by the commands below | CC0 1.0 |
+| `public/models/creatures/crawler.glb` | The Crawler body and its skeleton, with no clips and no texture: one flat colour | `limule-final.blend` of Swamp Limule by CDmir, exported to GLB from Blender and built by the commands below with `--flat`, which drops the packed textures | CC0 1.0 |
+| `public/models/animations/crawler/Attack.000.glb`, `public/models/animations/crawler/Forward.glb`, `public/models/animations/crawler/Idle.glb`, `public/models/animations/crawler/OnBack.glb` | The Crawler's clips, one clip per file; the single-pose Idle is held for a second | `limule-final.blend` of Swamp Limule by CDmir, exported to GLB from Blender and built by the commands below | CC0 1.0 |
 
-Build a creature from its pack file into a body and a clip folder. `tools/build-creature.ts` drops the clips from the body, writes each clip on bare joints under its plain action name (Blender writes `Armature|Armature|Action`), and makes any material that a conversion left see-through or glowing opaque and unlit; keep only the clip files the rig names. A pack that ships only FBX is first converted in Blender 4.4: import the FBX with automatic bone orientation off, then export GLB with every action as its own animation and sampling forced:
+Build a creature from its pack file into a body and a clip folder. `tools/build-creature.ts` drops the clips from the body, writes each clip on bare joints under its plain action name (Blender writes `Armature|Armature|Action`), makes any material that a conversion left see-through or glowing opaque and unlit, and holds a clip of a single pose for a second so it can loop; `--flat #rrggbb` drops every texture and paints the body one colour; keep only the clip files the rig names. A pack that ships only FBX is first converted in Blender 4.4: import the FBX with automatic bone orientation off, then export GLB with every action as its own animation and sampling forced:
 
 ```bash
 node tools/build-creature.ts <glTF/Wolf.gltf> public/models/creatures/wolf.glb public/models/animations/wolf
@@ -88,6 +91,8 @@ node tools/build-creature.ts <Bat.glb converted from FBX/Bat.fbx> public/models/
 node tools/compress-models.ts public/models/creatures/bat.glb public/models/animations/bat/*.glb
 node tools/build-creature.ts <Spider.glb converted from FBX/Spider.fbx> public/models/creatures/spider.glb public/models/animations/spider
 node tools/compress-models.ts public/models/creatures/spider.glb public/models/animations/spider/*.glb
+node tools/build-creature.ts <limule.glb exported from limule-final.blend> public/models/creatures/crawler.glb public/models/animations/crawler --flat '#6b5d45'
+node tools/compress-models.ts public/models/creatures/crawler.glb public/models/animations/crawler/*.glb
 ```
 
 The skeleton monsters' rig and clips:

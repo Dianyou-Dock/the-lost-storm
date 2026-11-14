@@ -1,5 +1,5 @@
 import type { Fields } from './read.ts';
-import { ContentError, fields, nullableText, numeric, positive, text, textList } from './read.ts';
+import { ContentError, fields, flag, nullableText, numeric, positive, text, textList } from './read.ts';
 import type { DormantDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, SkillCommit, SkillLeap, SummonDef } from './combat-types.ts';
 import type { MonsterRank } from './rank-types.ts';
 import type { Content, MonsterDef, SkillDef } from './types.ts';
@@ -29,7 +29,7 @@ export function markDelivery(source: Fields, where: string): MarkDelivery {
 }
 
 function leap(source: Fields, where: string): SkillLeap {
-  return { distance: positive(source, 'distance', where), stopShort: zeroOrMore(source, 'stopShort', where), airTime: positive(source, 'airTime', where) };
+  return { distance: positive(source, 'distance', where), stopShort: zeroOrMore(source, 'stopShort', where), airTime: positive(source, 'airTime', where), lane: source['lane'] === undefined ? false : flag(source, 'lane', where) };
 }
 
 export function reviveDelivery(source: Fields, where: string): ReviveDelivery {
