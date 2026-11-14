@@ -38,7 +38,7 @@ Open http://localhost:5193/play/ for the game. http://localhost:5193/ is the lan
 
 Progress saves to `localStorage` on its own, including the zone you are in and where you last arrived or touched a checkpoint; dying returns you there. "Start over" on the title screen clears it.
 
-The first act is being built zone by zone: the In-Between and the Hall of Time are in so far. The plot is written down in `docs/story/`; do not open it before you have played.
+The first act is being built zone by zone: the In-Between and the Hall of Time are in so far. `docs/story/lines.md` lists every line the game speaks, word for word; reading it gives lines away.
 
 ## Cloud save (optional)
 
@@ -93,7 +93,7 @@ The overlay state machine (which panel, screen or card may be up, in what order,
 | `tools/simulate.ts` | The balance simulator: `npm run simulate -- <scenario>` runs many seeded bot players through `sim/` in worker threads and reports progression, deaths, loot and fight numbers. Bot skill and build policies are in `tools/simulate-policies.json`, the measurement stream it reads is `sim/measure.ts`. See [docs/simulate.md](docs/simulate.md) |
 | `src/audio/` | Web Audio: loads sounds from the asset server, plays them with variation, distance and panning, keeps volumes, plays one voice line at a time |
 | `src/voice.ts` | The voice hook the dialogue box calls for each line; `main.ts` connects it to the audio system |
-| `docs/story/` | The story notes and every spoken line. They give the whole plot away; each file says so at the top |
+| `docs/story/` | `lines.md`: every line the game speaks, word for word. Reading it gives lines away |
 | `src/save-events.ts` | Which events from a step mean the save has to be written. Its test plays the whole act and fails when a step changes the save without one |
 | `src/input.ts` | Mouse and keyboard to commands |
 | `src/main.ts` | Loads everything and runs the frame loop |
