@@ -109,9 +109,37 @@ void test('a save that has finished a quest skips the first-minute hints even at
   assert.ok(defs.hints.filter((hint): boolean => hint.forNewPlayers).every((hint): boolean => state.seen.has(hint.id)));
 });
 
-void test('the low life hint needs a carried item of the named slot', (): void => {
+void test('the first time life falls to half with a drink in the life flask, the flask is taught', (): void => {
   const world: World = fresh();
-  const state: HintState = createHintState(earlyIds());
+  const state: HintState = createHintState(allBut('low_life'));
+  world.player.life = world.player.maxLife * 0.6;
+  assert.equal(shown(stepHints(defs, world, state, IDLE)), null);
+  world.player.life = world.player.maxLife * 0.5;
+  assert.equal(shown(stepHints(defs, world, state, IDLE)), 'low_life');
+});
+
+void test('the flask hint waits while the life flask has no drink in it', (): void => {
+  const world: World = fresh();
+  const state: HintState = createHintState(allBut('low_life'));
+  for (const flask of world.player.flasks) if (flask.def.resource === 'life') flask.charges = flask.def.chargesPerUse - 1;
+  world.player.life = 1;
+  assert.equal(shown(stepHints(defs, world, state, IDLE)), null);
+});
+
+void test('drinking from the life flask puts the flask hint away for good, and rising life or a mana drink does not', (): void => {
+  const world: World = fresh();
+  const state: HintState = createHintState(allBut('low_life'));
+  world.player.life = 1;
+  assert.equal(shown(stepHints(defs, world, state, IDLE)), 'low_life');
+  world.player.life = world.player.maxLife;
+  assert.deepEqual(stepHints(defs, world, state, IDLE), []);
+  const mana: WorldEvent = { type: 'flask_used', slot: 1, flask: 'mana_flask', resource: 'mana', pos: { x: 0, z: 0 } };
+  assert.deepEqual(stepHints(defs, world, state, { ...IDLE, events: [mana] }), []);
+  assert.equal(state.seen.has('low_life'), false);
+  const drink: WorldEvent = { type: 'flask_used', slot: 0, flask: 'life_flask', resource: 'life', pos: { x: 0, z: 0 } };
+  const changes: HintChange[] = stepHints(defs, world, state, { ...IDLE, events: [drink] });
+  assert.deepEqual(changes.map((change: HintChange): string => change.type), ['hide']);
+  assert.ok(state.seen.has('low_life'));
   world.player.life = 1;
   assert.equal(shown(stepHints(defs, world, state, IDLE)), null);
 });

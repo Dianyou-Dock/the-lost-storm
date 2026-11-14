@@ -387,6 +387,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
             barks.say(event.speaker, event.line);
             break;
           case 'scene_lead':
+          case 'flask_used':
             break;
           case 'skill_unlocked':
             if (event.slot !== null) skillBar.learned(event.slot);
@@ -402,12 +403,10 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
             break;
           case 'notice':
             notices.show(event.reason);
+            if (event.reason === 'flask_empty') flasks.refused(api.world.player);
             break;
           case 'xp':
             xp.gained(event.reduced);
-            break;
-          case 'flask_used':
-            flasks.used(event.slot);
             break;
           case 'character_changed':
             refreshOpen('inventory');

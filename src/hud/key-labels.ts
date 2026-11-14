@@ -23,6 +23,11 @@ export const TOUCH_NAMES = {
   name: 'Show item names',
 } as const;
 
+export const TOUCH_FLASK = {
+  icon: 'flask',
+  name: 'Life flask',
+} as const;
+
 export const PANEL_ICONS = {
   inventory: 'armour',
   character: 'bust',
@@ -46,7 +51,7 @@ export function touchLabel(world: World, name: string): TouchLabel {
     case 'map':
       return { kind: 'icon', icon: PANEL_ICONS.map, name: 'Map' };
     case 'flask':
-      return { kind: 'words', text: '1' };
+      return { kind: 'icon', icon: TOUCH_FLASK.icon, name: TOUCH_FLASK.name };
     case 'names':
       return { kind: 'icon', icon: TOUCH_NAMES.icon, name: TOUCH_NAMES.name };
     default:

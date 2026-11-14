@@ -10,7 +10,9 @@ import type { Command, FlaskState, MonsterState, World } from '../../sim/world/t
 import { cannotStep, isTimeHeld } from '../../sim/world/movement.ts';
 import type { KeyValueStore } from '../backend/backend.ts';
 import { el } from '../hud/dom.ts';
-import { flaskUses, paintUses } from '../hud/flask-belt.ts';
+import { flaskGauge, readFlask } from '../hud/flask-gauge.ts';
+import type { FlaskVessel } from '../hud/flask-vessel.ts';
+import { createVessel } from '../hud/flask-vessel.ts';
 import type { Hud, HudPanel } from '../hud/hud-api.ts';
 import { iconSvg } from '../hud/icons.ts';
 import { PANEL_ICONS, TOUCH_NAMES } from '../hud/key-labels.ts';
@@ -56,10 +58,9 @@ interface ButtonView {
   readonly spec: TouchButton;
   readonly root: HTMLElement;
   readonly ring: HTMLElement;
-  readonly count: HTMLElement | null;
+  readonly vessel: FlaskVessel | null;
   turn: number;
   dim: boolean | null;
-  uses: number;
 }
 
 const MENU: readonly { readonly panel: HudPanel; readonly label: string; readonly icon: string }[] = [
@@ -347,13 +348,14 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
     const root: HTMLDivElement = el('div', `tc-btn ${spec.kind} arriving`, actions);
     root.setAttribute('role', 'button');
     const ringEl: HTMLElement = el('i', 'tc-cd', root);
-    const icon: HTMLElement = el('span', 'tc-icon', root);
-    if (spec.kind === 'flask') {
-      const resource: FlaskResource | undefined = world.player.flasks[spec.slot]?.def.resource;
-      if (resource !== undefined) tagPart(root, resource);
-      root.setAttribute('aria-label', spec.label);
+    if (spec.kind !== 'flask') {
+      el('span', 'tc-icon', root);
+      return { spec, root, ring: ringEl, vessel: null, turn: -1, dim: null };
     }
-    return { spec, root, ring: ringEl, count: spec.kind === 'flask' ? icon : null, turn: -1, dim: null, uses: -1 };
+    const resource: FlaskResource | undefined = world.player.flasks[spec.slot]?.def.resource;
+    if (resource !== undefined) tagPart(root, resource);
+    root.setAttribute('aria-label', spec.label);
+    return { spec, root, ring: ringEl, vessel: resource === undefined ? null : createVessel(root, resource, false), turn: -1, dim: null };
   };
 
   const buildButtons = (specs: readonly TouchButton[]): void => {
@@ -367,7 +369,7 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
     }
     views = specs.map((spec: TouchButton, index: number): ButtonView => {
       const kept: ButtonView | undefined = shown.get(buttonKey(spec));
-      const view: ButtonView = kept === undefined ? createButton(spec) : { ...kept, spec, turn: -1, dim: null, uses: -1 };
+      const view: ButtonView = kept === undefined ? createButton(spec) : { ...kept, spec, turn: -1, dim: null };
       view.root.dataset['index'] = String(index);
       dress(view, spec);
       return view;
@@ -580,9 +582,13 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
             if (isFresh || (isHeld && tick && ready)) commands.push(aimedSkill(view.spec.slot, player.pos, ahead, autoAimTarget(monsters(), player.pos, ahead)));
             return;
           }
-          case 'flask':
-            if (isFresh) commands.push({ type: 'flask', slot: view.spec.slot });
+          case 'flask': {
+            if (!isFresh) return;
+            commands.push({ type: 'flask', slot: view.spec.slot });
+            const flask: FlaskState | undefined = player.flasks[view.spec.slot];
+            if (flask !== undefined && flaskGauge(readFlask(flask)).empty) view.vessel?.refuse();
             return;
+          }
         }
       });
       for (const slot of lifted) commands.push({ type: 'hold', slot, down: false });
@@ -605,11 +611,7 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
       for (const view of views) {
         if (view.spec.kind === 'flask') {
           const flask: FlaskState | undefined = player.flasks[view.spec.slot];
-          const uses: number = flask === undefined ? 0 : flaskUses({ charges: flask.charges, chargesPerUse: flask.def.chargesPerUse });
-          if (view.count !== null && uses !== view.uses) {
-            paintUses(view.count, uses, view.uses >= 0);
-            view.uses = uses;
-          }
+          if (flask !== undefined) view.vessel?.paint(readFlask(flask));
           continue;
         }
         if (!view.spec.filled) continue;

@@ -1,7 +1,9 @@
 import raw from '../../data/hints.json' with { type: 'json' };
 import type { Fields } from './read.ts';
 import type { SkillUnlock } from './shape-types.ts';
-import { ContentError, each, fields, items, numeric, text, textList, flag, choice, nullableText } from './read.ts';
+import { ContentError, each, fields, items, numeric, text, textList, flag, choice } from './read.ts';
+import type { FlaskResource } from './flasks.ts';
+import { FLASK_RESOURCES } from './flasks.ts';
 import type { Content } from './types.ts';
 
 export const HINT_PANELS = ['inventory', 'tree', 'map'] as const;
@@ -22,7 +24,7 @@ export type HintTrigger =
   | { readonly type: 'skill_learned'; readonly skill: string }
   | { readonly type: 'slot_filled'; readonly slot: number }
   | { readonly type: 'gear_in_bag' }
-  | { readonly type: 'low_life'; readonly fraction: number; readonly carrying: string | null }
+  | { readonly type: 'low_life'; readonly fraction: number; readonly flask: FlaskResource | null }
   | { readonly type: 'player_dead' }
   | { readonly type: 'in_moment' }
   | { readonly type: 'chest_moment' };
@@ -36,7 +38,7 @@ export type HintDone =
   | { readonly type: 'picked_up' }
   | { readonly type: 'equipped' }
   | { readonly type: 'allocated' }
-  | { readonly type: 'life_above'; readonly fraction: number }
+  | { readonly type: 'drank'; readonly flask: FlaskResource | null }
   | { readonly type: 'alive' }
   | { readonly type: 'moment_over' };
 
@@ -100,7 +102,7 @@ function readTrigger(value: unknown, where: string): HintTrigger {
       trigger = { type, slot: numeric(source, 'slot', where) };
       break;
     case 'low_life':
-      trigger = { type, fraction: numeric(source, 'fraction', where), carrying: nullableText(source, 'carrying', where) };
+      trigger = { type, fraction: numeric(source, 'fraction', where), flask: source['flask'] === null ? null : choice(source, 'flask', FLASK_RESOURCES, where) };
       break;
   }
   return trigger;
@@ -115,7 +117,7 @@ function readSlots(value: unknown, where: string): number[] {
 
 function readDone(value: unknown, where: string): HintDone {
   const source: Fields = fields(value, where);
-  const type = choice(source, 'type', ['moved', 'talked', 'panel', 'zone_changed', 'skills_used', 'picked_up', 'equipped', 'allocated', 'life_above', 'alive', 'moment_over'] as const, where);
+  const type = choice(source, 'type', ['moved', 'talked', 'panel', 'zone_changed', 'skills_used', 'picked_up', 'equipped', 'allocated', 'drank', 'alive', 'moment_over'] as const, where);
   let done: HintDone;
   switch (type) {
     case 'talked':
@@ -136,8 +138,8 @@ function readDone(value: unknown, where: string): HintDone {
     case 'skills_used':
       done = { type, slots: readSlots(source['slots'], `${where}.slots`) };
       break;
-    case 'life_above':
-      done = { type, fraction: numeric(source, 'fraction', where) };
+    case 'drank':
+      done = { type, flask: source['flask'] === null ? null : choice(source, 'flask', FLASK_RESOURCES, where) };
       break;
   }
   return done;

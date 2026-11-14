@@ -1,12 +1,13 @@
 import type { HintDef, HintDone, HintPanel, HintsDef, HintTrigger } from './content/hints.ts';
-import { baseOf, slotOf } from './items.ts';
+import { slotOf } from './items.ts';
+import type { FlaskResource } from './content/flasks.ts';
 import { distance } from './math.ts';
 import type { Vec2 } from './math.ts';
 import { objectiveTarget } from './world/objective.ts';
 import { questState } from './world/conditions.ts';
 import type { ObjectiveTarget } from './world/objective.ts';
 import { insideAwakeMoment, insideChestMoment } from './world/moments.ts';
-import type { GroundItem, ItemInstance, MonsterState, World, WorldEvent } from './world/types.ts';
+import type { FlaskState, GroundItem, ItemInstance, MonsterState, World, WorldEvent } from './world/types.ts';
 
 export const HINTS = { maxShowSeconds: 14 } as const;
 
@@ -17,6 +18,7 @@ export interface HintState {
   talked: boolean;
   zoneChanged: boolean;
   pickedUp: boolean;
+  drank: Set<FlaskResource>;
   skillsUsed: Set<string>;
   allocatedBase: number;
   equippedUids: ReadonlySet<number>;
@@ -38,7 +40,7 @@ function wornUids(world: World): number[] {
 }
 
 export function createHintState(seen: Iterable<string>): HintState {
-  return { seen: new Set<string>(seen), active: null, anchor: { x: 0, z: 0 }, talked: false, zoneChanged: false, pickedUp: false, skillsUsed: new Set<string>(), allocatedBase: 0, equippedUids: new Set<number>(), started: false, visibleFor: 0, lastTime: 0 };
+  return { seen: new Set<string>(seen), active: null, anchor: { x: 0, z: 0 }, talked: false, zoneChanged: false, pickedUp: false, drank: new Set<FlaskResource>(), skillsUsed: new Set<string>(), allocatedBase: 0, equippedUids: new Set<number>(), started: false, visibleFor: 0, lastTime: 0 };
 }
 
 export function seedVeteran(defs: HintsDef, state: HintState, world: World): void {
@@ -56,8 +58,8 @@ function lifeFraction(world: World): number {
   return world.player.stats.maxLife > 0 ? world.player.life / world.player.stats.maxLife : 1;
 }
 
-function carries(world: World, slot: string | null): boolean {
-  return slot === null || world.player.inventory.some((item: ItemInstance | null): boolean => item !== null && baseOf(world.content, item)?.slot === slot);
+function canDrink(world: World, resource: FlaskResource | null): boolean {
+  return resource === null || world.player.flasks.some((flask: FlaskState): boolean => flask.def.resource === resource && flask.charges >= flask.def.chargesPerUse);
 }
 
 function gearInBag(world: World): boolean {
@@ -101,7 +103,7 @@ function triggered(trigger: HintTrigger, world: World, objective: ObjectiveTarge
       holds = gearInBag(world);
       break;
     case 'low_life':
-      holds = lifeFraction(world) <= trigger.fraction && carries(world, trigger.carrying);
+      holds = lifeFraction(world) <= trigger.fraction && canDrink(world, trigger.flask);
       break;
     case 'in_moment':
       holds = insideAwakeMoment(world) && !insideChestMoment(world);
@@ -146,8 +148,8 @@ function finished(done: HintDone, world: World, state: HintState, open: Readonly
     case 'allocated':
       complete = player.allocated.length > state.allocatedBase || player.skillPoints === 0;
       break;
-    case 'life_above':
-      complete = player.alive && lifeFraction(world) >= done.fraction;
+    case 'drank':
+      complete = done.flask === null ? state.drank.size > 0 : state.drank.has(done.flask);
       break;
     case 'alive':
       complete = player.alive;
@@ -164,6 +166,7 @@ function observe(state: HintState, world: World, events: readonly WorldEvent[]):
     if (event.type === 'dialogue_line') state.talked = true;
     else if (event.type === 'zone_changed') state.zoneChanged = true;
     else if (event.type === 'pickup') state.pickedUp = true;
+    else if (event.type === 'flask_used') state.drank.add(event.resource);
     else if (event.type === 'skill_start' && event.actorId === world.player.id) state.skillsUsed.add(event.skill.id);
   }
 }
@@ -174,6 +177,7 @@ function begin(state: HintState, world: World, hint: HintDef): void {
   state.talked = false;
   state.zoneChanged = false;
   state.pickedUp = false;
+  state.drank = new Set<FlaskResource>();
   state.skillsUsed = new Set<string>();
   state.allocatedBase = world.player.allocated.length;
   state.equippedUids = new Set<number>(wornUids(world));
