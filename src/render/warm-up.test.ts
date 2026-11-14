@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Camera, Object3D } from 'three';
-import { Mesh, PerspectiveCamera, Scene } from 'three';
+import { Group, Mesh, PerspectiveCamera, PointLight, Scene } from 'three';
 import type { Timers } from '../backend/backend.ts';
 import type { ShaderCompiler } from './warm-up.ts';
-import { warmUp, warmUpWithin } from './warm-up.ts';
+import { revealHidden, warmUp, warmUpWithin } from './warm-up.ts';
 
 interface Recorder extends ShaderCompiler {
   readonly seen: boolean[];
@@ -29,6 +29,7 @@ function recorder(standIn: Object3D): Recorder {
         finishers.push((): void => resolve(scene));
       });
     },
+    drawOnce(): void {},
   };
 }
 
@@ -90,6 +91,7 @@ void test('a compiler that throws at once still ends the warm-up and leaves the 
     compileAsync(_target: Object3D, _camera: Camera): Promise<Object3D> {
       throw new Error('no context');
     },
+    drawOnce(): void {},
   };
   await warmUp(throwing, scene, new PerspectiveCamera(), [standIn]);
   assert.equal(scene.children.length, 0);
@@ -118,4 +120,88 @@ void test('a warm-up that finishes in time cancels its wait', async (): Promise<
   compiler.finish();
   await done;
   assert.equal(clock.pending(), 0);
+});
+
+void test('hidden meshes are compiled, then drawn once without culling, and are hidden and culled again afterwards', async (): Promise<void> => {
+  const scene: Scene = new Scene();
+  const later: Group = new Group();
+  later.visible = false;
+  const piece: Mesh = new Mesh();
+  piece.visible = false;
+  later.add(piece);
+  scene.add(later);
+  const compiledShown: boolean[] = [];
+  const drawnShown: boolean[] = [];
+  const seenBy = (target: Object3D, into: boolean[]): void => {
+    let shown: boolean = false;
+    target.traverseVisible((object: Object3D): void => {
+      if (object === piece && !object.frustumCulled) shown = true;
+    });
+    into.push(shown);
+  };
+  const compiler: ShaderCompiler = {
+    compileAsync(target: Object3D): Promise<Object3D> {
+      let shown: boolean = false;
+      target.traverseVisible((object: Object3D): void => {
+        if (object === piece) shown = true;
+      });
+      compiledShown.push(shown);
+      return Promise.resolve(target);
+    },
+    drawOnce(target: Object3D): void {
+      seenBy(target, drawnShown);
+    },
+  };
+  await warmUp(compiler, scene, new PerspectiveCamera(), []);
+  assert.deepEqual(compiledShown, [true]);
+  assert.deepEqual(drawnShown, [true]);
+  assert.equal(later.visible, false);
+  assert.equal(piece.visible, false);
+  assert.equal(piece.frustumCulled, true);
+});
+
+void test('revealing hidden things for a warm-up never adds a light the frame would not have', (): void => {
+  const scene: Scene = new Scene();
+  const lit: PointLight = new PointLight();
+  const off: PointLight = new PointLight();
+  off.visible = false;
+  const hiddenGroup: Group = new Group();
+  hiddenGroup.visible = false;
+  const tucked: PointLight = new PointLight();
+  hiddenGroup.add(tucked);
+  scene.add(lit, off, hiddenGroup);
+  const restore: () => void = revealHidden(scene);
+  const lights: Object3D[] = [];
+  scene.traverseVisible((object: Object3D): void => {
+    if (object instanceof PointLight) lights.push(object);
+  });
+  assert.deepEqual(lights, [lit]);
+  assert.equal(hiddenGroup.visible, true);
+  restore();
+  assert.equal(lit.visible, true);
+  assert.equal(off.visible, false);
+  assert.equal(hiddenGroup.visible, false);
+  assert.equal(tucked.visible, true);
+});
+
+void test('a warm-up told of things still loading warms again once they are in', async (): Promise<void> => {
+  const scene: Scene = new Scene();
+  const compiled: number[] = [];
+  const compiler: ShaderCompiler = {
+    compileAsync(target: Object3D): Promise<Object3D> {
+      compiled.push(target.children.length);
+      return Promise.resolve(target);
+    },
+    drawOnce(): void {},
+  };
+  const arrivals: (() => void)[] = [];
+  const loading: Promise<void> = new Promise<void>((resolve: () => void): void => {
+    arrivals.push(resolve);
+  });
+  await warmUp(compiler, scene, new PerspectiveCamera(), [], loading);
+  assert.equal(compiled.length, 1);
+  scene.add(new Mesh());
+  for (const arrive of arrivals) arrive();
+  await settle();
+  assert.equal(compiled.length, 2);
 });

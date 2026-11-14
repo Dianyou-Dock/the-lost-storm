@@ -139,6 +139,7 @@ export interface VoidGlimpses {
   readonly group: Group;
   readonly uniforms: GlimpseUniforms;
   readonly count: number;
+  readonly ready: Promise<void>;
   show(which: number): void;
   dispose(): void;
 }
@@ -205,19 +206,19 @@ export function createVoidGlimpses(loader: GLTFLoader, content: Content, glimpse
     colour.renderOrder = VOID_GLIMPSE.colourOrder;
     return [depth, colour];
   };
-  glimpses.forEach((glimpse: VoidGlimpse, index: number): void => {
+  const loading: Promise<void>[] = glimpses.flatMap((glimpse: VoidGlimpse, index: number): Promise<void>[] => {
     const set: Group | undefined = sets[index];
-    if (set === undefined) return;
-    for (const piece of glimpse.pieces) {
+    if (set === undefined) return [];
+    return glimpse.pieces.flatMap((piece: GlimpsePiece): Promise<void>[] => {
       const def: PropDef | undefined = content.props.get(piece.prop);
-      if (def === undefined) continue;
-      void showPiece(loader, def, piece, set, build(def));
-    }
+      return def === undefined ? [] : [showPiece(loader, def, piece, set, build(def))];
+    });
   });
   return {
     group,
     uniforms,
     count: sets.length,
+    ready: Promise.all(loading).then((): void => undefined),
     show(which: number): void {
       sets.forEach((set: Group, index: number): void => {
         set.visible = index === which;

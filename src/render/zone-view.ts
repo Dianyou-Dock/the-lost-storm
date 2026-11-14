@@ -86,6 +86,7 @@ export interface ZoneView {
   readonly group: Group;
   readonly torches: readonly Vector3[];
   readonly lightsVersion: number;
+  readonly ready: Promise<void>;
   setLightBudget(count: number): void;
   update(time: number, dt: number, world: World, focus: ViewFocus): void;
   dispose(): void;
@@ -161,6 +162,7 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
       group: empty.group,
       torches: empty.torches,
       lightsVersion: empty.lightsVersion,
+      ready: Promise.all([empty.ready, rocks.ready]).then((): void => undefined),
       setLightBudget(count: number): void {
         empty.setLightBudget(count);
       },
@@ -340,6 +342,7 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
   return {
     zone,
     group,
+    ready: Promise.resolve(),
     setLightBudget(count: number): void {
       activeLights = Math.min(pool.length, Math.max(0, count));
     },

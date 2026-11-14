@@ -1,5 +1,5 @@
-import type { Vector4 } from 'three';
-import { Fog, Vector2, Vector3 } from 'three';
+import type { Object3D, Vector4 } from 'three';
+import { Fog, Mesh, PlaneGeometry, Vector2, Vector3 } from 'three';
 import type { ZoneWeather } from '../../sim/content/road-types.ts';
 import type { Quality, QualityTier } from '../mobile/quality.ts';
 import type { Settings } from '../settings/settings.ts';
@@ -31,6 +31,7 @@ export interface LensSettings {
 export interface Rainfall {
   setWeather(weather: ZoneWeather): void;
   update(dt: number, focusX: number, focusZ: number, flash: number, lights: LightSources): void;
+  standIns(): readonly Object3D[];
 }
 
 export interface RainEdges {
@@ -57,6 +58,7 @@ export function createRainfall(stage: Stage, quality: Quality, settings: LensSet
   let rain: Rain = createRain(stage.scene, tier.rain, shared, random);
   let ground: RainGround = createRainGround(stage.scene, tier.rain, shared, rain.mid, rain.midSeeds, random);
   const lensPass: LensPass = createLensPass();
+  const lensStandIn: Mesh = new Mesh(new PlaneGeometry(), lensPass.pass.material);
   const lens: LensState = createLensState();
   const edges: RainEdges = { flash: 0, gust: 0 };
   const view: { eye: Vector3; forward: Vector3; focusX: number; focusZ: number } = { eye: new Vector3(), forward: new Vector3(), focusX: 0, focusZ: 0 };
@@ -76,7 +78,7 @@ export function createRainfall(stage: Stage, quality: Quality, settings: LensSet
   const density = (): number => weather?.rain ?? 0;
 
   const refreshLens = (): void => {
-    const wanted: boolean = lensActive({ tier: tier.rain.lens, setting: lensSetting, reducedMotion, rain: density() });
+    const wanted: boolean = lensActive({ tier: tier.rain.lens, setting: lensSetting, reducedMotion });
     if (wanted === lensOn) return;
     lensOn = wanted;
     if (!wanted) clearLens(lens);
@@ -136,33 +138,37 @@ export function createRainfall(stage: Stage, quality: Quality, settings: LensSet
     update(dt: number, focusX: number, focusZ: number, flash: number, lights: LightSources): void {
       time += dt;
       const strength: number = density();
-      if (strength <= 0) return;
-      shared.uTime.value = time;
-      windAt(time, shared.uWind.value);
-      shared.uFlash.value = Math.min(1, Math.max(0, flash));
-      const fog: unknown = stage.scene.fog;
-      if (fog instanceof Fog) {
-        shared.fogNear.value = fog.near;
-        shared.fogFar.value = fog.far;
-        shared.fogColor.value.copy(fog.color);
+      if (strength > 0) {
+        shared.uTime.value = time;
+        windAt(time, shared.uWind.value);
+        shared.uFlash.value = Math.min(1, Math.max(0, flash));
+        const fog: unknown = stage.scene.fog;
+        if (fog instanceof Fog) {
+          shared.fogNear.value = fog.near;
+          shared.fogFar.value = fog.far;
+          shared.fogColor.value.copy(fog.color);
+        }
+        stage.renderer.getDrawingBufferSize(shared.uResolution.value);
+        stage.camera.getWorldPosition(view.eye);
+        stage.camera.getWorldDirection(view.forward);
+        view.focusX = focusX;
+        view.focusZ = focusZ;
+        rain.update(view);
+        ground.update(focusX, focusZ);
+        shared.uHero.value.set(focusX, RAIN.heroHeight, focusZ);
+        refreshTorches(lights, focusX, focusZ);
+        flicker();
       }
-      stage.renderer.getDrawingBufferSize(shared.uResolution.value);
-      stage.camera.getWorldPosition(view.eye);
-      stage.camera.getWorldDirection(view.forward);
-      view.focusX = focusX;
-      view.focusZ = focusZ;
-      rain.update(view);
-      ground.update(focusX, focusZ);
-      shared.uHero.value.set(focusX, RAIN.heroHeight, focusZ);
-      refreshTorches(lights, focusX, focusZ);
-      flicker();
-      const kick: number = rainKicks(edges, flash, gust(time));
-      if (!lensOn) return;
+      const kick: number = strength > 0 ? rainKicks(edges, flash, gust(time)) : 0;
+      if (!lensOn || (strength <= 0 && !lensPass.pass.enabled)) return;
       if (kick > 0) kickLens(lens, kick);
       stepLens(lens, dt, strength, random);
       stage.renderer.getSize(size);
       lensPass.update(lens, size.y > 0 ? size.x / size.y : 1, flash);
       lensPass.pass.enabled = anyLensDrop(lens);
+    },
+    standIns(): readonly Object3D[] {
+      return [lensStandIn];
     },
   };
 }

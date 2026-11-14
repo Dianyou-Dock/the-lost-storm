@@ -16,13 +16,21 @@ function alive(state: LensState): LensDrop[] {
   return state.drops.filter((drop: LensDrop): boolean => drop.alive);
 }
 
-void test('the lens is wet only in rain, on a tier that allows it, with the setting on and motion allowed', (): void => {
-  const on = { tier: true, setting: true, reducedMotion: false, rain: 0.8 };
+void test('the lens pass is kept only on a tier that allows it, with the setting on and motion allowed', (): void => {
+  const on = { tier: true, setting: true, reducedMotion: false };
   assert.equal(lensActive(on), true);
   assert.equal(lensActive({ ...on, tier: false }), false);
   assert.equal(lensActive({ ...on, setting: false }), false);
   assert.equal(lensActive({ ...on, reducedMotion: true }), false);
-  assert.equal(lensActive({ ...on, rain: 0 }), false);
+});
+
+void test('drops already on the lens run off and fade once the rain stops', (): void => {
+  const lens: LensState = createLensState();
+  for (let frame: number = 0; frame < 3600 && !anyLensDrop(lens); frame += 1) stepLens(lens, 1 / 60, 1, sequence([0.3, 0.7, 0.5, 0.9, 0.1, 0.6]));
+  assert.equal(anyLensDrop(lens), true);
+  const longest: number = LENS.maxLife;
+  for (let frame: number = 0; frame < Math.ceil(longest * 60) + 1; frame += 1) stepLens(lens, 1 / 60, 0, Math.random);
+  assert.equal(anyLensDrop(lens), false);
 });
 
 void test('drops gather rarely in steady rain and never without rain', (): void => {

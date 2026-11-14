@@ -53,11 +53,10 @@ export interface LensWanted {
   readonly tier: boolean;
   readonly setting: boolean;
   readonly reducedMotion: boolean;
-  readonly rain: number;
 }
 
 export function lensActive(wanted: LensWanted): boolean {
-  return wanted.tier && wanted.setting && !wanted.reducedMotion && wanted.rain > 0;
+  return wanted.tier && wanted.setting && !wanted.reducedMotion;
 }
 
 export function createLensState(): LensState {

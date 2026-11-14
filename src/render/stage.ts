@@ -108,6 +108,7 @@ export interface Stage {
   render(): void;
   applyQuality(tier: QualityTier): void;
   compileAsync(target: Object3D, viewer: Camera): Promise<Object3D>;
+  drawOnce(target: Object3D, viewer: Camera): void;
   setFinish(pass: Pass | null): void;
   setSeam(pass: Pass | null): void;
 }
@@ -175,6 +176,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
   const hero: PointLight = new PointLight(STAGE.heroColor, STAGE.heroIntensity, STAGE.heroDistance, 1.6);
   scene.add(hero);
 
+  const primer: WebGLRenderTarget = new WebGLRenderTarget(1, 1, { type: HalfFloatType });
   let composer: EffectComposer | null = null;
   let finish: Pass | null = null;
   let builtBloom: boolean = false;
@@ -318,6 +320,15 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
       renderer.setRenderTarget(composer === null ? null : composer.readBuffer);
       try {
         return renderer.compileAsync(target, viewer, scene);
+      } finally {
+        renderer.setRenderTarget(previous);
+      }
+    },
+    drawOnce(target: Object3D, viewer: Camera): void {
+      const previous: WebGLRenderTarget | null = renderer.getRenderTarget();
+      renderer.setRenderTarget(primer);
+      try {
+        renderer.render(target, viewer);
       } finally {
         renderer.setRenderTarget(previous);
       }

@@ -152,6 +152,7 @@ const RADIANS: number = Math.PI / 180;
 
 export interface ShoreProps {
   readonly group: Group;
+  readonly ready: Promise<void>;
   follow(world: World): void;
   dispose(): void;
 }
@@ -219,7 +220,7 @@ export function createShoreProps(loader: GLTFLoader, content: Content, rules: Vo
   const strewn: Placed[] = (path === null ? [] : pathStones(path)).map((stone: PathStone): Placed => ({ placed: { prop: stone.prop, x: stone.x, z: stone.z, rotationDegrees: stone.rotationDegrees }, scale: stone.scale }));
   for (const item of [...(rules?.props ?? []).map((placed: ShoreProp): Placed => ({ placed, scale: 1 })), ...strewn]) byProp.set(item.placed.prop, [...(byProp.get(item.placed.prop) ?? []), item]);
   let shown: boolean = false;
-  void Promise.all(
+  const ready: Promise<void> = Promise.all(
     [...byProp].map(async ([propId, list]: [string, Placed[]]): Promise<void> => {
       const def: PropDef | undefined = content.props.get(propId);
       if (def === undefined) return;
@@ -231,9 +232,10 @@ export function createShoreProps(loader: GLTFLoader, content: Content, rules: Vo
       }
       if (shown) setOccluders(occluders);
     }),
-  );
+  ).then((): void => undefined);
   return {
     group,
+    ready,
     follow(world: World): void {
       const shore: ShoreState | null = world.shore;
       if (shown !== (shore !== null)) setOccluders(shore === null ? [] : occluders);
