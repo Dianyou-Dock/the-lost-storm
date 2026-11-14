@@ -1,5 +1,5 @@
 import type { ShoreProp, ShoreRoom, VoidShore } from '../content/story-types.ts';
-import type { Vec2 } from '../math.ts';
+import type { ReadonlyVec2, Vec2 } from '../math.ts';
 import type { PropDef } from '../content/types.ts';
 import type { Blocker } from '../nav/grid.ts';
 import { liftStamp, propBlockers, stampBlockers } from '../nav/grid.ts';
@@ -18,13 +18,19 @@ export function shorePlacements(world: World): ShoreProp[] {
     x: shore.at.x + shore.facing.z * placed.x + shore.facing.x * placed.z,
     z: shore.at.z - shore.facing.x * placed.x + shore.facing.z * placed.z,
     rotationDegrees: placed.rotationDegrees + turn,
+    scale: placed.scale,
   }));
+}
+
+export function scaledProp(def: PropDef, scale: number): PropDef {
+  if (scale === 1) return def;
+  return { ...def, scale: def.scale * scale, height: def.height * scale, blockRadius: def.blockRadius * scale, blockLength: def.blockLength * scale, footprints: def.footprints.map((outline: readonly ReadonlyVec2[]): ReadonlyVec2[] => outline.map((point: ReadonlyVec2): ReadonlyVec2 => ({ x: point.x * scale, z: point.z * scale }))) };
 }
 
 export function shoreBlockers(world: World): Blocker[] {
   return shorePlacements(world).flatMap((placed: ShoreProp): Blocker[] => {
     const def: PropDef | undefined = world.content.props.get(placed.prop);
-    return def === undefined ? [] : propBlockers(def, placed.x, placed.z, placed.rotationDegrees);
+    return def === undefined ? [] : propBlockers(scaledProp(def, placed.scale), placed.x, placed.z, placed.rotationDegrees);
   });
 }
 
@@ -52,4 +58,15 @@ export function insideRoom(world: World, point: Vec2): Vec2 {
   const x: number = Math.min(room.half - room.margin, Math.max(room.margin - room.half, across));
   const z: number = Math.min(room.depth - room.margin, Math.max(room.margin, ashore));
   return { x: shore.at.x + shore.facing.z * x + shore.facing.x * z, z: shore.at.z - shore.facing.x * x + shore.facing.z * z };
+}
+
+export function beyondRoom(world: World, point: Vec2): boolean {
+  const shore: ShoreState | null = world.shore;
+  const room: ShoreRoom | null = world.zone.void?.shore?.room ?? null;
+  if (shore === null || room === null) return false;
+  const dx: number = point.x - shore.at.x;
+  const dz: number = point.z - shore.at.z;
+  const across: number = dx * shore.facing.z - dz * shore.facing.x;
+  const ashore: number = dx * shore.facing.x + dz * shore.facing.z;
+  return Math.abs(across) > room.half || ashore > room.depth;
 }

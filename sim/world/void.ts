@@ -34,7 +34,7 @@ export function shiftWorld(world: World, by: Vec2): void {
   }
   for (const state of world.encounters) if (state.pos !== null) state.pos = moved(state.pos, by);
   lowerShore(world);
-  if (world.shore !== null) world.shore = { at: moved(world.shore.at, by), facing: world.shore.facing };
+  if (world.shore !== null) world.shore = { at: moved(world.shore.at, by), facing: world.shore.facing, returned: world.shore.returned };
   for (const exit of world.zone.exits) moveExit(world, exit.id, moved(exit, by));
   shiftMoments(world, by);
   shiftExplored(world, by);
@@ -47,7 +47,7 @@ function placeShore(world: World, rules: ZoneVoid): void {
   const shore: VoidShore | null = rules.shore;
   if (shore === null || world.shore !== null || world.wake !== null || !allHold(world, shore.when)) return;
   const facing: Vec2 = { x: world.heading.x, z: world.heading.z };
-  world.shore = { at: { x: world.player.pos.x + facing.x * shore.ahead, z: world.player.pos.z + facing.z * shore.ahead }, facing };
+  world.shore = { at: { x: world.player.pos.x + facing.x * shore.ahead, z: world.player.pos.z + facing.z * shore.ahead }, facing, returned: false };
 }
 
 function steer(world: World, rules: ZoneVoid, dt: number): number {

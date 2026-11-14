@@ -37,7 +37,13 @@ export interface ZoneEncounter {
   readonly ahead: number;
   readonly latest: number | null;
   readonly nearing: number | null;
+  readonly shoreAt: ShorePoint | null;
   readonly find: EncounterFind;
+}
+
+export interface ShorePoint {
+  readonly x: number;
+  readonly z: number;
 }
 
 export interface VoidWander {
@@ -50,6 +56,16 @@ export interface ShoreProp {
   readonly prop: string;
   readonly x: number;
   readonly z: number;
+  readonly rotationDegrees: number;
+  readonly scale: number;
+}
+
+export interface ShorePool {
+  readonly surface: string;
+  readonly x: number;
+  readonly z: number;
+  readonly width: number;
+  readonly length: number;
   readonly rotationDegrees: number;
 }
 
@@ -86,6 +102,7 @@ export interface VoidShore {
   readonly surface: string | null;
   readonly ambience: ZoneAmbience;
   readonly props: readonly ShoreProp[];
+  readonly pools: readonly ShorePool[];
   readonly path: ShorePath | null;
   readonly room: ShoreRoom | null;
   readonly rain: number;

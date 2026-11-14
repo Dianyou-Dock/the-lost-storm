@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { BufferAttribute, InterleavedBufferAttribute } from 'three';
-import { pathAlpha, pathGeometry, pathStones, pathWidth, SHORE_PATH } from './shore-props.ts';
+import { loadContent } from '../../sim/content/content.ts';
+import type { PropDef } from '../../sim/content/prop-types.ts';
+import { isClutter, pathAlpha, pathGeometry, pathStones, pathWidth, SHORE_PATH, SHORE_PHONE } from './shore-props.ts';
 
 void test('the worn path is solid down its middle, fades to nothing at its sides and both ends', (): void => {
   assert.equal(pathAlpha(0, 20, 58), 0);
@@ -40,4 +42,21 @@ void test('loose stones lie along both edges of the worn path, never down its mi
     assert.ok(Math.abs(stone.x - centre) > (pathWidth(path, along) * SHORE_PATH.edge) / 2 - 0.2);
   }
   assert.deepEqual(pathStones({ ...path, rubble: [] }), []);
+});
+
+void test('a phone leaves out only the low ground clutter of the shore that blocks nothing, and keeps every tall shape', (): void => {
+  const content = loadContent();
+  const used: readonly PropDef[] = [...new Set<string>([...content.zones.values()].flatMap((zone): readonly string[] => (zone.void?.shore?.props ?? []).map((placed): string => placed.prop)))].flatMap((id: string): readonly PropDef[] => {
+    const def: PropDef | undefined = content.props.get(id);
+    return def === undefined ? [] : [def];
+  });
+  const left: readonly PropDef[] = used.filter(isClutter);
+  assert.ok(left.length > 0);
+  assert.ok(left.length < used.length / 2);
+  for (const def of left) {
+    assert.deepEqual(def.footprints, [], def.id);
+    assert.equal(def.blockRadius, 0, def.id);
+    assert.ok(def.height < SHORE_PHONE.clutterBelow, def.id);
+  }
+  assert.ok(used.filter((def: PropDef): boolean => def.height > SHORE_PHONE.clutterBelow * 3).every((def: PropDef): boolean => !isClutter(def)));
 });

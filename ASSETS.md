@@ -418,6 +418,29 @@ Ground and rock textures from polyhaven.com, all CC0, made like the surface text
 | `public/textures/dark_cobble_color.webp`, `public/textures/dark_cobble_normal.webp`, `public/textures/dark_cobble_orm.webp`, `public/textures/half/dark_cobble_color.webp`, `public/textures/half/dark_cobble_normal.webp`, `public/textures/half/dark_cobble_orm.webp` | "Rock Wall 08" (`rock_wall_08`) | Amal Kumar | CC0 1.0 |
 | `public/textures/old_tiles_color.webp`, `public/textures/old_tiles_normal.webp`, `public/textures/old_tiles_orm.webp`, `public/textures/half/old_tiles_color.webp`, `public/textures/half/old_tiles_normal.webp`, `public/textures/half/old_tiles_orm.webp` | "Mixed Stone Tiles" (`mixed_stone_tiles`) | Dimitrios Savva | CC0 1.0 |
 
+## Shore dressing
+
+Standing stones, arches, spires and steps for the opening area, in `public/models/shore/`. Every file is one `.glb` standing on its origin: the middle of its footprint at x and z and its lowest point at y = 0, scaled to the size it should have in the world, without animations, skins, cameras or lights. Each went through the same steps as the cave dressing: the model was taken from the source below, the wanted object was kept and its parents' transforms were baked in, it was turned upright where noted, scaled to its size (the paving slabs flattened to 0.14 m), reduced to the triangle count in the manifest, and its textures reduced to at most 1024 pixels (512 for the models from Poly Pizza) and written as WebP; `tools/compress-models.ts` compressed it. The scans from Poly Haven went through `blender/import_polyhaven.py`'s steps (weld, decimate to 2400 triangles, ARM maps rewired). On the Poly Pizza models `rock_spire_tall` has its snow material coloured as the rock, and `rock_pillar_faceted` has its palette texture replaced by a flat dark grey colour; materials were made non-metallic where they are not metal.
+
+### Scans from Poly Haven
+
+| File | Poly Haven asset | Authors | Licence |
+|---|---|---|---|
+| `public/models/shore/standing_stone_slender.glb` | "Namaqualand Boulder 06" (`namaqualand_boulder_06`, https://polyhaven.com/a/namaqualand_boulder_06), stood on end | Greg Zaal, Jenelle van Heerden | CC0 1.0 |
+| `public/models/shore/standing_stone_broad.glb` | "Namaqualand Boulder 03" (`namaqualand_boulder_03`, https://polyhaven.com/a/namaqualand_boulder_03), stood on end | Dario Barresi, Jenelle van Heerden | CC0 1.0 |
+
+### Models by Quaternius from Poly Pizza
+
+Poly Pizza (https://poly.pizza) lists each model below with the licence "Public Domain (CC0)" and Quaternius as the author, read on 2026-11-15; the page of the model is the link in the row. The licence text and the file list are in [licenses/Poly-Pizza-Quaternius-CC0.txt](licenses/Poly-Pizza-Quaternius-CC0.txt).
+
+| File | Poly Pizza model | Author | Licence | Changes |
+|---|---|---|---|---|
+| `public/models/shore/arch_ruined_broken.glb` | "Modular Ruins Pack" (https://poly.pizza/m/F2LAK03B0r), object `Wall_ArchRound_Broken` | Quaternius | CC0 1.0 | Single object kept, scaled to 6 m wide |
+| `public/models/shore/statue_stag_plinth.glb` | "Modular Ruins Pack" (https://poly.pizza/m/F2LAK03B0r), object `Statue_Stag` | Quaternius | CC0 1.0 | Single object kept, scaled to 4.6 m tall |
+| `public/models/shore/stone_steps.glb` | "Modular Ruins Pack" (https://poly.pizza/m/F2LAK03B0r), object `Stairs_2` | Quaternius | CC0 1.0 | Single object kept, scaled to 3 m wide |
+| `public/models/shore/rock_spire_tall.glb` | "Mountain" (https://poly.pizza/m/XY4ej3Zg3I) | Quaternius | CC0 1.0 | Scaled to 9 m tall, snow material coloured as rock |
+| `public/models/shore/rock_pillar_faceted.glb` | "Rock Large" (https://poly.pizza/m/d2VWOdthtR) | Quaternius | CC0 1.0 | Scaled to 9.5 m tall and 4.6 m wide, palette texture replaced by a flat dark grey colour |
+
 ## Fonts
 
 The font files are not committed. They come from npm packages that Vite bundles into the build, so the page makes no request to a font host.

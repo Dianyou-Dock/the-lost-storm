@@ -8,7 +8,8 @@ import { allHold } from './conditions.ts';
 import { equipFromInventory } from './character.ts';
 import { moveExit } from './exits.ts';
 import { isWalkable, nearestWalkable } from '../nav/grid.ts';
-import { insideRoom } from './shore-props.ts';
+import { beyondRoom, insideRoom } from './shore-props.ts';
+import { fromShore } from './shore.ts';
 import { removeGround } from './ground.ts';
 import { setFlags } from './story.ts';
 import type { EncounterState, GroundItem, ItemInstance, World, WorldEvent } from './types.ts';
@@ -16,6 +17,7 @@ import type { EncounterState, GroundItem, ItemInstance, World, WorldEvent } from
 const DEGREES: number = Math.PI / 180;
 
 const ENCOUNTER = {
+  settled: 0.01,
   closeShare: 0.5,
   clearReach: 8,
 } as const;
@@ -41,9 +43,20 @@ function layItem(world: World, met: ZoneEncounter, state: EncounterState, base: 
   state.groundId = ground.id;
 }
 
+function standing(world: World, aim: Vec2): Vec2 {
+  return isWalkable(world.grid, aim.x, aim.z) ? aim : (nearestWalkable(world.grid, aim, ENCOUNTER.clearReach) ?? aim);
+}
+
+function shoreSpot(world: World, met: ZoneEncounter): Vec2 | null {
+  if (met.shoreAt === null || world.shore === null || world.shore.returned || beyondRoom(world, world.player.pos)) return null;
+  return standing(world, fromShore(world.shore, met.shoreAt));
+}
+
 function place(world: World, met: ZoneEncounter, state: EncounterState, ahead: number): Vec2 {
-  const aim: Vec2 = insideRoom(world, { x: world.player.pos.x + world.heading.x * ahead, z: world.player.pos.z + world.heading.z * ahead });
-  const pos: Vec2 = isWalkable(world.grid, aim.x, aim.z) ? aim : (nearestWalkable(world.grid, aim, ENCOUNTER.clearReach) ?? aim);
+  return placeAt(world, met, state, standing(world, insideRoom(world, { x: world.player.pos.x + world.heading.x * ahead, z: world.player.pos.z + world.heading.z * ahead })));
+}
+
+function placeAt(world: World, met: ZoneEncounter, state: EncounterState, pos: Vec2): Vec2 {
   state.pos = pos;
   state.off = 0;
   switch (met.find.type) {
@@ -84,6 +97,8 @@ function stepOne(world: World, rules: ZoneVoid, met: ZoneEncounter, travelled: n
   if (existing === undefined) world.encounters.push(state);
   state.walked += travelled;
   if (travelled > 0) state.moving += dt;
+  if (met.shoreAt !== null && world.shore === null && rules.shore !== null) return;
+  const spot: Vec2 | null = shoreSpot(world, met);
   const late: boolean = met.latest !== null && state.moving >= met.latest;
   if (state.pos === null) {
     if (!state.neared && met.nearing !== null && state.walked >= met.after * met.nearing) {
@@ -92,11 +107,15 @@ function stepOne(world: World, rules: ZoneVoid, met: ZoneEncounter, travelled: n
     }
     const ahead: number | null = late ? 0 : state.walked >= met.after ? met.ahead : null;
     if (ahead === null) return;
-    const laid: Vec2 = place(world, met, state, ahead);
+    const laid: Vec2 = spot === null ? place(world, met, state, ahead) : placeAt(world, met, state, spot);
     world.events.push({ type: 'encounter_shown', encounter: met.id, pos: { x: laid.x, z: laid.z } });
     return;
   }
   if (met.find.type === 'item' && groundOf(world, state) === null) return;
+  if (spot !== null) {
+    if (distance(state.pos, spot) > ENCOUNTER.settled) placeAt(world, met, state, spot);
+    return;
+  }
   if (late) {
     if (distance(state.pos, world.player.pos) > 0) place(world, met, state, 0);
     return;

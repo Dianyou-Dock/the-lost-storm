@@ -1,8 +1,8 @@
 import type { Fields } from './read.ts';
-import { byId, choice, ContentError, each, fields, flag, nonNegative, positive, text, textList } from './read.ts';
+import { byId, choice, ContentError, each, fields, flag, nonNegative, numeric, positive, text, textList } from './read.ts';
 import { conditions } from './parse-conditions.ts';
 import { FIND_MARKERS } from './story-types.ts';
-import type { BookDef, EncounterFind, PageDef, StoryFlags, ZoneEncounter } from './story-types.ts';
+import type { BookDef, EncounterFind, PageDef, ShorePoint, StoryFlags, ZoneEncounter } from './story-types.ts';
 
 export function storyFlags(value: unknown, where: string): StoryFlags {
   if (value === undefined) return {};
@@ -19,6 +19,12 @@ function find(value: unknown, where: string): EncounterFind {
   return { type, item: text(source, 'item', where), marker: source['marker'] === undefined ? 'none' : choice(source, 'marker', FIND_MARKERS, where), sets: storyFlags(source['sets'], `${where}.sets`), equip: source['equip'] === undefined ? false : flag(source, 'equip', where) };
 }
 
+function shorePoint(value: unknown, where: string): ShorePoint | null {
+  if (value === undefined) return null;
+  const source: Fields = fields(value, where);
+  return { x: numeric(source, 'x', where), z: numeric(source, 'z', where) };
+}
+
 export function encounter(value: unknown, where: string): ZoneEncounter {
   const source: Fields = fields(value, where);
   const found: ZoneEncounter['find'] = find(source['find'], `${where}.find`);
@@ -33,6 +39,7 @@ export function encounter(value: unknown, where: string): ZoneEncounter {
     ahead: positive(source, 'ahead', where),
     latest,
     nearing,
+    shoreAt: shorePoint(source['shoreAt'], `${where}.shoreAt`),
     find: found,
   };
 }

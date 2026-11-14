@@ -28,7 +28,7 @@ function returnToShore(world: World, rules: ZoneVoid): void {
   if (shore === null || !allHold(world, shore.when)) return;
   const back: Vec2 = { x: -world.heading.x, z: -world.heading.z };
   const inland: number = shore.thin + RETURN.inland;
-  world.shore = { at: { x: world.player.pos.x - back.x * inland, z: world.player.pos.z - back.z * inland }, facing: back };
+  world.shore = { at: { x: world.player.pos.x - back.x * inland, z: world.player.pos.z - back.z * inland }, facing: back, returned: true };
   for (const met of rules.encounters) exitBehind(world, met, back);
 }
 

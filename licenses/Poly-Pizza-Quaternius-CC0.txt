@@ -37,6 +37,11 @@ public/models/cave/debris_pile.glb  <-  https://poly.pizza/m/WrIiMMxyEP  ("Debri
 public/models/cave/mushrooms_grey.glb  <-  https://poly.pizza/m/aOW08oSrd4  ("Mushroom")
 public/models/cave/mushroom_shelf.glb  <-  https://poly.pizza/m/mxDOl0n6zt  ("Mushroom Laetiporus")
 public/models/cave/mushroom_red.glb  <-  https://poly.pizza/m/db1tjMhmiA  ("Mushroom")
+public/models/shore/arch_ruined_broken.glb  <-  https://poly.pizza/m/F2LAK03B0r  ("Modular Ruins Pack", object Wall_ArchRound_Broken)
+public/models/shore/statue_stag_plinth.glb  <-  https://poly.pizza/m/F2LAK03B0r  ("Modular Ruins Pack", object Statue_Stag)
+public/models/shore/stone_steps.glb  <-  https://poly.pizza/m/F2LAK03B0r  ("Modular Ruins Pack", object Stairs_2)
+public/models/shore/rock_spire_tall.glb  <-  https://poly.pizza/m/XY4ej3Zg3I  ("Mountain")
+public/models/shore/rock_pillar_faceted.glb  <-  https://poly.pizza/m/d2VWOdthtR  ("Rock Large")
 
 ----
 

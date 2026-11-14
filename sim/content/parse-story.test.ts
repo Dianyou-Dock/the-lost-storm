@@ -11,6 +11,12 @@ void test('an item find cannot be laid under the hero after a while, because onl
   assert.equal(encounter({ id: 'light', when: [], after: 10, ahead: 16, latest: 60, find: { type: 'exit', exit: 'into_the_hall' } }, 'light').latest, 60);
 });
 
+void test('a find may stand at a fixed point on the shore, given across and ahead of where the shore begins', (): void => {
+  assert.deepEqual(encounter({ id: 'light', when: [], after: 0, ahead: 40, shoreAt: { x: -0.5, z: 55 }, find: { type: 'exit', exit: 'into_the_hall' } }, 'light').shoreAt, { x: -0.5, z: 55 });
+  assert.equal(encounter({ id: 'light', when: [], after: 0, ahead: 40, find: { type: 'exit', exit: 'into_the_hall' } }, 'light').shoreAt, null);
+  assert.throws((): unknown => encounter({ id: 'light', when: [], after: 0, ahead: 40, shoreAt: { x: 'far' }, find: { type: 'exit', exit: 'into_the_hall' } }, 'light'), (error: unknown): boolean => error instanceof ContentError && error.message.includes('shoreAt'));
+});
+
 void test('a page may name the line that speaks it, and a page that names none is silent', (): void => {
   const page = { id: 'first', lines: ['Look.'], address: 'For {name}.', unnamed: 'For you.', when: [] } as const;
   const read = books([{ id: 'diary', title: 'A diary', pages: [{ ...page, voice: 'diary_look' }, { ...page, id: 'second' }] }], 'books');

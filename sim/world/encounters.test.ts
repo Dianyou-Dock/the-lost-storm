@@ -8,10 +8,10 @@ import type { Vec2 } from '../math.ts';
 import { distance } from '../math.ts';
 import { questState } from './conditions.ts';
 import { createWorld } from './create.ts';
-import { shoreDepth } from './shore.ts';
+import { fromShore, shoreDepth } from './shore.ts';
 import { hudHidden } from './hud.ts';
 import { stepWorld } from './step.ts';
-import { wakeLength } from './wake.ts';
+import { beginVoid, wakeLength } from './wake.ts';
 import type { Command, EncounterState, GroundItem, ItemInstance, World } from './types.ts';
 
 const content: Content = loadContent();
@@ -155,6 +155,13 @@ void test('reading needs the book in the pack, and an unknown page does nothing'
   assert.equal(world.flags['opening'], 'begun');
 });
 
+const SHORE_LIGHT = {
+  still: 0.01,
+  near: 1,
+  behind: 4,
+  wait: 3,
+} as const;
+
 const HELD = {
   idle: 5,
   hold: 5,
@@ -239,24 +246,60 @@ void test('holding a point right beside the hero still lays the journal in view,
   assert.equal(tookJournal(world), false);
 });
 
-void test('a hero who never walks onto the light is brought to it after its latest time of movement, and still crosses only when he clicks it', (): void => {
+function onShore(world: World, point: Vec2): Vec2 {
+  const shore = must(world.shore, 'shore');
+  const dx: number = point.x - shore.at.x;
+  const dz: number = point.z - shore.at.z;
+  return { x: dx * shore.facing.z - dz * shore.facing.x, z: dx * shore.facing.x + dz * shore.facing.z };
+}
+
+void test('while the hero is on the shore the light stands at the end of the road and never moves, however long he wanders, and he still crosses only when he clicks it', (): void => {
   const world: World = fresh(34);
   world.flags['opening'] = 'read';
   world.flags['first_choice'] = 'took_journal';
   world.flags['first_blade'] = 'found';
+  const anchor: Vec2 = must(lightFind.shoreAt, 'light shore point');
   const around = (at: number): Vec2 => ({ x: world.player.pos.x + Math.cos(at * HELD.circle.turn) * HELD.circle.radius, z: world.player.pos.z + Math.sin(at * HELD.circle.turn) * HELD.circle.radius });
   let clock: number = 0;
   let next: number = 0;
+  let seen: Vec2 | null = null;
   for (; clock < must(lightFind.latest, 'light latest') + HELD.hold && world.zone.id === opening.id; clock += DT) {
     const commands: Command[] = clock >= next ? [{ type: 'move', held: true, dest: around(clock) }] : [];
     if (commands.length > 0) next = clock + HELD.tick;
     stepWorld(world, commands, DT);
+    if (world.shore === null || (world.encounters.find((state): boolean => state.id === lightFind.id)?.pos ?? null) === null) continue;
+    const at: Vec2 = onShore(world, lightExit(world));
+    seen ??= at;
+    assert.ok(distance(at, seen) < SHORE_LIGHT.still, `the light moved to ${String(at.x)}, ${String(at.z)} at ${String(clock)} s`);
   }
   assert.equal(world.zone.id, opening.id);
-  assert.ok(distance(lightExit(world), world.player.pos) <= lightExit(world).radius + HELD.circle.radius);
+  assert.ok(seen !== null && distance(seen, anchor) < SHORE_LIGHT.near);
+  assert.ok(distance(lightExit(world), world.player.pos) > lightExit(world).radius);
+  walkTo(world, (): Vec2 => lightExit(world), (): boolean => distance(lightExit(world), world.player.pos) < lightExit(world).radius / 2);
+  assert.ok(distance(lightExit(world), world.player.pos) < lightExit(world).radius);
+  assert.equal(world.zone.id, opening.id);
   clickLight(world);
   assert.notEqual(world.zone.id, opening.id);
-  assert.deepEqual(world.shift, { x: 0, z: 0 });
+});
+
+void test('a hero lost beyond the sides of the shore is still brought the light after its latest time of movement', (): void => {
+  const world: World = fresh(36);
+  world.flags['opening'] = 'read';
+  world.flags['first_choice'] = 'took_journal';
+  world.flags['first_blade'] = 'found';
+  stepWorld(world, [], DT);
+  const shore = must(world.shore, 'shore');
+  const room = must(rules.shore?.room, 'shore room');
+  world.player.pos = { x: shore.at.x + shore.facing.z * (room.half + WALK.lead), z: shore.at.z - shore.facing.x * (room.half + WALK.lead) };
+  world.trail = { ...world.player.pos };
+  const around = (at: number): Vec2 => ({ x: world.player.pos.x + Math.cos(at * HELD.circle.turn) * HELD.circle.radius, z: world.player.pos.z + Math.sin(at * HELD.circle.turn) * HELD.circle.radius });
+  let next: number = 0;
+  for (let clock: number = 0; clock < must(lightFind.latest, 'light latest') + HELD.hold; clock += DT) {
+    const commands: Command[] = clock >= next ? [{ type: 'move', held: true, dest: around(clock) }] : [];
+    if (commands.length > 0) next = clock + HELD.tick;
+    stepWorld(world, commands, DT);
+  }
+  assert.ok(distance(lightExit(world), world.player.pos) <= lightExit(world).radius + HELD.circle.radius);
 });
 
 const PATTERN = {
@@ -397,4 +440,30 @@ void test('a hero who already took the journal hears neither moment', (): void =
 void test('only the first find of the opening draws near', (): void => {
   const nearing: readonly string[] = rules.encounters.filter((met: ZoneEncounter): boolean => met.nearing !== null).map((met: ZoneEncounter): string => met.id);
   assert.deepEqual(nearing, [journalFind.id]);
+});
+
+void test('a hero back from the Hall finds the light just behind him, and it stays there instead of going to the end of the road', (): void => {
+  const world: World = fresh(37);
+  world.flags['opening'] = 'read';
+  world.flags['first_choice'] = 'took_journal';
+  world.flags['first_blade'] = 'found';
+  beginVoid(world, 'return');
+  const start: Vec2 = { ...world.player.pos };
+  const placed: Vec2 = { x: lightExit(world).x, z: lightExit(world).z };
+  assert.ok(distance(placed, start) < lightExit(world).radius + SHORE_LIGHT.behind);
+  for (let clock: number = 0; clock < SHORE_LIGHT.wait; clock += DT) stepWorld(world, [], DT);
+  assert.ok(distance(lightExit(world), placed) < SHORE_LIGHT.still, `the light moved from ${String(placed.x)}, ${String(placed.z)}`);
+  assert.equal(world.zone.id, opening.id);
+});
+
+void test('a light first laid during a return visit follows the old rules and never goes to the end of the road', (): void => {
+  const world: World = fresh(38);
+  world.flags['opening'] = 'read';
+  world.flags['first_choice'] = 'took_journal';
+  beginVoid(world, 'return');
+  assert.equal(world.encounters.some((state): boolean => state.id === lightFind.id), false);
+  world.flags['first_blade'] = 'found';
+  for (let clock: number = 0; clock < SHORE_LIGHT.wait; clock += DT) stepWorld(world, [], DT);
+  const pos: Vec2 = must(world.encounters.find((state): boolean => state.id === lightFind.id)?.pos, 'light laid');
+  assert.ok(distance(pos, fromShore(must(world.shore, 'shore'), must(lightFind.shoreAt, 'light shore point'))) > SHORE_LIGHT.near);
 });

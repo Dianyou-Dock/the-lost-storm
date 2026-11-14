@@ -7,7 +7,7 @@ import type { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { Content, PropCache, PropDef, PropLight, ZoneDef, ZoneProp, ZoneScatter, ZoneWalls } from '../../sim/content/types.ts';
 import { wallCorners, wallEdges, zoneColumns, zoneRows } from '../../sim/nav/layout.ts';
 import { allHold } from '../../sim/world/conditions.ts';
-import type { World } from '../../sim/world/types.ts';
+import type { ShoreState, World } from '../../sim/world/types.ts';
 import { forgetModel, loadModel } from './character-loader.ts';
 import { buildGround } from './ground.ts';
 import type { MistWallView } from './mist-wall.ts';
@@ -30,6 +30,12 @@ import { cliffRocks } from '../../sim/nav/cliff-rocks.ts';
 import { scatterStones } from './zone-scatter.ts';
 import { momentSurfaces, zoneModels, zoneSurfaces } from './zone-assets.ts';
 import { renderBudget } from '../mobile/quality.ts';
+import type { GraphicsPreset } from '../settings/settings.ts';
+import type { LifeView } from './life-view.ts';
+import { createLifeView, lifeDensity } from './life-view.ts';
+import { LIFE } from './life-data.ts';
+import { placesFor } from './life-kinds.ts';
+import type { Hero } from './life-motion.ts';
 
 export const ZONE_VIEW = {
   abyssDepth: -1.06,
@@ -87,7 +93,7 @@ export interface ZoneView {
   readonly torches: readonly Vector3[];
   readonly lightsVersion: number;
   readonly ready: Promise<void>;
-  setLightBudget(count: number): void;
+  setGraphics(preset: GraphicsPreset): void;
   update(time: number, dt: number, world: World, focus: ViewFocus): void;
   dispose(): void;
 }
@@ -149,13 +155,25 @@ function propWidth(def: PropDef): number {
   return Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs));
 }
 
+function flatGround(): number {
+  return 0;
+}
+
+export function shoreLocal(at: ReadonlyVec2, facing: ReadonlyVec2, point: ReadonlyVec2): Hero {
+  const dx: number = point.x - at.x;
+  const dz: number = point.z - at.z;
+  return { x: dx * facing.z - dz * facing.x, z: dx * facing.x + dz * facing.z };
+}
+
 export async function buildZoneView(loader: GLTFLoader, content: Content, zone: ZoneDef, scene: Scene, quality: QualityName): Promise<ZoneView> {
   if (zone.kind === 'void') {
     const rockId: string | null = zone.void?.shore?.surface ?? null;
     const glimpses: VoidGlimpses = createVoidGlimpses(loader, content, zone.void?.glimpses ?? [], zone.floorHeight);
     const empty: ZoneView = buildVoidView(zone, quality, rockId === null ? null : (content.surfaces.get(rockId) ?? null), glimpses);
-    const rocks: ShoreProps = createShoreProps(loader, content, zone.void?.shore ?? null, zone.floorHeight);
+    const rocks: ShoreProps = createShoreProps(loader, content, zone.void?.shore ?? null, zone.floorHeight, quality === 'mobile');
     empty.group.add(rocks.group);
+    const shoreLife: LifeView = createLifeView(LIFE, placesFor(LIFE, zone.id, 'shore'), lifeDensity(1, quality === 'mobile'));
+    rocks.group.add(shoreLife.group);
     scene.add(empty.group);
     return {
       zone: empty.zone,
@@ -163,14 +181,18 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
       torches: empty.torches,
       lightsVersion: empty.lightsVersion,
       ready: Promise.all([empty.ready, rocks.ready]).then((): void => undefined),
-      setLightBudget(count: number): void {
-        empty.setLightBudget(count);
+      setGraphics(preset: GraphicsPreset): void {
+        empty.setGraphics(preset);
+        shoreLife.setDensity(lifeDensity(preset.effectsDensity, quality === 'mobile'));
       },
       update(time: number, dt: number, world: World, focus: ViewFocus): void {
         rocks.follow(world);
         empty.update(time, dt, world, focus);
+        const shore: ShoreState | null = world.shore;
+        if (shore !== null) shoreLife.update(time, dt, shoreLocal(shore.at, shore.facing, world.player.pos), flatGround);
       },
       dispose(): void {
+        shoreLife.dispose();
         rocks.dispose();
         empty.dispose();
       },
@@ -339,12 +361,16 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
   scene.add(group);
 
   setOccluders(occluders);
+  const life: LifeView = createLifeView(LIFE, placesFor(LIFE, zone.id, 'zone'), lifeDensity(1, quality === 'mobile'));
+  group.add(life.group);
+  const groundAt = (x: number, z: number): number => zone.floorHeight + liftAt(zone, x, z);
   return {
     zone,
     group,
     ready: Promise.resolve(),
-    setLightBudget(count: number): void {
-      activeLights = Math.min(pool.length, Math.max(0, count));
+    setGraphics(preset: GraphicsPreset): void {
+      activeLights = Math.min(pool.length, Math.max(0, preset.lights));
+      life.setDensity(lifeDensity(preset.effectsDensity, quality === 'mobile'));
     },
     get torches(): readonly Vector3[] {
       return sources.flatMap((source: Source): Vector3[] => (source.conditional === null || source.conditional.on === true ? [source.point] : []));
@@ -354,6 +380,7 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
     },
     dispose(): void {
       resetCutaway();
+      life.dispose();
       group.removeFromParent();
       ground.dispose();
       for (const instanced of instances) instanced.dispose();
@@ -369,6 +396,7 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
     update(time: number, dt: number, world: World, focus: ViewFocus): void {
       ground.update(world.time);
       mistWall?.update(time, focus.flash);
+      life.update(time, dt, world.player.pos, groundAt);
       for (const conditional of conditionals) {
         const wanted: boolean = conditional.wanted(world);
         if (conditional.on === null) conditional.shown = wanted ? 1 : 0;

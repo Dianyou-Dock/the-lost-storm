@@ -372,7 +372,7 @@ async function start(): Promise<void> {
     const preset: GraphicsPreset = gameSettings.preset();
     stage.applyGraphics(preset);
     particles.setDensity(preset.effectsDensity);
-    zoneView.setLightBudget(preset.lights);
+    zoneView.setGraphics(preset);
   };
   gameSettings.subscribe(applyGraphics);
   applyGraphics();
@@ -465,7 +465,7 @@ async function start(): Promise<void> {
     }
     zoneView.dispose();
     zoneView = next;
-    zoneView.setLightBudget(gameSettings.preset().lights);
+    zoneView.setGraphics(gameSettings.preset());
     effects.setTorches(zoneView.torches);
     torchVersion = zoneView.lightsVersion;
   };
@@ -489,7 +489,7 @@ async function start(): Promise<void> {
     markers = createZoneMarkers(stage.scene, world.zone);
     stage.setAmbience(world.zone.ambience);
     applyWeather(world.zone);
-    zoneView.setLightBudget(gameSettings.preset().lights);
+    zoneView.setGraphics(gameSettings.preset());
     effects.setTorches(zoneView.torches);
     torchVersion = zoneView.lightsVersion;
     await warmUpWithin(stage, stage.scene, stage.camera, [...actors.standIns(world.zone), ...loot.standIns(world), ...rain.standIns()], createBrowserTimers(), WARM_UP.zoneWaitMs, zoneView.ready);

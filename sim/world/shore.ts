@@ -1,4 +1,5 @@
-import type { VoidShore } from '../content/story-types.ts';
+import type { ShorePoint, VoidShore } from '../content/story-types.ts';
+import type { Vec2 } from '../math.ts';
 import type { ShoreState, World } from './types.ts';
 
 export function shoreDepth(world: World): number {
@@ -7,4 +8,8 @@ export function shoreDepth(world: World): number {
   if (shore === null || rules === null) return 0;
   const into: number = (world.player.pos.x - shore.at.x) * shore.facing.x + (world.player.pos.z - shore.at.z) * shore.facing.z;
   return Math.min(1, Math.max(0, into / rules.thin));
+}
+
+export function fromShore(shore: ShoreState, point: ShorePoint): Vec2 {
+  return { x: shore.at.x + shore.facing.z * point.x + shore.facing.x * point.z, z: shore.at.z - shore.facing.x * point.x + shore.facing.z * point.z };
 }

@@ -374,7 +374,7 @@ export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: 
     torches: [],
     lightsVersion: 0,
     ready: glimpse === null ? Promise.resolve() : glimpse.ready,
-    setLightBudget(): void {},
+    setGraphics(): void {},
     update(now: number, dt: number, world: World, focus: ViewFocus): void {
       time.value = now;
       shift.value.set(world.shift.x, world.shift.z);

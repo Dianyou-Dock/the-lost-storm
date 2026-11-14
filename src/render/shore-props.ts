@@ -1,7 +1,7 @@
 import type { Material, Object3D } from 'three';
 import { BufferAttribute, BufferGeometry, Color, Euler, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
 import type { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import type { ShorePath, ShoreProp, VoidShore } from '../../sim/content/story-types.ts';
+import type { ShorePath, ShorePool, ShoreProp, VoidShore } from '../../sim/content/story-types.ts';
 import type { Content, PropDef, SurfaceDef } from '../../sim/content/types.ts';
 import type { ShoreState, World } from '../../sim/world/types.ts';
 import { loadModel } from './character-loader.ts';
@@ -15,6 +15,14 @@ import type { PropDressing } from './surfaces.ts';
 export const SHORE_PROPS: { readonly dressing: PropDressing } = {
   dressing: { wet: 0.6, ground: 0 },
 };
+
+export const SHORE_PHONE = {
+  clutterBelow: 0.9,
+} as const;
+
+export function isClutter(def: PropDef): boolean {
+  return def.footprints.length === 0 && def.blockRadius === 0 && def.height < SHORE_PHONE.clutterBelow;
+}
 
 export const SHORE_PATH = {
   across: 16,
@@ -150,6 +158,83 @@ function pathMesh(path: ShorePath, surface: SurfaceDef): Mesh {
 
 const RADIANS: number = Math.PI / 180;
 
+export const SHORE_POOL = {
+  rings: 7,
+  spokes: 28,
+  edge: 0.72,
+  feather: 0.28,
+  ragged: 0.22,
+  raggedEvery: 3,
+  wet: 1,
+  gloss: 0.06,
+  darken: 0.55,
+  sheen: '#262a31',
+  sheenStrength: 0.3,
+  lift: 0.045,
+  renderOrder: 4,
+} as const;
+
+export function poolAlpha(ring: number, angle: number, seed: number): number {
+  const reach: number = SHORE_POOL.edge + SHORE_POOL.ragged * (wobble(angle * SHORE_POOL.raggedEvery + seed) * 2 - 1);
+  return 1 - smoothstep(reach - SHORE_POOL.feather, reach, ring);
+}
+
+export function poolGeometry(pools: readonly ShorePool[]): BufferGeometry {
+  const positions: number[] = [];
+  const uvs: number[] = [];
+  const colours: number[] = [];
+  const index: number[] = [];
+  pools.forEach((pool: ShorePool, which: number): void => {
+    const turn: number = pool.rotationDegrees * RADIANS;
+    const cos: number = Math.cos(turn);
+    const sin: number = Math.sin(turn);
+    const first: number = positions.length / 3;
+    for (let ring: number = 0; ring <= SHORE_POOL.rings; ring += 1) {
+      for (let spoke: number = 0; spoke < SHORE_POOL.spokes; spoke += 1) {
+        const share: number = ring / SHORE_POOL.rings;
+        const angle: number = (spoke / SHORE_POOL.spokes) * Math.PI * 2;
+        const across: number = (Math.cos(angle) * share * pool.width) / 2;
+        const along: number = (Math.sin(angle) * share * pool.length) / 2;
+        const x: number = pool.x + across * cos + along * sin;
+        const z: number = pool.z - across * sin + along * cos;
+        positions.push(x, 0, z);
+        uvs.push(x, -z);
+        colours.push(1, 1, 1, poolAlpha(share, angle, which + pool.x));
+        if (ring < SHORE_POOL.rings) {
+          const at: number = first + ring * SHORE_POOL.spokes + spoke;
+          const side: number = first + ring * SHORE_POOL.spokes + ((spoke + 1) % SHORE_POOL.spokes);
+          index.push(at, side, at + SHORE_POOL.spokes, side, side + SHORE_POOL.spokes, at + SHORE_POOL.spokes);
+        }
+      }
+    }
+  });
+  const geometry: BufferGeometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(positions), 3));
+  geometry.setAttribute('uv', new BufferAttribute(new Float32Array(uvs), 2));
+  geometry.setAttribute('color', new BufferAttribute(new Float32Array(colours), 4));
+  geometry.setIndex(index);
+  geometry.computeVertexNormals();
+  return geometry;
+}
+
+function poolMeshes(content: Content, pools: readonly ShorePool[]): Mesh[] {
+  const bySurface: Map<string, ShorePool[]> = new Map<string, ShorePool[]>();
+  for (const pool of pools) bySurface.set(pool.surface, [...(bySurface.get(pool.surface) ?? []), pool]);
+  return [...bySurface].flatMap(([id, list]: [string, ShorePool[]]): Mesh[] => {
+    const surface: SurfaceDef | undefined = content.surfaces.get(id);
+    if (surface === undefined) return [];
+    const material: MeshStandardMaterial = wetStone(surfaceMaterial(surface, 'overlay', SHORE_POOL.wet), SHORE_POOL.wet);
+    material.roughness = SHORE_POOL.gloss;
+    material.color.multiplyScalar(SHORE_POOL.darken);
+    material.emissive.set(SHORE_POOL.sheen);
+    material.emissiveIntensity = SHORE_POOL.sheenStrength;
+    const mesh: Mesh = new Mesh(poolGeometry(list), material);
+    mesh.position.y = SHORE_POOL.lift;
+    mesh.renderOrder = SHORE_POOL.renderOrder;
+    return [mesh];
+  });
+}
+
 export interface ShoreProps {
   readonly group: Group;
   readonly ready: Promise<void>;
@@ -208,22 +293,24 @@ function instanced(content: Content, def: PropDef, gltf: GLTF, list: readonly Pl
   return made;
 }
 
-export function createShoreProps(loader: GLTFLoader, content: Content, rules: VoidShore | null, floorHeight: number): ShoreProps {
+export function createShoreProps(loader: GLTFLoader, content: Content, rules: VoidShore | null, floorHeight: number, phone: boolean): ShoreProps {
   const group: Group = new Group();
   group.visible = false;
   const path: ShorePath | null = rules?.path ?? null;
   const surface: SurfaceDef | undefined = path === null ? undefined : content.surfaces.get(path.surface);
   const worn: Mesh | null = path === null || surface === undefined ? null : pathMesh(path, surface);
   if (worn !== null) group.add(worn);
+  const pools: Mesh[] = poolMeshes(content, rules?.pools ?? []);
+  for (const pool of pools) group.add(pool);
   const occluders: InstancedMesh[] = [];
   const byProp: Map<string, Placed[]> = new Map<string, Placed[]>();
-  const strewn: Placed[] = (path === null ? [] : pathStones(path)).map((stone: PathStone): Placed => ({ placed: { prop: stone.prop, x: stone.x, z: stone.z, rotationDegrees: stone.rotationDegrees }, scale: stone.scale }));
-  for (const item of [...(rules?.props ?? []).map((placed: ShoreProp): Placed => ({ placed, scale: 1 })), ...strewn]) byProp.set(item.placed.prop, [...(byProp.get(item.placed.prop) ?? []), item]);
+  const strewn: Placed[] = (path === null ? [] : pathStones(path)).map((stone: PathStone): Placed => ({ placed: { prop: stone.prop, x: stone.x, z: stone.z, rotationDegrees: stone.rotationDegrees, scale: stone.scale }, scale: stone.scale }));
+  for (const item of [...(rules?.props ?? []).map((placed: ShoreProp): Placed => ({ placed, scale: placed.scale })), ...strewn]) byProp.set(item.placed.prop, [...(byProp.get(item.placed.prop) ?? []), item]);
   let shown: boolean = false;
   const ready: Promise<void> = Promise.all(
     [...byProp].map(async ([propId, list]: [string, Placed[]]): Promise<void> => {
       const def: PropDef | undefined = content.props.get(propId);
-      if (def === undefined) return;
+      if (def === undefined || (phone && isClutter(def))) return;
       const gltf: GLTF | null = await loadModel(loader, def.model).catch((): null => null);
       if (gltf === null) return;
       for (const mesh of instanced(content, def, gltf, list)) {
@@ -249,6 +336,10 @@ export function createShoreProps(loader: GLTFLoader, content: Content, rules: Vo
       resetCutaway();
       group.removeFromParent();
       worn?.geometry.dispose();
+      for (const pool of pools) {
+        pool.geometry.dispose();
+        if (pool.material instanceof MeshStandardMaterial) pool.material.dispose();
+      }
       if (worn !== null && worn.material instanceof MeshStandardMaterial) worn.material.dispose();
     },
   };

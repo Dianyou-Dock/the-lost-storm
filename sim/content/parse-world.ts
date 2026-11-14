@@ -38,7 +38,7 @@ import type {
   ZoneWaypoint,
 } from './types.ts';
 import { service } from './parse-trade.ts';
-import type { GlimpsePiece, ShorePath, ShoreProp, ShoreRoom, VoidGlimpse, VoidShore, ZoneVoid, ZoneWake } from './story-types.ts';
+import type { GlimpsePiece, ShorePath, ShorePool, ShoreProp, ShoreRoom, VoidGlimpse, VoidShore, ZoneVoid, ZoneWake } from './story-types.ts';
 import { ATLAS_FEATURE_KINDS, ZONE_KINDS } from './types.ts';
 import { zoneScatter } from './parse-scatter.ts';
 import { zoneBarrier } from './parse-barrier.ts';
@@ -179,7 +179,12 @@ function zoneWake(value: unknown, where: string): ZoneWake | null {
 
 function shoreProp(value: unknown, where: string): ShoreProp {
   const source: Fields = fields(value, where);
-  return { prop: text(source, 'prop', where), x: numeric(source, 'x', where), z: numeric(source, 'z', where), rotationDegrees: numeric(source, 'rotationDegrees', where) };
+  return { prop: text(source, 'prop', where), x: numeric(source, 'x', where), z: numeric(source, 'z', where), rotationDegrees: numeric(source, 'rotationDegrees', where), scale: source['scale'] === undefined ? 1 : positive(source, 'scale', where) };
+}
+
+function shorePool(value: unknown, where: string): ShorePool {
+  const source: Fields = fields(value, where);
+  return { surface: text(source, 'surface', where), x: numeric(source, 'x', where), z: numeric(source, 'z', where), width: positive(source, 'width', where), length: positive(source, 'length', where), rotationDegrees: source['rotationDegrees'] === undefined ? 0 : numeric(source, 'rotationDegrees', where) };
 }
 
 function glimpsePiece(value: unknown, where: string): GlimpsePiece {
@@ -209,7 +214,7 @@ function shoreRoom(value: unknown, where: string): ShoreRoom | null {
 function voidShore(value: unknown, where: string): VoidShore | null {
   if (value === undefined || value === null) return null;
   const source: Fields = fields(value, where);
-  return { when: conditions(source, 'when', where), ahead: positive(source, 'ahead', where), thin: positive(source, 'thin', where), surface: source['surface'] === undefined ? null : text(source, 'surface', where), ambience: zoneAmbience(source['ambience'], `${where}.ambience`), props: each(source['props'] ?? [], `${where}.props`, shoreProp), path: shorePath(source['path'], `${where}.path`), room: shoreRoom(source['room'], `${where}.room`), rain: source['rain'] === undefined ? 0 : nonNegative(source, 'rain', where) };
+  return { when: conditions(source, 'when', where), ahead: positive(source, 'ahead', where), thin: positive(source, 'thin', where), surface: source['surface'] === undefined ? null : text(source, 'surface', where), ambience: zoneAmbience(source['ambience'], `${where}.ambience`), props: each(source['props'] ?? [], `${where}.props`, shoreProp), pools: each(source['pools'] ?? [], `${where}.pools`, shorePool), path: shorePath(source['path'], `${where}.path`), room: shoreRoom(source['room'], `${where}.room`), rain: source['rain'] === undefined ? 0 : nonNegative(source, 'rain', where) };
 }
 
 function zoneVoid(value: unknown, where: string): ZoneVoid {

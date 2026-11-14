@@ -8,6 +8,7 @@ import type { UnisonEvent, UnisonState } from './unison-types.ts';
 import type { MomentDef } from '../content/moment-types.ts';
 import type { ZoneWake } from '../content/story-types.ts';
 import type { Vec2 } from '../math.ts';
+import type { ShoreState } from './shore-state.ts';
 import type { DeathState } from './death.ts';
 import type { LedgerState, PurseCommand } from './ledger.ts';
 import type { PackTimer } from './pack-return.ts';
@@ -637,11 +638,6 @@ export interface WakeState {
   readonly plan: ZoneWake;
 }
 
-export interface ShoreState {
-  readonly at: Vec2;
-  readonly facing: Vec2;
-}
-
 export interface World {
   readonly content: Content;
   zone: ZoneDef;
@@ -697,3 +693,5 @@ export interface World {
   scene: SceneState | null;
   escort: Escort | null;
 }
+
+export type { ShoreState };

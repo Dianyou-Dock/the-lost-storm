@@ -32,6 +32,8 @@ void test('the shore rocks block the ground they stand on, leave the way out ope
   assert.equal(isWalkable(world.grid, crag.x, crag.z), false);
   const shore = must(world.shore, 'shore');
   for (let ahead: number = 0; ahead < 40; ahead += 1) assert.ok(isWalkable(world.grid, shore.at.x + shore.facing.x * ahead, shore.at.z + shore.facing.z * ahead), `way out blocked ${ahead} m ashore`);
+  const light = must(between.void?.encounters.find((met): boolean => met.shoreAt !== null)?.shoreAt, 'light on the shore');
+  for (let share: number = 0; share <= 1; share += 0.01) assert.ok(isWalkable(world.grid, shore.at.x + shore.facing.z * light.x * share + shore.facing.x * light.z * share, shore.at.z - shore.facing.x * light.x * share + shore.facing.z * light.z * share), `the road to the light is blocked ${String(share * light.z)} m ashore`);
   shiftWorld(world, { x: -30, z: 4 });
   assert.equal(isWalkable(world.grid, crag.x - 30, crag.z + 4), false);
   const moved = must(world.shore, 'moved shore');
