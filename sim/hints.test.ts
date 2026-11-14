@@ -193,7 +193,7 @@ void test('time spent in a conversation does not count toward a hint stepping as
   const state: HintState = createHintState([]);
   assert.equal(shown(stepHints(defs, world, state, IDLE)), 'move');
   const npc = must(content.npcs.values().next().value, 'an npc');
-  world.dialogue = { npcId: 0, npc, talk: must(npc.talks[0], 'a talk'), index: 0 };
+  world.dialogue = { npcId: 0, npc, talk: must(npc.talks[0], 'a talk'), replay: false, index: 0 };
   world.time += HINTS.maxShowSeconds * 2;
   assert.deepEqual(stepHints(defs, world, state, IDLE), []);
   world.dialogue = null;

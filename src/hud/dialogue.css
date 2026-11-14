@@ -60,10 +60,60 @@
 
 .dialogue-foot {
   display: flex;
+  align-items: center;
   justify-content: space-between;
+  gap: 12px;
+  position: relative;
   margin-top: 6px;
   font-size: 12px;
   color: var(--text-dim);
+}
+
+.dialogue-again {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  margin: 0;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 2px;
+  outline: none;
+  background: rgba(255, 255, 255, 0.045);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 12px;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  visibility: hidden;
+  pointer-events: none;
+  opacity: 0;
+  transform: translate(-50%, calc(-50% + 4px)) scale(0.96);
+  transition: opacity var(--spring-smooth-ms) var(--spring-smooth), transform var(--spring-bouncy-ms) var(--spring-bouncy), background-color var(--spring-snappy-ms) var(--spring-snappy), visibility 0s linear var(--spring-smooth-ms);
+}
+
+.dialogue-again.shown {
+  visibility: visible;
+  pointer-events: auto;
+  opacity: 1;
+  transform: translate(-50%, -50%);
+  transition: opacity var(--spring-smooth-ms) var(--spring-smooth), transform var(--spring-bouncy-ms) var(--spring-bouncy), background-color var(--spring-snappy-ms) var(--spring-snappy), visibility 0s;
+}
+
+.dialogue-again.shown:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.dialogue-again.shown:active {
+  transform: translate(-50%, -50%) scale(0.97);
+}
+
+body.touch .dialogue-foot {
+  min-height: 34px;
+}
+
+body.touch .dialogue-again {
+  padding: 10px 14px;
+  font-size: 13px;
 }
 
 .dialogue-hint {

@@ -6,6 +6,7 @@ import type { DialogueState, NpcState, World } from './types.ts';
 
 export const DIALOGUE = {
   reach: 2.6,
+  retold: '+',
 } as const;
 
 function present(world: World): ZoneNpc[] {
@@ -40,6 +41,19 @@ export function hasNews(world: World, def: NpcDef): boolean {
   return nextTalk(world, def)?.once ?? false;
 }
 
+export function replayable(world: World, def: NpcDef): TalkDef[] {
+  return def.talks.filter((talk: TalkDef): boolean => talk.once && world.heard.includes(talk.id) && allHold(world, talk.when));
+}
+
+export function canReplay(world: World): boolean {
+  const dialogue: DialogueState | null = world.dialogue;
+  return dialogue !== null && !dialogue.replay && !dialogue.talk.once && replayable(world, dialogue.npc).length > 0;
+}
+
+function retold(talks: readonly TalkDef[]): TalkDef {
+  return { id: talks.map((talk: TalkDef): string => talk.id).join(DIALOGUE.retold), once: false, when: [], lines: talks.flatMap((talk: TalkDef): readonly string[] => talk.lines) };
+}
+
 function say(world: World, dialogue: DialogueState): void {
   const line: LineDef | undefined = world.content.lines.get(dialogue.talk.lines[dialogue.index] ?? '');
   if (line === undefined) return;
@@ -53,19 +67,28 @@ export function closeDialogue(world: World, finished: boolean): void {
   const npc: NpcState | null = findNpc(world, dialogue.npcId);
   if (npc !== null) npc.facing = npc.homeFacing;
   if (finished && dialogue.talk.once && !world.heard.includes(dialogue.talk.id)) world.heard.push(dialogue.talk.id);
-  world.events.push({ type: 'dialogue_closed', npcId: dialogue.npcId, npc: dialogue.npc.id, talk: dialogue.talk.id, finished });
+  world.events.push({ type: 'dialogue_closed', npcId: dialogue.npcId, npc: dialogue.npc.id, talk: dialogue.talk.id, finished, replay: dialogue.replay });
 }
 
 export function openDialogue(world: World, npc: NpcState): void {
   closeDialogue(world, false);
-  const talk: TalkDef | null = nextTalk(world, npc.def);
+  const fresh: TalkDef | null = nextTalk(world, npc.def);
+  const again: TalkDef[] = fresh === null ? replayable(world, npc.def) : [];
+  const talk: TalkDef | null = fresh ?? (again.length > 0 ? retold(again) : null);
   if (talk === null) return;
   const toward = { x: world.player.pos.x - npc.pos.x, z: world.player.pos.z - npc.pos.z };
   if (Math.hypot(toward.x, toward.z) > 1e-3) {
     npc.facing = facingOf(toward);
     world.player.facing = facingOf({ x: -toward.x, z: -toward.z });
   }
-  world.dialogue = { npcId: npc.id, npc: npc.def, talk, index: 0 };
+  world.dialogue = { npcId: npc.id, npc: npc.def, talk, replay: fresh === null, index: 0 };
+  say(world, world.dialogue);
+}
+
+export function replayDialogue(world: World): void {
+  const dialogue: DialogueState | null = world.dialogue;
+  if (dialogue === null || !canReplay(world)) return;
+  world.dialogue = { npcId: dialogue.npcId, npc: dialogue.npc, talk: retold(replayable(world, dialogue.npc)), replay: true, index: 0 };
   say(world, world.dialogue);
 }
 

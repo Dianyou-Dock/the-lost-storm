@@ -1,4 +1,5 @@
 import type { NpcDef } from '../../sim/content/types.ts';
+import { canReplay } from '../../sim/world/dialogue.ts';
 import type { WorldEvent } from '../../sim/world/types.ts';
 import type { HudContext } from './context.ts';
 import { el, retrigger, setText } from './dom.ts';
@@ -7,6 +8,7 @@ import { promptText, use } from './prompts.ts';
 const DIALOGUE_BOX = {
   next: 'continue',
   last: 'close',
+  again: 'Hear it again',
   swapMs: 260,
 } as const;
 
@@ -30,7 +32,11 @@ export function createDialogueBox(root: HTMLElement, context: HudContext): Dialo
   const text: HTMLDivElement = el('div', 'dialogue-text', element);
   const foot: HTMLDivElement = el('div', 'dialogue-foot', element);
   const count: HTMLDivElement = el('div', 'dialogue-count', foot);
+  const again: HTMLButtonElement = el('button', 'dialogue-again', foot);
   const hint: HTMLDivElement = el('div', 'dialogue-hint', foot);
+  again.type = 'button';
+  again.tabIndex = -1;
+  again.textContent = DIALOGUE_BOX.again;
   let open: boolean = false;
   let swap: number | null = null;
 
@@ -54,6 +60,16 @@ export function createDialogueBox(root: HTMLElement, context: HudContext): Dialo
     if (open) context.api.send({ type: 'advance' });
   });
 
+  again.addEventListener('pointerdown', (event: PointerEvent): void => {
+    event.stopPropagation();
+    event.preventDefault();
+  });
+  again.addEventListener('click', (event: MouseEvent): void => {
+    event.stopPropagation();
+    touched = false;
+    if (open && again.classList.contains('shown')) context.api.send({ type: 'replay' });
+  });
+
   return {
     element,
     show(event: LineEvent): void {
@@ -64,6 +80,7 @@ export function createDialogueBox(root: HTMLElement, context: HudContext): Dialo
       const titleChanged: boolean = setText(title, speaker?.title ?? '', false);
       setText(count, `${event.index + 1} / ${total}`, false);
       setText(hint, dialogueHint(event.last, context.api.touch), false);
+      again.classList.toggle('shown', canReplay(world));
       if (swap !== null) window.clearTimeout(swap);
       swap = null;
       if (open) {
@@ -91,6 +108,7 @@ export function createDialogueBox(root: HTMLElement, context: HudContext): Dialo
       if (swap !== null) window.clearTimeout(swap);
       swap = null;
       element.classList.remove('open');
+      again.classList.remove('shown');
       context.api.voice.stop();
     },
   };

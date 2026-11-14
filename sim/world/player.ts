@@ -12,7 +12,7 @@ import { allocateNode, dropFromInventory, equipFromInventory, refundNode, respec
 import { findActor } from './combat.ts';
 import { canDash, dashAim } from './dash.ts';
 import { respawnPlayer } from './death.ts';
-import { advanceDialogue, closeDialogue, DIALOGUE, findNpc } from './dialogue.ts';
+import { advanceDialogue, closeDialogue, DIALOGUE, findNpc, replayDialogue } from './dialogue.ts';
 import { pickUp } from './finds.ts';
 import { useFlask } from './flasks.ts';
 import type { Steering, SteerStep } from './movement.ts';
@@ -254,6 +254,7 @@ function act(world: World, command: Command): void {
     case 'strike':
     case 'spawn':
     case 'advance':
+    case 'replay':
     case 'equip':
     case 'hero':
     case 'unequip':
@@ -298,6 +299,9 @@ export function handleCommand(world: World, command: Command): void {
       return;
     case 'advance':
       advanceDialogue(world);
+      return;
+    case 'replay':
+      replayDialogue(world);
       return;
     case 'respawn':
       respawnPlayer(world, command.choice);

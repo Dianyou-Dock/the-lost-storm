@@ -181,6 +181,7 @@ const WORLDLY: Readonly<Record<Command['type'], boolean>> = {
   refund: false,
   respec: false,
   advance: false,
+  replay: false,
   respawn: false,
 };
 

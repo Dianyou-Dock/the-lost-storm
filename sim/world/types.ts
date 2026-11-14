@@ -3,6 +3,7 @@ import type { GlitchKind } from '../content/glitches.ts';
 import type { GlitchEvent, GlitchState, PathAct, PathLog } from './glitch-types.ts';
 import type { Content, ItemSlot, LineDef, MonsterDef, NpcDef, SkillDef, StatBlock, StatMod, TalkDef, XpReduction, ZoneDef, ZonePack } from '../content/types.ts';
 import type { OpenService } from './service-types.ts';
+import type { ReplayCommand } from './dialogue-types.ts';
 import type { UnisonEvent, UnisonState } from './unison-types.ts';
 import type { MomentDef } from '../content/moment-types.ts';
 import type { ZoneWake } from '../content/story-types.ts';
@@ -223,6 +224,7 @@ export interface DialogueState {
   readonly npcId: number;
   readonly npc: NpcDef;
   readonly talk: TalkDef;
+  readonly replay: boolean;
   index: number;
 }
 
@@ -522,7 +524,7 @@ export interface OverlayCommand {
   readonly open: boolean;
 }
 
-export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | TravelCommand | TalkCommand | AdvanceCommand | TeleportCommand | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand;
+export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | TravelCommand | TalkCommand | AdvanceCommand | ReplayCommand | TeleportCommand | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand;
 
 export interface StartRespawn {
   readonly type: 'start';
@@ -582,7 +584,7 @@ export type WorldEvent =
   | { readonly type: 'wake'; readonly beat: WakeBeat }
   | { readonly type: 'explored'; readonly zone: string }
   | { readonly type: 'dialogue_line'; readonly npcId: number; readonly npc: string; readonly talk: string; readonly line: LineDef; readonly index: number; readonly last: boolean }
-  | { readonly type: 'dialogue_closed'; readonly npcId: number; readonly npc: string; readonly talk: string; readonly finished: boolean }
+  | { readonly type: 'dialogue_closed'; readonly npcId: number; readonly npc: string; readonly talk: string; readonly finished: boolean; readonly replay: boolean }
   | { readonly type: 'quest_started'; readonly quest: string }
   | { readonly type: 'quest_advanced'; readonly quest: string; readonly objective: string }
   | { readonly type: 'quest_completed'; readonly quest: string }
