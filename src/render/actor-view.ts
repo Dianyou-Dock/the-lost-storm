@@ -302,7 +302,7 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
 
   return {
     rig,
-    height: rig.def.height * rig.def.scale * scale,
+    height: (rig.def.height * rig.def.scale + rig.def.lift) * scale,
     face(heading: number): void {
       yaw = heading;
       rig.root.rotation.y = yaw;

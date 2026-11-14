@@ -2306,5 +2306,40 @@
     "sockets": {},
     "hiddenNodes": [],
     "bodyParts": {}
+  },
+  {
+    "id": "bat",
+    "url": "models/creatures/bat.glb",
+    "clipFolder": "models/animations/bat",
+    "scale": 0.3,
+    "yawOffsetDegrees": 0,
+    "height": 4.5,
+    "rootMotionBone": null,
+    "lift": 0.6,
+    "gaits": [
+      {
+        "clip": "Bat_Flying",
+        "groundSpeed": 4.0
+      }
+    ],
+    "clips": {
+      "idle": "Bat_Flying",
+      "run": "Bat_Flying",
+      "hit": [
+        "Bat_Hit"
+      ],
+      "death": [
+        "Bat_Death"
+      ],
+      "actions": {
+        "bite": {
+          "clip": "Bat_Attack",
+          "impactFraction": 0.32
+        }
+      }
+    },
+    "sockets": {},
+    "hiddenNodes": [],
+    "bodyParts": {}
   }
 ]

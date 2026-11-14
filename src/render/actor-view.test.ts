@@ -120,7 +120,8 @@ void test('a creature with no death clip holds its last pose, then sinks and fad
 });
 
 void test('a lifted creature hovers its lift above the floor with a small bob, its shadow stays on the floor, and it drops when it dies', (): void => {
-  const { view } = creatureView(1.5, true);
+  const { view, def } = creatureView(1.5, true);
+  assert.equal(view.height, def.height * def.scale + 1.5);
   for (let frame: number = 0; frame < 20; frame += 1) {
     view.sync(1 / 30, RUNNING, OPTIONS);
     assert.ok(Math.abs(view.rig.root.position.y - 1.5) <= ACTOR.bobHeight + 1e-9);
