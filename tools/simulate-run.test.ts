@@ -145,10 +145,26 @@ function bossFights(skill: string, build: string, seed: number): BossRun {
   return { attempts: bossAttempts(stream), summary: summarize(stream) };
 }
 
+function zonesBefore(lair: string): ZoneDef[] {
+  const reached: Set<string> = new Set<string>([CONTENT.world.start]);
+  const queue: string[] = [CONTENT.world.start];
+  while (queue.length > 0) {
+    const id: string | undefined = queue.pop();
+    if (id === undefined) break;
+    for (const exit of CONTENT.zones.get(id)?.exits ?? []) {
+      if (exit.to === lair || reached.has(exit.to)) continue;
+      reached.add(exit.to);
+      queue.push(exit.to);
+    }
+  }
+  return [...CONTENT.zones.values()].filter((zone: ZoneDef): boolean => reached.has(zone.id));
+}
+
 void test('the boss lair is found from the content, and its boss sits behind a level the hero has to reach', (): void => {
   const lair: BossLair = must(bossLair(CONTENT), 'a lair');
   assert.notEqual(lair.boss.boss, null);
-  const gates: ZoneExit[] = [...CONTENT.zones.values()].flatMap((zone: ZoneDef): ZoneExit[] => zone.exits.filter((exit: ZoneExit): boolean => exit.to === lair.zone.id));
+  const before: ZoneDef[] = zonesBefore(lair.zone.id);
+  const gates: ZoneExit[] = before.flatMap((zone: ZoneDef): ZoneExit[] => zone.exits.filter((exit: ZoneExit): boolean => exit.to === lair.zone.id));
   assert.ok(gates.length > 0 && gates.every((exit: ZoneExit): boolean => exit.requires.some((entry: Condition): boolean => entry.type === 'level' && entry.atLeast === GUARD.boss.level)));
 });
 

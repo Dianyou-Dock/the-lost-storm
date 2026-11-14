@@ -6,6 +6,7 @@ import { finishQuests, must } from '../test/support.ts';
 import { botFight, botInDanger, botPlay, botRoute, botTalk, botTravelTo, botWalkTo, createBot } from './bot.ts';
 import type { Bot, BotReport } from './bot.ts';
 import { loadContent } from './content/content.ts';
+import { exitWithheld } from './content/withheld.ts';
 import type { Condition, Content, QuestDef, SkillDef, ZoneDef, ZoneExit } from './content/types.ts';
 import { offenceOf } from './world/combat.ts';
 import { createWorld } from './world/create.ts';
@@ -32,14 +33,35 @@ function waitsOnLevel(conditions: readonly Condition[]): boolean {
   return conditions.some((condition: Condition): boolean => condition.type === 'level' && !condition.not && condition.atLeast > ACT.maxLevel);
 }
 
-function levelGated(zone: ZoneDef): boolean {
-  const ways: ZoneExit[] = [...content.zones.values()].flatMap((from: ZoneDef): ZoneExit[] => from.exits.filter((exit: ZoneExit): boolean => exit.to === zone.id && from.id !== zone.id));
-  return ways.length > 0 && ways.every((exit: ZoneExit): boolean => waitsOnLevel(exit.requires));
+interface Way {
+  readonly from: string;
+  readonly exit: ZoneExit;
+}
+
+function waysInto(zone: ZoneDef): Way[] {
+  return [...content.zones.values()].flatMap((from: ZoneDef): Way[] => from.exits.filter((exit: ZoneExit): boolean => exit.to === zone.id && from.id !== zone.id).map((exit: ZoneExit): Way => ({ from: from.id, exit })));
+}
+
+function levelGatedZones(): ReadonlySet<string> {
+  const gated: Set<string> = new Set<string>();
+  let grew: boolean = true;
+  while (grew) {
+    grew = false;
+    for (const zone of content.zones.values()) {
+      if (gated.has(zone.id)) continue;
+      const ways: Way[] = waysInto(zone);
+      if (ways.length === 0 || !ways.every((way: Way): boolean => waitsOnLevel(way.exit.requires) || exitWithheld(content, way.exit) || gated.has(way.from))) continue;
+      gated.add(zone.id);
+      grew = true;
+    }
+  }
+  return gated;
 }
 
 void test('the bot plays the whole act from a fresh save: every quest, in the time and at the level it is tuned for', (): void => {
   const townQuests: string[] = [...content.quests.values()].filter((quest: QuestDef): boolean => !waitsOnFlag(quest.when) && !quest.objectives.some((objective): boolean => waitsOnFlag(objective.when) || waitsOnLevel(objective.when))).map((quest: QuestDef): string => quest.id).toSorted();
-  const needed: string[] = [...content.zones.values()].filter((zone): boolean => zone.kind !== 'void' && !levelGated(zone)).map((zone): string => zone.id).toSorted();
+  const gated: ReadonlySet<string> = levelGatedZones();
+  const needed: string[] = [...content.zones.values()].filter((zone): boolean => zone.kind !== 'void' && !gated.has(zone.id)).map((zone): string => zone.id).toSorted();
   for (const seed of ACT.seeds) {
     const world: World = createWorld(content, { seed, save: null });
     const report: BotReport = botPlay(createBot(world));

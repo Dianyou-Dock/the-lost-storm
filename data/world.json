@@ -5,6 +5,7 @@
     "opening": "skipped"
   },
   "town": "hideout",
+  "withheld": ["under_hall"],
   "scaling": {
     "lifePerLevel": 0.3,
     "damagePerLevel": 0.28,
@@ -27,22 +28,32 @@
           {
             "zone": "between",
             "x": 380,
-            "y": 470
+            "y": 470,
+            "when": []
           },
           {
             "zone": "hall_of_time",
             "x": 790,
-            "y": 560
+            "y": 560,
+            "when": []
           },
           {
             "zone": "hideout",
             "x": 1200,
-            "y": 470
+            "y": 470,
+            "when": []
           },
           {
             "zone": "keepers_gate",
             "x": 800,
-            "y": 390
+            "y": 390,
+            "when": []
+          },
+          {
+            "zone": "under_hall",
+            "x": 655,
+            "y": 410,
+            "when": [{"type": "flag", "flag": "under_hall", "is": "open", "not": false}]
           }
         ],
         "roads": [
@@ -73,6 +84,16 @@
               {
                 "x": 792,
                 "y": 470
+              }
+            ]
+          },
+          {
+            "from": "keepers_gate",
+            "to": "under_hall",
+            "via": [
+              {
+                "x": 728,
+                "y": 372
               }
             ]
           }

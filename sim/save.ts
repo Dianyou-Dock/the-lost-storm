@@ -1,3 +1,4 @@
+import { withheldZones } from './content/withheld.ts';
 import type { Fields } from './content/read.ts';
 import { isFields } from './content/read.ts';
 import type { StoryFlags } from './content/story-types.ts';
@@ -277,7 +278,7 @@ function readFlags(content: Content, value: unknown, legacy: boolean): StoryFlag
   if (!isFields(value)) return flags;
   for (const key of Object.keys(value)) {
     const flag: unknown = value[key];
-    if (typeof flag === 'string') flags[key] = flag;
+    if (typeof flag === 'string' && !content.world.withheld.includes(key)) flags[key] = flag;
   }
   return flags;
 }
@@ -303,10 +304,11 @@ export function readSave(content: Content, value: unknown): SaveData | null {
   const inventoryList: readonly unknown[] = inventory;
   const size: number = content.player.inventorySize;
   const savedZone: unknown = value['zone'];
-  const known: boolean = typeof savedZone === 'string' && content.zones.has(savedZone);
+  const held: ReadonlySet<string> = withheldZones(content);
+  const known: boolean = typeof savedZone === 'string' && content.zones.has(savedZone) && !held.has(savedZone);
   const legacy: boolean = typeof value['version'] !== 'number' || value['version'] < FLAGGED_VERSION;
   const retired: RetiredZones | null = typeof savedZone === 'string' && !known && content.world.retired?.zones.includes(savedZone) === true ? content.world.retired : null;
-  const zone: string = typeof savedZone === 'string' && known ? savedZone : retired !== null ? retired.to : legacy ? content.world.town : content.world.start;
+  const zone: string = typeof savedZone === 'string' && known ? savedZone : retired !== null ? retired.to : legacy || (typeof savedZone === 'string' && held.has(savedZone)) ? content.world.town : content.world.start;
   const slots: (ItemInstance | null)[] = Array.from({ length: size }, (_: unknown, index: number): ItemInstance | null => readItem(content, inventoryList[index]));
   const worn: Worn = readEquipped(content, value['equipped'], slots);
   const spilled: unknown = value['spilled'];
@@ -341,10 +343,10 @@ export function readSave(content: Content, value: unknown): SaveData | null {
     nextItemUid: dressed.nextItemUid,
     zone,
     respawn: known ? readRespawn(value['respawn']) : { type: 'start' },
-    visited: readVisited(content, value['visited'], zone),
+    visited: readVisited(content, value['visited'], zone).filter((id: string): boolean => !held.has(id)),
     heard: readHeard(content, value['heard']),
     quests: readQuests(content, value['quests']),
-    waypoints: readWaypoints(content, value['waypoints']),
+    waypoints: readWaypoints(content, value['waypoints']).filter((id: string): boolean => !held.has(id)),
     explored: readExplored(content, value['explored']),
     flasks: readFlasks(content, value['flasks']),
     stash: stashed.stash,

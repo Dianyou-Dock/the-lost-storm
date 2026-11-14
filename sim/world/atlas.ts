@@ -1,4 +1,4 @@
-import type { AtlasRoad, Content, MonsterDef, PackMember, ZoneDef, ZoneExit, ZonePack } from '../content/types.ts';
+import type { AtlasRoad, Content, MapPlace, MonsterDef, PackMember, ZoneDef, ZoneExit, ZonePack } from '../content/types.ts';
 import { allHold } from './conditions.ts';
 import type { World } from './types.ts';
 
@@ -39,6 +39,14 @@ function knownWays(world: World, from: string, to: string): Way[] {
 function summed(ways: readonly Way[]): RoadState {
   if (ways.length === 0) return 'hidden';
   return ways.some((way: Way): boolean => way.open) ? 'open' : 'locked';
+}
+
+export function placeShown(world: World, place: MapPlace): boolean {
+  return allHold(world, place.when);
+}
+
+export function shownPlaces(world: World, places: readonly MapPlace[]): MapPlace[] {
+  return places.filter((place: MapPlace): boolean => placeShown(world, place));
 }
 
 export function roadWalked(world: World, road: AtlasRoad): boolean {

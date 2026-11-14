@@ -515,6 +515,7 @@ export interface MapPlace {
   readonly zone: string;
   readonly x: number;
   readonly y: number;
+  readonly when: readonly Condition[];
 }
 
 export interface AtlasPoint {
@@ -570,6 +571,7 @@ export interface WorldDef {
   readonly scaling: MonsterScaling;
   readonly acts: readonly ActDef[];
   readonly retired: RetiredZones | null;
+  readonly withheld: readonly string[];
 }
 
 export interface SkillBinding {

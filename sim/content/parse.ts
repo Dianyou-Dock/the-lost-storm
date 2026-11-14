@@ -540,11 +540,14 @@ export function contentProblems(content: Content): string[] {
   problems.push(...itemProblems(content));
   problems.push(...powerRuleProblems(content));
   problems.push(...chartProblems(content));
-  const flagNames: ReadonlySet<string> = storyFlagNames(content);
+  const setFlags: ReadonlySet<string> = storyFlagNames(content);
+  for (const name of content.world.withheld) need(!setFlags.has(name), `flag ${name} is withheld, so nothing may set it`);
+  const flagNames: ReadonlySet<string> = new Set<string>([...setFlags, ...content.world.withheld]);
   const known = (holder: string, list: readonly Condition[]): void => {
     problems.push(...conditionProblems(content, flagNames, holder, list));
   };
   problems.push(...roadProblems(content, flagNames));
+  for (const act of content.world.acts) for (const place of act.atlas.places) known(`world map place ${place.zone}`, place.when);
   for (const entry of content.player.skillBook) known(`skill book ${entry.skill}`, entry.when);
   for (const grant of content.chart.grants) known(`chart point grant ${grant.id}`, grant.when);
   for (const def of content.props.values()) {

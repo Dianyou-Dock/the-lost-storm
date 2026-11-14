@@ -322,7 +322,7 @@ export function npcs(value: unknown, where: string): Map<string, NpcDef> {
 
 function mapPlace(value: unknown, where: string): MapPlace {
   const source: Fields = fields(value, where);
-  return { zone: text(source, 'zone', where), x: numeric(source, 'x', where), y: numeric(source, 'y', where) };
+  return { zone: text(source, 'zone', where), x: numeric(source, 'x', where), y: numeric(source, 'y', where), when: conditions(source, 'when', where) };
 }
 
 function atlasPoint(value: unknown, where: string): AtlasPoint {
@@ -413,6 +413,7 @@ export function worldDef(value: unknown, where: string): WorldDef {
     opening: nullableText(source, 'opening', where),
     legacyFlags: storyFlags(source['legacyFlags'], `${where}.legacyFlags`),
     retired: retiredZones(source['retired'], `${where}.retired`),
+    withheld: source['withheld'] === undefined ? [] : textList(source, 'withheld', where),
     scaling: {
       lifePerLevel: numeric(scaling, 'lifePerLevel', `${where}.scaling`),
       damagePerLevel: numeric(scaling, 'damagePerLevel', `${where}.scaling`),

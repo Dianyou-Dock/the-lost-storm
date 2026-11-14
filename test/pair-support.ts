@@ -42,7 +42,7 @@ export const PAIR_WORLD = {
     ...ACT,
     atlas: {
       ...ATLAS,
-      places: [{ zone: 'shallows', x: 260, y: 560 }, { zone: 'waystation', x: 520, y: 520 }, ...ATLAS.places],
+      places: [{ zone: 'shallows', x: 260, y: 560, when: [] }, { zone: 'waystation', x: 520, y: 520, when: [] }, ...ATLAS.places],
       roads: [{ from: 'shallows', to: 'waystation', via: [{ x: 390, y: 548 }] }, ...ATLAS.roads],
     },
   }],

@@ -136,5 +136,21 @@
   {"id": "ridge_a", "model": "models/props/rock_set_4.glb", "scale": 4.0, "blockRadius": 0, "light": null, "surfaces": {"rock_moss_set_01": "hall_stone"}, "tint": "#9aa2ae"},
   {"id": "ridge_b", "model": "models/props/rock_set_1.glb", "scale": 4.4, "blockRadius": 0, "light": null, "surfaces": {"rock_moss_set_01": "hall_stone"}, "tint": "#9aa2ae"},
   {"id": "ridge_far", "model": "models/props/rock_set_2.glb", "scale": 6.0, "blockRadius": 0, "light": null, "surfaces": {"rock_moss_set_01": "hall_stone"}, "tint": "#5e6570"},
-  {"id": "campfire", "model": "models/props/fire_pit.glb", "scale": 1.6, "blockRadius": 1.2, "light": {"color": "#ff8a3a", "intensity": 60, "distance": 26, "height": 2}, "surfaces": {}, "tint": "#6e5d52"}
+  {"id": "campfire", "model": "models/props/fire_pit.glb", "scale": 1.6, "blockRadius": 1.2, "light": {"color": "#ff8a3a", "intensity": 60, "distance": 26, "height": 2}, "surfaces": {}, "tint": "#6e5d52"},
+  {"id": "cave_crag_a", "model": "models/props/rock_set_1.glb", "scale": 2.8, "blockRadius": 2.2, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#e2d6c4"},
+  {"id": "cave_crag_b", "model": "models/props/rock_set_2.glb", "scale": 3.2, "blockRadius": 3.0, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#e2d6c4"},
+  {"id": "cave_crag_spire", "model": "models/props/rock_set_4.glb", "scale": 3.6, "blockRadius": 2.4, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#e2d6c4"},
+  {"id": "cave_crag_low", "model": "models/props/rock_set_5.glb", "scale": 2.0, "blockRadius": 1.5, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#e2d6c4"},
+  {"id": "cave_edge_a", "model": "models/props/rock_set_5.glb", "scale": 0.8, "blockRadius": 0, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#e2d6c4"},
+  {"id": "cave_edge_b", "model": "models/props/rock_set_2.glb", "scale": 0.8, "blockRadius": 0, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#e2d6c4"},
+  {"id": "cave_ridge_a", "model": "models/props/rock_set_4.glb", "scale": 4.6, "blockRadius": 0, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#8a7f72"},
+  {"id": "cave_ridge_b", "model": "models/props/rock_set_1.glb", "scale": 5.0, "blockRadius": 0, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#8a7f72"},
+  {"id": "cave_ridge_far", "model": "models/props/rock_set_2.glb", "scale": 6.5, "blockRadius": 0, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#4e4740"},
+  {"id": "cave_boulder", "model": "models/props/rock_set_2.glb", "scale": 1.1, "blockRadius": 0, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#e2d6c4"},
+  {"id": "cave_rock_4", "model": "models/props/rock_set_4.glb", "scale": 0.5, "blockRadius": 0, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#e2d6c4"},
+  {"id": "cave_rock_5", "model": "models/props/rock_set_5.glb", "scale": 0.5, "blockRadius": 0, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#e2d6c4"},
+  {"id": "cave_fire", "model": "models/props/fire_pit.glb", "scale": 1.3, "blockRadius": 1.0, "light": {"color": "#ff9446", "intensity": 70, "distance": 24, "height": 1.6}, "surfaces": {}, "tint": "#5e4f46"},
+  {"id": "cave_embers", "model": "models/props/fire_pit.glb", "scale": 0.8, "blockRadius": 0.6, "solid": true, "light": {"color": "#ff8c40", "intensity": 34, "distance": 16, "height": 1.0}, "surfaces": {}, "tint": "#5e4f46"},
+  {"id": "cave_glow", "model": "models/props/rock_set_3.glb", "scale": 0.3, "blockRadius": 0, "light": {"color": "#86c6cc", "intensity": 40, "distance": 18, "height": 0.7}, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#e2d6c4"},
+  {"id": "cave_spire", "model": "models/props/rock_set_4.glb", "scale": 1.5, "blockRadius": 1.2, "light": null, "surfaces": {"rock_moss_set_01": "cave_rock"}, "tint": "#e2d6c4"}
 ]

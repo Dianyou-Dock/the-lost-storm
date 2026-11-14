@@ -246,6 +246,21 @@
         "z": 33
       },
       "requires": []
+    },
+    {
+      "id": "under",
+      "x": 17,
+      "z": 5.4,
+      "radius": 2.2,
+      "to": "under_hall",
+      "toExit": "lair",
+      "arrival": {
+        "x": 18,
+        "z": 10.5
+      },
+      "requires": [{"type": "flag", "flag": "under_hall", "is": "open"}],
+      "lockedHint": "",
+      "hiddenWhenLocked": true
     }
   ],
   "deathReturn": {

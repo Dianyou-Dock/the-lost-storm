@@ -1,6 +1,6 @@
 import { actOf } from '../../sim/content/atlas.ts';
 import type { ActDef, AtlasRoad, MapPlace, ZoneDef } from '../../sim/content/types.ts';
-import { placeState, roadState, roadWalked, zoneMark } from '../../sim/world/atlas.ts';
+import { placeState, roadState, roadWalked, shownPlaces, zoneMark } from '../../sim/world/atlas.ts';
 import type { PlaceState, RoadState, ZoneMark } from '../../sim/world/atlas.ts';
 import type { World } from '../../sim/world/types.ts';
 import { canTeleport, onWaypoint } from '../../sim/world/waypoints.ts';
@@ -59,6 +59,8 @@ interface RoadView {
 
 interface ActView {
   readonly act: ActDef;
+  readonly places: readonly MapPlace[];
+  readonly shown: string;
   readonly nodes: readonly NodeView[];
   readonly roads: readonly RoadView[];
 }
@@ -75,6 +77,10 @@ interface Drag {
 
 export interface MapPanel extends PanelView {
   update(dt: number): void;
+}
+
+function shownKey(places: readonly MapPlace[]): string {
+  return places.map((place: MapPlace): string => place.zone).join('|');
 }
 
 function retriggerSvg(node: SVGElement, className: string): void {
@@ -122,6 +128,7 @@ export function createMapPanel(parent: HTMLElement, context: HudContext, close: 
   let pinch: Pinch | null = null;
 
   const build = (act: ActDef): ActView => {
+    const places: MapPlace[] = shownPlaces(world, act.atlas.places);
     defs.replaceChildren();
     sheet.replaceChildren();
     drawAtlasArt(act.atlas, sheet, defs, MAP.ids.grain);
@@ -133,7 +140,7 @@ export function createMapPanel(parent: HTMLElement, context: HudContext, close: 
     const roadLayer: SVGGElement = svg('g', 'atlas-roads', sheet, {});
     svg('rect', 'atlas-fog', sheet, { x: 0, y: 0, width: act.atlas.width, height: act.atlas.height, mask: `url(#${MAP.ids.fog})` });
     const nodeLayer: SVGGElement = svg('g', 'atlas-nodes', sheet, {});
-    const placeOf = (zoneId: string): MapPlace | undefined => act.atlas.places.find((place: MapPlace): boolean => place.zone === zoneId);
+    const placeOf = (zoneId: string): MapPlace | undefined => places.find((place: MapPlace): boolean => place.zone === zoneId);
     const roads: RoadView[] = [];
     for (const road of act.atlas.roads) {
       const from: MapPlace | undefined = placeOf(road.from);
@@ -146,7 +153,7 @@ export function createMapPanel(parent: HTMLElement, context: HudContext, close: 
       roads.push({ road, group, state: null });
     }
     const nodes: NodeView[] = [];
-    for (const place of act.atlas.places) {
+    for (const place of places) {
       const zone: ZoneDef | undefined = world.content.zones.get(place.zone);
       if (zone === undefined) continue;
       const mark: ZoneMark = zoneMark(world.content, zone);
@@ -155,13 +162,13 @@ export function createMapPanel(parent: HTMLElement, context: HudContext, close: 
     }
     setText(actTitle, act.title, false);
     setText(actName, act.name, false);
-    return { act, nodes, roads };
+    return { act, places, shown: shownKey(places), nodes, roads };
   };
 
   const measure = (): void => {
     if (view === null) return;
-    const { width, height, places } = view.act.atlas;
-    frame = { width: Math.max(1, element.clientWidth), height: Math.max(1, element.clientHeight), mapWidth: width, mapHeight: height, places: placeBox(places, width, height) };
+    const { width, height } = view.act.atlas;
+    frame = { width: Math.max(1, element.clientWidth), height: Math.max(1, element.clientHeight), mapWidth: width, mapHeight: height, places: placeBox(view.places, width, height) };
   };
 
   const describe = (node: NodeView): void => {
@@ -358,7 +365,7 @@ export function createMapPanel(parent: HTMLElement, context: HudContext, close: 
     pinch = null;
     const act: ActDef | undefined = actOf(world.content, world.zone.id);
     if (act === undefined) return;
-    if (view?.act !== act) {
+    if (view?.act !== act || view.shown !== shownKey(shownPlaces(world, act.atlas.places))) {
       view = build(act);
       markers = '';
     }

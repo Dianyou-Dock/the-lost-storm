@@ -5,7 +5,7 @@ import { must, zoneOf } from '../../test/support.ts';
 import type { Vec2 } from '../math.ts';
 import { buildNavGrid, isWalkable, setDriftOpen } from '../nav/grid.ts';
 import type { NavGrid } from '../nav/grid.ts';
-import { findPath } from '../nav/path.ts';
+import { inRegion, walkRegion } from '../nav/region.ts';
 import { placeLinks, startingPlaces } from '../progression.ts';
 import { clipUrl, rigClipNames } from './clips.ts';
 import { wearFrames, wearModel } from '../wear.ts';
@@ -311,10 +311,7 @@ void test('the Skill Tree has five paths of a hundred places or more, every plac
 });
 
 function reaches(grid: NavGrid, from: Vec2, to: Vec2): boolean {
-  if (!isWalkable(grid, to.x, to.z)) return false;
-  if (Math.hypot(from.x - to.x, from.z - to.z) < 0.01) return true;
-  const last: Vec2 | undefined = findPath(grid, from, to).at(-1);
-  return last !== undefined && Math.hypot(last.x - to.x, last.z - to.z) < 0.01;
+  return isWalkable(grid, to.x, to.z) && inRegion(walkRegion(grid, from), to);
 }
 
 function reachesWithin(grid: NavGrid, from: Vec2, centre: Vec2, radius: number): boolean {

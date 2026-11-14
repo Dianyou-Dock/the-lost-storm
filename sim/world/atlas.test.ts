@@ -5,7 +5,7 @@ import { finishQuests, must, worldIn, zoneOf } from '../../test/support.ts';
 import { actOf } from '../content/atlas.ts';
 import { loadContent } from '../content/content.ts';
 import type { ActDef, AtlasDef, AtlasRoad, Content, MapPlace, QuestDef, ZoneDef, ZoneExit, ZoneWaypoint } from '../content/types.ts';
-import { placeState, roadState, roadWalked, zoneMark } from './atlas.ts';
+import { placeShown, placeState, roadState, roadWalked, shownPlaces, zoneMark } from './atlas.ts';
 import { createWorld } from './create.ts';
 import { canTeleport, onWaypoint } from './waypoints.ts';
 import type { World } from './types.ts';
@@ -26,7 +26,7 @@ const peak: ZoneDef = roadZone({ id: 'peak', exits: [exitTo('vale', [], false)] 
 const hollow: ZoneDef = roadZone({ id: 'hollow', exits: [exitTo('vale', [], false)] });
 const atlas: AtlasDef = {
   ...act.atlas,
-  places: ['hub', 'vale', 'keep', 'peak', 'hollow'].map((zone: string, index: number): MapPlace => ({ zone, x: 100 + index * 100, y: 200 })),
+  places: ['hub', 'vale', 'keep', 'peak', 'hollow'].map((zone: string, index: number): MapPlace => ({ zone, x: 100 + index * 100, y: 200, when: [] })),
   roads: [['hub', 'vale'], ['hub', 'keep'], ['vale', 'peak'], ['vale', 'hollow']].map(([from, to]): AtlasRoad => ({ from: from ?? '', to: to ?? '', via: [] })),
 };
 const mapped: Content = { ...roadAct([hub, vale, keep, peak, hollow], 'hub'), quests: new Map<string, QuestDef>([[errand.id, errand]]) };
@@ -90,7 +90,7 @@ void test('a zone no act places falls back to the first act', (): void => {
 });
 
 void test('the act shows the In-Between, the Hall of Time and the Hideout west to east, joined in the order the hero walks them, with the boss lair north of the Hall', (): void => {
-  const road: MapPlace[] = act.atlas.places.filter((place: MapPlace): boolean => place.zone !== 'keepers_gate');
+  const road: MapPlace[] = act.atlas.places.filter((place: MapPlace): boolean => place.zone !== 'keepers_gate' && place.zone !== 'under_hall');
   assert.deepEqual(
     road.map((place: MapPlace): string => place.zone),
     ['between', 'hall_of_time', 'hideout'],
@@ -100,7 +100,7 @@ void test('the act shows the In-Between, the Hall of Time and the Hideout west t
   assert.deepEqual(xs, xs.toSorted((a: number, b: number): number => a - b));
   assert.deepEqual(
     act.atlas.roads.map((joined: AtlasRoad): string => `${joined.from} ${joined.to}`),
-    ['between hall_of_time', 'hall_of_time hideout', 'hall_of_time keepers_gate'],
+    ['between hall_of_time', 'hall_of_time hideout', 'hall_of_time keepers_gate', 'keepers_gate under_hall'],
   );
   const hall: MapPlace = must(act.atlas.places.find((place: MapPlace): boolean => place.zone === 'hall_of_time'), 'hall');
   const lair: MapPlace = must(act.atlas.places.find((place: MapPlace): boolean => place.zone === 'keepers_gate'), 'lair');
@@ -145,6 +145,21 @@ void test('a hero who woke in the In-Between has walked no road of act 1, and on
   const intoHall: AtlasRoad = must(act.atlas.roads.find((road: AtlasRoad): boolean => road.from === 'between' && road.to === 'hall_of_time'), 'road into the hall');
   assert.equal(roadState(woke, intoHall), 'hidden');
   const travelled: World = worldIn(content, 'hideout', 1);
-  travelled.visited.splice(0, travelled.visited.length, 'between', 'hall_of_time', 'hideout', 'keepers_gate');
+  travelled.visited.splice(0, travelled.visited.length, 'between', 'hall_of_time', 'hideout', 'keepers_gate', 'under_hall');
   for (const road of act.atlas.roads) assert.equal(roadWalked(travelled, road), true, `${road.from} ${road.to}`);
+});
+
+void test('the cave under the Hall has no place on the map until its withheld flag is open, and a saved flag cannot open it', (): void => {
+  const cave: MapPlace = must(act.atlas.places.find((place: MapPlace): boolean => place.zone === 'under_hall'), 'cave place');
+  const travelled: World = worldIn(content, 'keepers_gate', 20);
+  travelled.flags['keeper_defeated'] = 'yes';
+  assert.equal(placeShown(travelled, cave), false);
+  assert.ok(!shownPlaces(travelled, act.atlas.places).includes(cave));
+  assert.equal(placeState(travelled, 'under_hall'), 'unknown');
+  const road: AtlasRoad = must(act.atlas.roads.find((joined: AtlasRoad): boolean => joined.to === 'under_hall'), 'cave road');
+  assert.equal(roadState(travelled, road), 'hidden');
+  travelled.flags['under_hall'] = 'open';
+  assert.equal(placeShown(travelled, cave), true);
+  assert.equal(roadState(travelled, road), 'open');
+  assert.deepEqual(content.world.withheld, ['under_hall']);
 });
