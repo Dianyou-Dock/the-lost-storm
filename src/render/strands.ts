@@ -170,6 +170,7 @@ function createSlot(indices: readonly number[]): Slot {
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
+    forceSinglePass: true,
     blending: AdditiveBlending,
   });
   const mesh: Mesh<BufferGeometry, ShaderMaterial> = new Mesh(geometry, material);

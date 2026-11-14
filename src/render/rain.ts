@@ -236,6 +236,7 @@ function createLayer(scene: Scene, shared: RainShared, def: RainLayerDef, capaci
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
+    forceSinglePass: true,
     blending: AdditiveBlending,
     fog: true,
   });

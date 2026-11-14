@@ -133,6 +133,7 @@ export function buildMistWall(wall: ZoneMistWall, tone: MistWallTone = STORM_WAL
       transparent: true,
       depthWrite: false,
       side: DoubleSide,
+      forceSinglePass: true,
       fog: false,
     });
     materials.push(material);

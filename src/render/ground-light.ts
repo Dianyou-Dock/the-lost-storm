@@ -202,7 +202,7 @@ export function groundLightMaterial(color: Color, form: GroundLightForm, look: G
     uLiftArea: LIFT_UNIFORMS.uLiftArea,
     uLiftOn: LIFT_UNIFORMS.uLiftOn,
   };
-  return new ShaderMaterial({ uniforms, vertexShader: GROUND_LIGHT_VERTEX, fragmentShader: GROUND_LIGHT_FRAGMENT, transparent: true, depthWrite: false, blending: tone === 'shade' ? NormalBlending : CustomBlending, blendSrc: OneFactor, blendDst: OneMinusSrcAlphaFactor, side: DoubleSide });
+  return new ShaderMaterial({ uniforms, vertexShader: GROUND_LIGHT_VERTEX, fragmentShader: GROUND_LIGHT_FRAGMENT, transparent: true, depthWrite: false, blending: tone === 'shade' ? NormalBlending : CustomBlending, blendSrc: OneFactor, blendDst: OneMinusSrcAlphaFactor, side: DoubleSide, forceSinglePass: true });
 }
 
 function setUniform(material: ShaderMaterial, name: string, value: number): void {

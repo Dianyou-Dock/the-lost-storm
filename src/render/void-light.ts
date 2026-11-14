@@ -89,7 +89,7 @@ interface GlowUniforms {
 }
 
 function glowMaterial(fragmentShader: string, uniforms: GlowUniforms): ShaderMaterial {
-  return new ShaderMaterial({ vertexShader: GLOW_VERTEX, fragmentShader, uniforms: { ...uniforms }, transparent: true, depthWrite: false, side: DoubleSide, blending: AdditiveBlending });
+  return new ShaderMaterial({ vertexShader: GLOW_VERTEX, fragmentShader, uniforms: { ...uniforms }, transparent: true, depthWrite: false, side: DoubleSide, forceSinglePass: true, blending: AdditiveBlending });
 }
 
 function columnGeometry(): BufferGeometry {

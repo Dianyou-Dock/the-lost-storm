@@ -84,6 +84,7 @@ export function createRainGround(scene: Scene, budget: RainBudget, shared: RainS
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
+    forceSinglePass: true,
     blending: AdditiveBlending,
     fog: true,
   });
@@ -108,6 +109,7 @@ export function createRainGround(scene: Scene, budget: RainBudget, shared: RainS
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
+    forceSinglePass: true,
     blending: AdditiveBlending,
     fog: true,
   });
@@ -130,6 +132,7 @@ export function createRainGround(scene: Scene, budget: RainBudget, shared: RainS
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
+    forceSinglePass: true,
     blending: NormalBlending,
     fog: true,
   });

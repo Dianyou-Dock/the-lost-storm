@@ -138,7 +138,7 @@ export function poolLight(d: number): number {
 }
 
 function additive(vertexShader: string, fragmentShader: string, uniforms: PoolUniforms, doubleSided: boolean): ShaderMaterial {
-  return new ShaderMaterial({ uniforms, vertexShader, fragmentShader, transparent: true, depthWrite: false, blending: AdditiveBlending, side: doubleSided ? DoubleSide : FrontSide });
+  return new ShaderMaterial({ uniforms, vertexShader, fragmentShader, transparent: true, depthWrite: false, blending: AdditiveBlending, side: doubleSided ? DoubleSide : FrontSide, forceSinglePass: true });
 }
 
 function moteSeeds(count: number): BufferGeometry {

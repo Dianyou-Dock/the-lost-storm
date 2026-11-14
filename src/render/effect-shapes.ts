@@ -159,6 +159,7 @@ export function slashMesh(arc: number, reach: number, color: Color): SlashMesh {
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
+    forceSinglePass: true,
     blending: AdditiveBlending,
   });
   const mesh: Mesh = new Mesh(sectorGeometry(arc, reach * BLADE.inner, reach), material);
@@ -167,7 +168,7 @@ export function slashMesh(arc: number, reach: number, color: Color): SlashMesh {
 }
 
 export function additive(color: Color, opacity: number): MeshBasicMaterial {
-  return new MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: DoubleSide, blending: AdditiveBlending });
+  return new MeshBasicMaterial({ color, transparent: true, opacity, depthWrite: false, side: DoubleSide, forceSinglePass: true, blending: AdditiveBlending });
 }
 
 export function flat(color: Color, opacity: number): MeshBasicMaterial {
@@ -306,6 +307,7 @@ function groundPlane(fragmentShader: string, uniforms: Record<string, IUniform>,
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
+    forceSinglePass: true,
     blending: additiveBlend ? AdditiveBlending : NormalBlending,
   });
   const mesh: Mesh<PlaneGeometry, ShaderMaterial> = new Mesh(new PlaneGeometry(2, 2), material);
