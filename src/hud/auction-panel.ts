@@ -17,6 +17,7 @@ import type { ItemCell } from './item-cell.ts';
 import { createItemCell, showItem } from './item-cell.ts';
 import { shownTitle } from './npc-title.ts';
 import { promptText, use } from './prompts.ts';
+import { domRows, placeRows } from './row-order.ts';
 
 const AUCTION_PANEL = {
   anyLabel: 'Any',
@@ -65,8 +66,17 @@ interface Leaving {
 }
 
 function leave(row: Leaving): void {
+  row.element.classList.remove('settled');
   row.element.classList.add('leaving');
-  row.element.addEventListener('animationend', (): void => row.element.remove(), { once: true });
+  row.element.addEventListener('animationend', (event: AnimationEvent): void => {
+    if (event.target === row.element && event.animationName === 'auction-row-out') row.element.remove();
+  });
+}
+
+function settleRow(row: HTMLElement): void {
+  row.addEventListener('animationend', (event: AnimationEvent): void => {
+    if (event.target === row && event.animationName === 'auction-row-in') row.classList.add('settled');
+  });
 }
 
 function picker(parent: HTMLElement, layer: HTMLElement, host: HTMLElement, name: string, choices: readonly DropdownChoice[], onChange: (value: string) => void): Dropdown {
@@ -203,6 +213,7 @@ export function createAuctionPanel(parent: HTMLElement, context: HudContext): Pa
 
   const makeRow = (holder: HTMLElement, listing: Listing, verb: string, sure: string | null, onAct: (row: Row) => void): Row => {
     const row: HTMLDivElement = el('div', 'auction-row', holder);
+    settleRow(row);
     const cell: ItemCell = createItemCell(context, row, (): string => '');
     const text: HTMLDivElement = el('div', 'auction-row-text', row);
     const name: HTMLDivElement = label('auction-row-name', '', text);
@@ -220,6 +231,7 @@ export function createAuctionPanel(parent: HTMLElement, context: HudContext): Pa
 
   const makeSale = (sale: Sale): SaleRow => {
     const row: HTMLDivElement = el('div', 'auction-row sale', historyRows);
+    settleRow(row);
     const cell: ItemCell = createItemCell(context, row, (): string => '');
     const text: HTMLDivElement = el('div', 'auction-row-text', row);
     const name: HTMLDivElement = label('auction-row-name', '', text);
@@ -236,11 +248,12 @@ export function createAuctionPanel(parent: HTMLElement, context: HudContext): Pa
       salesKept.delete(id);
       leave(row);
     }
+    const placed: HTMLElement[] = [];
     for (const sale of sales) {
       const row: SaleRow = salesKept.get(sale.id) ?? makeSale(sale);
       row.sale = sale;
       salesKept.set(sale.id, row);
-      historyRows.appendChild(row.element);
+      placed.push(row.element);
       const item: ItemInstance = items.shown(sale.item);
       showItem(context, row.cell, item);
       setText(row.name, itemName(world.content, item), false);
@@ -248,6 +261,7 @@ export function createAuctionPanel(parent: HTMLElement, context: HudContext): Pa
       setText(row.sub, saleLine(sale), true);
       setText(row.price, String(sale.price), true);
     }
+    placeRows(domRows(historyRows, 'leaving'), placed);
     shown(history, sales.length > 0);
   };
 
@@ -258,12 +272,14 @@ export function createAuctionPanel(parent: HTMLElement, context: HudContext): Pa
       kept.delete(id);
       leave(row);
     }
+    const placed: HTMLElement[] = [];
     for (const listing of listings) {
       const row: Row = kept.get(listing.id) ?? build(listing);
       row.listing = listing;
       kept.set(listing.id, row);
-      holder.appendChild(row.element);
+      placed.push(row.element);
     }
+    placeRows(domRows(holder, 'leaving'), placed);
   };
 
   const fill = (row: Row, world: World, sub: string): void => {

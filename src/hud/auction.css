@@ -197,6 +197,10 @@
   opacity: 1;
 }
 
+.auction-row.settled {
+  animation: none;
+}
+
 .auction-row.leaving {
   pointer-events: none;
   animation: auction-row-out var(--spring-snappy-ms) var(--spring-snappy) both;
