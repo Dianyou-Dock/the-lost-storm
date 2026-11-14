@@ -79,6 +79,9 @@
       "Ranger_Hood"
     ],
     "region": "head",
+    "covers": [
+      "hair"
+    ],
     "tint": "#8a6648",
     "hides": []
   },
@@ -146,6 +149,9 @@
       "Ranger_Hood"
     ],
     "region": "head",
+    "covers": [
+      "hair"
+    ],
     "tint": "#ffffff",
     "hides": []
   },
@@ -289,6 +295,9 @@
       "Ranger_Hood"
     ],
     "region": "head",
+    "covers": [
+      "hair"
+    ],
     "tint": "#615444",
     "hides": []
   },
@@ -344,6 +353,9 @@
       "Ranger_Hood"
     ],
     "region": "head",
+    "covers": [
+      "hair"
+    ],
     "tint": "#c6ced8",
     "hides": []
   },
@@ -390,6 +402,9 @@
       "Ranger_Hood"
     ],
     "region": "head",
+    "covers": [
+      "hair"
+    ],
     "tint": "#3d3833",
     "hides": []
   },
@@ -432,6 +447,9 @@
       "Ranger_Hood"
     ],
     "region": "head",
+    "covers": [
+      "hair"
+    ],
     "tint": "#2b3542",
     "hides": []
   },
@@ -488,6 +506,9 @@
       "Ranger_Hood"
     ],
     "region": "head",
+    "covers": [
+      "hair"
+    ],
     "tint": "#4f4a3a",
     "hides": []
   },
@@ -544,6 +565,9 @@
       "Ranger_Hood"
     ],
     "region": "head",
+    "covers": [
+      "hair"
+    ],
     "tint": "#c8b498",
     "hides": []
   },
@@ -553,7 +577,7 @@
     "pieces": [
       "Hair_SimpleParted"
     ],
-    "region": "head",
+    "region": "hair",
     "tint": "#6a523e",
     "hides": [],
     "wakeLamps": 0.45
@@ -564,7 +588,7 @@
     "pieces": [
       "Hair_Buzzed"
     ],
-    "region": "head",
+    "region": "hair",
     "tint": "#9a8070",
     "hides": [],
     "wakeLamps": 0.45
@@ -575,7 +599,7 @@
     "pieces": [
       "Hair_SimpleParted"
     ],
-    "region": "head",
+    "region": "hair",
     "tint": "#8a6a48",
     "hides": [],
     "wakeLamps": 0.45
@@ -586,7 +610,7 @@
     "pieces": [
       "Hair_Long"
     ],
-    "region": "head",
+    "region": "hair",
     "tint": "#4a3a30",
     "hides": [],
     "wakeLamps": 0.45
@@ -597,7 +621,7 @@
     "pieces": [
       "Hair_Buns"
     ],
-    "region": "head",
+    "region": "hair",
     "tint": "#7c5c3e",
     "hides": [],
     "wakeLamps": 0.45
@@ -608,7 +632,7 @@
     "pieces": [
       "Hair_BuzzedFemale"
     ],
-    "region": "head",
+    "region": "hair",
     "tint": "#54423a",
     "hides": [],
     "wakeLamps": 0.45
@@ -652,6 +676,84 @@
       "Peasant_Feet"
     ],
     "region": "feet",
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "lens_mask",
+    "model": "models/wear/{frame}/headgear.glb",
+    "pieces": [
+      "Lens_Mask"
+    ],
+    "region": "head",
+    "covers": [],
+    "surfaces": {
+      "plate": "lacquer",
+      "trim": "clean_bronze",
+      "strap": "dark_leather",
+      "lining": "dark_leather"
+    },
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "slit_mask",
+    "model": "models/wear/{frame}/headgear.glb",
+    "pieces": [
+      "Slit_Mask"
+    ],
+    "region": "head",
+    "covers": [],
+    "surfaces": {
+      "plate": "mask_iron",
+      "lining": "dark_leather"
+    },
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "iron_helm",
+    "model": "models/wear/{frame}/headgear.glb",
+    "pieces": [
+      "Iron_Helm"
+    ],
+    "region": "head",
+    "covers": [
+      "hair"
+    ],
+    "surfaces": {
+      "plate": "helm_steel",
+      "trim": "mask_iron",
+      "lining": "dark_leather"
+    },
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "circlet",
+    "model": "models/wear/{frame}/headgear.glb",
+    "pieces": [
+      "Circlet"
+    ],
+    "region": "head",
+    "covers": [],
+    "surfaces": {
+      "trim": "clean_bronze"
+    },
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "keeper_loupe",
+    "model": "models/wear/{frame}/headgear.glb",
+    "pieces": [
+      "Keeper_Loupe"
+    ],
+    "region": "head",
+    "covers": [],
+    "surfaces": {
+      "trim": "clean_bronze"
+    },
     "tint": "#ffffff",
     "hides": []
   }

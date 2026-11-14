@@ -60,7 +60,8 @@ export function wornWearables(content: Content, rig: string, clothes: readonly s
       if (base !== undefined) for (const id of base.wear) put(id);
     }
   }
-  return [...worn.values()];
+  const covered: Set<WearRegion> = new Set<WearRegion>([...worn.values()].flatMap((id: string): readonly WearRegion[] => content.wearables.get(id)?.covers ?? []));
+  return [...worn].filter(([region]: [WearRegion, string]): boolean => !covered.has(region)).map(([, id]: [WearRegion, string]): string => id);
 }
 
 export function hiddenBodyParts(content: Content, wearableIds: readonly string[]): string[] {

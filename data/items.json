@@ -358,6 +358,206 @@
       }
     },
     {
+      "id": "circlet",
+      "name": "Circlet",
+      "slot": "head",
+      "material": "cloth",
+      "icon": "circlet",
+      "dropWeight": 8,
+      "minLevel": 1,
+      "visual": null,
+      "wear": [
+        "circlet"
+      ],
+      "implicit": [
+        {
+          "stat": "armour",
+          "op": "add",
+          "value": 2
+        },
+        {
+          "stat": "maxLife",
+          "op": "add",
+          "value": 4
+        },
+        {
+          "stat": "maxMana",
+          "op": "add",
+          "value": 12
+        }
+      ],
+      "ground": {
+        "model": "worn",
+        "scale": 1.6,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "lens_mask",
+      "name": "Lens Mask",
+      "slot": "head",
+      "material": "leather",
+      "icon": "mask",
+      "dropWeight": 6,
+      "minLevel": 4,
+      "visual": null,
+      "wear": [
+        "lens_mask"
+      ],
+      "implicit": [
+        {
+          "stat": "armour",
+          "op": "add",
+          "value": 8
+        },
+        {
+          "stat": "maxLife",
+          "op": "add",
+          "value": 8
+        },
+        {
+          "stat": "critChance",
+          "op": "add",
+          "value": 0.03
+        }
+      ],
+      "ground": {
+        "model": "worn",
+        "scale": 1.6,
+        "pitch": -90,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "keeper_loupe",
+      "name": "Keeper's Loupe",
+      "slot": "head",
+      "material": "cloth",
+      "icon": "circlet",
+      "dropWeight": 5,
+      "minLevel": 5,
+      "visual": null,
+      "wear": [
+        "keeper_loupe"
+      ],
+      "implicit": [
+        {
+          "stat": "armour",
+          "op": "add",
+          "value": 4
+        },
+        {
+          "stat": "maxLife",
+          "op": "add",
+          "value": 6
+        },
+        {
+          "stat": "maxMana",
+          "op": "add",
+          "value": 14
+        },
+        {
+          "stat": "attackSpeed",
+          "op": "add",
+          "value": 0.04
+        }
+      ],
+      "ground": {
+        "model": "worn",
+        "scale": 1.6,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "slit_mask",
+      "name": "Slit Mask",
+      "slot": "head",
+      "material": "mail",
+      "icon": "mask",
+      "dropWeight": 4,
+      "minLevel": 7,
+      "visual": null,
+      "wear": [
+        "slit_mask"
+      ],
+      "implicit": [
+        {
+          "stat": "armour",
+          "op": "add",
+          "value": 14
+        },
+        {
+          "stat": "maxLife",
+          "op": "add",
+          "value": 14
+        },
+        {
+          "stat": "critMultiplier",
+          "op": "add",
+          "value": 0.12
+        },
+        {
+          "stat": "moveSpeed",
+          "op": "percent",
+          "value": -0.02
+        }
+      ],
+      "ground": {
+        "model": "worn",
+        "scale": 1.6,
+        "pitch": -90,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "iron_helm",
+      "name": "Iron Helm",
+      "slot": "head",
+      "material": "plate",
+      "icon": "helm",
+      "dropWeight": 3,
+      "minLevel": 10,
+      "visual": null,
+      "wear": [
+        "iron_helm"
+      ],
+      "implicit": [
+        {
+          "stat": "armour",
+          "op": "add",
+          "value": 22
+        },
+        {
+          "stat": "maxLife",
+          "op": "add",
+          "value": 22
+        },
+        {
+          "stat": "stormResist",
+          "op": "add",
+          "value": 0.08
+        },
+        {
+          "stat": "moveSpeed",
+          "op": "percent",
+          "value": -0.03
+        }
+      ],
+      "ground": {
+        "model": "worn",
+        "scale": 1.6,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
       "id": "saltworn_shirt",
       "name": "Saltworn Shirt",
       "slot": "chest",

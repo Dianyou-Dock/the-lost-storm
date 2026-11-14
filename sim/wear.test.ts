@@ -1,7 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { must } from '../test/support.ts';
-import { loadContent } from './content/content.ts';
+import { loadContent, RAW_CONTENT } from './content/content.ts';
+import { contentProblems, parseContent } from './content/parse.ts';
+import { ContentError } from './content/read.ts';
 import type { Content, WearableDef } from './content/types.ts';
 import { emptyEquipment, generateItem } from './items.ts';
 import { createRng } from './rng.ts';
@@ -169,12 +171,24 @@ void test('a zone with a moment field needs the bodies, clothes and gear of its 
   }
 });
 
-void test('the hero body brings its own hair, and a hood worn on the head takes its place', (): void => {
+void test('the hero body brings its own hair, a hood or a helm covers it, and a mask leaves it', (): void => {
   const base: readonly string[] = heroBase(content, content.player.hero.rig);
-  assert.deepEqual(regions(base), ['head']);
+  assert.deepEqual(regions(base), ['hair']);
   assert.ok(lookOf(content, content.player.hero.rig, base, emptyEquipment()).wearables.includes('hair_short'));
   const hooded: readonly string[] = lookOf(content, content.player.hero.rig, base, { ...emptyEquipment(), head: item('wayfarer_hood') }).wearables;
   assert.ok(hooded.includes('leather_hood') && !hooded.includes('hair_short'));
+  const helmed: readonly string[] = lookOf(content, content.player.hero.rig, base, { ...emptyEquipment(), head: item('iron_helm') }).wearables;
+  assert.ok(helmed.includes('iron_helm') && !helmed.includes('hair_short'));
+  const masked: readonly string[] = lookOf(content, content.player.hero.rig, base, { ...emptyEquipment(), head: item('lens_mask') }).wearables;
+  assert.ok(masked.includes('lens_mask') && masked.includes('hair_short'));
+});
+
+void test('a worn piece that covers a region leaves out whatever else sits there', (): void => {
+  const hair: WearableDef = must(content.wearables.get('hair_short'), 'hair_short');
+  const helm: WearableDef = must(content.wearables.get('iron_helm'), 'iron_helm');
+  assert.deepEqual(helm.covers, ['hair']);
+  assert.deepEqual(wornWearables(content, UNLAYERED, [hair.id, helm.id], null), [helm.id]);
+  assert.deepEqual(wornWearables(content, UNLAYERED, [helm.id, hair.id], null), [helm.id]);
 });
 
 void test('with nothing equipped the hero wears his undertunic and braies, and each garment takes the place of the layer on its region', (): void => {
@@ -215,4 +229,12 @@ void test('another player is dressed from base ids alone, the same as from item 
   const rig: string = must(content.player.heroes[0], 'hero').rig;
   assert.deepEqual(lookOf(content, rig, heroBase(content, rig), wornBasesOf(worn)), lookOf(content, rig, heroBase(content, rig), equipped));
   assert.deepEqual(lookOf(content, rig, heroBase(content, rig), wornBasesOf({})), lookOf(content, rig, heroBase(content, rig), emptyEquipment()));
+});
+
+void test('a wearable may only cover a wear region and dress its materials in surfaces that exist', (): void => {
+  const shipped: readonly unknown[] = Array.isArray(RAW_CONTENT.wearables) ? RAW_CONTENT.wearables : [];
+  const piece = { id: 'test_veil', model: 'models/wear/wool_tunic.glb', region: 'head', tint: '#33302c', hides: [] };
+  const undressed: Content = parseContent({ ...RAW_CONTENT, wearables: [...shipped, { ...piece, surfaces: { cloth: 'no_such_surface' } }] });
+  assert.ok(contentProblems(undressed).some((found: string): boolean => found.includes('wearable test_veil dresses cloth in unknown surface no_such_surface')));
+  assert.throws((): Content => parseContent({ ...RAW_CONTENT, wearables: [...shipped, { ...piece, covers: ['tail'] }] }), (error: unknown): boolean => error instanceof ContentError && error.message.includes('covers'));
 });

@@ -420,7 +420,7 @@
     ],
     "wear": [
       "keeper_robe",
-      "keeper_hood"
+      "lens_mask"
     ]
   },
   {
@@ -455,7 +455,8 @@
     ],
     "wear": [
       "keeper_robe",
-      "keeper_gloves"
+      "keeper_gloves",
+      "lens_mask"
     ]
   },
   {
@@ -489,7 +490,7 @@
     "wear": [
       "keeper_robe",
       "keeper_gloves",
-      "keeper_hood"
+      "lens_mask"
     ],
     "poise": {
       "knockback": 0.4,
@@ -526,7 +527,7 @@
     ],
     "wear": [
       "keeper_robe",
-      "keeper_hood",
+      "lens_mask",
       "keeper_gloves"
     ],
     "boss": {

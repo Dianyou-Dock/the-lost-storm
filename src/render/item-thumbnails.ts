@@ -27,6 +27,8 @@ export const THUMBNAIL = {
   fillZ: 3,
   wornTurn: -0.5,
   wornTilt: 0.12,
+  headTilt: 0.42,
+  headTurn: 0.5,
   wideFrom: 2,
   sleeveLift: Math.PI / 2,
   sleeveHang: -Math.PI / 2,
@@ -144,6 +146,7 @@ function dressed(wearable: LoadedWearable, skinTint: string, made: Made): Group 
   const glove: boolean = wearable.def.region === 'hands';
   const turned: Group = new Group();
   if (glove) turned.rotation.set(0, 0, THUMBNAIL.gloveRaise);
+  else if (wearable.def.region === 'head') turned.rotation.set(THUMBNAIL.headTilt, THUMBNAIL.headTurn, 0);
   else turned.rotation.set(THUMBNAIL.wornTilt, THUMBNAIL.wornTurn, 0);
   let cuff: { readonly from: number; readonly inner: number; readonly outer: number } | null = null;
   for (const piece of wearable.pieces) {
@@ -246,7 +249,10 @@ function framing(wearable: LoadedWearable): (posed: Group) => Box3 {
     case 'chest':
       frame = trunk;
       break;
+    case 'hair':
     case 'head':
+      frame = boundsOf;
+      break;
     case 'shoulders':
     case 'arms':
     case 'legs':

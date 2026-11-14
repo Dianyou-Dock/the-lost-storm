@@ -19,7 +19,7 @@ import type { Fields } from './read.ts';
 import { line, npcs, quest, worldDef, zone } from './parse-world.ts';
 import { skillVfx } from './parse-vfx.ts';
 import { service, trade, tradeProblems } from './parse-trade.ts';
-import { byId, choice, colour, ContentError, each, fields, flag, fraction, nonNegative, nullableText, numeric, positive, share, text, textList } from './read.ts';
+import { byId, choice, choiceList, colour, ContentError, each, fields, flag, fraction, nonNegative, nullableText, numeric, positive, share, text, textList } from './read.ts';
 import type {
   ActDef,
   AttachmentDef,
@@ -273,6 +273,8 @@ function wearable(value: unknown, where: string): WearableDef {
     model: text(source, 'model', where),
     pieces: source['pieces'] === undefined ? [] : textList(source, 'pieces', where),
     region: choice(source, 'region', WEAR_REGIONS, where),
+    covers: source['covers'] === undefined ? [] : choiceList(source, 'covers', WEAR_REGIONS, where),
+    surfaces: dressing(source['surfaces'], `${where}.surfaces`),
     tint: text(source, 'tint', where),
     hides: textList(source, 'hides', where),
     wakeLamps: source['wakeLamps'] === undefined ? 1 : share(source, 'wakeLamps', where),
@@ -560,6 +562,7 @@ export function contentProblems(content: Content): string[] {
     need(def.stance === null || [...content.rigs.values()].some((rigDef: RigDef): boolean => rigDef.clips.stances[def.stance ?? ''] !== undefined), `attachment ${def.id} is held in stance ${def.stance ?? ''}, which no rig has`);
     for (const [material, surfaceId] of Object.entries(def.surfaces)) need(content.surfaces.has(surfaceId), `attachment ${def.id} dresses ${material} in unknown surface ${surfaceId}`);
   }
+  for (const def of content.wearables.values()) for (const [material, surfaceId] of Object.entries(def.surfaces)) need(content.surfaces.has(surfaceId), `wearable ${def.id} dresses ${material} in unknown surface ${surfaceId}`);
   need(content.zones.has(content.world.start), `world starts in unknown zone ${content.world.start}`);
   need(content.world.opening === null || content.zones.get(content.world.opening)?.kind === 'void', `world opens in ${content.world.opening ?? ''}, which is not a void zone`);
   need(content.zones.get(content.world.town)?.kind === 'town', `world names ${content.world.town} as its town, which is not a town zone`);

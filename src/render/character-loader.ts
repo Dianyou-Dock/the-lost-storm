@@ -19,6 +19,7 @@ import { STALL, withStallLimit } from './stall-limit.ts';
 import { addBoxUvs } from './box-uv.ts';
 import { assetUrl } from './asset-url.ts';
 import { fitClip } from './clip-fit.ts';
+import { dressPiece } from './dress-piece.ts';
 
 export interface ActionClip {
   readonly clip: AnimationClip;
@@ -287,11 +288,13 @@ function isPiece(mesh: SkinnedMesh, names: ReadonlySet<string>): boolean {
   return names.size === 0 || names.has(mesh.name) || names.has(mesh.parent?.name ?? '');
 }
 
-async function loadWearable(loader: GLTFLoader, def: WearableDef, frame: string): Promise<LoadedWearable> {
+async function loadWearable(loader: GLTFLoader, dresser: Dresser, def: WearableDef, frame: string): Promise<LoadedWearable> {
   const path: string = wearModel(def, frame);
   const model: GLTF = await loadKeptModel(loader, path);
   const names: Set<string> = new Set<string>(def.pieces.map((name: string): string => PropertyBinding.sanitizeNodeName(name)));
-  const pieces: SkinnedMesh[] = skinnedMeshes(model.scene).filter((mesh: SkinnedMesh): boolean => isPiece(mesh, names));
+  const pieces: SkinnedMesh[] = skinnedMeshes(model.scene)
+    .filter((mesh: SkinnedMesh): boolean => isPiece(mesh, names))
+    .map((mesh: SkinnedMesh): SkinnedMesh => dressPiece(mesh, dresser, def.surfaces));
   if (pieces.length === 0) throw new Error(`Wearable "${def.id}" has no skinned mesh in ${path}`);
   const beside: Set<string> = new Set<string>(def.iconWith.map((name: string): string => PropertyBinding.sanitizeNodeName(name)));
   const iconWith: SkinnedMesh[] = beside.size === 0 ? [] : skinnedMeshes(model.scene).filter((mesh: SkinnedMesh): boolean => isPiece(mesh, beside));
@@ -359,7 +362,7 @@ export async function loadCharacters(loader: GLTFLoader, content: Content, dress
   const [rigs, attachments, wearables]: [LoadedRig[], LoadedAttachment[], LoadedWearable[]] = await Promise.all([
     Promise.all(rigDefs(content, needs.rigs).map((def: RigDef): Promise<LoadedRig> => loadRig(loader, def))),
     Promise.all(attachmentDefs(content, needs.attachments).map((def: AttachmentDef): Promise<LoadedAttachment> => loadAttachment(loader, dresser, def))),
-    Promise.all(framedWearables(content, needs.wearables).map((worn: FramedWearable): Promise<LoadedWearable> => loadWearable(loader, worn.def, worn.frame))),
+    Promise.all(framedWearables(content, needs.wearables).map((worn: FramedWearable): Promise<LoadedWearable> => loadWearable(loader, dresser, worn.def, worn.frame))),
   ]);
   return {
     rigs: new Map<string, LoadedRig>(rigs.map((rig: LoadedRig): [string, LoadedRig] => [rig.def.id, rig])),
@@ -377,7 +380,7 @@ export async function loadNeeds(loader: GLTFLoader, content: Content, dresser: D
       library.rigs.set(def.id, await loadRig(loader, def));
     }),
     ...unworn.map(async (worn: FramedWearable): Promise<void> => {
-      library.wearables.set(wearKey(worn.frame, worn.def.id), await loadWearable(loader, worn.def, worn.frame));
+      library.wearables.set(wearKey(worn.frame, worn.def.id), await loadWearable(loader, dresser, worn.def, worn.frame));
     }),
     ...attachmentDefs(content, heldIds).map(async (def: AttachmentDef): Promise<void> => {
       library.attachments.set(def.id, await loadAttachment(loader, dresser, def));
@@ -394,7 +397,7 @@ export async function loadRemainingCharacters(loader: GLTFLoader, content: Conte
       library.rigs.set(def.id, await loadRig(loader, def));
     }),
     ...unworn.map(async (worn: FramedWearable): Promise<void> => {
-      library.wearables.set(wearKey(worn.frame, worn.def.id), await loadWearable(loader, worn.def, worn.frame));
+      library.wearables.set(wearKey(worn.frame, worn.def.id), await loadWearable(loader, dresser, worn.def, worn.frame));
     }),
     ...attachmentDefs(content, heldIds).map(async (def: AttachmentDef): Promise<void> => {
       library.attachments.set(def.id, await loadAttachment(loader, dresser, def));

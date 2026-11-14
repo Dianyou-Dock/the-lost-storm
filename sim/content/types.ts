@@ -205,7 +205,7 @@ export interface MonsterDef {
 export const ITEM_SLOTS = ['weapon', 'head', 'chest', 'hands', 'legs', 'feet', 'charm'] as const;
 export type ItemSlot = (typeof ITEM_SLOTS)[number];
 
-export const WEAR_REGIONS = ['head', 'shoulders', 'chest', 'arms', 'hands', 'legs', 'feet'] as const;
+export const WEAR_REGIONS = ['hair', 'head', 'shoulders', 'chest', 'arms', 'hands', 'legs', 'feet'] as const;
 export type WearRegion = (typeof WEAR_REGIONS)[number];
 
 export interface WearableDef {
@@ -213,6 +213,8 @@ export interface WearableDef {
   readonly model: string;
   readonly pieces: readonly string[];
   readonly region: WearRegion;
+  readonly covers: readonly WearRegion[];
+  readonly surfaces: Readonly<Record<string, string>>;
   readonly tint: string;
   readonly hides: readonly string[];
   readonly wakeLamps: number;

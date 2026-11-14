@@ -51,5 +51,9 @@
   {"id": "cave_gravel", "color": "textures/mud_color.webp", "normal": "textures/mud_normal.webp", "orm": "textures/mud_orm.webp", "metres": 3.6, "tint": "#857464", "roughness": 0.7, "metalness": 0, "normalScale": 1.1, "spill": 3},
   {"id": "cave_water", "color": "textures/mud_color.webp", "normal": "textures/mud_normal.webp", "orm": "textures/mud_orm.webp", "metres": 4.2, "tint": "#4a5254", "roughness": 0.3, "metalness": 0, "normalScale": 0.7, "spill": 4},
   {"id": "cave_bed", "color": "textures/dirt_color.webp", "normal": "textures/dirt_normal.webp", "orm": null, "metres": 3.8, "tint": "#241e19", "roughness": 1, "metalness": 0, "normalScale": 1.3, "spill": 0},
-  {"id": "cave_rock", "color": "textures/lichen_rock_color.webp", "normal": "textures/lichen_rock_normal.webp", "orm": "textures/lichen_rock_orm.webp", "metres": 2.2, "tint": "#d6c8b4", "roughness": 1, "metalness": 0, "normalScale": 1.4, "spill": 0}
+  {"id": "cave_rock", "color": "textures/lichen_rock_color.webp", "normal": "textures/lichen_rock_normal.webp", "orm": "textures/lichen_rock_orm.webp", "metres": 2.2, "tint": "#d6c8b4", "roughness": 1, "metalness": 0, "normalScale": 1.4, "spill": 0},
+  {"id": "lacquer", "color": "textures/silt_color.webp", "normal": "textures/silt_normal.webp", "orm": "textures/silt_orm.webp", "metres": 1.6, "tint": "#f6eedf", "roughness": 1, "metalness": 0, "normalScale": 0.1, "spill": 0},
+  {"id": "mask_iron", "color": "textures/silt_color.webp", "normal": "textures/silt_normal.webp", "orm": "textures/silt_orm.webp", "metres": 0.3, "tint": "#8d8a84", "roughness": 0.5, "metalness": 0.7, "normalScale": 0.05, "spill": 0},
+  {"id": "helm_steel", "color": "textures/silt_color.webp", "normal": "textures/silt_normal.webp", "orm": "textures/silt_orm.webp", "metres": 0.3, "tint": "#aaa69e", "roughness": 0.5, "metalness": 0.85, "normalScale": 0.05, "spill": 0},
+  {"id": "clean_bronze", "color": "textures/silt_color.webp", "normal": "textures/silt_normal.webp", "orm": "textures/silt_orm.webp", "metres": 0.3, "tint": "#c49a58", "roughness": 0.45, "metalness": 0.9, "normalScale": 0.05, "spill": 0}
 ]

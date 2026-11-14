@@ -26,6 +26,7 @@ export function zoneSurfaces(content: Content, zone: ZoneDef): Set<string> {
     if (def !== undefined) for (const id of Object.values(def.surfaces)) ids.add(id);
   }
   for (const attachment of content.attachments.values()) for (const id of Object.values(attachment.surfaces)) ids.add(id);
+  for (const wearable of content.wearables.values()) for (const id of Object.values(wearable.surfaces)) ids.add(id);
   return ids;
 }
 

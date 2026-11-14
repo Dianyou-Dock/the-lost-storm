@@ -129,11 +129,14 @@ function heroCanFill(slot: ItemSlot): boolean {
   return [...content.itemBases.values()].some((base: ItemBaseDef): boolean => base.slot === slot && base.power === null && heroWears(content, base));
 }
 
-void test('every slot the hero can wear something in drops, and the head drops nothing plain while its only models are hoods', (): void => {
+void test('every slot the hero can wear something in drops, the head included, and nothing that hides the hair drops for the head but the helm', (): void => {
   assert.deepEqual(Object.keys(emptyEquipment()).toSorted(), [...ITEM_SLOTS].toSorted());
-  const dropped: Set<ItemSlot> = new Set<ItemSlot>(withoutPowers(rolls(6, 6)).map((item: ItemInstance): ItemSlot => must(slotOf(content, item), 'slot')));
-  for (const slot of ITEM_SLOTS) assert.equal(dropped.has(slot), heroCanFill(slot), `${slot} drops`);
-  assert.ok(!dropped.has('head'));
+  const dropped: ItemInstance[] = withoutPowers(rolls(6, 12));
+  const slots: Set<ItemSlot> = new Set<ItemSlot>(dropped.map((item: ItemInstance): ItemSlot => must(slotOf(content, item), 'slot')));
+  for (const slot of ITEM_SLOTS) assert.equal(slots.has(slot), heroCanFill(slot), `${slot} drops`);
+  const heads: Set<string> = new Set<string>(dropped.filter((item: ItemInstance): boolean => slotOf(content, item) === 'head').map((item: ItemInstance): string => item.base));
+  assert.ok(!heads.has('wayfarer_hood') && !heads.has('penitent_cowl'));
+  assert.ok(heads.has('lens_mask') && heads.has('slit_mask'));
 });
 
 void test('a held weapon shows a model and never wears clothes, and armour is the reverse', (): void => {
