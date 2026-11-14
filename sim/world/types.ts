@@ -2,7 +2,8 @@ import type { FlaskDef, FlaskResource } from '../content/flasks.ts';
 import type { GlitchKind } from '../content/glitches.ts';
 import type { GlitchEvent, GlitchState, PathAct, PathLog } from './glitch-types.ts';
 import type { Content, ItemSlot, LineDef, MonsterDef, NpcDef, SkillDef, StatBlock, StatMod, TalkDef, XpReduction, ZoneDef, ZonePack } from '../content/types.ts';
-import type { ServiceKind } from '../content/trade-types.ts';
+import type { OpenService } from './service-types.ts';
+import type { UnisonEvent, UnisonState } from './unison-types.ts';
 import type { MomentDef } from '../content/moment-types.ts';
 import type { ZoneWake } from '../content/story-types.ts';
 import type { Vec2 } from '../math.ts';
@@ -213,6 +214,7 @@ export interface MonsterState extends ActorState {
   readonly revived: boolean;
   leashTime: number;
   returning: boolean;
+  unison: UnisonState;
 }
 
 export type Actor = PlayerState | MonsterState;
@@ -606,18 +608,13 @@ export type WorldEvent =
   | { readonly type: 'moment_ended'; readonly moment: MomentState; readonly outcome: MomentOutcome }
   | { readonly type: 'moment_gone'; readonly momentId: number }
   | { readonly type: 'moment_chest'; readonly moment: MomentState }
+  | UnisonEvent
   | { readonly type: 'chest_opened'; readonly moment: MomentState; readonly pos: Vec2; readonly gold: number };
 
 export interface VendorStock {
   stock: (ItemInstance | null)[];
   buyback: ItemInstance[];
   stale: boolean;
-}
-
-export interface OpenService {
-  readonly kind: ServiceKind;
-  readonly owner: string;
-  readonly anchor: Vec2;
 }
 
 export interface EncounterState {

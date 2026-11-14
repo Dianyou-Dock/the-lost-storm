@@ -546,6 +546,8 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
           case 'glitch_end':
           case 'glitch_word':
           case 'silence':
+          case 'unison_look':
+          case 'unison_flinch':
           case 'zone_edited':
           case 'moment_mark':
           case 'moment_strike':

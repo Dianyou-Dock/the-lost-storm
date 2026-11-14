@@ -1,7 +1,7 @@
-import type { FactionDef, FactionPalette, Regard } from './combat-types.ts';
+import type { FactionDef, FactionPalette, Regard, UnisonDef } from './combat-types.ts';
 import { PLAYER_SIDE, REGARDS } from './combat-types.ts';
 import type { Fields } from './read.ts';
-import { choice, ContentError, fields, text, textList } from './read.ts';
+import { choice, ContentError, fields, nonNegative, positive, text, textList } from './read.ts';
 import type { Content } from './types.ts';
 
 function palette(value: unknown, where: string): FactionPalette {
@@ -18,6 +18,14 @@ function regards(value: unknown, where: string): Record<string, Regard> {
   return read;
 }
 
+function unison(value: unknown, where: string): UnisonDef | null {
+  if (value === undefined || value === null) return null;
+  const source: Fields = fields(value, where);
+  const gather: number = positive(source, 'gather', where);
+  if (!Number.isInteger(gather) || gather < 2) throw new ContentError(`${where}.gather`, 'a unison needs a whole number of at least two to gather');
+  return { sight: positive(source, 'sight', where), gather, look: nonNegative(source, 'look', where), turn: positive(source, 'turn', where), flinch: nonNegative(source, 'flinch', where), flinchRange: positive(source, 'flinchRange', where) };
+}
+
 export function faction(value: unknown, where: string): FactionDef {
   const source: Fields = fields(value, where);
   const id: string = text(source, 'id', where);
@@ -30,6 +38,7 @@ export function faction(value: unknown, where: string): FactionDef {
     wearables: textList(source, 'wearables', where),
     weapons: textList(source, 'weapons', where),
     regards: regards(source['regards'], `${where}.regards`),
+    unison: unison(source['unison'], `${where}.unison`),
   };
 }
 

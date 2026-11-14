@@ -49,6 +49,7 @@ function resetMonster(monster: MonsterState): void {
   monster.foeId = null;
   monster.tempo = 1;
   monster.tempoTime = 0;
+  monster.unison = { seen: false, lookUntil: 0, flinchUntil: 0 };
 }
 
 function revive(world: World): void {

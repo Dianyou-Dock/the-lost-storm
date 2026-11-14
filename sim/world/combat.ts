@@ -17,6 +17,7 @@ import { mayStrike, provoke, regardOf } from './factions.ts';
 import { gainFlaskCharges } from './flask-charges.ts';
 import { dropOnGround } from './ground.ts';
 import { steadiness } from './poise.ts';
+import { flinchTogether } from './unison.ts';
 import type { ActionState, Actor, BrandState, GuardOutcome, ItemInstance, MonsterState, Offence, Team, World } from './types.ts';
 
 export const COMBAT = {
@@ -107,6 +108,7 @@ export function kill(world: World, target: Actor, direction: ReadonlyVec2): void
     target.queued = null;
     return;
   }
+  flinchTogether(world, target);
   if (regardOf(world.content, PLAYER_SIDE, target.def.faction) !== 'hostile') return;
   world.player.kills += 1;
   gainFlaskCharges(world.player);

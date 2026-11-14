@@ -108,6 +108,14 @@
       "player": "hostile",
       "unfinished": "wary",
       "menders": "wary"
+    },
+    "unison": {
+      "sight": 16,
+      "gather": 2,
+      "look": 0.7,
+      "turn": 0.14,
+      "flinch": 0.4,
+      "flinchRange": 14
     }
   },
   {

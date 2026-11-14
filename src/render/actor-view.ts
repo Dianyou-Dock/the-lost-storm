@@ -30,6 +30,7 @@ export const ACTOR = {
   hitSpeed: 1.7,
   hitTime: 0.28,
   recoverFade: 0.3,
+  flinchFade: 0.08,
   heldPace: 0.04,
   heldGlow: 0.42,
   heldPulse: 0.35,
@@ -80,6 +81,20 @@ interface FollowThrough {
   readonly speed: number;
 }
 
+interface Glance {
+  readonly from: number;
+  readonly span: number;
+  left: number;
+}
+
+interface Resume {
+  readonly action: AnimationAction;
+  readonly time: number;
+  readonly speed: number;
+  readonly oneShot: number;
+  readonly follow: FollowThrough | null;
+}
+
 export interface ActorPose {
   readonly pos: ReadonlyVec2;
   readonly facing: number;
@@ -88,6 +103,7 @@ export interface ActorPose {
   readonly knockTime: number;
   readonly busy: boolean;
   readonly held: boolean;
+  readonly beat: number | null;
   readonly deadTime: number;
 }
 
@@ -106,6 +122,8 @@ export interface ActorView {
   startAction(animation: string, windup: number, recovery: number): boolean;
   interrupt(): void;
   hit(color: Color, strength: number, stagger: boolean): void;
+  glance(span: number): void;
+  flinch(span: number): void;
   die(): void;
   revive(): void;
   detach(): void;
@@ -116,10 +134,15 @@ export interface ActorView {
   dispose(): void;
 }
 
-function turnToward(current: number, target: number, maxStep: number): number {
+function angleTo(current: number, target: number): number {
   let delta: number = (target - current) % (Math.PI * 2);
   if (delta > Math.PI) delta -= Math.PI * 2;
   if (delta < -Math.PI) delta += Math.PI * 2;
+  return delta;
+}
+
+function turnToward(current: number, target: number, maxStep: number): number {
+  const delta: number = angleTo(current, target);
   if (Math.abs(delta) <= maxStep) return target;
   return current + Math.sign(delta) * maxStep;
 }
@@ -130,6 +153,11 @@ function clamped(value: number, low: number, high: number): number {
 
 function oneOf(clips: readonly AnimationClip[], chance: Chance): AnimationClip | null {
   return clips[Math.min(clips.length - 1, Math.floor(chance() * clips.length))] ?? null;
+}
+
+export function easeInOut(share: number): number {
+  const clampedShare: number = Math.min(1, Math.max(0, share));
+  return clampedShare * clampedShare * (3 - 2 * clampedShare);
 }
 
 export function easeIn(share: number): number {
@@ -192,14 +220,21 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
     rig.root.position.y += restOffset(reached, floor) * restWeight(pose.share);
   };
   const layered: Object3D[] = [...new Set([...(head === undefined ? [] : [head]), ...(neck === undefined ? [] : [neck]), ...chest])];
-  const rests: Quaternion[] = layered.map((bone: Object3D): Quaternion => bone.quaternion.clone());
+  const beneath: Quaternion[] = layered.map((bone: Object3D): Quaternion => bone.quaternion.clone());
+  let layering: boolean = false;
   const unlayer = (): void => {
+    if (!layering) return;
+    layering = false;
     layered.forEach((bone: Object3D, index: number): void => {
-      const resting: Quaternion | undefined = rests[index];
-      if (resting !== undefined) bone.quaternion.copy(resting);
+      const under: Quaternion | undefined = beneath[index];
+      if (under !== undefined) bone.quaternion.copy(under);
     });
   };
   const layerWake = (pose: WakePose): void => {
+    layered.forEach((bone: Object3D, index: number): void => {
+      beneath[index]?.copy(bone.quaternion);
+    });
+    layering = true;
     const turn: number = (pose.turn * WAKE_POSE.turnDegrees * Math.PI) / 180;
     if (neck !== undefined) turnInWorld(neck, UP, turn * WAKE_POSE.neckShare, spare);
     if (head !== undefined) turnInWorld(head, UP, turn * (1 - WAKE_POSE.neckShare), spare);
@@ -217,6 +252,10 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
   let knockSpan: number = 0;
   let knockLeft: number = 0;
   let recovering: boolean = false;
+  let acting: AnimationAction | null = null;
+  let glance: Glance | null = null;
+  let flinchLeft: number = 0;
+  let resume: Resume | null = null;
   const pace: Spring = { value: 1, velocity: 0, target: 1 };
   const heldLevel: Spring = { value: 0, velocity: 0, target: 0 };
   let heldClock: number = 0;
@@ -275,6 +314,32 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
     play(clip, ACTOR.hitFade, clip.duration > 0 ? clamped(clip.duration / length, ACTOR.minActionSpeed, ACTOR.hitSpeed) : ACTOR.hitSpeed, true, true);
     oneShot = length;
     recovering = true;
+    acting = null;
+  };
+
+  const unflinch = (): void => {
+    const back: Resume | null = resume;
+    resume = null;
+    flinchLeft = 0;
+    recovering = true;
+    oneShot = 0;
+    if (back === null || dead) return;
+    payOwed();
+    const previous: AnimationAction = current;
+    const next: AnimationAction = back.action;
+    next.reset();
+    next.setLoop(LoopOnce, 1);
+    next.clampWhenFinished = true;
+    next.time = back.time;
+    next.timeScale = back.speed;
+    next.setEffectiveWeight(1);
+    if (previous !== next) next.crossFadeFrom(previous, ACTOR.recoverFade, false);
+    next.play();
+    current = next;
+    acting = next;
+    oneShot = back.oneShot;
+    follow = back.follow === null ? null : { ...back.follow };
+    recovering = false;
   };
 
   const reel = (actor: ActorPose): void => {
@@ -292,6 +357,7 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
     const gait: GaitClip | undefined = choice === null ? undefined : rig.clips.gaits[choice.index];
     const fade: number = recovering ? ACTOR.recoverFade : ACTOR.locomotionFade;
     recovering = false;
+    acting = null;
     if (choice === null || gait === undefined) {
       play(idleClip(rig), fade, 1, false, false);
       return;
@@ -326,10 +392,22 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
         rig.root.rotation.y = yaw;
       } else {
         rig.root.position.y = options.floor - (1 - options.rise) * ACTOR.riseDepth + liftAt(rig.def.lift, scale, null, clock);
-        yaw = turnToward(yaw, actor.facing, options.turnRate * dt * pace.value);
+        if (glance === null) yaw = turnToward(yaw, actor.facing, options.turnRate * dt * pace.value);
+        else {
+          glance.left = Math.max(0, glance.left - dt);
+          yaw = glance.from + angleTo(glance.from, actor.facing) * easeInOut(1 - glance.left / glance.span);
+          if (glance.left <= 0) glance = null;
+        }
         rig.root.rotation.y = yaw;
         const kind: ClipKind = clipKindOf(actor.motion);
-        if (oneShot > 0) {
+        if (flinchLeft > 0 && kind === 'knock') {
+          flinchLeft = 0;
+          resume = null;
+        }
+        if (flinchLeft > 0) {
+          flinchLeft -= dt * pace.value;
+          if (flinchLeft <= 0) unflinch();
+        } else if (oneShot > 0) {
           oneShot -= dt * pace.value;
           if (!actor.busy && kind === 'gait') oneShot = 0;
         }
@@ -341,13 +419,14 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
             follow = null;
           }
         }
-        if (kind === 'knock') reel(actor);
+        if (flinchLeft > 0) knockSpan = 0;
+        else if (kind === 'knock') reel(actor);
         else knockSpan = 0;
         const knocked: KnockPose = knockPose(knockSpan, actor.knockTime);
         rig.root.position.y += knocked.lift;
         rig.root.rotation.x = -knocked.lean;
         lastKind = kind;
-        if (oneShot <= 0) locomote(actor);
+        if (oneShot <= 0 && flinchLeft <= 0) locomote(actor);
       }
       springTo(pace, actor.held && !dead ? ACTOR.heldPace : 1);
       stepSpring(pace, dt);
@@ -374,6 +453,10 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
       unlayer();
       const posing: boolean = lying || woke !== null;
       const step: number | null = settled && !posing ? null : bank.take(dt * pace.value, posing || options.seen);
+      if (step !== null && actor.beat !== null && !actor.held && flinchLeft <= 0 && acting === null && current.getClip() === idleClip(rig)) {
+        const length: number = current.getClip().duration;
+        if (length > 0) current.time = (((actor.beat - step) % length) + length) % length;
+      }
       if (step !== null) rig.mixer.update(step);
       rig.stepWear(dt);
       if (lying && woke !== null) {
@@ -391,6 +474,9 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
       const timed: boolean = entry.impactTime > 0 && windup > 0;
       play(entry.clip, ACTOR.actionFade, timed ? clamped(entry.impactTime / windup, ACTOR.minActionSpeed, ACTOR.maxActionSpeed) : 1, true, true);
       oneShot = windup + recovery + ACTOR.actionTail;
+      acting = current;
+      flinchLeft = 0;
+      resume = null;
       if (timed) follow = { left: windup, speed: clamped((entry.clip.duration - entry.impactTime) / (recovery + ACTOR.actionTail), ACTOR.minFollowSpeed, ACTOR.maxActionSpeed) };
       return true;
     },
@@ -403,10 +489,26 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
       punch = Math.max(punch, strength);
       if (!dead && stagger) react(0);
     },
+    glance(span: number): void {
+      if (dead || lying || span <= 0) return;
+      glance = { from: yaw, span, left: span };
+    },
+    flinch(span: number): void {
+      const clip: AnimationClip | undefined = rig.clips.hit[0];
+      if (dead || lying || span <= 0 || clip === undefined) return;
+      if (flinchLeft <= 0) resume = acting !== null && current === acting && oneShot > 0 ? { action: acting, time: acting.time, speed: acting.timeScale, oneShot, follow: follow === null ? null : { ...follow } } : null;
+      play(clip, ACTOR.flinchFade, clip.duration > 0 ? clamped(clip.duration / span, ACTOR.minActionSpeed, ACTOR.hitSpeed) : ACTOR.hitSpeed, true, true);
+      acting = null;
+      flinchLeft = span;
+    },
     die(): void {
       if (dead) return;
       dead = true;
       oneShot = 0;
+      flinchLeft = 0;
+      resume = null;
+      glance = null;
+      acting = null;
       if (rig.clips.death.length === 0) {
         fading = true;
         current.paused = true;
@@ -416,6 +518,9 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
     },
     revive(): void {
       dead = false;
+      flinchLeft = 0;
+      resume = null;
+      glance = null;
       if (fading) {
         fading = false;
         current.paused = false;

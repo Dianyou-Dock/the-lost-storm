@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Material } from 'three';
-import { AnimationClip, BoxGeometry, Color, Group, Mesh, MeshStandardMaterial } from 'three';
+import { AnimationClip, BoxGeometry, Color, Group, Mesh, MeshStandardMaterial, Object3D, Quaternion, QuaternionKeyframeTrack, Vector3 } from 'three';
 import { must } from '../../test/support.ts';
 import { loadContent } from '../../sim/content/content.ts';
 import type { Content, RigDef } from '../../sim/content/types.ts';
@@ -49,7 +49,7 @@ for (const hero of content.player.heroes) {
       const counted = stepStride(def, speed, held);
       held = counted.gait;
       for (let frame: number = 0; frame < 60; frame += 1) {
-        view.sync(1 / 30, { pos: { x: 0, z: 0 }, facing: 0, motion: speed > 0 ? 'stride' : 'still', gait: speed, knockTime: 0, busy: false, held: false, deadTime: 0 }, { rise: 1, floor: 0, turnRate: 10, seen: true });
+        view.sync(1 / 30, { pos: { x: 0, z: 0 }, facing: 0, motion: speed > 0 ? 'stride' : 'still', gait: speed, knockTime: 0, busy: false, held: false, beat: null, deadTime: 0 }, { rise: 1, floor: 0, turnRate: 10, seen: true });
       }
       const shown: number = playing(view, clips) - 1;
       if (counted.metres === null) {
@@ -89,7 +89,7 @@ function opacityOf(body: Mesh): number {
   return Array.isArray(material) ? 1 : material.opacity;
 }
 
-const RUNNING = { pos: { x: 0, z: 0 }, facing: 0, motion: 'stride', gait: 1, knockTime: 0, busy: false, held: false, deadTime: 0 } as const;
+const RUNNING = { pos: { x: 0, z: 0 }, facing: 0, motion: 'stride', gait: 1, knockTime: 0, busy: false, held: false, beat: null, deadTime: 0 } as const;
 const OPTIONS = { rise: 1, floor: 0, turnRate: 10, seen: true } as const;
 
 void test('a creature with no hit clip keeps its stride when struck: the flash and the squash show the hit, not a jump to idle', (): void => {
@@ -137,7 +137,7 @@ void test('a lifted creature hovers its lift above the floor with a small bob, i
 });
 
 function stunPose(motion: 'still' | 'knocked', knockTime: number, held: boolean, busy: boolean): ActorPose {
-  return { pos: { x: 0, z: 0 }, facing: 0, motion, gait: 0, knockTime, busy, held, deadTime: 0 };
+  return { pos: { x: 0, z: 0 }, facing: 0, motion, gait: 0, knockTime, busy, held, beat: null, deadTime: 0 };
 }
 
 function weightOf(view: ActorView, clip: AnimationClip): number {
@@ -191,3 +191,111 @@ for (const hero of content.player.heroes) {
     assert.ok(timeOf(view, swing) > STUNNED.impact, `the swing reached only ${String(timeOf(view, swing))} s after the hold ended`);
   });
 }
+
+function apart(from: number, to: number): number {
+  return Math.abs(Math.atan2(Math.sin(to - from), Math.cos(to - from)));
+}
+
+const TOGETHER = { dt: 1 / 60, turn: 0.14, flinch: 0.4, facing: 2, starts: [0, 1.2, -2.6], hitLength: 0.8, swingLength: 1.2, impact: 0.4, windup: 0.5, recovery: 0.4, beat: 7.37 } as const;
+
+function standing(facing: number, busy: boolean, beat: number | null): ActorPose {
+  return { pos: { x: 0, z: 0 }, facing, motion: 'still', gait: 0, knockTime: 0, busy, held: false, beat, deadTime: 0 };
+}
+
+void test('views told to glance together turn from wherever each faced to the same heading over the same span, easing in and out, and arrive on the same frame', (): void => {
+  const def: RigDef = must(content.rigs.get(content.player.hero.rig), 'hero rig');
+  const views: ActorView[] = TOGETHER.starts.map((start: number): ActorView => {
+    const { view } = heroView(def);
+    view.face(start);
+    view.sync(TOGETHER.dt, standing(start, false, null), STUN_SYNC);
+    view.glance(TOGETHER.turn);
+    return view;
+  });
+  const arrived: number[] = views.map((): number => -1);
+  const steps: number[][] = views.map((): number[] => []);
+  for (let frame: number = 0; frame < TOGETHER.turn / TOGETHER.dt + 3; frame += 1) {
+    views.forEach((view: ActorView, index: number): void => {
+      const before: number = view.rig.root.rotation.y;
+      view.sync(TOGETHER.dt, standing(TOGETHER.facing, false, null), STUN_SYNC);
+      must(steps[index], 'steps').push(apart(before, view.rig.root.rotation.y));
+      if (arrived[index] === -1 && apart(view.rig.root.rotation.y, TOGETHER.facing) < 1e-9) arrived[index] = frame;
+    });
+  }
+  assert.ok(arrived.every((frame: number): boolean => frame === arrived[0] && frame > 0), `the views arrived on frames ${arrived.join(', ')}`);
+  for (const turned of steps) {
+    const widest: number = Math.max(...turned);
+    assert.ok((turned[0] ?? 0) < widest / 2 && (turned[must(arrived[0], 'arrival')] ?? 0) < widest / 2, 'a glance started or ended at full speed');
+  }
+});
+
+void test('a shared flinch plays the first hit clip without a flash, holds a swing where it was, and picks the swing up from there after the flinch', (): void => {
+  const def: RigDef = must(content.rigs.get(content.player.hero.rig), 'hero rig');
+  const hit: AnimationClip = new AnimationClip('hit', TOGETHER.hitLength, []);
+  const other: AnimationClip = new AnimationClip('other hit', TOGETHER.hitLength, []);
+  const swing: AnimationClip = new AnimationClip('swing', TOGETHER.swingLength, []);
+  const { view } = heroView(def, [hit, other], new Map([['swing', { clip: swing, impactTime: TOGETHER.impact }]]));
+  view.sync(TOGETHER.dt, standing(0, false, null), STUN_SYNC);
+  assert.ok(view.startAction('swing', TOGETHER.windup, TOGETHER.recovery));
+  for (let frame: number = 0; frame < 10; frame += 1) view.sync(TOGETHER.dt, standing(0, true, null), STUN_SYNC);
+  const reached: number = timeOf(view, swing);
+  view.flinch(TOGETHER.flinch);
+  assert.equal(view.rig.mixer.existingAction(other), null);
+  for (let frame: number = 0; frame < Math.round(TOGETHER.flinch / TOGETHER.dt) - 1; frame += 1) view.sync(TOGETHER.dt, standing(0, true, null), STUN_SYNC);
+  assert.ok(weightOf(view, hit) > 0.95, 'the flinch was not showing');
+  view.sync(TOGETHER.dt, standing(0, true, null), STUN_SYNC);
+  view.sync(TOGETHER.dt, standing(0, true, null), STUN_SYNC);
+  assert.ok(Math.abs(timeOf(view, swing) - reached) < TOGETHER.dt * 3, `the swing went on from ${String(timeOf(view, swing))} s instead of ${String(reached)} s`);
+  const weights: number[] = [];
+  for (let frame: number = 0; frame < ACTOR.recoverFade / TOGETHER.dt + 2; frame += 1) {
+    view.sync(TOGETHER.dt, standing(0, true, null), STUN_SYNC);
+    weights.push(weightOf(view, swing));
+  }
+  assert.ok(Math.max(...weights.map((weight: number, index: number): number => weight - (weights[index - 1] ?? 0))) < 0.25, 'the swing snapped back in');
+  assert.ok((weights.at(-1) ?? 0) > 0.95, 'the swing never came back');
+  for (let frame: number = 0; frame < (TOGETHER.windup + TOGETHER.recovery) / TOGETHER.dt; frame += 1) view.sync(TOGETHER.dt, standing(0, true, null), STUN_SYNC);
+  assert.ok(timeOf(view, swing) > TOGETHER.impact, 'the swing never reached its strike after the flinch');
+});
+
+void test('idle views given the same beat stand at the same point of their idle clip whenever each began, and views with no beat keep their own', (): void => {
+  const def: RigDef = must(content.rigs.get(content.player.hero.rig), 'hero rig');
+  const early = heroView(def);
+  const late = heroView(def);
+  for (let frame: number = 0; frame < 23; frame += 1) early.view.sync(TOGETHER.dt, standing(0, false, null), STUN_SYNC);
+  late.view.sync(TOGETHER.dt, standing(0, false, null), STUN_SYNC);
+  assert.notEqual(timeOf(early.view, early.idle), timeOf(late.view, late.idle));
+  for (let frame: number = 0; frame < 30; frame += 1) {
+    const beat: number = TOGETHER.beat + frame * TOGETHER.dt;
+    early.view.sync(TOGETHER.dt, standing(0, false, beat), STUN_SYNC);
+    late.view.sync(TOGETHER.dt, standing(0, false, beat), STUN_SYNC);
+    assert.ok(Math.abs(timeOf(early.view, early.idle) - timeOf(late.view, late.idle)) < 1e-9, `the idles parted at frame ${String(frame)}`);
+    assert.ok(Math.abs(timeOf(early.view, early.idle) - (beat % early.idle.duration)) < 1e-9);
+  }
+});
+
+function tilt(angle: number): number[] {
+  return new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), angle).toArray();
+}
+
+void test('a frame that moves no time, as in a hit-stop, keeps the head and chest where the clip left them instead of dropping them to the rest pose', (): void => {
+  const def: RigDef = must(content.rigs.get(content.player.hero.rig), 'hero rig');
+  const head: string = must(def.bodyParts['head']?.[0], 'head bone');
+  const chestName: string = must(def.bodyParts['torso']?.at(-3), 'chest bone');
+  const template: Group = new Group();
+  const chest: Object3D = new Object3D();
+  chest.name = chestName;
+  const skull: Object3D = new Object3D();
+  skull.name = head;
+  chest.add(skull);
+  template.add(chest);
+  const idle: AnimationClip = new AnimationClip('idle', 1, [new QuaternionKeyframeTrack(`${head}.quaternion`, [0, 1], [...tilt(0.6), ...tilt(0.9)])]);
+  const clips: RigClipSet = { idle, run: new AnimationClip('run', 1, []), gaits: [], hit: [], death: [], rise: null, actions: new Map(), unarmed: null, stances: new Map() };
+  const loaded: LoadedRig = { def: { ...def, gaits: [] }, template, clips, bodyParts: [], bodyMasks: new Map(), fitted: new Map() };
+  const library: CharacterLibrary = { rigs: new Map([[def.id, loaded]]), attachments: new Map(), wearables: new Map() };
+  const view: ActorView = createActorView(instantiateRig(loaded, library, { tint: '#ffffff', glow: '#ffffff', ghost: null, feather: false }), 1, 0);
+  for (let frame: number = 0; frame < 5; frame += 1) view.sync(1 / 30, standing(0, false, null), STUN_SYNC);
+  const bone: Object3D = must(view.rig.root.getObjectByName(head), 'head in the view');
+  const posed: Quaternion = bone.quaternion.clone();
+  assert.ok(posed.angleTo(new Quaternion()) > 0.5, 'the clip never posed the head');
+  view.sync(0, standing(0, false, null), STUN_SYNC);
+  assert.ok(bone.quaternion.angleTo(posed) < 1e-6, `the head moved ${String(bone.quaternion.angleTo(posed))} rad in a frame that moved no time`);
+});

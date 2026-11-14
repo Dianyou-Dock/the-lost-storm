@@ -20,6 +20,7 @@ import { homeReached, LEASH, shellPoint, shutOut } from './leash.ts';
 import { revivable } from './revive.ts';
 import { roomAhead } from './queue.ts';
 import { insideShell } from './shell.ts';
+import { heldInUnison, lookTogether } from './unison.ts';
 import type { Actor, MomentState, MonsterStance, MonsterState, World, WorldEvent } from './types.ts';
 
 const MONSTERS = {
@@ -378,6 +379,10 @@ export function stepMonster(world: World, monster: MonsterState, dt: number): vo
     monster.spawnTime = Math.max(0, monster.spawnTime - dt);
     return;
   }
+  if (heldInUnison(world, monster)) {
+    if (!monster.aggro && !monster.returning) wake(world, monster);
+    return;
+  }
   const local: number = dt * monster.tempo;
   stepAction(world, monster, local);
   trackProgress(monster, dt);
@@ -386,6 +391,7 @@ export function stepMonster(world: World, monster: MonsterState, dt: number): vo
   if (foe !== null && monster.summonerId === null && monster.def.summon !== null) summonOf(world, monster, monster.def.summon, local);
   if (monster.action !== null || monster.stagger > 0 || beingKnocked(monster)) return;
   if (!monster.aggro) {
+    if (world.player.alive) lookTogether(world, monster);
     const roused: boolean = (!monster.returning || shutOut(world, monster, world.player.pos) === null) && wake(world, monster);
     if (!roused && monster.returning) walkHome(world, monster, local);
     return;

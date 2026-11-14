@@ -75,7 +75,7 @@ function armedWorld(): World {
 }
 
 function idlePlaying(view: ActorView, clip: AnimationClip): boolean {
-  view.sync(0.5, { pos: { x: 0, z: 0 }, facing: 0, motion: 'still', gait: 0, knockTime: 0, busy: false, held: false, deadTime: 0 }, { rise: 1, floor: 0, turnRate: 10, seen: true });
+  view.sync(0.5, { pos: { x: 0, z: 0 }, facing: 0, motion: 'still', gait: 0, knockTime: 0, busy: false, held: false, beat: null, deadTime: 0 }, { rise: 1, floor: 0, turnRate: 10, seen: true });
   return view.rig.mixer.existingAction(clip)?.isRunning() ?? false;
 }
 

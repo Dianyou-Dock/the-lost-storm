@@ -37,6 +37,7 @@ export function spawnMonster(world: World, def: MonsterDef, packId: number, cent
   const life: number = def.scalesLife ? Math.round(def.life * scale.life) : def.life;
   const monster: MonsterState = {
     kind: 'monster',
+    unison: { seen: false, lookUntil: 0, flinchUntil: 0 },
     id: world.nextId,
     def,
     level,

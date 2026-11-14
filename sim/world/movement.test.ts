@@ -389,16 +389,17 @@ void test('a skill pressed late in a hold starts in its wind-up, stays frozen th
   const action = must(player.action, 'the skill pressed during the hold was dropped');
   assert.equal(action.phase, 'windup');
   const frozen: number = action.timeLeft;
-  while (isTimeHeld(player)) {
+  for (let step: number = 0; isTimeHeld(player) && step < STUN.settle / MOTION_DT; step += 1) {
     assert.equal(action.timeLeft, frozen);
     stepWorld(world, [], MOTION_DT);
   }
+  assert.equal(isTimeHeld(player), false, 'the hold never ended');
   let after: number = 0;
-  while (phaseOf(world) === 'windup') {
+  while (phaseOf(world) === 'windup' && after < STUN.settle / MOTION_DT) {
     stepWorld(world, [], MOTION_DT);
     after += 1;
   }
-  assert.equal(phaseOf(world), 'recovery');
+  assert.equal(phaseOf(world), 'recovery', 'the wind-up never struck after the hold');
   assert.ok(Math.abs(after * MOTION_DT - frozen) <= MOTION_DT * 2, `struck ${String(after * MOTION_DT)} s after the hold, wind-up left ${String(frozen)} s`);
 });
 

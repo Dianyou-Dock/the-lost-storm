@@ -99,4 +99,14 @@ export interface FactionDef {
   readonly wearables: readonly string[];
   readonly weapons: readonly string[];
   readonly regards: Readonly<Record<string, Regard>>;
+  readonly unison: UnisonDef | null;
+}
+
+export interface UnisonDef {
+  readonly sight: number;
+  readonly gather: number;
+  readonly look: number;
+  readonly turn: number;
+  readonly flinch: number;
+  readonly flinchRange: number;
 }

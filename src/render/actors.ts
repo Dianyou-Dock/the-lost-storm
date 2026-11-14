@@ -18,6 +18,7 @@ import { holdEquipped } from './hero-gear.ts';
 import type { GhostUniforms } from './ghost-material.ts';
 import { createGhostUniforms } from './ghost-material.ts';
 import { echoFade, momentOfEcho } from '../../sim/world/moments.ts';
+import { unisonOf } from '../../sim/world/unison.ts';
 
 export const ACTORS = {
   monsterFlash: 1,
@@ -72,8 +73,8 @@ export interface Actors {
 const HIT_WHITE: Color = new Color(0xffffff);
 const HIT_RED: Color = new Color(0xff6040);
 
-function poseOf(actor: ActorState): ActorPose {
-  return { pos: actor.pos, facing: actor.facing, motion: actor.motion, gait: actor.gait, knockTime: knockTime(actor), busy: actor.action !== null, held: isTimeHeld(actor), deadTime: actor.deadTime };
+function poseOf(actor: ActorState, beat: number | null): ActorPose {
+  return { pos: actor.pos, facing: actor.facing, motion: actor.motion, gait: actor.gait, knockTime: knockTime(actor), busy: actor.action !== null, held: isTimeHeld(actor), beat, deadTime: actor.deadTime };
 }
 
 function monsterKey(def: MonsterDef): string {
@@ -81,7 +82,7 @@ function monsterKey(def: MonsterDef): string {
 }
 
 function npcPose(npc: NpcState): ActorPose {
-  return { pos: npc.pos, facing: npc.facing, motion: npc.motion, gait: npc.gait, knockTime: 0, busy: false, held: false, deadTime: 0 };
+  return { pos: npc.pos, facing: npc.facing, motion: npc.motion, gait: npc.gait, knockTime: 0, busy: false, held: false, beat: null, deadTime: 0 };
 }
 
 
@@ -251,7 +252,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       standChosen(current);
       holdEquipped(content, playerView.rig, current.player.equipped);
       playerView.wake(current.wake === null ? null : wakePose(wakeStage(current.wake.plan, current.wake.elapsed), current.wake.elapsed));
-      playerView.sync(dt, poseOf(current.player), { rise: 1, floor, turnRate: ACTOR.turnRate, seen: true });
+      playerView.sync(dt, poseOf(current.player, null), { rise: 1, floor, turnRate: ACTOR.turnRate, seen: true });
       for (const monster of current.monsters) {
         const entry: MonsterEntry | null = entryFor(current, monster);
         if (entry === null) continue;
@@ -263,7 +264,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           if (fade > 0) fadeEcho(entry.view, entry.echo.ghost, fade);
         }
         entry.view.setHover(monster.id === hoveredId);
-        entry.view.sync(dt, poseOf(monster), { rise: entry.echo === null ? turning : 1, floor, turnRate: ACTOR.turnRate, seen: seen(entry.view, monster.pos.x, monster.pos.z) });
+        entry.view.sync(dt, poseOf(monster, unisonOf(current, monster) === null ? null : current.time), { rise: entry.echo === null ? turning : 1, floor, turnRate: ACTOR.turnRate, seen: seen(entry.view, monster.pos.x, monster.pos.z) });
       }
       for (let index: number = leaving.length - 1; index >= 0; index -= 1) {
         const echo: LeavingEcho | undefined = leaving[index];
@@ -323,6 +324,12 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           }
           case 'death':
             viewOf(event.actorId)?.die();
+            break;
+          case 'unison_look':
+            for (const id of event.monsterIds) viewOf(id)?.glance(event.turn);
+            break;
+          case 'unison_flinch':
+            for (const id of event.monsterIds) viewOf(id)?.flinch(event.time);
             break;
           case 'player_respawn':
             playerView.revive();
