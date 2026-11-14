@@ -9,6 +9,7 @@ import { loadContent } from './sim/content/content.ts';
 import { buildPage } from './src/launch/page-html.ts';
 import { defaultBar } from './sim/skill-book.ts';
 import { defaultKeys, titleKeyRows, titleKeysHtml, titleNames } from './src/title-keys.ts';
+import { fillShell, guideInputs } from './tools/guide/site.ts';
 
 const ROOT: string = import.meta.dirname;
 function pageLinks(): Plugin {
@@ -27,6 +28,15 @@ function pageLinks(): Plugin {
   };
 }
 
+function guidePages(): Plugin {
+  return {
+    name: 'lost-storm-guide',
+    transformIndexHtml(html: string): string {
+      return fillShell(html);
+    },
+  };
+}
+
 function assetVersions(): Plugin {
   return {
     name: 'lost-storm-asset-versions',
@@ -38,7 +48,7 @@ function assetVersions(): Plugin {
 
 export default defineConfig({
   server: { port: 5193, open: false },
-  plugins: [pageLinks(), assetVersions()],
+  plugins: [guidePages(), pageLinks(), assetVersions()],
   build: {
     target: 'es2022',
     chunkSizeWarningLimit: 1500,
@@ -46,6 +56,7 @@ export default defineConfig({
       input: {
         landing: resolve(ROOT, 'index.html'),
         play: resolve(ROOT, 'play/index.html'),
+        ...guideInputs(ROOT),
       },
     },
   },

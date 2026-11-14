@@ -1,0 +1,80 @@
+import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
+import { test } from 'node:test';
+import { canAllocate } from '../../sim/progression.ts';
+import type { GuideBuildSpec } from './builds.ts';
+import { GUIDE_SPEC } from './builds.ts';
+import { guideData, levelForPlace, pointsAtLevel, route } from './data.ts';
+import { currentFingerprint } from './fingerprint.ts';
+import type { BuildMeasure } from './measures.ts';
+import { BUILD_NOTES } from './pages/build-notes.ts';
+import type { BuildNotes } from './pages/build-page.ts';
+import type { GuidePage } from './site.ts';
+import { fillShell, GUIDE_PAGES, renderGuideBody, shellHtml, shellPath } from './site.ts';
+
+const STALE: string = 'the guide\'s measured numbers were made from other balance data. Run: ~/Dev/ops/lanes/lane test --timeout 2400 -- node tools/guide/measure.ts';
+
+function visibleText(html: string): string {
+  return html.replace(/<svg[\s\S]*?<\/svg>/g, '').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' ');
+}
+
+void test('the measured numbers were made from the balance data the game has now', (): void => {
+  assert.equal(guideData().measured.fingerprint, currentFingerprint(), STALE);
+});
+
+void test('every build in the guide has measurements, notes and a page, and nothing else does', (): void => {
+  const ids: readonly string[] = GUIDE_SPEC.builds.map((build: GuideBuildSpec): string => build.id);
+  assert.deepEqual(guideData().measured.builds.map((build: BuildMeasure): string => build.id).toSorted(), [...ids].toSorted(), STALE);
+  assert.deepEqual(BUILD_NOTES.map((notes: BuildNotes): string => notes.id).toSorted(), [...ids].toSorted());
+  for (const id of ids) assert.ok(GUIDE_PAGES.some((page: GuidePage): boolean => page.key === `builds/${id}`), id);
+});
+
+void test('every route can be taken in its order with the points a character has at each level', (): void => {
+  const data = guideData();
+  for (const build of GUIDE_SPEC.builds) {
+    const order: readonly string[] = route(data, build.id);
+    assert.equal(order.length, pointsAtLevel(data.content, Math.max(...GUIDE_SPEC.levels)), `${build.id} leaves points unspent`);
+    order.forEach((id: string, index: number): void => {
+      const level: number = levelForPlace(data.content, index + 1);
+      assert.ok(pointsAtLevel(data.content, level) >= index + 1, `${build.id}: ${id}`);
+      assert.ok(canAllocate(data.content, order.slice(0, index), 1, id), `${build.id} cannot take ${id} as place ${index + 1}`);
+    });
+  }
+});
+
+void test('every remark on a route sits on a place the route takes', (): void => {
+  const data = guideData();
+  for (const notes of BUILD_NOTES) {
+    const order: readonly string[] = route(data, notes.id);
+    for (const id of Object.keys(notes.marks)) assert.ok(order.includes(id), `${notes.id} remarks on ${id}, which its route does not take`);
+  }
+});
+
+void test('every page renders words a player reads, with no ids, blanks or broken numbers', (): void => {
+  const data = guideData();
+  for (const page of GUIDE_PAGES) {
+    const rendered = renderGuideBody(data, page);
+    const text: string = visibleText(rendered.html);
+    assert.ok(rendered.title.length > 0 && rendered.description.length > 0 && rendered.lede.length > 0, `${page.key} has no title, lede or description`);
+    assert.ok(rendered.body.length > 0, `${page.key} is empty`);
+    for (const word of ['undefined', 'NaN', 'null', 'Infinity', '[object']) assert.ok(!text.includes(word), `${page.key} shows ${word}`);
+    const ids: readonly string[] = text.match(/\b[a-z]+_[a-z0-9_]+\b/g) ?? [];
+    assert.deepEqual(ids, [], `${page.key} shows ids`);
+  }
+});
+
+void test('every page has its shell on disk, and the shell is filled with the page', (): void => {
+  for (const page of GUIDE_PAGES) {
+    const shell: string = readFileSync(shellPath(page.key), 'utf8');
+    assert.equal(shell, shellHtml(page.key), `${shellPath(page.key)} is out of date: run node tools/guide/write-shells.ts`);
+    const filled: string = fillShell(shell);
+    assert.ok(!filled.includes('data-page='), page.key);
+    assert.ok(filled.includes('<main class="page">'), page.key);
+    assert.ok(filled.includes(`href="https://theloststorm.com${page.href}"`), page.key);
+  }
+});
+
+void test('a page without the guide mark passes through unchanged', (): void => {
+  const html: string = '<!doctype html><title>Other</title><main></main>';
+  assert.equal(fillShell(html), html);
+});

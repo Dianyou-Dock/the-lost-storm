@@ -1,0 +1,136 @@
+{
+  "skill": "average",
+  "careless": "poor",
+  "seeds": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "levels": [
+    10,
+    15,
+    20
+  ],
+  "bossRepeats": 3,
+  "climbMinutes": 150,
+  "builds": [
+    {
+      "id": "glass-cannon",
+      "from": "marksman",
+      "route": [
+        "blade_thunderhead",
+        "heavy_hands",
+        "blade_1",
+        "whetstone",
+        "blade_4",
+        "whirling_cleave",
+        "blade_wind_mid",
+        "slip_through",
+        "blade_7",
+        "unbroken_rhythm",
+        "blade_8",
+        "blade_9",
+        "headsman",
+        "storm_12"
+      ],
+      "after": [
+        "wind_4",
+        "drag_of_the_deep",
+        "wind_1",
+        "windborne",
+        "blade_12",
+        "blade_13",
+        "edge_without_rest",
+        "wind_7",
+        "through_the_mist",
+        "wind_8",
+        "wind_9",
+        "racing_cloud"
+      ]
+    },
+    {
+      "id": "bulwark",
+      "from": "tank",
+      "route": [
+        "stone_thunderclap",
+        "tempered_body",
+        "stone_1",
+        "bedrock",
+        "stone_held_breath",
+        "heaving_cleave",
+        "gathered_clap",
+        "mountain_falls",
+        "old_oak",
+        "the_unmoved"
+      ],
+      "after": [
+        "echo_8",
+        "echo_12",
+        "echo_9",
+        "worn_groove",
+        "echo_10",
+        "between_heartbeats",
+        "echo_1",
+        "long_squall",
+        "echo_4",
+        "echo_squall"
+      ]
+    },
+    {
+      "id": "whirlwind",
+      "from": "spinner",
+      "after": []
+    },
+    {
+      "id": "stormcaller",
+      "from": "caster",
+      "after": [
+        "blade_1",
+        "heavy_hands",
+        "whetstone",
+        "blade_2",
+        "blade_8",
+        "blade_9",
+        "headsman",
+        "blade_12",
+        "blade_13"
+      ]
+    },
+    {
+      "id": "echo-weaver",
+      "from": "echoer",
+      "after": [
+        "storm_8",
+        "thunder_in_the_bones",
+        "storm_7",
+        "storm_9",
+        "storm_10",
+        "storm_11",
+        "storm_1",
+        "storm_2",
+        "storm_3",
+        "storm_4",
+        "storm_12",
+        "storm_13"
+      ]
+    },
+    {
+      "id": "windrunner",
+      "from": "windrunner",
+      "after": [
+        "stone_1",
+        "tempered_body",
+        "bedrock",
+        "stone_2",
+        "stone_3",
+        "stone_8",
+        "stone_9",
+        "old_oak",
+        "stone_10",
+        "stone_12",
+        "stone_13"
+      ]
+    }
+  ]
+}
