@@ -1,5 +1,7 @@
 node_modules
 dist
+dist-portal
+the-lost-storm-portal.zip
 .DS_Store
 *.blend1
 __pycache__

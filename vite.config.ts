@@ -1,6 +1,7 @@
 import { resolve } from 'node:path';
 import { defineConfig } from 'vite';
-import type { ConfigEnv, Plugin, ResolvedConfig, UserConfig } from 'vite';
+import type { ConfigEnv, Plugin, ResolvedConfig, ServerOptions, UserConfig } from 'vite';
+import { PORTAL, portalPage } from './tools/portal.ts';
 import { assetVersionDefine } from './tools/asset-versions.ts';
 import links from './data/links.json' with { type: 'json' };
 import { readServerUrl } from './src/backend/server-url.ts';
@@ -46,18 +47,42 @@ function assetVersions(): Plugin {
   };
 }
 
-export default defineConfig({
-  server: { port: 5193, open: false },
-  plugins: [guidePages(), pageLinks(), assetVersions()],
-  build: {
-    target: 'es2022',
-    chunkSizeWarningLimit: 1500,
-    rollupOptions: {
-      input: {
-        landing: resolve(ROOT, 'index.html'),
-        play: resolve(ROOT, 'play/index.html'),
-        ...guideInputs(ROOT),
+const SERVER: ServerOptions = { port: 5193, open: false };
+const BUILD_TARGET: string = 'es2022';
+const CHUNK_WARNING_KB: number = 1500;
+
+function siteConfig(): UserConfig {
+  return {
+    server: SERVER,
+    plugins: [guidePages(), pageLinks(), assetVersions()],
+    build: {
+      target: BUILD_TARGET,
+      chunkSizeWarningLimit: CHUNK_WARNING_KB,
+      rollupOptions: {
+        input: {
+          landing: resolve(ROOT, 'index.html'),
+          play: resolve(ROOT, 'play/index.html'),
+          ...guideInputs(ROOT),
+        },
       },
     },
-  },
-});
+  };
+}
+
+function portalConfig(): UserConfig {
+  return {
+    base: './',
+    envDir: false,
+    publicDir: false,
+    plugins: [pageLinks(), assetVersions(), portalPage(resolve(ROOT, 'public'), readLinks(links).site)],
+    build: {
+      target: BUILD_TARGET,
+      chunkSizeWarningLimit: CHUNK_WARNING_KB,
+      outDir: resolve(ROOT, PORTAL.outDir),
+      emptyOutDir: true,
+      rollupOptions: { input: { play: resolve(ROOT, PORTAL.page.from) } },
+    },
+  };
+}
+
+export default defineConfig((env: ConfigEnv): UserConfig => (env.mode === PORTAL.mode ? portalConfig() : siteConfig()));

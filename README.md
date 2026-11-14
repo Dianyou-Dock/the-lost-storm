@@ -91,6 +91,16 @@ npm run test:affected
 
 `npm run typecheck` is strict TypeScript, `npm run lint` is oxlint with type information (rules in `.oxlintrc.json`), and `npm run test:affected` runs only the tests a branch can affect with Node's test runner. `npm test` runs the whole suite split over a few processes, `npm run test:isolated` runs it with one process per file, and `npm run check` runs typecheck, lint and the whole suite. `npm run build` makes the production bundle in `dist/`. CI runs typecheck, lint and the affected tests on every pull request, and the whole suite in the merge queue and on `main`. [CONTRIBUTING.md](CONTRIBUTING.md) has the rest.
 
+### Portal build (itch.io, Game Jolt)
+
+```bash
+npm run build:portal
+```
+
+This makes the offline build for game portals that host an uploaded HTML5 zip: the folder `dist-portal/` and the zip `the-lost-storm-portal.zip` at the repository root. The game page is `index.html` at the root of the zip, beside `assets/` (the bundle and fonts), `models/` and `textures/`, and every URL in it is relative, so it runs from any sub-path, inside a portal's iframe on its own domain. The landing page, the guide, `privacy.html`, `terms.html` and `og.jpg` are left out; the Guide, Privacy and Terms links on the title screen open those pages on theloststorm.com in a new tab.
+
+It is always the offline build: it ignores `.env` files and stops if `VITE_SERVER_URL` or `VITE_ASSET_BASE` is set in the shell. It makes no network request, saves to the browser's `localStorage` (a portal's iframe keeps that save apart from the one on theloststorm.com), and plays without sound. The shared Hideout, chat, trading, the auction house, the ladder, sign-in and feedback are not in it. Local-only assets in `public/models/local/` and `public/audio/local/` never go in. The script prints the file count and total size, and fails if the build is over itch.io's limits: 1,000 files, 500 MB in all, 200 MB for one file.
+
 The overlay state machine (which panel, screen or card may be up, in what order, and what Escape closes) is specified in TLA+ in `spec/Overlays.tla`. Check it with `spec/run-tlc.sh`; [spec/README.md](spec/README.md) says how to get TLC.
 
 ## Layout
