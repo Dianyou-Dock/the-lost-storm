@@ -10,6 +10,7 @@ void test('job and done messages survive the trip to a worker and back', (): voi
     { index: 2, job: { scenario: { kind: 'fight', moment: 'campfire', repeats: 3 }, skill: 'average', build: 'blade', seed: 3, danger: 1, toughness: 1 } },
     { index: 3, job: { scenario: { kind: 'level', level: 5, minutes: 60 }, skill: 'average', build: 'stone', seed: 4, danger: 1, toughness: 1 } },
     { index: 4, job: { scenario: { kind: 'over', hero: 9, zone: 1, minutes: 20 }, skill: 'careful', build: 'mixed', seed: 5, danger: 2.5, toughness: 3 } },
+    { index: 5, job: { scenario: { kind: 'pack', monster: 'wolf', count: 4, levels: [9, 11, 13], repeats: 3, minutes: 120 }, skill: 'poor', build: 'mixed', seed: 6, danger: 1, toughness: 1 } },
   ];
   for (const message of messages) assert.deepEqual(readJobMessage(structuredClone(message)), message);
   assert.deepEqual(readDoneMessage({ index: 2, stream: '{}' }), { index: 2, stream: '{}' });

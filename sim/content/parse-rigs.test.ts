@@ -54,3 +54,17 @@ void test('a rig has no stances unless told, and each stance reads an idle and i
   const idleless: Record<string, unknown> = { ...base, clips: { idle: 'Idle', run: 'Run', hit: ['Hit'], death: ['Death'], actions: {}, stances: { crossbow: { actions: {} } } } };
   assert.throws((): unknown => rig(idleless, 'rig'), ContentError);
 });
+
+void test('a creature with no hit or death clip of its own is a rig with empty lists, and the view falls back to flash and a sink', (): void => {
+  const base: Record<string, unknown> = source();
+  const parsed = rig({ ...base, clips: { idle: 'Idle', run: 'Run', actions: {} } }, 'rig');
+  assert.deepEqual(parsed.clips.hit, []);
+  assert.deepEqual(parsed.clips.death, []);
+  assert.deepEqual(rig(base, 'rig').clips.death, ['Death']);
+});
+
+void test('a rig stands on the ground unless it names a lift, and a lift below the ground is refused', (): void => {
+  assert.equal(rig(source(), 'rig').lift, 0);
+  assert.equal(rig({ ...source(), lift: 1.4 }, 'rig').lift, 1.4);
+  assert.throws((): unknown => rig({ ...source(), lift: -0.5 }, 'rig'), ContentError);
+});

@@ -224,6 +224,7 @@ export function uiActionForCommand(command: Command): UiAction | null {
     case 'glitch_setting':
     case 'overlay':
     case 'strike':
+    case 'spawn':
     case 'hold':
     case 'steer':
       break;

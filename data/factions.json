@@ -177,5 +177,21 @@
     "regards": {
       "player": "hostile"
     }
+  },
+  {
+    "id": "beasts",
+    "name": "Beasts",
+    "description": "Animals that hunt in the dark.",
+    "palette": {
+      "tints": [
+        "#ffffff"
+      ],
+      "glow": "#c9b48a"
+    },
+    "wearables": [],
+    "weapons": [],
+    "regards": {
+      "player": "hostile"
+    }
   }
 ]

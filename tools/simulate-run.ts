@@ -13,8 +13,11 @@ import { allHold } from '../sim/world/conditions.ts';
 import { grantXp } from '../sim/world/character.ts';
 import { createWorld } from '../sim/world/create.ts';
 import { fightZones, forceStrike, nearestFight } from '../sim/world/moments.ts';
+import { spawnPackNear } from '../sim/world/monsters.ts';
 import { readablePages } from '../sim/world/story.ts';
 import type { GroundItem, ItemInstance, MomentState, MonsterState, World, WorldEvent } from '../sim/world/types.ts';
+import type { PackFight } from './simulate-pack.ts';
+import { packFoe } from './simulate-pack.ts';
 import type { BuildPolicy, Policies, SkillPolicy } from './simulate-policies.ts';
 import { planFor } from './simulate-policies.ts';
 
@@ -32,9 +35,10 @@ export const RUN = {
   bossLimit: 300,
   bossApproach: 60,
   bossRest: 30,
+  packLimit: 120,
 } as const;
 
-export type Scenario = { readonly kind: 'slice' } | { readonly kind: 'farm'; readonly minutes: number } | { readonly kind: 'fight'; readonly moment: string; readonly repeats: number } | { readonly kind: 'level'; readonly level: number; readonly minutes: number } | { readonly kind: 'over'; readonly hero: number; readonly zone: number; readonly minutes: number } | { readonly kind: 'boss'; readonly levels: readonly number[]; readonly repeats: number; readonly minutes: number };
+export type Scenario = { readonly kind: 'slice' } | { readonly kind: 'farm'; readonly minutes: number } | { readonly kind: 'fight'; readonly moment: string; readonly repeats: number } | { readonly kind: 'level'; readonly level: number; readonly minutes: number } | { readonly kind: 'over'; readonly hero: number; readonly zone: number; readonly minutes: number } | { readonly kind: 'boss'; readonly levels: readonly number[]; readonly repeats: number; readonly minutes: number } | PackFight;
 
 export interface Job {
   readonly scenario: Scenario;
@@ -66,6 +70,8 @@ export function scenarioName(scenario: Scenario): string {
       return `hero ${scenario.hero} in level ${scenario.zone}`;
     case 'boss':
       return `boss at ${scenario.levels.join(', ')}`;
+    case 'pack':
+      return `${packFoe(scenario)} at ${scenario.levels.join(', ')}`;
   }
   return 'unknown';
 }
@@ -274,6 +280,47 @@ export function fightBoss(bot: Bot, lair: BossLair, origin: number): Measurement
   return measured;
 }
 
+function fightPack(bot: Bot, scenario: PackFight, origin: number): Measurement | null {
+  const world: World = bot.world;
+  const zone: string | null = home(world);
+  if (zone === null || (world.zone.id !== zone && !botTravelTo(bot, zone))) return null;
+  const spot: Vec2 | null = strikeSpot(world);
+  if (spot === null) return null;
+  const hall: ZoneDef = world.zone;
+  const level: number = world.player.level;
+  world.zone = { ...hall, level, levelUpTo: level, surge: null };
+  const pack: MonsterState[] = spawnPackNear(world, scenario.monster, scenario.count, spot);
+  world.zone = hall;
+  if (pack.length === 0) return null;
+  for (const monster of pack) monster.aggro = true;
+  const deaths: number = bot.deaths;
+  const start: number = world.time;
+  const cleared = (): boolean => pack.every((monster: MonsterState): boolean => !monster.alive);
+  const over = (): boolean => cleared() || bot.deaths > deaths || world.zone.id !== zone || world.time >= start + RUN.packLimit;
+  while (!over()) botFight(bot, over, null);
+  const lost: boolean = bot.deaths > deaths;
+  const measured: Measurement = { kind: 'boss', t: Math.round((world.time - origin) * 100) / 100, boss: packFoe(scenario), level, outcome: cleared() ? 'won' : lost ? 'lost' : 'timeout', seconds: Math.round((world.time - start) * 10) / 10, lifeLeft: lost ? 0 : Math.round((world.player.life / world.player.maxLife) * 100) / 100 };
+  world.monsters = world.monsters.filter((monster: MonsterState): boolean => !pack.includes(monster));
+  for (let waited: number = 0; !world.player.alive && waited < RUN.bossRest; waited += BOT.step) botStep(bot, []);
+  rest(bot);
+  return measured;
+}
+
+function fightPacks(bot: Bot, recorder: Recorder, scenario: PackFight, loot: boolean): string | null {
+  const world: World = bot.world;
+  if (!world.content.monsters.has(scenario.monster)) return `no monster ${scenario.monster}`;
+  for (const level of scenario.levels) {
+    if (!farm(bot, world.time + scenario.minutes * 60, loot, (): boolean => world.player.level >= level)) return 'could not reach the Hall';
+    if (world.player.level < level) return `did not reach level ${level}`;
+    for (let attempt: number = 0; attempt < scenario.repeats; attempt += 1) {
+      const measured: Measurement | null = fightPack(bot, scenario, recorder.meter?.origin ?? 0);
+      if (measured === null) return 'found no open ground for the pack';
+      recorder.out.push(measured);
+    }
+  }
+  return null;
+}
+
 function fightBosses(bot: Bot, recorder: Recorder, scenario: Extract<Scenario, { readonly kind: 'boss' }>, loot: boolean): string | null {
   const world: World = bot.world;
   const lair: BossLair | null = bossLair(world.content);
@@ -300,7 +347,7 @@ export function runJob(job: Job, policies: Policies): Measurement[] {
   const world: World = createWorld(content, build.hero === null ? { seed: job.seed, save: null, opening: true } : { seed: job.seed, save: null, opening: true, hero: build.hero });
   const recorder: Recorder = { meter: null, out: [sessionHeader('sim', `${scenarioName(job.scenario)}${job.danger === 1 ? '' : ` danger ${job.danger}`}${job.toughness === 1 ? '' : ` toughness ${job.toughness}`}`, `${job.skill}/${job.build}`, job.seed)] };
   const bot: Bot = createBot(world, skill.habits, (events: readonly WorldEvent[]): void => record(bot, recorder, events), planFor(skill, build));
-  const fromStart: boolean = scenario.kind === 'slice' || scenario.kind === 'level' || scenario.kind === 'boss';
+  const fromStart: boolean = scenario.kind === 'slice' || scenario.kind === 'level' || scenario.kind === 'boss' || scenario.kind === 'pack';
   if (fromStart) startRecording(world, recorder, policies);
   const opened: boolean = playOpening(bot, skill);
   const played = opened ? botPlay(bot) : null;
@@ -325,6 +372,9 @@ export function runJob(job: Job, policies: Policies): Measurement[] {
       break;
     case 'boss':
       if (opened) reason = fightBosses(bot, recorder, scenario, skill.loot) ?? reason;
+      break;
+    case 'pack':
+      if (opened) reason = fightPacks(bot, recorder, scenario, skill.loot) ?? reason;
       break;
   }
   if (meter !== null) recorder.out.push(...closeMeter(world, meter));
