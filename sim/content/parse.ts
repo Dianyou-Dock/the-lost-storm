@@ -12,6 +12,7 @@ import { faction, factionProblems } from './parse-factions.ts';
 import { momentLibrary } from './parse-moments.ts';
 import { rig } from './parse-rigs.ts';
 import { momentProblems } from './moments.ts';
+import { sceneProblems } from './parse-scene.ts';
 import { chartDef, chartProblems, statMod, treeNode } from './parse-chart.ts';
 import { bookProblems, shapeDelivery, shapeProblems, SHAPE_TYPES, skillPress, skillUnlock } from './parse-shapes.ts';
 import type { Fields } from './read.ts';
@@ -655,5 +656,6 @@ export function contentProblems(content: Content): string[] {
   }
   problems.push(...tradeProblems(content));
   problems.push(...momentProblems(content));
+  problems.push(...sceneProblems(content, flagNames));
   return problems;
 }

@@ -9,6 +9,7 @@ export function objectivePaths(objective: ObjectiveDef): readonly PathObjective[
 export function roadFlagNames(content: Content): string[] {
   const names: string[] = [];
   for (const zone of content.zones.values()) for (const trigger of zone.triggers) names.push(...Object.keys(trigger.sets));
+  for (const zone of content.zones.values()) for (const scene of zone.scenes) names.push(...Object.keys(scene.sets));
   for (const quest of content.quests.values()) {
     for (const objective of quest.objectives) {
       names.push(...Object.keys(objective.sets));
@@ -28,6 +29,10 @@ export function conditionProblems(content: Content, flags: ReadonlySet<string>, 
       continue;
     }
     if (entry.type === 'shore' || entry.type === 'level') continue;
+    if (entry.type === 'visited') {
+      if (!content.zones.has(entry.zone)) problems.push(`${holder} names unknown zone ${entry.zone}`);
+      continue;
+    }
     if (entry.type === 'hero') {
       if (!content.player.heroes.some((hero: HeroDef): boolean => hero.id === entry.is)) problems.push(`${holder} names unknown hero ${entry.is}`);
       continue;

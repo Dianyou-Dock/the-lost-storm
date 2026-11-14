@@ -12,18 +12,18 @@ function present(world: World): ZoneNpc[] {
   return world.zone.npcs.filter((placed: ZoneNpc): boolean => world.content.npcs.has(placed.npc) && allHold(world, placed.when));
 }
 
-function spawn(world: World, placed: ZoneNpc): NpcState | null {
+export function npcAt(world: World, placed: ZoneNpc): NpcState | null {
   const def: NpcDef | undefined = world.content.npcs.get(placed.npc);
   if (def === undefined) return null;
   const facing: number = placed.facingDegrees * DEGREES_TO_RADIANS;
-  const npc: NpcState = { id: world.nextId, def, placement: placed, pos: { x: placed.x, z: placed.z }, homeFacing: facing, facing };
+  const npc: NpcState = { id: world.nextId, def, placement: placed, pos: { x: placed.x, z: placed.z }, homeFacing: facing, facing, motion: 'still', gait: 0, route: [], pace: 0 };
   world.nextId += 1;
   return npc;
 }
 
 export function spawnNpcs(world: World): void {
   world.npcs = present(world).flatMap((placed: ZoneNpc): NpcState[] => {
-    const npc: NpcState | null = spawn(world, placed);
+    const npc: NpcState | null = npcAt(world, placed);
     return npc === null ? [] : [npc];
   });
 }
@@ -82,14 +82,16 @@ export function advanceDialogue(world: World): void {
 
 export function refreshNpcs(world: World): void {
   const wanted: ZoneNpc[] = present(world);
+  const staging: ZoneNpc | null = world.scene?.placement ?? null;
+  const staged: NpcState[] = world.npcs.filter((npc: NpcState): boolean => npc.placement === staging);
   const staying: NpcState[] = world.npcs.filter((npc: NpcState): boolean => wanted.includes(npc.placement));
-  if (staying.length === world.npcs.length && staying.length === wanted.length) return;
-  if (world.dialogue !== null && !staying.some((npc: NpcState): boolean => npc.id === world.dialogue?.npcId)) closeDialogue(world, false);
+  if (staying.length + staged.length === world.npcs.length && staying.length === wanted.length) return;
+  if (world.dialogue !== null && ![...staying, ...staged].some((npc: NpcState): boolean => npc.id === world.dialogue?.npcId)) closeDialogue(world, false);
   const arriving: NpcState[] = wanted
     .filter((placed: ZoneNpc): boolean => !staying.some((npc: NpcState): boolean => npc.placement === placed))
     .flatMap((placed: ZoneNpc): NpcState[] => {
-      const npc: NpcState | null = spawn(world, placed);
+      const npc: NpcState | null = npcAt(world, placed);
       return npc === null ? [] : [npc];
     });
-  world.npcs = [...staying, ...arriving];
+  world.npcs = [...staying, ...arriving, ...staged];
 }

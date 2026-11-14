@@ -81,7 +81,7 @@ function monsterKey(def: MonsterDef): string {
 }
 
 function npcPose(npc: NpcState): ActorPose {
-  return { pos: npc.pos, facing: npc.facing, motion: 'still', gait: 0, knockTime: 0, busy: false, deadTime: 0 };
+  return { pos: npc.pos, facing: npc.facing, motion: npc.motion, gait: npc.gait, knockTime: 0, busy: false, deadTime: 0 };
 }
 
 
@@ -362,6 +362,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           case 'boss_phase':
           case 'boss_defeated':
           case 'bark':
+          case 'scene_lead':
           case 'flask_used':
           case 'flasks_refilled':
           case 'projectile_spawn':

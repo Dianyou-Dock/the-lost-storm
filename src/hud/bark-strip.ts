@@ -1,11 +1,10 @@
 import type { LineDef } from '../../sim/content/types.ts';
+import { lineSeconds } from '../../sim/world/reading.ts';
 import type { HudContext } from './context.ts';
 import { el, retrigger, setText } from './dom.ts';
 
 const BARKS = {
-  minMs: 2400,
-  perWordMs: 380,
-  gapMs: 260,
+  msPerSecond: 1000,
   leaveMs: 520,
 } as const;
 
@@ -21,7 +20,7 @@ export interface BarkStrip {
 }
 
 function readingTime(text: string): number {
-  return Math.max(BARKS.minMs, text.split(/\s+/).length * BARKS.perWordMs);
+  return lineSeconds(text) * BARKS.msPerSecond;
 }
 
 export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStrip {
@@ -51,7 +50,7 @@ export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStr
     retrigger(text, 'line');
     element.classList.add('visible');
     context.api.voice.play(bark.line);
-    timer = window.setTimeout(next, readingTime(bark.line.text) + BARKS.gapMs);
+    timer = window.setTimeout(next, readingTime(bark.line.text));
   };
 
   return {

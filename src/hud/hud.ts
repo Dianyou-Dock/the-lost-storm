@@ -383,6 +383,8 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
           case 'bark':
             barks.say(event.speaker, event.line);
             break;
+          case 'scene_lead':
+            break;
           case 'skill_unlocked':
             if (event.slot !== null) skillBar.learned(event.slot);
             banners.show(api.world.content.skills.get(event.skill)?.name ?? event.skill, event.slot === null ? 'New skill · bar full' : 'New skill', 'quest');
