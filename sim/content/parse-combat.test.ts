@@ -34,7 +34,7 @@ void test('a monster modifier reads every field', (): void => {
   assert.throws(() => monsterMod({ id: 'm' }, 'mod'), /prefix/);
 });
 
-void test('combat problems name bad bursts, bad summons, unknown pack mods, misplaced leaps and unreachable orbits', (): void => {
+void test('combat problems name bad bursts, bad summons, unknown pack mods, misplaced leaps, unreachable orbits and springs', (): void => {
   assert.deepEqual(combatProblems(ARENA_CONTENT), []);
   const thrall: MonsterDef = must(ARENA_CONTENT.monsters.get('mended'), 'thrall');
   const bolt: SkillDef = must(ARENA_CONTENT.skills.get('mender_needle'), 'bolt');
@@ -46,11 +46,12 @@ void test('combat problems name bad bursts, bad summons, unknown pack mods, misp
       ...ARENA_CONTENT.monsters,
       ['bad_boss', { ...must(ARENA_CONTENT.monsters.get('unfinished_colossus'), 'unfinished_colossus'), id: 'bad_boss', guard: { arcDegrees: 90, damageTaken: 0.5, breakStagger: 1, breakTime: 1 } }],
       ['bad', { ...thrall, id: 'bad', deathSkill: 'mender_needle', summon: { monster: 'stormcaller_rival', count: 1, cooldown: 1, limit: 1 }, behaviour: { type: 'stalker', orbitRange: 30 } }],
+      ['bad_lurker', { ...thrall, id: 'bad_lurker', behaviour: { type: 'ambush', spring: 30 } }],
     ]),
     zones: new Map<string, ZoneDef>([...ARENA_CONTENT.zones, [zone.id, { ...zone, packs: [{ x: 1, z: 1, members: [{ monster: 'mended', count: 1, mods: ['nope'] }, { monster: 'mended', count: 1, mods: ['test_volatile', 'test_volatile', 'test_brood', 'test_brood'] }], when: [] }] }]]),
   };
   const problems: string[] = combatProblems(broken);
-  for (const expected of ['bursts with skill mender_needle', 'summons stormcaller_rival', 'circles at 30', 'unknown mod nope', 'more than one mod with a death burst', 'more than one mod that summons', 'bad_leap leaps', 'bad_leap is in the air', 'boss bad_boss cannot have a guard']) {
+  for (const expected of ['bursts with skill mender_needle', 'summons stormcaller_rival', 'circles at 30', 'springs from 30', 'unknown mod nope', 'more than one mod with a death burst', 'more than one mod that summons', 'bad_leap leaps', 'bad_leap is in the air', 'boss bad_boss cannot have a guard']) {
     assert.ok(problems.some((problem: string): boolean => problem.includes(expected)), `${expected} in ${problems.join('; ')}`);
   }
 });

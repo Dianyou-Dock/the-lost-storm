@@ -76,5 +76,7 @@ void test('pack names a monster, rising hero levels, a pack size and a repeat co
   assert.deepEqual(parse(['pack']), { kind: 'help', problem: 'pack needs a monster id and hero levels, such as wolf 9,11,13' });
   assert.deepEqual(parse(['pack', 'wolf']), { kind: 'help', problem: 'pack needs hero levels, such as 8,10,12' });
   assert.deepEqual(parse(['pack', 'wolf', '13,9']), { kind: 'help', problem: 'pack levels must rise, such as 8,10,12' });
+  assert.ok(parse(['pack', 'wolf:3+spider:1', '9']).kind === 'simulate');
+  assert.deepEqual(parse(['pack', 'wolf:0', '9']), { kind: 'help', problem: 'pack names monster ids joined by +, each with an optional count, such as wolf:3+spider:1' });
   assert.deepEqual(parse(['pack', 'wolf', '9', '--count', 'many']), { kind: 'help', problem: '--count and --repeats must be whole numbers' });
 });

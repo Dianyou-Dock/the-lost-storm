@@ -74,6 +74,8 @@ The creatures, each a body and its own clips on its own skeleton:
 | `public/models/animations/rat/Rat_Attack.glb`, `public/models/animations/rat/Rat_Death.glb`, `public/models/animations/rat/Rat_Idle.glb`, `public/models/animations/rat/Rat_Run.glb`, `public/models/animations/rat/Rat_Walk.glb` | The Rat's clips, one clip per file | `FBX/Rat.fbx` of the Easy Enemy Pack by Quaternius, converted to GLB in Blender and built by the commands below | CC0 1.0 |
 | `public/models/creatures/bat.glb` | The Bat body, its five colour materials and its skeleton, with no clips | `FBX/Bat.fbx` of the Animated Monster Pack by Quaternius, converted to GLB in Blender and built by the commands below | CC0 1.0 |
 | `public/models/animations/bat/Bat_Attack.glb`, `public/models/animations/bat/Bat_Death.glb`, `public/models/animations/bat/Bat_Flying.glb`, `public/models/animations/bat/Bat_Hit.glb` | The Bat's clips, one clip per file | `FBX/Bat.fbx` of the Animated Monster Pack by Quaternius, converted to GLB in Blender and built by the commands below | CC0 1.0 |
+| `public/models/creatures/spider.glb` | The Spider body, its two colour materials and its skeleton, with no clips | `FBX/Spider.fbx` of the Easy Enemy Pack by Quaternius, converted to GLB in Blender and built by the commands below | CC0 1.0 |
+| `public/models/animations/spider/Spider_Death.glb`, `public/models/animations/spider/Spider_Idle.glb`, `public/models/animations/spider/Spider_Jump.glb`, `public/models/animations/spider/Spider_Walk.glb` | The Spider's clips, one clip per file | `FBX/Spider.fbx` of the Easy Enemy Pack by Quaternius, converted to GLB in Blender and built by the commands below | CC0 1.0 |
 
 Build a creature from its pack file into a body and a clip folder. `tools/build-creature.ts` drops the clips from the body, writes each clip on bare joints under its plain action name (Blender writes `Armature|Armature|Action`), and makes any material that a conversion left see-through or glowing opaque and unlit; keep only the clip files the rig names. A pack that ships only FBX is first converted in Blender 4.4: import the FBX with automatic bone orientation off, then export GLB with every action as its own animation and sampling forced:
 
@@ -84,6 +86,8 @@ node tools/build-creature.ts <Rat.glb converted from FBX/Rat.fbx> public/models/
 node tools/compress-models.ts public/models/creatures/rat.glb public/models/animations/rat/*.glb
 node tools/build-creature.ts <Bat.glb converted from FBX/Bat.fbx> public/models/creatures/bat.glb public/models/animations/bat
 node tools/compress-models.ts public/models/creatures/bat.glb public/models/animations/bat/*.glb
+node tools/build-creature.ts <Spider.glb converted from FBX/Spider.fbx> public/models/creatures/spider.glb public/models/animations/spider
+node tools/compress-models.ts public/models/creatures/spider.glb public/models/animations/spider/*.glb
 ```
 
 The skeleton monsters' rig and clips:

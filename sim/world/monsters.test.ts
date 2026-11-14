@@ -20,7 +20,7 @@ import { createWorld } from './create.ts';
 import { choicesOpen } from './death.ts';
 import { objectiveTarget } from './objective.ts';
 import type { ObjectiveTarget } from './objective.ts';
-import type { Command, MomentState, MonsterState, World } from './types.ts';
+import type { Command, MomentState, MonsterState, World, WorldEvent } from './types.ts';
 import { enterZone } from './zones.ts';
 
 const shipped: Content = loadContent();
@@ -616,4 +616,37 @@ void test('a swarm that comes from one side spreads round the hero, bites from a
   const open: number = gaps.reduce((sum: number, gap: number): number => sum + gap, 0) / gaps.length;
   assert.ok(open < 3.2, `the swarm kept an open side of ${open.toFixed(2)} rad on average, as a line of chasers keeps about 5.8`);
   for (const rat of rats) assert.ok(distance(rat.pos, ARENA_CENTRE) < ring + 2.5, `a rat strayed ${distance(rat.pos, ARENA_CENTRE).toFixed(1)} m out`);
+});
+
+void test('a spider waits unseen until the hero comes close, springs with a telegraphed leap, then backs off to wait for its next spring', (): void => {
+  const world: World = arena(9);
+  const spider: MonsterState = place(world, 'spider', { x: ARENA_CENTRE.x + 8, z: ARENA_CENTRE.z });
+  const spring: number = spider.def.behaviour.type === 'ambush' ? spider.def.behaviour.spring : 0;
+  spider.aggro = false;
+  const wait = (seconds: number, hero: Vec2): WorldEvent[] => {
+    const seen: WorldEvent[] = [];
+    for (let step: number = 0; step < Math.round(seconds / MOTION_DT); step += 1) {
+      world.player.pos = { ...hero };
+      world.player.life = world.player.maxLife;
+      seen.push(...stepWorld(world, [], MOTION_DT));
+    }
+    return seen;
+  };
+  wait(2, ARENA_CENTRE);
+  assert.ok(spring > 0, 'the spider lies in ambush');
+  assert.equal(spider.aggro, false, 'the spider woke at 8 m, outside its spring');
+  assert.ok(distance(spider.pos, { x: ARENA_CENTRE.x + 8, z: ARENA_CENTRE.z }) < 0.05, 'the spider crept while it waited');
+  const close: Vec2 = { x: ARENA_CENTRE.x + 8 - spring + 0.5, z: ARENA_CENTRE.z };
+  const sprang: WorldEvent[] = wait(2.5, close);
+  const start: WorldEvent | undefined = sprang.find((event: WorldEvent): boolean => event.type === 'skill_start' && event.actorId === spider.id);
+  assert.ok(start?.type === 'skill_start' && start.skill.leap !== null && start.windup >= 1, 'the spider never sprang with a wind-up the hero can read');
+  assert.ok(sprang.some((event: WorldEvent): boolean => event.type === 'damage' && event.sourceId === spider.id), 'the leap never landed');
+  let farthest: number = 0;
+  let again: boolean = false;
+  for (let step: number = 0; step < 8; step += 1) {
+    again ||= wait(0.5, close).some((event: WorldEvent): boolean => event.type === 'skill_start' && event.actorId === spider.id);
+    if (!again) farthest = Math.max(farthest, distance(spider.pos, close));
+  }
+  assert.ok(farthest > spring - 1.5, `while its leap recovered the spider came no farther than ${farthest.toFixed(1)} m instead of backing off`);
+  assert.ok(again, 'the spider never sprang a second time');
 });
