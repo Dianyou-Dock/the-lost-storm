@@ -15,6 +15,7 @@ export interface MistSize {
 export interface LobbyMist {
   readonly texture: Texture;
   draw(renderer: WebGLRenderer, dt: number, cssWidth: number, cssHeight: number, pixelRatio: number): void;
+  release(): void;
 }
 
 export const MIST_VERTEX: string = `
@@ -119,6 +120,9 @@ export function createLobbyMist(): LobbyMist {
   const surface: WebGLRenderTarget = new WebGLRenderTarget(1, 1, { depthBuffer: false, magFilter: LinearFilter, minFilter: LinearFilter });
   return {
     texture: surface.texture,
+    release(): void {
+      surface.dispose();
+    },
     draw(renderer: WebGLRenderer, dt: number, cssWidth: number, cssHeight: number, pixelRatio: number): void {
       time.value += dt;
       const size: MistSize = mistSize(cssWidth, cssHeight, pixelRatio);

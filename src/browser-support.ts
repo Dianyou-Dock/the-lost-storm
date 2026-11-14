@@ -6,14 +6,15 @@ export const BROWSER_NOTICES = {
 } as const;
 
 export const RETRY = {
-  key: 'the-lost-storm.reload-at',
-  gapMs: 60_000,
+  key: 'the-lost-storm.retried',
+  mark: '1',
   started: 'started',
 } as const;
 
 export interface RetryStore {
   getItem(key: string): string | null;
   setItem(key: string, value: string): void;
+  removeItem(key: string): void;
 }
 
 export interface BrowserProbe {
@@ -57,14 +58,21 @@ export function sessionStore(scope: { readonly sessionStorage: RetryStore }): Re
   }
 }
 
-export function claimRetry(store: RetryStore | null, now: number): boolean {
+export function claimRetry(store: RetryStore | null): boolean {
   if (store === null) return false;
   try {
-    const last: number = Number(store.getItem(RETRY.key));
-    if (last > 0 && now - last < RETRY.gapMs) return false;
-    store.setItem(RETRY.key, String(now));
+    if (store.getItem(RETRY.key) !== null) return false;
+    store.setItem(RETRY.key, RETRY.mark);
     return true;
   } catch {
     return false;
+  }
+}
+
+export function clearRetry(store: RetryStore | null): void {
+  try {
+    store?.removeItem(RETRY.key);
+  } catch {
+    return;
   }
 }

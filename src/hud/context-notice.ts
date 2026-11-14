@@ -1,6 +1,7 @@
 import type { ContextPhase, ContextSignal } from './context-phase.ts';
 import { contextNoticeShown, contextPolls, contextReloadOffered, contextWaits, nextContextPhase } from './context-phase.ts';
 import { el, label } from './dom.ts';
+import { GPU, reloadPage } from '../gpu-release.ts';
 
 export const CONTEXT_NOTICE = {
   reloadOfferMs: 6000,
@@ -30,7 +31,7 @@ export function watchContext(canvas: HTMLCanvasElement, parent: HTMLElement, isL
   reload.type = 'button';
   reload.textContent = 'Reload';
   reload.tabIndex = -1;
-  reload.addEventListener('click', (): void => window.location.reload());
+  reload.addEventListener('click', reloadPage);
 
   const show = (): void => {
     note.classList.toggle('on', contextNoticeShown(phase));
@@ -60,7 +61,7 @@ export function watchContext(canvas: HTMLCanvasElement, parent: HTMLElement, isL
 
   canvas.addEventListener('webglcontextlost', (event: Event): void => {
     event.preventDefault();
-    signal({ type: 'lost' });
+    if (!GPU.released) signal({ type: 'lost' });
   });
   canvas.addEventListener('webglcontextrestored', (): void => {
     signal({ type: 'restored' });

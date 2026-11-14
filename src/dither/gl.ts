@@ -1,5 +1,6 @@
 import type { LayerUniforms, PixelBox, RadialLayer } from './paint.ts';
 import { DITHER_LIMITS, layerUniforms } from './paint.ts';
+import { GPU, loseContextOf } from '../gpu-release.ts';
 
 const VERTEX: string = `#version 300 es
 in vec2 corner;
@@ -98,9 +99,11 @@ function compile(gl: WebGL2RenderingContext, kind: number, source: string): WebG
 }
 
 function build(): Program | null {
+  if (GPU.released) return null;
   const canvas: HTMLCanvasElement = document.createElement('canvas');
   const gl: WebGL2RenderingContext | null = canvas.getContext('webgl2', { alpha: true, premultipliedAlpha: true, antialias: false, depth: false, stencil: false, preserveDrawingBuffer: true });
   if (gl === null) return null;
+  GPU.hold(loseContextOf(gl));
   const vertex: WebGLShader | null = compile(gl, gl.VERTEX_SHADER, VERTEX);
   const fragment: WebGLShader | null = compile(gl, gl.FRAGMENT_SHADER, FRAGMENT);
   if (vertex === null || fragment === null) return null;

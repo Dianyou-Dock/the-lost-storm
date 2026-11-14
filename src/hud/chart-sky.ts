@@ -1,6 +1,7 @@
 import { pixelRatioFor, renderBudget } from '../mobile/quality.ts';
 import type { ArmShape, Colour } from './chart-storm.ts';
 import { durationMs } from './overlays.ts';
+import { GPU, loseContextOf } from '../gpu-release.ts';
 
 export const CHART_SKY = {
   resolution: 0.75,
@@ -227,6 +228,7 @@ export function createChartSky(host: HTMLElement, shape: SkyShape): ChartSky | n
   canvas.className = 'chart-sky';
   const gl: WebGL2RenderingContext | null = canvas.getContext('webgl2', { premultipliedAlpha: true, antialias: false, alpha: true });
   if (gl === null) return null;
+  GPU.hold(loseContextOf(gl));
   const program: WebGLProgram | null = link(gl);
   if (program === null) return null;
   host.prepend(canvas);

@@ -41,8 +41,7 @@
     <title>The Lost Storm</title>
     <script>
       (function () {
-        var RETRY_KEY = 'the-lost-storm.reload-at';
-        var RETRY_GAP_MS = 60000;
+        var RETRY_KEY = 'the-lost-storm.retried';
         function own(url) {
           if (!url) return false;
           try {
@@ -53,9 +52,8 @@
         }
         function retried() {
           try {
-            var at = Number(window.sessionStorage.getItem(RETRY_KEY));
-            if (at > 0 && Date.now() - at < RETRY_GAP_MS) return true;
-            window.sessionStorage.setItem(RETRY_KEY, String(Date.now()));
+            if (window.sessionStorage.getItem(RETRY_KEY) !== null) return true;
+            window.sessionStorage.setItem(RETRY_KEY, '1');
             return false;
           } catch (error) {
             return true;

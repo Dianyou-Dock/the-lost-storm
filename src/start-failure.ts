@@ -1,8 +1,9 @@
-import { BROWSER_NOTICES, claimRetry, failureText, reloadHelps, sessionStore } from './browser-support.ts';
+import { reloadPage } from './gpu-release.ts';
+import { BROWSER_NOTICES, claimRetry, clearRetry, failureText, reloadHelps, sessionStore } from './browser-support.ts';
 
 export function showStartFailure(error: unknown, freeze: () => void): void {
-  if (reloadHelps(error) && claimRetry(sessionStore(window), Date.now())) {
-    window.location.reload();
+  if (reloadHelps(error) && claimRetry(sessionStore(window))) {
+    reloadPage();
     return;
   }
   freeze();
@@ -16,7 +17,16 @@ export function showStartFailure(error: unknown, freeze: () => void): void {
   if (reloadHelps(error) && enter instanceof HTMLButtonElement) {
     enter.textContent = BROWSER_NOTICES.reload;
     enter.disabled = false;
-    enter.addEventListener('click', (): void => window.location.reload());
+    enter.addEventListener('click', reloadPage);
     document.getElementById('title')?.classList.add('stuck');
   }
+}
+
+export function runStart(start: () => Promise<void>, freeze: () => void): void {
+  start()
+    .then((): void => clearRetry(sessionStore(window)))
+    .catch((error: unknown): void => {
+      showStartFailure(error, freeze);
+      throw error;
+    });
 }

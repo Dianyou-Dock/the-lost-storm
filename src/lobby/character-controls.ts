@@ -6,6 +6,7 @@ import { readServerUrl } from '../backend/server-url.ts';
 import type { ServerUrl } from '../backend/server-url.ts';
 import { CHARACTER_KEYS } from '../character-keys.ts';
 import { createBrowserStore } from '../storage.ts';
+import { reloadPage } from '../gpu-release.ts';
 import { createCharacterDesk } from './character-desk.ts';
 import type { CharacterDesk, CreateCheck } from './character-desk.ts';
 import { removeRefusalText, stripCards } from './character-strip-model.ts';
@@ -65,7 +66,7 @@ export function createCharacterControls(content: Content, hooks: CharacterHooks)
   const desk: CharacterDesk = createCharacterDesk({ content, place, api, random: Math.random });
   const reload = (): void => {
     markResume(SESSION_FLAGS);
-    window.location.reload();
+    reloadPage();
   };
   const switchOut = async (move: () => boolean): Promise<boolean> => {
     hooks.persist();

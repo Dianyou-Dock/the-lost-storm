@@ -13,6 +13,7 @@ import { frameGuardPass } from './frame-guard.ts';
 import { RIM_LIGHT } from './character-loader.ts';
 import { aimCutaway } from './prop-cutaway.ts';
 import { ditheredOutputPass } from './output-dither.ts';
+import { GPU } from '../gpu-release.ts';
 
 export const STAGE = {
   exposure: 1.22,
@@ -114,6 +115,7 @@ export interface Stage {
 export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): Stage {
   let tier: QualityTier = initial;
   const renderer: WebGLRenderer = new WebGLRenderer({ canvas, antialias: tier.antialias, powerPreference: 'high-performance' });
+  GPU.hold((): void => renderer.forceContextLoss());
   renderer.setPixelRatio(pixelRatioFor(tier, window.devicePixelRatio, canvas.clientWidth, canvas.clientHeight));
   renderer.outputColorSpace = SRGBColorSpace;
   renderer.toneMapping = CustomToneMapping;

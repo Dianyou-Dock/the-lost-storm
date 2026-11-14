@@ -107,6 +107,7 @@ export interface LobbyStage {
   dress(look: LobbyLook): void;
   render(renderer: WebGLRenderer, dt: number, tier: QualityName, devicePixelRatio: number): void;
   warm(renderer: WebGLRenderer, tier: QualityName): Promise<void>;
+  release(): void;
 }
 
 function coverTexture(): DataTexture {
@@ -412,6 +413,10 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
       RIM_LIGHT.value.copy(rimGlow);
       pipeline ??= createLobbyPipeline(renderer, scene, camera);
       pipeline.render(tier, devicePixelRatio);
+    },
+    release(): void {
+      pipeline?.release();
+      sky.release();
     },
     async warm(renderer: WebGLRenderer, tier: QualityName): Promise<void> {
       if (hero === null && wanted !== null) dress(wanted);

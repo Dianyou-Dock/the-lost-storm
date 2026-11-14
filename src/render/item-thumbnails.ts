@@ -2,6 +2,7 @@ import type { Material, Matrix4, Object3D, WebGLRenderTarget } from 'three';
 import { ACESFilmicToneMapping, Box3, BufferAttribute, BufferGeometry, Color, InterleavedBufferAttribute, DirectionalLight, Group, Mesh, MeshStandardMaterial, OrthographicCamera, PMREMGenerator, Scene, SRGBColorSpace, Vector3, WebGLRenderer } from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { Timers } from '../backend/backend.ts';
+import { GPU } from '../gpu-release.ts';
 import { wearKey } from '../../sim/wear.ts';
 import type { CharacterLibrary, LoadedWearable } from './character-loader.ts';
 
@@ -257,6 +258,7 @@ function framing(wearable: LoadedWearable): (posed: Group) => Box3 {
 
 export async function createItemThumbnails(library: CharacterLibrary, frame: string, wearableIds: readonly string[], skinTint: string, timers: Timers): Promise<ItemThumbnails> {
   const renderer: WebGLRenderer = new WebGLRenderer({ alpha: true, antialias: true });
+  const letGo: () => void = GPU.hold((): void => renderer.forceContextLoss());
   renderer.setPixelRatio(1);
   renderer.setSize(THUMBNAIL.size, THUMBNAIL.size, false);
   renderer.setClearColor(0x000000, 0);
@@ -317,5 +319,6 @@ export async function createItemThumbnails(library: CharacterLibrary, frame: str
   generator.dispose();
   renderer.dispose();
   renderer.forceContextLoss();
+  letGo();
   return images;
 }

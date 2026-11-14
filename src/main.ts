@@ -137,7 +137,7 @@ import { readServerUrl } from './backend/server-url.ts';
 import { createTitleSync, followSync } from './title-sync.ts';
 import { createStatusLine, TITLE_NOTICES } from './title-status.ts';
 import { createdOrUnsupported, probeBrowser, RETRY, UnsupportedBrowser, unsupportedReason } from './browser-support.ts';
-import { showStartFailure } from './start-failure.ts';
+import { runStart } from './start-failure.ts';
 import { defaultBar } from '../sim/skill-book.ts';
 import type { Bar } from '../sim/skill-book.ts';
 import { shippedKeys, showTitleKeys, skillSlots, TITLE_KEYS, titleKeyRows, titleNames } from './title-keys.ts';
@@ -150,6 +150,7 @@ import { createVeil } from './veil.ts';
 import type { FigureGauge } from './render/figure-gauge.ts';
 import { createFigureGauge, figureJoints } from './render/figure-gauge.ts';
 import { untilCycleEnds } from './loading-mark.ts';
+import { reloadPage } from './gpu-release.ts';
 
 const GAME = {
   maxFrame: 0.1,
@@ -663,7 +664,7 @@ async function start(): Promise<void> {
     createHintStore(createBrowserStore()).clear();
     launch.forgetPlayed();
     await Promise.all([backend.reset(), fadePageOut()]);
-    window.location.reload();
+    reloadPage();
   };
   reset.addEventListener('click', (): void => {
     void startOver();
@@ -691,9 +692,6 @@ async function start(): Promise<void> {
 }
 
 document.documentElement.dataset['boot'] = RETRY.started;
-start().catch((error: unknown): void => {
-  showStartFailure(error, (): void => {
-    titleLines.current?.freeze();
-  });
-  throw error;
+runStart(start, (): void => {
+  titleLines.current?.freeze();
 });

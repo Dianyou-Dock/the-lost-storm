@@ -121,7 +121,10 @@ export function createLobbyFlow(parts: LobbyFlowParts): LobbyFlow {
     middle();
     active = into;
     document.body.toggleAttribute(`data-${LOBBY_FLOW.bodyMark}`, into);
-    if (!into) parts.restore();
+    if (!into) {
+      stage.release();
+      parts.restore();
+    }
     if (into) {
       await warmStage();
       screen.setBusy(false);

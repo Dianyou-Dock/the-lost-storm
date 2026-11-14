@@ -138,9 +138,9 @@ void test("the game's own script failing to load reloads the page once, then say
   const page: TrapPage = trapPage((): number => now, 'open');
   page.error(({ script }) => ({ target: script(`${ORIGIN}/assets/play-abc.js`) }));
   assert.equal(page.reloads(), 1);
-  assert.equal(page.stored.get(RETRY.key), '5000');
+  assert.equal(page.stored.get(RETRY.key), RETRY.mark);
   assert.equal(page.status.textContent, 'Loading…');
-  now += RETRY.gapMs - 1;
+  now += 10 * 60_000;
   page.error(({ script }) => ({ target: script(`${ORIGIN}/assets/play-abc.js`) }));
   assert.equal(page.reloads(), 1);
   assert.equal(page.status.textContent, BROWSER_NOTICES.stopped);

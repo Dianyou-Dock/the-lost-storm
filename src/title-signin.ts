@@ -1,5 +1,6 @@
 import type { AccountService, EmailOffer, EmailStartResult, EmailVerifyResult } from './backend/account.ts';
 import { createBrowserTimers } from './browser-timers.ts';
+import { reloadPage } from './gpu-release.ts';
 import { createAccountFlow } from './account-flow.ts';
 import type { AccountFlow, GoogleAnswer } from './account-flow.ts';
 import { loadGoogleIdentity, showGoogleMark } from './google-identity.ts';
@@ -96,9 +97,7 @@ export function startTitleAccount(account: AccountService, options: TitleSignInO
     },
     setBusy: options.setBusy,
     beforeSignIn: options.beforeSignIn,
-    reload: (): void => {
-      window.location.reload();
-    },
+    reload: reloadPage,
     showButton: async (clientId: string, answer: GoogleAnswer): Promise<boolean> => {
       const identity: GoogleIdentity | null = await loadGoogleIdentity();
       if (identity === null) return false;

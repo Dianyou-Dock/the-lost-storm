@@ -33,6 +33,7 @@ export function lobbyPixelRatio(name: QualityName, devicePixelRatio: number): nu
 export interface LobbyPipeline {
   render(name: QualityName, devicePixelRatio: number): void;
   compile(name: QualityName): Promise<void>;
+  release(): void;
 }
 
 function sharpen(material: unknown, anisotropy: number): void {
@@ -95,6 +96,13 @@ export function createLobbyPipeline(renderer: WebGLRenderer, scene: Scene, camer
   };
 
   return {
+    release(): void {
+      retire(composer);
+      composer = null;
+      builtSamples = -1;
+      builtBloom = null;
+      drawn.set(0, 0);
+    },
     compile(name: QualityName): Promise<void> {
       const active: EffectComposer = ready(LOBBY_RENDER.tiers[name].samples, LOBBY_RENDER.tiers[name].bloom);
       const previous: WebGLRenderTarget | null = renderer.getRenderTarget();

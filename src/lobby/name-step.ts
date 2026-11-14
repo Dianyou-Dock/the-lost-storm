@@ -9,6 +9,7 @@ import { chooseName, NAME_MESSAGES, NAME_RULES, nameProblem, tidyName } from './
 import type { NameBody, NameProblem } from './lobby-model.ts';
 import { pressAction } from './name-press.ts';
 import type { PressAction, StepState } from './name-press.ts';
+import { reloadPage } from '../gpu-release.ts';
 import stepCss from './name-step.css?inline';
 
 export const NAME_STEP = {
@@ -200,7 +201,7 @@ export function wireEnter(wiring: EnterWiring): void {
     if (wiring.step === null || (await wiring.step.enter())) wiring.begin();
   };
   wiring.enter.addEventListener('click', (): void => {
-    if (wiring.failed()) window.location.reload();
+    if (wiring.failed()) reloadPage();
     else void press();
   });
 }

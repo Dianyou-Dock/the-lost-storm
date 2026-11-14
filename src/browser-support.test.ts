@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { RetryStore } from './browser-support.ts';
-import { BROWSER_NOTICES, claimRetry, createdOrUnsupported, failureText, probeBrowser, reloadHelps, RETRY, sessionStore, UnsupportedBrowser, unsupportedReason } from './browser-support.ts';
+import { BROWSER_NOTICES, claimRetry, clearRetry, createdOrUnsupported, failureText, probeBrowser, reloadHelps, RETRY, sessionStore, UnsupportedBrowser, unsupportedReason } from './browser-support.ts';
 
 void test('a modern browser with WebGL 2 has nothing to say', (): void => {
   assert.equal(unsupportedReason({ webgl2: true, modernArrays: true }), null);
@@ -31,15 +31,36 @@ void test('a renderer that cannot be created reads as a WebGL notice, and any ot
 
 function memoryStore(): RetryStore & { readonly held: Map<string, string> } {
   const held: Map<string, string> = new Map<string, string>();
-  return { held, getItem: (key: string): string | null => held.get(key) ?? null, setItem: (key: string, value: string): void => void held.set(key, value) };
+  return { held, getItem: (key: string): string | null => held.get(key) ?? null, setItem: (key: string, value: string): void => void held.set(key, value), removeItem: (key: string): void => void held.delete(key) };
 }
 
-void test('a failed start is retried once, and not again until the gap has passed', (): void => {
+void test('a failed start is retried once per tab, however long the start took to fail', (): void => {
   const store = memoryStore();
-  assert.equal(claimRetry(store, 1_000), true);
-  assert.equal(store.held.get(RETRY.key), '1000');
-  assert.equal(claimRetry(store, 1_000 + RETRY.gapMs - 1), false);
-  assert.equal(claimRetry(store, 1_000 + RETRY.gapMs), true);
+  assert.equal(claimRetry(store), true);
+  assert.equal(store.held.get(RETRY.key), RETRY.mark);
+  assert.equal(claimRetry(store), false);
+  assert.equal(claimRetry(store), false);
+});
+
+void test('a start that succeeds gives the tab its one retry back', (): void => {
+  const store = memoryStore();
+  assert.equal(claimRetry(store), true);
+  clearRetry(store);
+  assert.equal(store.held.has(RETRY.key), false);
+  assert.equal(claimRetry(store), true);
+  assert.equal(claimRetry(store), false);
+});
+
+void test('clearing the retry never throws, with storage refused or missing', (): void => {
+  const refusing: RetryStore = {
+    getItem: (): string | null => null,
+    setItem: (): void => undefined,
+    removeItem: (): void => {
+      throw new Error('denied');
+    },
+  };
+  assert.doesNotThrow((): void => clearRetry(refusing));
+  assert.doesNotThrow((): void => clearRetry(null));
 });
 
 void test('a browser that refuses storage shows the failure instead of reloading for ever', (): void => {
@@ -50,9 +71,12 @@ void test('a browser that refuses storage shows the failure instead of reloading
     setItem: (): void => {
       throw new Error('denied');
     },
+    removeItem: (): void => {
+      throw new Error('denied');
+    },
   };
-  assert.equal(claimRetry(refusing, 1_000), false);
-  assert.equal(claimRetry(null, 1_000), false);
+  assert.equal(claimRetry(refusing), false);
+  assert.equal(claimRetry(null), false);
   const guarded = {
     get sessionStorage(): RetryStore {
       throw new Error('denied');
