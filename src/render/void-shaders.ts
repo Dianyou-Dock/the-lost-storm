@@ -1,3 +1,8 @@
+export const MIST_SKIP = {
+  shown: 0.999,
+  body: 2,
+} as const;
+
 const NOISE: string = `
 float voidHash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -207,6 +212,7 @@ uniform vec3 uHalo;
 uniform vec4 uScatter;
 uniform float uScatterHalo;
 uniform vec3 uScatterColor;
+uniform vec2 uLandGone;
 varying vec3 vWorld;
 ${NOISE}
 ${LIGHT_SCATTER}
@@ -251,6 +257,7 @@ vec2 voidSwirl(vec2 q) {
 void main() {
   vec2 p = toGround(vWorld.xz, uHeight);
   vec2 q = p - uShift;
+  if (uShoreLook.y >= uLandGone.x && dot(q - uShore.xy, uShore.zw) - uLandGone.y >= uLand.y) discard;
   vec2 swirled = voidSwirl(q);
   vec2 roll = vec2(uTime * uDrift, uTime * uDrift * 0.63);
   vec2 side = vec2(-uDir.y, uDir.x);
