@@ -261,7 +261,7 @@ void test('worn gear is data: unknown wearables, doubled regions and unknown bod
   assert.ok(contentProblems(lookless).some((found: string): boolean => found.includes('item plain_coat has no look')));
   const wrongRegion: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'boot_coat', slot: 'chest', material: 'cloth', visual: null, wear: ['worn_boots'] }] } });
   assert.ok(contentProblems(wrongRegion).some((found: string): boolean => found.includes('item boot_coat in slot chest wears worn_boots, which covers feet')));
-
+  assert.ok(!contentProblems(parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'pauldron_coat', slot: 'chest', material: 'cloth', visual: null, wear: ['militia_tunic', 'tunic_pauldron'] }] } })).some((found: string): boolean => found.includes('pauldron_coat')));
   const bareCoat: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'bare_coat', slot: 'chest', visual: null }] } });
   assert.ok(contentProblems(bareCoat).some((found: string): boolean => found.includes('item bare_coat in slot chest needs a material')));
   const plateSword: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, material: 'plate' }] } });
