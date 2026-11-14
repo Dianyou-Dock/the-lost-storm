@@ -30,7 +30,7 @@ const GUARD = {
   strikeGap: 6,
   dormantWait: 0.5,
   over: { hero: 9, low: 1, near: 7, minutes: 8, seed: 1, drastic: 1 / 3 },
-  boss: { level: 8, repeats: 2, poorSeeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], poorBelowAverage: 0.3, poorAtMost: 0.6, minutes: 60, carefulSeeds: [1, 2, 3, 4], medianSeconds: { min: 20, max: 150 }, builds: ['mixed', 'marksman'] },
+  boss: { level: 8, repeats: 2, poorSeeds: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12], poorBelowAverage: 0.3, poorAtMost: 0.75, minutes: 60, carefulSeeds: [1, 2, 3, 4], medianSeconds: { min: 20, max: 150 }, builds: ['mixed', 'marksman'] },
 } as const;
 
 function runs(scenario: Scenario, skill: string): RunSummary[] {

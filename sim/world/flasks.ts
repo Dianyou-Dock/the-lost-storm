@@ -40,6 +40,10 @@ const POOLS: Readonly<Record<FlaskResource, Pool>> = {
   },
 };
 
+export function flaskRestores(def: FlaskDef, maximum: number): number {
+  return Math.max(def.amount, def.share * maximum);
+}
+
 export function blockedFlask(player: PlayerState, flask: FlaskState): NoticeReason | null {
   if (flask.cooldown > 0) return 'on_cooldown';
   if (flask.charges < flask.def.chargesPerUse) return 'flask_empty';
@@ -59,7 +63,8 @@ export function useFlask(world: World, slot: number): void {
   }
   flask.charges -= flask.def.chargesPerUse;
   flask.cooldown = flask.def.cooldown;
-  flask.doses.push({ rate: flask.def.amount / flask.def.duration, timeLeft: flask.def.duration });
+  const restores: number = flaskRestores(flask.def, POOLS[flask.def.resource].maximum(player));
+  flask.doses.push({ rate: restores / flask.def.duration, timeLeft: flask.def.duration });
   world.events.push({ type: 'flask_used', slot, flask: flask.def.id, resource: flask.def.resource, pos: { x: player.pos.x, z: player.pos.z } });
 }
 

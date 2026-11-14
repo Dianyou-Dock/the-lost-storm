@@ -1,5 +1,5 @@
 import type { Fields } from './read.ts';
-import { byId, ContentError, choice, each, fields, numeric, positive, text } from './read.ts';
+import { byId, ContentError, choice, each, fields, nonNegative, numeric, positive, share, text } from './read.ts';
 
 export const FLASK_RESOURCES = ['life', 'mana'] as const;
 export type FlaskResource = (typeof FLASK_RESOURCES)[number];
@@ -9,6 +9,7 @@ export interface FlaskDef {
   readonly name: string;
   readonly resource: FlaskResource;
   readonly amount: number;
+  readonly share: number;
   readonly duration: number;
   readonly cooldown: number;
   readonly maxCharges: number;
@@ -28,11 +29,15 @@ function flask(value: unknown, where: string): FlaskDef {
   if (chargesPerUse > maxCharges) throw new ContentError(`${where}.chargesPerUse`, 'expected at most maxCharges');
   if (chargesPerKill < 0) throw new ContentError(`${where}.chargesPerKill`, 'expected zero or more');
   if (cooldown < 0) throw new ContentError(`${where}.cooldown`, 'expected zero or more');
+  const amount: number = nonNegative(source, 'amount', where);
+  const part: number = share(source, 'share', where);
+  if (amount === 0 && part === 0) throw new ContentError(`${where}.amount`, 'expected an amount or a share above zero');
   return {
     id: text(source, 'id', where),
     name: text(source, 'name', where),
     resource: choice(source, 'resource', FLASK_RESOURCES, where),
-    amount: positive(source, 'amount', where),
+    amount,
+    share: part,
     duration: positive(source, 'duration', where),
     cooldown,
     maxCharges,

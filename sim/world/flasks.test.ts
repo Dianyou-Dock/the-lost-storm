@@ -4,7 +4,7 @@ import { OUTPOST_CONTENT, roadWorld, roadZone } from '../../test/road-support.ts
 import { armed, must, worldIn } from '../../test/support.ts';
 import { loadContent } from '../content/content.ts';
 import type { Content, ZoneWaypoint } from '../content/types.ts';
-import { createFlasks, flaskCharges, isRestoring } from './flasks.ts';
+import { createFlasks, flaskCharges, flaskRestores, isRestoring } from './flasks.ts';
 import { stepWorld } from './step.ts';
 import type { Command, FlaskState, NoticeReason, World, WorldEvent } from './types.ts';
 import { onWaypoint } from './waypoints.ts';
@@ -50,17 +50,58 @@ void test('a life flask spends its charges and restores its amount over its dura
   const player = world.player;
   const red: FlaskState = flask(world, LIFE);
   player.life = 1;
+  const restores: number = flaskRestores(red.def, player.maxLife);
   const events: WorldEvent[] = stepWorld(world, [{ type: 'flask', slot: LIFE }], DT);
   assert.equal(red.charges, red.def.maxCharges - red.def.chargesPerUse);
   assert.deepEqual(
     events.filter((event: WorldEvent): boolean => event.type === 'flask_used').map((event: WorldEvent): string => (event.type === 'flask_used' ? event.flask : '')),
     [red.def.id],
   );
-  assert.ok(player.life < 1 + red.def.amount / 4);
+  assert.ok(player.life < 1 + restores / 4);
   assert.ok(isRestoring(red));
   run(world, red.def.duration + DT * 2);
-  assert.ok(Math.abs(player.life - (1 + red.def.amount)) < 0.01);
+  assert.ok(Math.abs(player.life - (1 + restores)) < 0.01);
   assert.equal(isRestoring(red), false);
+});
+
+void test('a drink restores the larger of its flat amount and its share of the maximum', (): void => {
+  const def = { ...must(content.flasks[LIFE], 'life flask'), amount: 70, share: 0.35 };
+  assert.equal(flaskRestores(def, 100), 70);
+  assert.equal(flaskRestores(def, 200), 70);
+  assert.ok(Math.abs(flaskRestores(def, 400) - 140) < 1e-9);
+  assert.equal(flaskRestores({ ...def, amount: 0 }, 100), 35);
+  assert.equal(flaskRestores({ ...def, share: 0 }, 400), 70);
+});
+
+void test('a hero with a large life pool is restored a share of it, not the flat amount', (): void => {
+  const world: World = quiet('outpost');
+  const player = world.player;
+  const red: FlaskState = flask(world, LIFE);
+  player.maxLife = 400;
+  player.life = 10;
+  run(world, red.def.duration + DT * 2, [{ type: 'flask', slot: LIFE }]);
+  assert.ok(red.def.share * 400 > red.def.amount);
+  assert.ok(Math.abs(player.life - (10 + red.def.share * 400)) < 0.01);
+});
+
+void test('the share is taken from the maximum when the flask is drunk', (): void => {
+  const world: World = quiet('outpost');
+  const player = world.player;
+  const red: FlaskState = flask(world, LIFE);
+  player.maxLife = 400;
+  player.life = 10;
+  stepWorld(world, [{ type: 'flask', slot: LIFE }], DT);
+  player.maxLife = 1000;
+  run(world, red.def.duration + DT * 2);
+  assert.ok(Math.abs(player.life - (10 + red.def.share * 400)) < 0.01);
+});
+
+void test('the shipped flasks keep the first level as it was: the flat amount is the larger there', (): void => {
+  for (const def of content.flasks) {
+    const start: number = def.resource === 'life' ? content.player.baseStats.maxLife : content.player.baseStats.maxMana;
+    assert.equal(flaskRestores(def, start), def.amount);
+    assert.ok(def.share > 0);
+  }
 });
 
 void test('a mana flask fills mana and never past the maximum', (): void => {
