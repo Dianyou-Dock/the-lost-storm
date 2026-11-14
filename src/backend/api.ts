@@ -114,6 +114,13 @@ export interface Leaderboard {
 
 export type NameRefusal = 'name_length' | 'name_characters' | 'name_blocked' | 'name_taken';
 
+export type NameMood = 'night' | 'small-hours' | 'dawn' | 'day' | 'dusk';
+
+export interface NameSuggestion {
+  readonly name: string;
+  readonly mood: NameMood | null;
+}
+
 export type ReportReason = 'abuse' | 'spam' | 'other';
 
 export type ReportResult = 'reported' | 'gone' | 'own' | 'slow' | 'unsupported' | 'failed';

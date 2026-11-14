@@ -46,7 +46,7 @@ void test('a name is checked on the device first, then on the server, and a refu
   const desk: CharacterDesk = deskOn(harness);
   assert.deepEqual(await desk.check('x'), { kind: 'refused', text: NAME_MESSAGES.name_length });
   assert.equal(harness.server.count('POST', '/v1/characters'), 0);
-  assert.deepEqual(await desk.check('grey heron'), { kind: 'refused', text: NAME_MESSAGES.name_taken });
+  assert.deepEqual(await desk.check('grey heron'), { kind: 'taken', text: NAME_MESSAGES.name_taken });
   const made: CreateCheck = await desk.check('  Bright   Reed ');
   assert.ok(made.kind === 'ready');
   assert.equal(made.name, 'Bright Reed');

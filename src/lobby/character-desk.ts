@@ -14,7 +14,7 @@ import type { NameRefusal } from '../backend/api.ts';
 
 export const CHARACTER_DESK: { readonly requestMs: number } = { requestMs: 4000 };
 
-export type CreateCheck = { readonly kind: 'ready'; readonly name: string; readonly id: string | null } | { readonly kind: 'refused'; readonly text: string };
+export type CreateCheck = { readonly kind: 'ready'; readonly name: string; readonly id: string | null } | { readonly kind: 'refused'; readonly text: string } | { readonly kind: 'taken'; readonly text: string };
 
 export interface CharacterDesk {
   facts(activeName: string | null): StripFacts;
@@ -71,7 +71,7 @@ export function createCharacterDesk(parts: DeskParts): CharacterDesk {
       if (api === null || held === null) return { kind: 'ready', name, id: null };
       const made: CreateResult = await api.create(sessionOf(held.token), name, signal());
       if (made.kind === 'ok') return { kind: 'ready', name: made.character.name, id: made.character.id };
-      if (made.kind === 'invalid') return { kind: 'refused', text: createRefusalText(made.reason) };
+      if (made.kind === 'invalid') return { kind: made.reason === 'name_taken' ? 'taken' : 'refused', text: createRefusalText(made.reason) };
       return { kind: 'ready', name, id: null };
     },
     open(name: string, id: string | null): boolean {

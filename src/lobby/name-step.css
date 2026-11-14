@@ -120,6 +120,15 @@
   transform: none;
 }
 
+.title-card .name-step button.name-step-choose.offer {
+  color: rgba(233, 201, 138, 0.86);
+}
+
+.title-card .name-step button.name-step-choose.tick,
+.name-step-field.tick {
+  animation: name-step-tick var(--spring-snappy-ms) var(--spring-snappy);
+}
+
 @keyframes name-step-tick {
   from {
     opacity: 0;

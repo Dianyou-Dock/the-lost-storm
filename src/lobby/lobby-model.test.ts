@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { BoardRow, Leaderboard } from '../backend/api.ts';
 import { RANKINGS } from '../backend/api.ts';
 import { DAMAGE_EXPLAINED } from '../../sim/ladder.ts';
-import { agoText, asksForName, charactersText, CHOSEN_NAMES, chooseName, levelUpText, nameProblem, passedNames, RANKING_TABS, rankValueText, spokenName, tabOf, tidyName, wholeText } from './lobby-model.ts';
+import { agoText, asksForName, charactersText, levelUpText, nameProblem, passedNames, RANKING_TABS, rankValueText, spokenName, tabOf, tidyName, wholeText } from './lobby-model.ts';
 
 function row(rank: number, name: string, level: number): BoardRow {
   return { rank, name, level, damage: 0, life: 0, furthest: 'The Waystation', online: false, account: null };
@@ -59,25 +59,6 @@ void test('times and counts read as short words', (): void => {
   assert.equal(charactersText(1), '1 character');
   assert.equal(charactersText(12), '12 characters');
   assert.equal(levelUpText({ name: 'Wren', level: 4, minutesAgo: 1 }), 'Wren reached level 4');
-});
-
-void test('choose for me picks a name the rules accept and never one already refused', (): void => {
-  const man: readonly string[] = CHOSEN_NAMES.man;
-  for (const name of [...man, ...CHOSEN_NAMES.woman]) assert.equal(nameProblem(name), null);
-  assert.equal(chooseName('man', (): number => 0, new Set<string>()), man[0]);
-  assert.equal(chooseName('man', (): number => 0.9999, new Set<string>()), man.at(-1));
-  assert.equal(chooseName('man', (): number => 0, new Set<string>([man[0] ?? ''])), man[1]);
-  assert.equal(chooseName('man', (): number => 0.5, new Set<string>(man)), null);
-});
-
-void test('a man is never offered a woman\'s name, and the other way round', (): void => {
-  const either: ReadonlySet<string> = new Set<string>(CHOSEN_NAMES.man.filter((name: string): boolean => CHOSEN_NAMES.woman.includes(name)));
-  for (const name of ['Liesl', 'Anwen', 'Edda']) assert.ok(!CHOSEN_NAMES.man.includes(name));
-  for (const name of ['Tavin', 'Joren', 'Teodor']) assert.ok(!CHOSEN_NAMES.woman.includes(name));
-  for (let draw: number = 0; draw < 40; draw += 1) {
-    const picked: string | null = chooseName('man', (): number => draw / 40, new Set<string>());
-    assert.ok(picked !== null && (either.has(picked) || !CHOSEN_NAMES.woman.includes(picked)));
-  }
 });
 
 void test('only a name the player chose is ever spoken', (): void => {

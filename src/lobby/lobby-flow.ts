@@ -189,7 +189,7 @@ export function createLobbyFlow(parts: LobbyFlowParts): LobbyFlow {
     create: async (name: string): Promise<string | null> => {
       if (busy) return null;
       const checked: CreateCheck = await characters.check(name);
-      if (checked.kind === 'refused') return checked.text;
+      if (checked.kind !== 'ready') return checked.text;
       void leave((): Promise<boolean> => characters.enterNew(checked.name, checked.id));
       return null;
     },

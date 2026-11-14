@@ -1,12 +1,15 @@
 import type { Leaderboard } from '../backend/api.ts';
 import type { RenameOutcome } from '../backend/lobby.ts';
-import { el, label, setText } from '../hud/dom.ts';
+import { el, label, retrigger, setText } from '../hud/dom.ts';
 import { markOverlay } from '../hud/overlay-mark.ts';
 import type { Lobby } from './compact.ts';
 import type { KeyValueStore } from '../backend/backend.ts';
 import { keepHeroName, pendingRename, readHeroName, stepWanted } from './hero-name.ts';
-import { chooseName, NAME_MESSAGES, NAME_RULES, nameProblem, tidyName } from './lobby-model.ts';
-import type { NameBody, NameProblem } from './lobby-model.ts';
+import { NAME_MESSAGES, NAME_RULES, nameProblem, tidyName } from './lobby-model.ts';
+import type { NameProblem } from './lobby-model.ts';
+import { MOOD_LINES } from './name-pool.ts';
+import type { NameBody, PickedName } from './name-pool.ts';
+import type { NameSuggester } from './name-suggester.ts';
 import { pressAction } from './name-press.ts';
 import type { PressAction, StepState } from './name-press.ts';
 import { reloadPage } from '../gpu-release.ts';
@@ -16,9 +19,20 @@ export const NAME_STEP = {
   ask: 'What is your name?',
   placeholder: 'Your name',
   choose: 'Choose for me',
+  take: 'Take',
   suggested: 'Enter to keep it, or type your own.',
   nudgeClass: 'nudge',
+  tickClass: 'tick',
+  retries: 3,
 } as const;
+
+export function pickedLine(picked: PickedName): string {
+  return picked.mood === null ? NAME_STEP.suggested : MOOD_LINES[picked.mood];
+}
+
+export function offerLabel(name: string | null): string {
+  return name === null ? NAME_STEP.choose : `${NAME_STEP.take} ${name}`;
+}
 
 export interface NameStep {
   enter(): Promise<boolean>;
@@ -31,7 +45,7 @@ export interface NameStepParts {
   readonly fresh: boolean;
   readonly store: KeyValueStore;
   readonly body: NameBody;
-  readonly random: () => number;
+  readonly suggester: NameSuggester;
   readonly begin: () => void;
 }
 
@@ -67,9 +81,10 @@ export function createNameStep(parts: NameStepParts): NameStep {
   choose.textContent = NAME_STEP.choose;
   choose.tabIndex = -1;
   enter.before(step);
-  const refused: Set<string> = new Set<string>();
+  const { suggester } = parts;
   let state: StepState = 'closed';
   let limited: boolean = false;
+  let offer: string | null = null;
 
   const setState = (next: StepState): void => {
     state = next;
@@ -109,13 +124,31 @@ export function createNameStep(parts: NameStepParts): NameStep {
     return false;
   };
 
+  const showOffer = (name: string | null): void => {
+    offer = name;
+    choose.classList.toggle('offer', name !== null);
+    setText(choose, offerLabel(name), true);
+  };
+
+  const swapField = (value: string): void => {
+    field.value = value;
+    retrigger(field, NAME_STEP.tickClass);
+  };
+
   const suggest = (): boolean => {
-    const picked: string | null = chooseName(parts.body, parts.random, refused);
+    const picked: PickedName | null = suggester.pick(parts.body);
     if (picked === null) return refuse('name_taken');
-    field.value = picked;
-    tell(NAME_STEP.suggested, false);
+    showOffer(null);
+    swapField(picked.name);
+    tell(pickedLine(picked), false);
     hold();
     return false;
+  };
+
+  const offerNear = async (wanted: string): Promise<void> => {
+    const near: PickedName | null = await suggester.near(wanted);
+    if (near === null || state !== 'open' || tidyName(field.value) !== wanted) return;
+    showOffer(near.name);
   };
 
   const finish = (): boolean => {
@@ -123,7 +156,21 @@ export function createNameStep(parts: NameStepParts): NameStep {
     return true;
   };
 
-  const name = async (raw: string): Promise<boolean> => {
+  const taken = async (wanted: string, retries: number): Promise<boolean> => {
+    if (suggester.suggested(wanted) && retries < NAME_STEP.retries) {
+      const next: PickedName | null = await suggester.next(parts.body);
+      if (next !== null) {
+        swapField(next.name);
+        tell(pickedLine(next), false);
+        return name(next.name, retries + 1);
+      }
+    }
+    refuse('name_taken');
+    void offerNear(wanted);
+    return false;
+  };
+
+  const name = async (raw: string, retries: number): Promise<boolean> => {
     const wanted: string = tidyName(raw);
     const local: NameProblem | null = nameProblem(wanted);
     if (local !== null) return refuse(local);
@@ -132,8 +179,8 @@ export function createNameStep(parts: NameStepParts): NameStep {
     setState('busy');
     const outcome: RenameOutcome = await lobby.service.rename(wanted);
     if (outcome.kind === 'invalid') {
-      refused.add(wanted);
-      return refuse(outcome.reason);
+      suggester.refuse(wanted);
+      return outcome.reason === 'name_taken' ? taken(wanted, retries) : refuse(outcome.reason);
     }
     if (outcome.kind === 'limited') {
       limited = true;
@@ -160,7 +207,14 @@ export function createNameStep(parts: NameStepParts): NameStep {
   });
   choose.addEventListener('click', (): void => {
     if (state !== 'open') return;
-    suggest();
+    const taking: string | null = offer;
+    if (taking === null) {
+      suggest();
+      return;
+    }
+    showOffer(null);
+    swapField(taking);
+    enter.click();
   });
   for (const kind of ['keydown', 'keyup'] as const) {
     field.addEventListener(kind, (event: KeyboardEvent): void => {
@@ -171,6 +225,7 @@ export function createNameStep(parts: NameStepParts): NameStep {
     field.classList.remove(NAME_STEP.nudgeClass);
   });
   field.addEventListener('input', (): void => {
+    if (offer !== null) showOffer(null);
     if (note.textContent !== NAME_STEP.ask) tell(NAME_STEP.ask, false);
   });
 
@@ -180,8 +235,9 @@ export function createNameStep(parts: NameStepParts): NameStep {
       if (action === 'wait') return false;
       if (action === 'begin') return true;
       if (action === 'suggest') return suggest();
-      if (action === 'submit') return name(field.value);
+      if (action === 'submit') return name(field.value, 0);
       setState('open');
+      void suggester.warm(parts.body);
       field.value = readHeroName(parts.store) ?? '';
       field.focus({ preventScroll: true });
       return false;

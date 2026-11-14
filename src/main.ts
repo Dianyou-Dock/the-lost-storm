@@ -75,6 +75,7 @@ import { lobbyHero } from './lobby/lobby-sheet.ts';
 import { PLAYED_KEY, readPlayed } from './launch/played.ts';
 import { spokenName } from './lobby/lobby-model.ts';
 import { createNameStep, wireEnter } from './lobby/name-step.ts';
+import { createBrowserSuggester } from './lobby/name-suggester.ts';
 import { readHeroName } from './lobby/hero-name.ts';
 import { heroChoice, keepHero, readHero } from './lobby/hero-choice.ts';
 import type { Minimap } from './minimap/minimap.ts';
@@ -689,7 +690,7 @@ async function start(): Promise<void> {
   lobbyFlow = flow;
   whenIdle((): void => void flow.warm());
   const openLobby = (): void => void flow.open();
-  wireEnter({ enter, begin: openLobby, failed: (): boolean => failed, step: createNameStep({ card: enter.parentElement ?? title, enter, lobby, fresh: save === null, store: createBrowserStore(), body: 'man', random: Math.random, begin: openLobby }) });
+  wireEnter({ enter, begin: openLobby, failed: (): boolean => failed, step: createNameStep({ card: enter.parentElement ?? title, enter, lobby, fresh: save === null, store: createBrowserStore(), body: 'man', suggester: createBrowserSuggester(import.meta.env.VITE_SERVER_URL), begin: openLobby }) });
 }
 
 document.documentElement.dataset['boot'] = RETRY.started;
