@@ -2231,5 +2231,44 @@
       ]
     },
     "idleRate": 0.8
+  },
+  {
+    "id": "wolf",
+    "url": "models/creatures/wolf.glb",
+    "clipFolder": "models/animations/wolf",
+    "scale": 0.43,
+    "yawOffsetDegrees": 0,
+    "height": 2.4,
+    "rootMotionBone": null,
+    "gaits": [
+      {
+        "clip": "Walk",
+        "groundSpeed": 0.387
+      },
+      {
+        "clip": "Gallop",
+        "groundSpeed": 4.43
+      }
+    ],
+    "clips": {
+      "idle": "Idle",
+      "run": "Gallop",
+      "hit": [
+        "Idle_HitReact1",
+        "Idle_HitReact2"
+      ],
+      "death": [
+        "Death"
+      ],
+      "actions": {
+        "pounce": {
+          "clip": "Gallop_Jump",
+          "impactFraction": 0.95
+        }
+      }
+    },
+    "sockets": {},
+    "hiddenNodes": [],
+    "bodyParts": {}
   }
 ]

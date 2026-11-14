@@ -621,7 +621,7 @@ void test('a rig may name stances for what it holds, and an attachment names the
   assert.throws((): Content => parseContent({ ...shipped, rigs: [{ ...rig, clips: { ...rig.clips, stances: late } }] }), /stances\.crossbow\.actions\.shoot\.impactFraction/);
 });
 
-void test('a rig lists its hit and death clips and names its action clips, and a skill whose clip the rig lacks is reported', (): void => {
+void test('a rig may leave out its hit and death clips, names its action clips, and a skill whose clip the rig lacks is reported', (): void => {
   const [first] = rigs;
   const rig = must(first, 'first rig');
   const parsed: Content = parseContent(shipped);
@@ -629,8 +629,8 @@ void test('a rig lists its hit and death clips and names its action clips, and a
   assert.ok(hero.clips.death.length >= 2);
   assert.ok(hero.gaits.length >= 2 && hero.gaits.every((gait): boolean => gait.groundSpeed > 0));
   assert.ok(must(hero.clips.actions['attack'], 'attack clip').impactFraction > 0);
-  assert.throws((): Content => parseContent({ ...shipped, rigs: [{ ...rig, clips: { ...rig.clips, death: [] } }] }), /clips\.death: a rig needs at least one death clip/);
-  assert.throws((): Content => parseContent({ ...shipped, rigs: [{ ...rig, clips: { ...rig.clips, hit: [] } }] }), /clips\.hit: a rig needs at least one hit clip/);
+  const still = must(parseContent({ ...shipped, rigs: [{ ...rig, clips: { ...rig.clips, death: [], hit: [] } }] }).rigs.get(rig.id), 'rig with no hit or death clips');
+  assert.deepEqual([still.clips.hit, still.clips.death], [[], []]);
   assert.throws((): Content => parseContent({ ...shipped, rigs: [{ ...rig, clips: { ...rig.clips, actions: { attack: { clip: 'Sword_Attack', impactFraction: 1 } } } }] }), /impactFraction/);
   assert.throws((): Content => parseContent({ ...shipped, rigs: [{ ...rig, gaits: [{ clip: 'Walk_Loop', groundSpeed: 0 }] }] }), /groundSpeed/);
   assert.throws((): Content => parseContent({ ...shipped, rigs: [{ ...rig, gaits: [] }] }), /gaits: a rig needs at least one gait/);

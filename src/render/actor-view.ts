@@ -47,6 +47,11 @@ export const ACTOR = {
   riseDepth: 2.4,
   standFade: 0.45,
   chestJoints: 2,
+  fallTime: 0.9,
+  fallDepth: 0.6,
+  dropTime: 0.45,
+  bobHeight: 0.07,
+  bobRate: 2.3,
 } as const;
 
 const UP: Vector3 = new Vector3(0, 1, 0);
@@ -120,6 +125,21 @@ function oneOf(clips: readonly AnimationClip[], chance: Chance): AnimationClip |
   return clips[Math.min(clips.length - 1, Math.floor(chance() * clips.length))] ?? null;
 }
 
+export function easeIn(share: number): number {
+  const clampedShare: number = Math.min(1, Math.max(0, share));
+  return clampedShare * clampedShare;
+}
+
+export function liftAt(lift: number, scale: number, deadTime: number | null, clock: number): number {
+  if (lift <= 0) return 0;
+  if (deadTime !== null) return lift * scale * (1 - easeIn(deadTime / ACTOR.dropTime));
+  return lift * scale + Math.sin(clock * ACTOR.bobRate) * ACTOR.bobHeight * scale;
+}
+
+export function fallAt(deadTime: number): number {
+  return easeIn(deadTime / ACTOR.fallTime);
+}
+
 function idleClip(rig: RigInstance): AnimationClip {
   return rig.stance()?.idle ?? rig.clips.idle;
 }
@@ -138,6 +158,8 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
   let follow: FollowThrough | null = null;
   let oneShot: number = 0;
   let dead: boolean = false;
+  let fading: boolean = false;
+  let clock: number = 0;
   let lying: boolean = false;
   let woke: WakePose | null = null;
   let settled: boolean = false;
@@ -197,6 +219,16 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
   let ownShadow: MeshBasicMaterial | null = null;
   current.play();
 
+  const shade = (amount: number): void => {
+    if (ownShadow === null) {
+      if (!(shadow.material instanceof MeshBasicMaterial)) return;
+      ownShadow = shadow.material.clone();
+      shadow.material = ownShadow;
+    }
+    ownShadow.opacity = CONTACT_SHADOW.opacity * Math.min(1, Math.max(0, amount));
+    shadow.visible = rig.root.visible && ownShadow.opacity > 0;
+  };
+
   const payOwed = (): void => {
     const owed: number = bank.owe();
     if (owed > 0) rig.mixer.update(owed);
@@ -224,6 +256,7 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
   };
 
   const react = (): void => {
+    if (rig.clips.hit.length === 0) return;
     play(bodyClip(rig, 'hit', chance), ACTOR.hitFade, ACTOR.hitSpeed, true, true);
     oneShot = ACTOR.hitTime;
   };
@@ -259,15 +292,22 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
     sync(dt: number, actor: ActorPose, options: SyncOptions): void {
       rig.root.position.set(actor.pos.x, options.floor, actor.pos.z);
       rig.root.rotation.x = 0;
-      if (dead) {
+      clock += dt;
+      if (fading) {
+        const fall: number = fallAt(actor.deadTime);
+        rig.root.position.y = options.floor + liftAt(rig.def.lift, scale, actor.deadTime, clock) - fall * ACTOR.fallDepth * rig.def.height * rig.def.scale * scale;
+        rig.setFade(1 - fall);
+        shade(1 - fall);
+        settled = fall >= 1;
+      } else if (dead) {
         const sunk: number = Math.min(ACTOR.sinkLimit, Math.max(0, actor.deadTime - ACTOR.sinkDelay) * ACTOR.sinkSpeed);
-        rig.root.position.y = options.floor - sunk;
+        rig.root.position.y = options.floor + liftAt(rig.def.lift, scale, actor.deadTime, clock) - sunk;
         settled = sunk >= ACTOR.sinkLimit && !current.isRunning();
       } else if (lying) {
         rig.root.position.y = options.floor;
         rig.root.rotation.y = yaw;
       } else {
-        rig.root.position.y = options.floor - (1 - options.rise) * ACTOR.riseDepth;
+        rig.root.position.y = options.floor - (1 - options.rise) * ACTOR.riseDepth + liftAt(rig.def.lift, scale, null, clock);
         yaw = turnToward(yaw, actor.facing, options.turnRate * dt);
         rig.root.rotation.y = yaw;
         const kind: ClipKind = clipKindOf(actor.motion);
@@ -298,7 +338,7 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
       rig.root.scale.set(scale * grow * (1 + squash), scale * grow * (1 - squash), scale * grow * (1 + squash));
       const parent: Object3D | null = rig.root.parent;
       if (parent !== null && shadow.parent !== parent) parent.add(shadow);
-      shadow.position.set(rig.root.position.x, rig.root.position.y + CONTACT_SHADOW.lift, rig.root.position.z);
+      shadow.position.set(rig.root.position.x, (rig.def.lift > 0 ? options.floor : rig.root.position.y) + CONTACT_SHADOW.lift, rig.root.position.z);
       shadow.scale.setScalar(scale * grow);
       shadow.visible = rig.root.visible && (ownShadow === null || ownShadow.opacity > 0);
       springTo(hoverLevel, hover && !dead ? ACTOR.hoverGlow : 0);
@@ -341,10 +381,21 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
       if (dead) return;
       dead = true;
       oneShot = 0;
+      if (rig.clips.death.length === 0) {
+        fading = true;
+        current.paused = true;
+        return;
+      }
       play(bodyClip(rig, 'death', chance), ACTOR.deathFade, ACTOR.deathSpeed, true, true);
     },
     revive(): void {
       dead = false;
+      if (fading) {
+        fading = false;
+        current.paused = false;
+        rig.setFade(1);
+        shade(1);
+      }
       settled = false;
       bank.drop();
       oneShot = 0;
@@ -377,13 +428,7 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
       out.setFromObject(rig.root);
     },
     setShadowOpacity(amount: number): void {
-      if (ownShadow === null) {
-        if (!(shadow.material instanceof MeshBasicMaterial)) return;
-        ownShadow = shadow.material.clone();
-        shadow.material = ownShadow;
-      }
-      ownShadow.opacity = CONTACT_SHADOW.opacity * Math.min(1, Math.max(0, amount));
-      shadow.visible = rig.root.visible && ownShadow.opacity > 0;
+      shade(amount);
     },
     detach(): void {
       shadow.removeFromParent();

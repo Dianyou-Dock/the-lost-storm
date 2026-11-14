@@ -65,7 +65,7 @@ function seconds(value: Spread): string {
 }
 
 export function bossTable(rows: readonly BossRow[]): string {
-  const head: string = '| policy | boss | level | attempts | won | timed out | fight length | life left on a win |\n| --- | --- | --- | --- | --- | --- | --- | --- |';
+  const head: string = '| policy | foe | level | attempts | won | timed out | fight length | life left on a win |\n| --- | --- | --- | --- | --- | --- | --- | --- |';
   const body: string[] = rows.map((row: BossRow): string => `| ${row.policy} | ${row.boss} | ${row.level} | ${row.attempts} | ${percent(row.winRate)} | ${percent(row.timeoutRate)} | ${seconds(row.seconds)} | ${row.lifeLeft.n === 0 ? '-' : percent(row.lifeLeft.median)} |`);
   return [head, ...body].join('\n');
 }

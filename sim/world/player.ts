@@ -1,5 +1,6 @@
 import type { RigDef, SkillDef, ZoneExit } from '../content/types.ts';
 import { forceStrike } from './moments.ts';
+import { spawnPackNear } from './monsters.ts';
 import { chestOf, chestReach, chestSpot, openChest } from './moment-chest.ts';
 import type { Vec2 } from '../math.ts';
 import { distance } from '../math.ts';
@@ -41,6 +42,7 @@ const PLAYER = {
   stride: 2.5,
   firstStepFraction: 0.95,
   stuckStep: 1e-4,
+  spawnAhead: 7,
 } as const;
 
 const STEERING: Steering = {
@@ -250,6 +252,7 @@ function act(world: World, command: Command): void {
     case 'glitch_setting':
     case 'overlay':
     case 'strike':
+    case 'spawn':
     case 'advance':
     case 'equip':
     case 'hero':
@@ -322,6 +325,9 @@ export function handleCommand(world: World, command: Command): void {
       return;
     case 'strike':
       forceStrike(world, command.at, command.moment);
+      return;
+    case 'spawn':
+      spawnPackNear(world, command.monster, command.count, { x: player.pos.x + Math.sin(player.facing) * PLAYER.spawnAhead, z: player.pos.z + Math.cos(player.facing) * PLAYER.spawnAhead });
       return;
     case 'slot':
       slotSkill(world, command.slot, command.skill);

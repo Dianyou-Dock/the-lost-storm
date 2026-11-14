@@ -14,7 +14,7 @@ import type { Blocker, NavGrid } from '../nav/grid.ts';
 import { findPath } from '../nav/path.ts';
 import { applyHit, offenceOf } from './combat.ts';
 import { forceStrike } from './moments.ts';
-import { spawnPacks } from './monsters.ts';
+import { spawnPackNear, spawnPacks } from './monsters.ts';
 import { stepWorld } from './step.ts';
 import { createWorld } from './create.ts';
 import { choicesOpen } from './death.ts';
@@ -546,4 +546,48 @@ void test('a mending monster heals only once it has gone a few seconds without b
   assert.ok(struck < healed);
   wait(3);
   assert.equal(monster.life, struck);
+});
+
+void test('a pack named by id spawns around a spot as one pack at the area level, and an unknown id or no count spawns nothing', (): void => {
+  const world: World = arena(3);
+  const spot: Vec2 = { x: ARENA_CENTRE.x + 6, z: ARENA_CENTRE.z };
+  const pack: MonsterState[] = spawnPackNear(world, 'wolf', 4, spot);
+  assert.equal(pack.length, 4);
+  assert.equal(new Set(pack.map((monster: MonsterState): number => monster.packId)).size, 1);
+  assert.equal(new Set(pack.map((monster: MonsterState): number => monster.id)).size, 4);
+  assert.ok(pack.every((monster: MonsterState): boolean => monster.def.id === 'wolf' && distance(monster.pos, spot) < 4 && monster.level === world.player.level));
+  assert.deepEqual(spawnPackNear(world, 'no_such_beast', 3, spot), []);
+  assert.deepEqual(spawnPackNear(world, 'wolf', 0, spot), []);
+});
+
+void test('the spawn command puts a pack a few strides in front of the hero', (): void => {
+  const world: World = arena(4);
+  world.player.facing = 0;
+  stepWorld(world, [{ type: 'spawn', monster: 'wolf', count: 3 }], MOTION_DT);
+  const wolves: MonsterState[] = world.monsters.filter((monster: MonsterState): boolean => monster.def.id === 'wolf');
+  assert.equal(wolves.length, 3);
+  for (const wolf of wolves) assert.ok(wolf.pos.z > world.player.pos.z + 3, `a wolf at ${wolf.pos.z.toFixed(1)} is not ahead of the hero at ${world.player.pos.z.toFixed(1)}`);
+});
+
+void test('a wolf circles, then springs across the gap and lands a bite that knocks the hero back with a shake and a hit-stop', (): void => {
+  const world: World = arena(9);
+  const wolf: MonsterState = place(world, 'wolf', { x: ARENA_CENTRE.x + 10, z: ARENA_CENTRE.z });
+  let sprang: Vec2 | null = null;
+  let bitten: boolean = false;
+  for (let step: number = 0; step < Math.round(8 / MOTION_DT) && !bitten; step += 1) {
+    world.player.pos = { ...ARENA_CENTRE };
+    world.player.life = world.player.maxLife;
+    const events = stepWorld(world, [], MOTION_DT);
+    for (const event of events) {
+      if (event.type === 'skill_start' && event.actorId === wolf.id) sprang = { ...wolf.pos };
+      if (event.type === 'damage' && event.sourceId === wolf.id && event.targetId === world.player.id) {
+        bitten = true;
+        assert.ok(event.skill.leap !== null && event.skill.knockback > 0 && event.skill.shake > 0 && event.skill.hitStop > 0 && event.skill.vfx.impact !== null);
+      }
+    }
+  }
+  assert.ok(sprang !== null, 'the wolf never sprang');
+  assert.ok(bitten, 'the wolf never bit');
+  assert.ok(distance(sprang, ARENA_CENTRE) > 3, `it sprang from ${distance(sprang, ARENA_CENTRE).toFixed(1)} m, too close to call it a charge`);
+  assert.ok(distance(wolf.pos, ARENA_CENTRE) < 2.5, `it landed ${distance(wolf.pos, ARENA_CENTRE).toFixed(1)} m away`);
 });

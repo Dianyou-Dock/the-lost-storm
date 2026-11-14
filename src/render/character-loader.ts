@@ -95,6 +95,7 @@ export interface RigInstance {
   setFlash(color: Color, amount: number): void;
   setHover(color: Color, amount: number): void;
   setOpacity(opacity: number): void;
+  setFade(amount: number): void;
   dispose(): void;
 }
 
@@ -668,6 +669,17 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
     setOpacity(opacity: number): void {
       if (look.ghost === null) return;
       for (const material of [...materials, ...wornMaterials(), ...heldMaterials()]) material.opacity = opacity;
+    },
+    setFade(amount: number): void {
+      if (look.ghost !== null) return;
+      const see: boolean = amount < 1;
+      for (const material of [...materials, ...wornMaterials(), ...heldMaterials()]) {
+        if (material.transparent !== see) {
+          material.transparent = see;
+          material.needsUpdate = true;
+        }
+        material.opacity = Math.min(1, Math.max(0, amount));
+      }
     },
     dispose(): void {
       mixer.stopAllAction();

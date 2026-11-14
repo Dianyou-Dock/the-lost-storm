@@ -1,6 +1,7 @@
 import type { Job, Scenario } from './simulate-run.ts';
 import { RUN } from './simulate-run.ts';
 import type { Policies } from './simulate-policies.ts';
+import { PACK } from './simulate-pack.ts';
 
 export const DEFAULTS = {
   runs: 12,
@@ -24,6 +25,7 @@ export const USAGE: string = [
   '  level <n>             from waking until level n, farming after the slice (--minutes caps it, default 120)',
   '  over <n>              the slice, then the hero raised to level n farms N minutes in wild zones fixed at --zone (default 1)',
   '  boss <a,b,…>          farm to each level in turn and fight the boss in its lair N times there (--repeats, default 5; --minutes caps each climb)',
+  '  pack <monster> <a,b,…> farm to each level in turn and fight one pack of the monster at that level N times in the Hall (--count, default 4; --repeats, default 5)',
   '  replay <file.jsonl>…  read recorded measurement streams (from --record or storm.saveMeasurements() in a dev build) into the same report',
   '',
   'options',
@@ -78,10 +80,17 @@ function positional(args: readonly string[]): string[] {
   return out;
 }
 
+function risingLevels(value: string | undefined, kind: string): number[] | string {
+  const levels: number[] = (value ?? '').split(',').filter((part: string): boolean => part !== '').map(Number);
+  if (levels.length === 0 || levels.some((level: number): boolean => !Number.isInteger(level) || level < 1)) return `${kind} needs hero levels, such as 8,10,12`;
+  if (levels.some((level: number, index: number): boolean => index > 0 && level <= (levels[index - 1] ?? 0))) return `${kind} levels must rise, such as 8,10,12`;
+  return levels;
+}
+
 function scenarioOf(words: readonly string[], args: readonly string[]): Scenario | string {
   const [kind, value] = words;
   if (kind === undefined) return 'no scenario';
-  const minutes: number | null = whole(option(args, 'minutes'), kind === 'level' || kind === 'boss' ? RUN.levelMinutes : DEFAULTS.farmMinutes);
+  const minutes: number | null = whole(option(args, 'minutes'), kind === 'level' || kind === 'boss' || kind === 'pack' ? RUN.levelMinutes : DEFAULTS.farmMinutes);
   if (minutes === null) return '--minutes must be a whole number';
   switch (kind) {
     case 'slice':
@@ -104,18 +113,25 @@ function scenarioOf(words: readonly string[], args: readonly string[]): Scenario
       return zone === null || zone < 1 ? '--zone must be a level of 1 or more' : { kind, hero, zone, minutes };
     }
     case 'boss': {
-      const levels: number[] = (value ?? '').split(',').filter((part: string): boolean => part !== '').map(Number);
+      const levels: number[] | string = risingLevels(value, 'boss');
       const repeats: number | null = whole(option(args, 'repeats'), DEFAULTS.bossRepeats);
-      if (levels.length === 0 || levels.some((level: number): boolean => !Number.isInteger(level) || level < 1)) return 'boss needs hero levels, such as 8,10,12';
-      if (levels.some((level: number, index: number): boolean => index > 0 && level <= (levels[index - 1] ?? 0))) return 'boss levels must rise, such as 8,10,12';
+      if (typeof levels === 'string') return levels;
       return repeats === null ? '--repeats must be a whole number' : { kind, levels, repeats, minutes };
+    }
+    case 'pack': {
+      const levels: number[] | string = risingLevels(words[2], 'pack');
+      const count: number | null = whole(option(args, 'count'), PACK.count);
+      const repeats: number | null = whole(option(args, 'repeats'), PACK.repeats);
+      if (value === undefined) return 'pack needs a monster id and hero levels, such as wolf 9,11,13';
+      if (typeof levels === 'string') return levels;
+      return count === null || repeats === null ? '--count and --repeats must be whole numbers' : { kind, monster: value, count, levels, repeats, minutes };
     }
     default:
       return `unknown scenario ${kind}`;
   }
 }
 
-const OPTIONS: ReadonlySet<string> = new Set<string>(['runs', 'skill', 'build', 'seed', 'workers', 'out', 'record', 'minutes', 'repeats', 'zone', 'danger', 'toughness']);
+const OPTIONS: ReadonlySet<string> = new Set<string>(['runs', 'skill', 'build', 'seed', 'workers', 'out', 'record', 'minutes', 'repeats', 'count', 'zone', 'danger', 'toughness']);
 
 export function parseArgs(args: readonly string[], policies: Policies, moments: ReadonlySet<string>, cores: number): Command {
   const words: string[] = positional(args);

@@ -13,6 +13,7 @@ Shipped models are CC0 (public domain), CC BY 4.0 with the credit below, or made
 | Universal Animation Library 2 (Standard) | Quaternius (quaternius.com) | https://quaternius.com/packs/universalanimationlibrary2.html | CC0 1.0 | [licenses/Quaternius-Universal-Animation-Library-2.txt](licenses/Quaternius-Universal-Animation-Library-2.txt) |
 | Universal Base Characters (Standard) | Quaternius (quaternius.com) | https://quaternius.com/packs/universalbasecharacters.html | CC0 1.0 | [licenses/Quaternius-Universal-Base-Characters.txt](licenses/Quaternius-Universal-Base-Characters.txt) |
 | Modular Character Outfits - Fantasy (Standard) | Quaternius (quaternius.com) | https://quaternius.com/packs/modularcharacteroutfitsfantasy.html | CC0 1.0 | [licenses/Quaternius-Modular-Character-Outfits-Fantasy.txt](licenses/Quaternius-Modular-Character-Outfits-Fantasy.txt) |
+| Ultimate Animated Animals | Quaternius (quaternius.com) | https://quaternius.com/packs/ultimateanimatedanimals.html | CC0 1.0 | [licenses/Quaternius-Ultimate-Animated-Animals.txt](licenses/Quaternius-Ultimate-Animated-Animals.txt) |
 | MakeHuman community garments (suits02) | Donitz (makehumancommunity.org) | http://www.makehumancommunity.org/clothes.html | CC0 1.0 | [licenses/MakeHuman-community-assets.txt](licenses/MakeHuman-community-assets.txt) |
 | MakeHuman base mesh | The MakeHuman project: Data Collection AB, Joel Palmius, Jonas Hauquier (makehumancommunity.org) | https://github.com/makehumancommunity/makehuman | CC0 1.0 | [licenses/MakeHuman-community-assets.txt](licenses/MakeHuman-community-assets.txt) |
 | Poly Haven models and textures | The authors named in the tables below (polyhaven.com) | https://polyhaven.com | CC0 1.0 | [licenses/Poly-Haven-CC0.txt](licenses/Poly-Haven-CC0.txt) |
@@ -60,6 +61,20 @@ node tools/compress-models.ts public/models/characters/man.glb public/models/cha
 ```
 
 Three texture references in the pack's Superhero glTF files point at `*_png.png` names that the pack does not ship. Put a copy of `T_Hair_1_Normal.png`, `T_Hair_2_Normal.png` and `T_Eye_Normal.png` under those names beside them before assembling.
+
+The creatures, each a body and its own clips on its own skeleton:
+
+| File | What it is | Source | Licence |
+|---|---|---|---|
+| `public/models/creatures/wolf.glb` | The Wolf body, its four colour materials and its skeleton, with no clips | `glTF/Wolf.gltf` of Ultimate Animated Animals by Quaternius, built by the commands below | CC0 1.0 |
+| `public/models/animations/wolf/Death.glb`, `public/models/animations/wolf/Gallop.glb`, `public/models/animations/wolf/Gallop_Jump.glb`, `public/models/animations/wolf/Idle.glb`, `public/models/animations/wolf/Idle_HitReact1.glb`, `public/models/animations/wolf/Idle_HitReact2.glb`, `public/models/animations/wolf/Walk.glb` | The Wolf's clips, one clip per file | `glTF/Wolf.gltf` of Ultimate Animated Animals by Quaternius, built by the commands below | CC0 1.0 |
+
+Build a creature from its pack file into a body and a clip folder. `tools/build-creature.ts` drops the clips from the body, writes each clip on bare joints, and makes any material that a conversion left see-through or glowing opaque and unlit; keep only the clip files the rig names:
+
+```bash
+node tools/build-creature.ts <glTF/Wolf.gltf> public/models/creatures/wolf.glb public/models/animations/wolf
+node tools/compress-models.ts public/models/creatures/wolf.glb public/models/animations/wolf/*.glb
+```
 
 The skeleton monsters' rig and clips:
 

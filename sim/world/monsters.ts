@@ -386,6 +386,14 @@ export function removeCorpses(world: World): void {
   world.monsters = kept;
 }
 
+export function spawnPackNear(world: World, monster: string, count: number, at: Vec2): MonsterState[] {
+  const def: MonsterDef | undefined = world.content.monsters.get(monster);
+  if (def === undefined || count < 1) return [];
+  const packId: number = world.nextPackId;
+  world.nextPackId += 1;
+  return Array.from({ length: Math.floor(count) }, (): MonsterState => spawnMonster(world, def, packId, at, { summonerId: null, scatter: SPAWN.spawnScatter, revived: false }));
+}
+
 export function spawnPacks(world: World): void {
   const rules: SurgeRules | null = world.zone.surge;
   const extra: number = rules === null ? 0 : Math.min(rules.maxExtraMonsters, Math.floor((world.surge - 1) / Math.max(1, rules.surgesPerExtraMonster)));

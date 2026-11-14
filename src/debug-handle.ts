@@ -14,6 +14,7 @@ export interface DebugHandle {
   send(command: Command): void;
   memory(): MemoryReport;
   glitch(kind: GlitchKind): void;
+  spawn(monster: string, count: number): void;
   saveMeasurements(): void;
 }
 
@@ -47,7 +48,7 @@ export function attachDebug(deps: DebugDeps): DebugHooks {
       if (window.storm !== undefined) window.storm = { ...window.storm, saveMeasurements: (): void => module.saveRecording(made) };
     };
     void attachRecorder();
-    window.storm = { world, scene, audio, sounds, send, memory: (): MemoryReport => measureMemory(renderer, scene), glitch: (kind: GlitchKind): void => send({ type: 'glitch', kind }), saveMeasurements: (): void => undefined };
+    window.storm = { world, scene, audio, sounds, send, memory: (): MemoryReport => measureMemory(renderer, scene), glitch: (kind: GlitchKind): void => send({ type: 'glitch', kind }), spawn: (monster: string, count: number): void => send({ type: 'spawn', monster, count }), saveMeasurements: (): void => undefined };
   }
   return {
     record: (events: readonly WorldEvent[]): void => {
