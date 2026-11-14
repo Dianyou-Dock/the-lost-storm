@@ -4,13 +4,11 @@ The simulator answers tuning questions without playing the game: how long a leve
 
 ## Running it
 
-Run it through the machine's test lane so it shares the cores fairly:
-
 ```bash
-~/Dev/ops/lanes/lane test -- npm run simulate -- farm --minutes 30
+npm run simulate -- farm --minutes 30
 ```
 
-Plain `npm run simulate -- <scenario> [options]` works too. It uses half the cores by default.
+The general form is `npm run simulate -- <scenario> [options]`. It uses half the cores by default.
 
 ### Scenarios
 
@@ -120,7 +118,7 @@ Pass `--record DIR` to keep the streams. `npm run simulate -- replay DIR/*.jsonl
 ### How long does it take to reach level 5?
 
 ```bash
-~/Dev/ops/lanes/lane test -- npm run simulate -- level 5
+npm run simulate -- level 5
 ```
 
 Read the `level 5` line under `levels`. On the baseline it took 6:04 for careful, 7:08 for average and 6:45 for poor (medians from waking). The p10 to p90 range was about 4:30 to 8:50. Per-level times in the same block show where the time goes: about 1:35 for the slice, then a level every 1 to 2 minutes.
@@ -128,7 +126,7 @@ Read the `level 5` line under `levels`. On the baseline it took 6:04 for careful
 ### How often does a top-rarity item drop?
 
 ```bash
-~/Dev/ops/lanes/lane test -- npm run simulate -- farm --minutes 60 --runs 16 --skill average
+npm run simulate -- farm --minutes 60 --runs 16 --skill average
 ```
 
 Read `drops / hour` for the top rarity (`stormtouched`, shown as Legendary). `top rarity by` then gives the share of runs that saw one within 10, 30 and 60 minutes. On the baseline, an average player saw 2.4 stormtouched drops an hour. One came within 10 minutes in 25% of runs, within 30 in 75% and within 60 in 94%. A rare or better came within 10 minutes in 69% of runs.
@@ -136,7 +134,7 @@ Read `drops / hour` for the top rarity (`stormtouched`, shown as Legendary). `to
 ### Is the Echo path weaker than the Edge?
 
 ```bash
-~/Dev/ops/lanes/lane test -- npm run simulate -- farm --minutes 20 --skill average --build echo,blade
+npm run simulate -- farm --minutes 20 --skill average --build echo,blade
 ```
 
 Compare the `echo` and `blade` blocks:

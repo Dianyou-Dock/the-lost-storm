@@ -14,7 +14,7 @@ function read(value: unknown): ServerFrame | null {
 
 void test('the live URL swaps http for ws and https for wss and adds the live path', (): void => {
   assert.equal(liveUrl('http://localhost:8787'), 'ws://localhost:8787/v1/live');
-  assert.equal(liveUrl('https://api.theloststorm.com/base'), 'wss://api.theloststorm.com/base/v1/live');
+  assert.equal(liveUrl('https://saves.example.com/base'), 'wss://saves.example.com/base/v1/live');
 });
 
 void test('client frames carry the token only in the hello and round places to centimetres', (): void => {

@@ -65,7 +65,7 @@ function some(changed: readonly string[]): readonly string[] {
 void test('globs match paths segment by segment', (): void => {
   assert.ok(globToRegExp(glob('sim', '**')).test('sim/world/step.ts'));
   assert.ok(globToRegExp(glob('**', '*.md')).test('README.md'));
-  assert.ok(globToRegExp(glob('**', '*.md')).test('docs/story/lines.md'));
+  assert.ok(globToRegExp(glob('**', '*.md')).test('docs/simulate.md'));
   assert.ok(globToRegExp(glob('test', '*-support.ts')).test('test/arena-support.ts'));
   assert.ok(!globToRegExp(glob('test', '*-support.ts')).test('test/deep/arena-support.ts'));
   assert.ok(globToRegExp(glob('src', 'hud', '**', '*.test.ts')).test('src/hud/bar.test.ts'));
@@ -130,7 +130,7 @@ void test('a changed test runs itself', (): void => {
 });
 
 void test('docs and public assets run only the rules test', (): void => {
-  assert.deepEqual(some(['README.md', 'docs/story/lines.md', 'public/models/hero.glb']), ['test/rules.test.ts']);
+  assert.deepEqual(some(['README.md', 'docs/simulate.md', 'public/models/hero.glb']), ['test/rules.test.ts']);
 });
 
 void test('config, shared support, an unmapped path or no diff at all run everything', (): void => {

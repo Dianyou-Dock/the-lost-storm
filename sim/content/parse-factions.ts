@@ -33,7 +33,6 @@ export function faction(value: unknown, where: string): FactionDef {
   return {
     id,
     name: text(source, 'name', where),
-    description: text(source, 'description', where),
     palette: palette(source['palette'], `${where}.palette`),
     wearables: textList(source, 'wearables', where),
     weapons: textList(source, 'weapons', where),

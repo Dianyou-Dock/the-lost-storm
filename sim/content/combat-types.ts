@@ -100,7 +100,6 @@ export interface FactionPalette {
 export interface FactionDef {
   readonly id: string;
   readonly name: string;
-  readonly description: string;
   readonly palette: FactionPalette;
   readonly wearables: readonly string[];
   readonly weapons: readonly string[];

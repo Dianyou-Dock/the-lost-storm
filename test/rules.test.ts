@@ -201,26 +201,6 @@ void test('no code, data or build script names the banned body generator, and on
   }
 });
 
-interface SpokenLine {
-  readonly id: string;
-  readonly text: string;
-}
-
-function isSpokenLine(value: unknown): value is SpokenLine {
-  return typeof value === 'object' && value !== null && 'id' in value && 'text' in value && typeof value.id === 'string' && typeof value.text === 'string';
-}
-
-void test('every spoken line is written down in the story notes with the same words', (): void => {
-  const story: string = readFileSync('docs/story/lines.md', 'utf8');
-  const parsed: unknown = JSON.parse(readFileSync('data/lines.json', 'utf8'));
-  assert.ok(Array.isArray(parsed));
-  const lines: readonly unknown[] = parsed;
-  for (const line of lines) {
-    assert.ok(isSpokenLine(line));
-    assert.ok(story.includes(`| \`${line.id}\` | ${line.text} |`), `${line.id} is missing from docs/story/lines.md or its words differ`);
-  }
-});
-
 const SHOWN_ROOTS: readonly string[] = ['src', 'data', 'play', 'public'];
 const SHOWN: RegExp = /\.(ts|css|html|json)$/;
 const RETIRED_RARITY_WORD: RegExp = new RegExp(joined('Storm', 'touched'));

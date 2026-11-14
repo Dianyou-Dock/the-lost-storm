@@ -39,7 +39,7 @@ Humans (the hero, the townsfolk and the unfinished) stand on the Quaternius univ
 
 | File | What it is | Source | Licence |
 |---|---|---|---|
-| `public/models/characters/skeleton.glb` | The skeleton body of the skeleton monsters | "Free Pack - Human Skeleton" by PolyOne Studio, fitted to the rig, decimated and repainted for Movement Lab (`blender/variant_skeleton.py` in that repository); lower-detail copies stripped here by `tools/build-characters.ts` | CC BY 4.0 |
+| `public/models/characters/skeleton.glb` | The skeleton body of the skeleton monsters | "Free Pack - Human Skeleton" by PolyOne Studio, fitted to the rig, decimated and repainted in an earlier prototype; lower-detail copies stripped here by `tools/build-characters.ts` | CC BY 4.0 |
 | `public/models/characters/man.glb`, `public/models/characters/woman.glb` | The man's and the woman's bodies: head, neck, eyes and brows on the universal skeleton; the woman's neck reaches down to her collarbones so it runs under every neckline | Head, neck, eyes and brows of `Superhero_Male_FullBody.gltf` and `Superhero_Female_FullBody.gltf` with their own Superhero skin material and texture, from Universal Base Characters [Standard] by Quaternius; joint proportions from the Ranger outfits of Modular Character Outfits - Fantasy [Standard] by Quaternius; assembled by `tools/assemble-body.ts` from `tools/universal-bodies.json` | CC0 1.0 |
 | `public/models/wear/man/hair.glb`, `public/models/wear/woman/hair.glb` | The hairstyles and the beard, one mesh per style | The head-bone hairstyles of Universal Base Characters [Standard] by Quaternius, assembled by `tools/assemble-body.ts` | CC0 1.0 |
 | `public/models/wear/man/peasant.glb`, `public/models/wear/woman/peasant.glb` | The Peasant outfit, one mesh per part | Male and Female Peasant parts of Modular Character Outfits - Fantasy [Standard] by Quaternius, assembled by `tools/assemble-body.ts`, which fits the collar out over the body's neck in one smooth piece and flattens the normal map's baked relief where the fit reshapes the cloth | CC0 1.0 |
@@ -309,9 +309,9 @@ sh tools/half-textures.sh
 | `public/textures/flagstone_color.webp`, `public/textures/flagstone_normal.webp`, `public/textures/flagstone_orm.webp`, `public/textures/half/flagstone_color.webp`, `public/textures/half/flagstone_normal.webp`, `public/textures/half/flagstone_orm.webp` | "Monastery Stone Floor" (`monastery_stone_floor`) | Amal Kumar | CC0 1.0 |
 | `public/textures/ashlar_color.webp`, `public/textures/ashlar_normal.webp`, `public/textures/ashlar_orm.webp`, `public/textures/half/ashlar_color.webp`, `public/textures/half/ashlar_normal.webp`, `public/textures/half/ashlar_orm.webp` | "Rock Tile Floor" (`rock_tile_floor`) | Charlotte Baglioni | CC0 1.0 |
 | `public/textures/mud_color.webp`, `public/textures/mud_normal.webp`, `public/textures/mud_orm.webp`, `public/textures/half/mud_color.webp`, `public/textures/half/mud_normal.webp`, `public/textures/half/mud_orm.webp` | "Brown Mud 03" (`brown_mud_03`) | Rob Tuytel | CC0 1.0 |
-| `public/textures/dirt_color.webp`, `public/textures/dirt_normal.webp`, `public/textures/dirt_orm.webp`, `public/textures/half/dirt_color.webp`, `public/textures/half/dirt_normal.webp`, `public/textures/half/dirt_orm.webp` | "Brown Mud Rocks 01" (`brown_mud_rocks_01`) | Rob Tuytel | CC0 1.0 |
-| `public/textures/forest_color.webp`, `public/textures/forest_normal.webp`, `public/textures/forest_orm.webp`, `public/textures/half/forest_color.webp`, `public/textures/half/forest_normal.webp`, `public/textures/half/forest_orm.webp` | "Forest Ground 04" (`forest_ground_04`) | Rob Tuytel, Rico Cilliers | CC0 1.0 |
-| `public/textures/trail_color.webp`, `public/textures/trail_normal.webp`, `public/textures/trail_orm.webp`, `public/textures/half/trail_color.webp`, `public/textures/half/trail_normal.webp`, `public/textures/half/trail_orm.webp` | "Rocky Trail 02" (`rocky_trail_02`) | Amal Kumar | CC0 1.0 |
+| `public/textures/dirt_color.webp`, `public/textures/dirt_normal.webp`, `public/textures/half/dirt_color.webp`, `public/textures/half/dirt_normal.webp` | "Brown Mud Rocks 01" (`brown_mud_rocks_01`) | Rob Tuytel | CC0 1.0 |
+| `public/textures/forest_color.webp`, `public/textures/forest_normal.webp`, `public/textures/half/forest_color.webp`, `public/textures/half/forest_normal.webp` | "Forest Ground 04" (`forest_ground_04`) | Rob Tuytel, Rico Cilliers | CC0 1.0 |
+| `public/textures/trail_color.webp`, `public/textures/trail_normal.webp`, `public/textures/half/trail_color.webp`, `public/textures/half/trail_normal.webp` | "Rocky Trail 02" (`rocky_trail_02`) | Amal Kumar | CC0 1.0 |
 | `public/textures/castle_wall_color.webp`, `public/textures/castle_wall_normal.webp`, `public/textures/castle_wall_orm.webp`, `public/textures/half/castle_wall_color.webp`, `public/textures/half/castle_wall_normal.webp`, `public/textures/half/castle_wall_orm.webp` | "Castle Wall Slates" (`castle_wall_slates`) | Rob Tuytel | CC0 1.0 |
 | `public/textures/mossy_wall_color.webp`, `public/textures/mossy_wall_normal.webp`, `public/textures/mossy_wall_orm.webp`, `public/textures/half/mossy_wall_color.webp`, `public/textures/half/mossy_wall_normal.webp`, `public/textures/half/mossy_wall_orm.webp` | "Mossy Stone Wall" (`mossy_stone_wall`) | Amal Kumar | CC0 1.0 |
 | `public/textures/drystone_color.webp`, `public/textures/drystone_normal.webp`, `public/textures/drystone_orm.webp`, `public/textures/half/drystone_color.webp`, `public/textures/half/drystone_normal.webp`, `public/textures/half/drystone_orm.webp` | "Stacked Stone Wall" (`stacked_stone_wall`) | Dimitrios Savva | CC0 1.0 |
@@ -339,7 +339,7 @@ The font files are not committed. They come from npm packages that Vite bundles 
 
 ## Everything else
 
-Effects (slashes, bolts, shockwaves, lightning, particles), the HUD and its icons are drawn in code or CSS in this repository and are covered by the MIT licence in [LICENSE](LICENSE). The game ships no audio.
+Effects (slashes, bolts, shockwaves, lightning, particles), the HUD and its icons are drawn in code or CSS in this repository and are covered by the MIT licence in [LICENSE](LICENSE). This repository holds no audio: the game's sounds are licensed for use in the game only and are served separately.
 
 ## Assets that must not be committed
 
@@ -354,4 +354,4 @@ Before adding any asset: confirm the licence on the author's own page, download 
 
 ## Audit before publishing
 
-Checked on 2026-11-11, across the tracked files and the full git history: the only binary assets are the models listed above, plus three KayKit character models (CC0) that an early commit carried. There are no Mixamo or Splice files, no secrets and no personal data. `skeleton.glb` and `humanoid.glb` came through the private Movement Lab repository's processed copies; their inputs are CC BY 4.0 and CC0, so they may be redistributed with the credit above.
+Checked on 2026-11-11, across the tracked files and the full git history: the only binary assets are the models listed above, plus three KayKit character models (CC0) that an early commit carried. There are no Mixamo or Splice files, no secrets and no personal data. `skeleton.glb` and `humanoid.glb` came through an earlier prototype's processed copies; their inputs are CC BY 4.0 and CC0, so they may be redistributed with the credit above.

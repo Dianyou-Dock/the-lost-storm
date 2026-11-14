@@ -29,7 +29,7 @@ function zones(...mine: readonly unknown[]): unknown[] {
   return [...mine, ...others];
 }
 
-const extraFaction = { id: 'ashen', name: 'The Ashen', description: 'Test people.', palette: { tints: ['#553322'], glow: '#ff8844' }, wearables: ['ash_shroud'], weapons: ['ash_brand'], regards: { player: 'hostile' } };
+const extraFaction = { id: 'ashen', name: 'The Ashen', palette: { tints: ['#553322'], glow: '#ff8844' }, wearables: ['ash_shroud'], weapons: ['ash_brand'], regards: { player: 'hostile' } };
 
 const shipped: RawContent = { ...RAW_CONTENT, zones: zones(waystation, shallows), world };
 
