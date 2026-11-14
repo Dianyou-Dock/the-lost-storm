@@ -544,3 +544,42 @@ body.touch .hud-gold-waiting.shown {
   font-size: 12px;
   color: var(--text-dim);
 }
+
+.hud-momentum {
+  position: absolute;
+  left: 50%;
+  bottom: calc(100% + 8px);
+  width: 168px;
+  height: 4px;
+  translate: -50% 0;
+  border-radius: 2px;
+  background: rgba(10, 13, 20, 0.55);
+  overflow: hidden;
+  pointer-events: none;
+  opacity: var(--m-show, 0);
+  scale: calc(0.92 + 0.08 * var(--m-show, 0)) 1;
+}
+
+.hud-momentum-fill {
+  position: absolute;
+  inset: 0;
+  transform-origin: left center;
+  scale: var(--m-fill, 0) 1;
+  background: linear-gradient(90deg, rgba(140, 178, 208, 0.7), rgba(226, 240, 252, 0.92));
+}
+
+.hud-momentum-fill::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(246, 252, 255, 0.85);
+  opacity: calc(var(--m-steady, 0) * 0.45);
+}
+
+.hud-momentum-step {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(8, 11, 17, 0.7);
+}

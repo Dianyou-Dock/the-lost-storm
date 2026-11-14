@@ -19,6 +19,9 @@ import type { GhostUniforms } from './ghost-material.ts';
 import { createGhostUniforms } from './ghost-material.ts';
 import { echoFade, momentOfEcho } from '../../sim/world/moments.ts';
 import { unisonOf } from '../../sim/world/unison.ts';
+import type { ParticleSystem } from './particles.ts';
+import type { SpinPose, SpinView } from './spin-view.ts';
+import { createSpinView } from './spin-view.ts';
 
 export const ACTORS = {
   monsterFlash: 1,
@@ -113,8 +116,9 @@ function echoLook(current: World, monster: MonsterState): EchoLook | null {
   return { ghost: createGhostUniforms(from, ACTORS.echoMix), from, to };
 }
 
-export function createActors(scene: Scene, library: CharacterLibrary, world: World, feather: boolean, sight: Sight = SEES_ALL): Actors {
+export function createActors(scene: Scene, library: CharacterLibrary, world: World, feather: boolean, sight: Sight = SEES_ALL, particles: ParticleSystem | null = null): Actors {
   const content: Content = world.content;
+  const spin: SpinView = createSpinView(scene, particles);
   const heroView = (loaded: LoadedRig, current: World): ActorView => {
     const view: ActorView = createActorView(instantiateRig(loaded, library, { tint: content.player.tint, glow: content.player.color, ghost: null, feather }), HERO.size, current.player.facing);
     holdEquipped(content, view.rig, current.player.equipped);
@@ -258,6 +262,8 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       standChosen(current);
       holdEquipped(content, playerView.rig, current.player.equipped);
       playerView.wake(current.wake === null ? null : wakePose(wakeStage(current.wake.plan, current.wake.elapsed), current.wake.elapsed));
+      const spun: SpinPose = spin.step(dt, current.time, current.player);
+      playerView.spin(spun.animation, spun.turn);
       playerView.sync(dt, poseOf(current.player, null), { rise: 1, floor, turnRate: ACTOR.turnRate, seen: true });
       for (const monster of current.monsters) {
         const entry: MonsterEntry | null = entryFor(current, monster);
@@ -362,6 +368,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
             break;
           }
           case 'zone_changed':
+            spin.clear();
             for (const entry of monsters.values()) retire(entry);
             monsters.clear();
             for (const echo of leaving.splice(0, leaving.length)) echo.entry.view.dispose();

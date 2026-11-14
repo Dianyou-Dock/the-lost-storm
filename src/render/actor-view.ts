@@ -23,6 +23,8 @@ import { animationBank } from './animation-bank.ts';
 
 export const ACTOR = {
   turnRate: 22,
+  spinFade: 0.12,
+  spinPose: 0.5,
   locomotionFade: 0.14,
   actionFade: 0.05,
   actionTail: 0.22,
@@ -130,6 +132,7 @@ export interface ActorView {
   wake(pose: WakePose | null): void;
   setHover(hovered: boolean): void;
   face(facing: number): void;
+  spin(animation: string | null, turn: number): void;
   bounds(out: Box3): void;
   dispose(): void;
 }
@@ -247,6 +250,8 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
   let hover: boolean = false;
   const hoverLevel: Spring = { value: 0, velocity: 0, target: 0 };
   let yaw: number = facing;
+  let turned: number = 0;
+  let spinning: boolean = false;
   let gaitIndex: number = -1;
   let lastKind: ClipKind = 'idle';
   let knockSpan: number = 0;
@@ -398,7 +403,7 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
           yaw = glance.from + angleTo(glance.from, actor.facing) * easeInOut(1 - glance.left / glance.span);
           if (glance.left <= 0) glance = null;
         }
-        rig.root.rotation.y = yaw;
+        rig.root.rotation.y = yaw + turned;
         const kind: ClipKind = clipKindOf(actor.motion);
         if (flinchLeft > 0 && kind === 'knock') {
           flinchLeft = 0;
@@ -467,6 +472,27 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
       } else {
         grounded.hide();
       }
+    },
+    spin(animation: string | null, turn: number): void {
+      if (animation === null || dead) {
+        if (!spinning) return;
+        yaw += turned;
+        turned = 0;
+        spinning = false;
+        oneShot = Math.min(oneShot, ACTOR.actionTail);
+        recovering = true;
+        return;
+      }
+      turned = turn;
+      oneShot = Math.max(oneShot, ACTOR.actionTail);
+      if (spinning) return;
+      spinning = true;
+      const entry: ActionClip | undefined = actionClip(rig, animation);
+      if (entry === undefined) return;
+      play(entry.clip, ACTOR.spinFade, 1, true, true);
+      current.time = entry.impactTime > 0 ? entry.impactTime : entry.clip.duration * ACTOR.spinPose;
+      current.timeScale = 0;
+      acting = current;
     },
     startAction(animation: string, windup: number, recovery: number): boolean {
       const entry: ActionClip | undefined = actionClip(rig, animation);

@@ -1093,7 +1093,7 @@
     "name": "Millwheel",
     "description": "Hold Cleave to keep turning as you run: every enemy struck builds momentum, which turns you faster, widens your reach and keeps you on your feet. Each hit gives back a little mana; turning through empty air only spends it.",
     "icon": "cleave",
-    "animation": "attack",
+    "animation": "sweep",
     "manaCost": 3,
     "cooldown": 0,
     "windup": 0.18,
@@ -1107,7 +1107,7 @@
     "shake": 0.05,
     "hitStop": 0,
     "category": "channel",
-    "vfx": { "style": "slash", "color": "#d6ecff", "cue": "blade", "light": 0.3, "impact": { "sparks": 6, "flash": 0 } },
+    "vfx": { "style": "gale", "color": "#d6ecff", "cue": "blade", "light": 0.3, "impact": { "sparks": 6, "flash": 0 } },
     "press": { "type": "channel", "interval": 0.32, "max": 120, "move": 1 },
     "momentum": {
       "perHit": 1,

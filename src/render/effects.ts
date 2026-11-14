@@ -65,6 +65,7 @@ export const EFFECTS = {
   hurtShake: 0.34,
   deathShake: 0.6,
   punch: 0.16,
+  punchShake: 0.12,
   emberEvery: 0.07,
   flameSize: 0.17,
   phaseRing: 9,
@@ -252,6 +253,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     if (look === 'shockwave') shockwave(x, z, radius, color, skill);
     else if (look === 'whirl') cues.whirl(x, z, radius, color);
     else if (look === 'gust') cues.gust(x, z, radius, color, skill.vfx.light);
+    else if (look === 'gale') cues.gale(x, z, radius, color);
     else ring(x, z, radius, color, EFFECTS.ringTime);
   };
 
@@ -338,8 +340,8 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     const count: number = event.crit ? 22 : 11;
     spray(event.pos.x, 1.25, event.pos.z, BONE, count, { dirX: event.direction.x, dirZ: event.direction.z, spread: 1.1, speed: { min: 4, max: event.crit ? 15 : 10 }, lift: { min: 0.5, max: 6 } });
     spray(event.pos.x, 1.25, event.pos.z, skillColor, Math.ceil(count / 2), { dirX: event.direction.x, dirZ: event.direction.z, spread: 1.8, speed: { min: 2, max: 8 }, size: { min: 0.3, max: 0.8 }, life: { min: 0.15, max: 0.4 } });
-    hitStop = Math.min(EFFECTS.maxStop, Math.max(hitStop, event.skill.hitStop * (event.crit ? EFFECTS.critStop : 1) + (event.killed ? EFFECTS.killStop : 0)));
-    camera.punch(event.direction.x, event.direction.z, EFFECTS.punch * (event.crit ? 2 : 1));
+    hitStop = Math.min(EFFECTS.maxStop, Math.max(hitStop, event.skill.hitStop * (event.crit ? EFFECTS.critStop : 1) + (event.killed && event.skill.hitStop > 0 ? EFFECTS.killStop : 0)));
+    camera.punch(event.direction.x, event.direction.z, EFFECTS.punch * (event.crit ? 2 : 1) * Math.min(1, event.skill.shake / EFFECTS.punchShake));
     if (event.crit) flashLight(event.pos.x, EFFECTS.critHeight, event.pos.z, skillColor, EFFECTS.critLight);
   };
 

@@ -38,13 +38,15 @@ export const CUES = {
   whirlFill: 0.03,
   whirlSparkMin: 0.14,
   whirlSparkMax: 0.28,
+  galeSparks: 7,
+  galeMotes: 2,
 } as const;
 
 function round(radius: number): GroundLightForm {
   return { kind: 'round', radius, inner: 0, arc: Math.PI * 2 };
 }
 
-export type NovaLook = 'shockwave' | 'whirl' | 'gust' | 'ring';
+export type NovaLook = 'shockwave' | 'whirl' | 'gust' | 'ring' | 'gale';
 
 const NOVA_LOOK: Readonly<Record<VfxStyle, NovaLook>> = {
   slash: 'whirl',
@@ -61,6 +63,7 @@ const NOVA_LOOK: Readonly<Record<VfxStyle, NovaLook>> = {
   fork: 'ring',
   beam: 'ring',
   gap: 'ring',
+  gale: 'gale',
 };
 
 export function novaLook(style: VfxStyle): NovaLook {
@@ -90,6 +93,7 @@ export interface AbilityCues {
   shade(x: number, z: number, radius: number): void;
   whirl(x: number, z: number, radius: number, color: Color): void;
   gust(x: number, z: number, radius: number, color: Color, light: number): void;
+  gale(x: number, z: number, radius: number, color: Color): void;
 }
 
 const SHADE: Color = new Color(0x05070b);
@@ -187,6 +191,18 @@ export function createAbilityCues(kit: CueKit): AbilityCues {
         const angle: number = (index / CUES.whirlSparks) * Math.PI * 2;
         const reach: number = radius * (0.55 + Math.random() * 0.4);
         kit.spray(x + Math.sin(angle) * reach, CUES.whirlHeight, z + Math.cos(angle) * reach, color, 1, { dirX: Math.cos(angle), dirZ: -Math.sin(angle), spread: 0.2, speed: { min: radius * 2.5, max: radius * 4 }, lift: { min: -0.3, max: 0.6 }, life: { min: 0.14, max: CUES.whirlTime + 0.06 }, size: { min: CUES.whirlSparkMin, max: CUES.whirlSparkMax }, gravity: 0, drag: 3, jitter: 0 });
+      }
+    },
+    gale(x: number, z: number, radius: number, color: Color): void {
+      const turn: number = Math.random() * Math.PI * 2;
+      for (let index: number = 0; index < CUES.galeSparks; index += 1) {
+        const angle: number = turn + (index / CUES.galeSparks) * Math.PI * 2;
+        const reach: number = radius * (0.7 + Math.random() * 0.3);
+        kit.spray(x + Math.sin(angle) * reach, CUES.whirlHeight, z + Math.cos(angle) * reach, color, 1, { dirX: Math.cos(angle), dirZ: -Math.sin(angle), spread: 0.25, speed: { min: radius * 2, max: radius * 3.2 }, lift: { min: -0.2, max: 0.5 }, life: { min: 0.12, max: CUES.whirlTime }, size: { min: CUES.whirlSparkMin, max: CUES.whirlSparkMax }, gravity: 0, drag: 3, jitter: 0 });
+      }
+      for (let index: number = 0; index < CUES.galeMotes; index += 1) {
+        const angle: number = turn + (index / CUES.galeMotes) * Math.PI * 2;
+        kit.spray(x + Math.sin(angle) * radius * 0.5, 0.35, z + Math.cos(angle) * radius * 0.5, MIST, 1, { dirX: Math.sin(angle), dirZ: Math.cos(angle), spread: 0.5, speed: { min: radius, max: radius * 1.8 }, lift: { min: 0.3, max: 1.4 }, life: { min: 0.25, max: 0.45 }, size: { min: 0.25, max: 0.5 }, gravity: -0.4, drag: 2.6 });
       }
     },
     gust(x: number, z: number, radius: number, color: Color, light: number): void {
