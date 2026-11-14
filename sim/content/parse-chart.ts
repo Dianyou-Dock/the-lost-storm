@@ -134,7 +134,7 @@ export function chartProblems(content: Content): string[] {
 }
 
 function rivalProblems(nodes: readonly SkillTreeNodeDef[]): string[] {
-  const made: ReadonlySet<string> = new Set<string>(nodes.flatMap((node: SkillTreeNodeDef): string[] => node.variants.map((variant: SkillVariant): string => variant.becomes)));
+  const made: ReadonlySet<string> = new Set<string>(nodes.flatMap((node: SkillTreeNodeDef): string[] => node.variants.map((change: SkillVariant): string => change.becomes)));
   const turners: Map<string, string[]> = new Map<string, string[]>();
   for (const node of nodes) {
     for (const { skill } of node.variants) if (made.has(skill)) turners.set(skill, [...(turners.get(skill) ?? []), node.id]);

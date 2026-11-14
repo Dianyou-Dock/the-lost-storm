@@ -1,11 +1,12 @@
 export const ECHO = {
   dry: 0.9,
   beatsPerMinute: 150,
-  repeats: 5,
-  feedback: 0.5,
-  wet: 0.72,
+  repeats: 24,
+  heldRepeats: 5,
+  feedback: 0.86,
+  wet: 0.5,
   brightest: 5200,
-  darkening: 0.62,
+  darkening: 0.92,
   pans: [-0.22, 0.22],
   ring: 0.8,
 } as const;
@@ -37,8 +38,13 @@ export function echoTail(): number {
   return echoBeat() * ECHO.repeats + ECHO.ring;
 }
 
+export function echoHeld(): number {
+  return echoBeat() * ECHO.heldRepeats + ECHO.ring;
+}
+
 export interface EchoChain {
   readonly input: AudioNode;
+  readonly held: number;
   readonly tail: number;
   release(): void;
 }
@@ -73,6 +79,7 @@ export function createEcho(context: BaseAudioContext, output: AudioNode): EchoCh
   }
   return {
     input,
+    held: echoHeld(),
     tail,
     release(): void {
       for (const node of nodes) node.disconnect();

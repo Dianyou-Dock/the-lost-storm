@@ -401,11 +401,13 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
       await new Promise<void>((resolve: () => void): void => {
         source.addEventListener('ended', (): void => {
           window.setTimeout((): void => {
-            source.disconnect();
-            echo.release();
             duck(-1);
             echoes -= 1;
             resolve();
+          }, echo.held * SYSTEM.msPerSecond);
+          window.setTimeout((): void => {
+            source.disconnect();
+            echo.release();
           }, echo.tail * SYSTEM.msPerSecond);
         });
         source.start();

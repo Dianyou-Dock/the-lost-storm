@@ -1,4 +1,3 @@
-import { distance } from '../../sim/math.ts';
 import type { GroundItem, World } from '../../sim/world/types.ts';
 import type { SpokenName } from '../backend/name-voice.ts';
 import echoCss from './name-echo.css?inline';
@@ -6,7 +5,6 @@ import echoCss from './name-echo.css?inline';
 export const NAME_ECHO = {
   afterRise: 0.35,
   voiceWait: 2.5,
-  nearFind: 9,
   layers: 3,
   layerDelayMs: 400,
   letterDelayMs: 55,
@@ -61,7 +59,6 @@ export function createNameEcho(deps: NameEchoDeps): NameEcho {
   const asked: Set<Moment> = new Set<Moment>();
   let lying: boolean = false;
   let risenAt: number | null = null;
-  let nearSince: number | null = null;
 
   const say = (moment: Moment, waited: number): void => {
     if (said.has(moment) || (asking && waited < NAME_ECHO.voiceWait)) return;
@@ -98,10 +95,6 @@ export function createNameEcho(deps: NameEchoDeps): NameEcho {
       if (risenAt !== null) ask('risen');
       if (world.ground.some((ground: GroundItem): boolean => ground.find !== null)) ask('near');
       if (risenAt !== null && world.time - risenAt >= NAME_ECHO.afterRise) say('risen', world.time - risenAt - NAME_ECHO.afterRise);
-      const near: boolean = world.ground.some((ground: GroundItem): boolean => ground.find !== null && distance(ground.pos, world.player.pos) <= NAME_ECHO.nearFind);
-      if (near) nearSince ??= world.time;
-      else nearSince = null;
-      if (nearSince !== null && said.has('risen')) say('near', world.time - nearSince);
     },
   };
 }
