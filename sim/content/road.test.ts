@@ -28,9 +28,9 @@ void test('a flag a trigger sets counts as set, and an either path naming someth
     name: 'Q',
     requires: [],
     when: [{ type: 'flag', flag: 'found', is: null, not: false }],
-    objectives: [{ id: 'o', type: 'either', text: 'O', when: [], sets: {}, paths: [
-      { id: 'a', type: 'talk', npc: 'nobody', text: 'A', when: [], sets: {} },
-      { id: 'b', type: 'reach', zone: 'road_test', x: 1, z: 1, radius: 1, text: 'B', when: [{ type: 'flag', flag: 'missing', is: null, not: false }], sets: {} },
+    objectives: [{ id: 'o', type: 'either', text: 'O', waiting: '', when: [], sets: {}, paths: [
+      { id: 'a', type: 'talk', npc: 'nobody', text: 'A', waiting: '', when: [], sets: {} },
+      { id: 'b', type: 'reach', zone: 'road_test', x: 1, z: 1, radius: 1, text: 'B', waiting: '', when: [{ type: 'flag', flag: 'missing', is: null, not: false }], sets: {} },
     ] }],
   };
   const problems: string[] = problemsOf(zone, { quests: new Map<string, QuestDef>([...ROAD_CONTENT.quests, [quest.id, quest]]) });

@@ -436,6 +436,7 @@ export interface TalkDef {
 export interface ObjectiveBase {
   readonly id: string;
   readonly text: string;
+  readonly waiting: string;
   readonly when: readonly Condition[];
   readonly sets: StoryFlags;
 }

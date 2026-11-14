@@ -14,7 +14,7 @@ import { HUD_FRAME, hudBegun, hudHidden, hudView, partShown } from './hud.ts';
 import { stepWorld } from './step.ts';
 import type { ItemInstance, World } from './types.ts';
 
-const errand: QuestDef = { id: 'errand', name: 'An Errand', requires: [], when: [], objectives: [{ id: 'ask', type: 'talk', npc: 'keeper', text: 'Ask', when: [], sets: {} }] };
+const errand: QuestDef = { id: 'errand', name: 'An Errand', requires: [], when: [], objectives: [{ id: 'ask', type: 'talk', npc: 'keeper', text: 'Ask', waiting: '', when: [], sets: {} }] };
 const shipped: Content = { ...TOWN_CONTENT, quests: new Map<string, QuestDef>([[errand.id, errand]]) };
 
 function town(): World {

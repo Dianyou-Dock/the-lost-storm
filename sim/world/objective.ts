@@ -168,3 +168,7 @@ export function nextAction(target: ObjectiveTarget | null, written: string): str
   if (written !== '') return written;
   return target.name === '' ? '' : namedAction(target);
 }
+
+export function writtenLine(world: World, objective: ObjectiveDef): string {
+  return objective.waiting !== '' && openPaths(world, objective).length === 0 ? objective.waiting : objective.text;
+}

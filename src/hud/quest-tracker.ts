@@ -1,7 +1,7 @@
 import { tagPart } from './hud-gate.ts';
 import type { ObjectiveDef, QuestDef } from '../../sim/content/types.ts';
 import { activeQuests, currentObjective } from '../../sim/world/quests.ts';
-import { nextAction, questTarget } from '../../sim/world/objective.ts';
+import { nextAction, questTarget, writtenLine } from '../../sim/world/objective.ts';
 import type { World, WorldEvent } from '../../sim/world/types.ts';
 import { el, label, retrigger } from './dom.ts';
 import { repeatedSteps } from './shared-steps.ts';
@@ -27,7 +27,7 @@ export interface QuestTracker {
 }
 
 function actionText(world: World, quest: QuestDef, objective: ObjectiveDef | null): string {
-  return objective === null ? '' : nextAction(questTarget(world, quest), objective.text);
+  return objective === null ? '' : nextAction(questTarget(world, quest), writtenLine(world, objective));
 }
 
 export function createQuestTracker(root: HTMLElement): QuestTracker {

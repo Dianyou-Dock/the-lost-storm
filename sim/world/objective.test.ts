@@ -1,12 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { worldIn } from '../../test/support.ts';
+import { must, worldIn, zoneOf } from '../../test/support.ts';
 import { TOWN_CONTENT } from '../../test/town-support.ts';
-import type { Content, QuestDef, ZoneExit } from '../content/types.ts';
+import { loadContent } from '../content/content.ts';
+import type { Content, ObjectiveDef, QuestDef, ZoneExit } from '../content/types.ts';
 import { moveExit } from './exits.ts';
-import { nextAction, objectiveTarget } from './objective.ts';
+import { nextAction, objectiveTarget, questTarget, writtenLine } from './objective.ts';
 import type { ObjectiveTarget } from './objective.ts';
-import { startQuests } from './quests.ts';
+import { activeQuests, currentObjective, startQuests } from './quests.ts';
+import { enterZone } from './zones.ts';
 import type { World } from './types.ts';
 
 const errand: QuestDef = {
@@ -15,8 +17,8 @@ const errand: QuestDef = {
   requires: [],
   when: [],
   objectives: [
-    { id: 'ask', type: 'talk', npc: 'keeper', text: 'Ask', when: [], sets: {} },
-    { id: 'go', type: 'reach', zone: 'outpost', x: 28, z: 30, radius: 2, text: 'Go', when: [], sets: {} },
+    { id: 'ask', type: 'talk', npc: 'keeper', text: 'Ask', waiting: '', when: [], sets: {} },
+    { id: 'go', type: 'reach', zone: 'outpost', x: 28, z: 30, radius: 2, text: 'Go', waiting: '', when: [], sets: {} },
   ],
 };
 
@@ -71,4 +73,32 @@ void test('a target in this zone shows the objective as written, and one past an
   assert.ok(exit !== null && exit.kind === 'exit');
   assert.equal(nextAction(exit, 'Reach the fire'), `Go to ${exit.name}`);
   assert.doesNotMatch(nextAction(exit, ''), /marked/);
+});
+
+void test('an objective still locked shows its waiting line, and once open the line names where to go and then what to defeat, from the data', (): void => {
+  const shipped: Content = loadContent();
+  const gate: QuestDef = must([...shipped.quests.values()].find((quest: QuestDef): boolean => quest.objectives.some((objective: ObjectiveDef): boolean => objective.waiting !== '' && objective.type === 'defeat')), 'a quest with a waiting defeat objective');
+  const step: ObjectiveDef = must(gate.objectives.find((objective: ObjectiveDef): boolean => objective.waiting !== ''), 'the waiting objective');
+  assert.equal(step.type, 'defeat');
+  const lair: string = must([...shipped.zones.values()].find((zone): boolean => zone.packs.some((pack): boolean => pack.members.some((member): boolean => member.monster === step.monster))), 'the lair').id;
+  const hall: string = must([...shipped.zones.values()].find((zone): boolean => zone.exits.some((exit: ZoneExit): boolean => exit.to === lair)), 'the zone before the lair').id;
+  const world: World = worldIn(shipped, hall, 1);
+  for (const quest of shipped.quests.values()) world.quests[quest.id] = quest.id === gate.id ? gate.objectives.indexOf(step) : quest.objectives.length;
+  const line = (): string => nextAction(questTarget(world, gate), writtenLine(world, must(currentObjective(world, gate), 'the gate step')));
+  world.player.level = 1;
+  assert.equal(line(), step.waiting);
+  world.player.level = 20;
+  assert.equal(line(), `Go to ${zoneOf(shipped, lair).name}`);
+  enterZone(world, zoneOf(shipped, lair), { type: 'start' });
+  assert.equal(line(), `Defeat ${must(shipped.monsters.get(step.monster), 'the boss').name}`);
+  world.quests[gate.id] = gate.objectives.length;
+  assert.ok(!activeQuests(world).includes(gate));
+});
+
+void test('an objective with no waiting line keeps its written text while locked', (): void => {
+  const world: World = fresh(content.world.start);
+  const locked: ObjectiveDef = { id: 'later', type: 'talk', npc: 'keeper', text: 'Ask later', waiting: '', when: [{ type: 'level', atLeast: 99, not: false }], sets: {} };
+  assert.equal(writtenLine(world, locked), 'Ask later');
+  assert.equal(writtenLine(world, { ...locked, waiting: 'Not yet' }), 'Not yet');
+  assert.equal(writtenLine(world, { ...locked, when: [], waiting: 'Not yet' }), 'Ask later');
 });

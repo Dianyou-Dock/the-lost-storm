@@ -37,13 +37,13 @@ const errand: QuestDef = {
   requires: [],
   when: [],
   objectives: [
-    { id: 'ask', type: 'talk', npc: 'keeper', text: 'Ask', when: [], sets: {} },
-    { id: 'go', type: 'reach', zone: 'hub', x: 20, z: 18, radius: 1.5, text: 'Go', when: [], sets: {} },
-    { id: 'kill', type: 'defeat', monster: 'mender', text: 'Kill', when: [], sets: {} },
+    { id: 'ask', type: 'talk', npc: 'keeper', text: 'Ask', waiting: '', when: [], sets: {} },
+    { id: 'go', type: 'reach', zone: 'hub', x: 20, z: 18, radius: 1.5, text: 'Go', waiting: '', when: [], sets: {} },
+    { id: 'kill', type: 'defeat', monster: 'mender', text: 'Kill', waiting: '', when: [], sets: {} },
   ],
 };
 
-const sequel: QuestDef = { id: 'sequel', name: 'After', requires: ['errand'], when: [], objectives: [{ id: 'tell', type: 'talk', npc: 'courier', text: 'Tell', when: [], sets: {} }] };
+const sequel: QuestDef = { id: 'sequel', name: 'After', requires: ['errand'], when: [], objectives: [{ id: 'tell', type: 'talk', npc: 'courier', text: 'Tell', waiting: '', when: [], sets: {} }] };
 
 function during(objective: string): Condition[] {
   return [{ type: 'objective', quest: 'errand', objective, is: 'current', not: false }];
@@ -259,8 +259,8 @@ function hunted(): Content {
     name: 'A Hunt',
     requires: [], when: [],
     objectives: [
-      { id: 'go', type: 'reach', zone: outpost.id, x: outpost.playerStart.x, z: outpost.playerStart.z, radius: 2, text: 'Go', when: [], sets: {} },
-      { id: 'kill', type: 'defeat', monster: 'mender', text: 'Kill', when: [], sets: {} },
+      { id: 'go', type: 'reach', zone: outpost.id, x: outpost.playerStart.x, z: outpost.playerStart.z, radius: 2, text: 'Go', waiting: '', when: [], sets: {} },
+      { id: 'kill', type: 'defeat', monster: 'mender', text: 'Kill', waiting: '', when: [], sets: {} },
     ],
   };
   const lair: ZoneDef = { ...outpost, packs: [{ x: den.x, z: den.z, members: [{ monster: 'mender', count: 1, mods: [] }], when: during('kill') }] };
@@ -296,14 +296,15 @@ const crossing: QuestDef = {
       id: 'through',
       type: 'either',
       text: 'Get through',
+      waiting: '',
       when: [],
       sets: { crossed: 'yes' },
       paths: [
-        { id: 'fight', type: 'reach', zone: 'road_test', x: 28, z: 8, radius: 2, text: 'Fight through', when: [], sets: { crossing: 'fought' } },
-        { id: 'quiet', type: 'reach', zone: 'road_test', x: 4, z: 14, radius: 2, text: 'Go quietly', when: [{ type: 'flag', flag: 'token', is: 'carried', not: false }], sets: { crossing: 'quiet' } },
+        { id: 'fight', type: 'reach', zone: 'road_test', x: 28, z: 8, radius: 2, text: 'Fight through', waiting: '', when: [], sets: { crossing: 'fought' } },
+        { id: 'quiet', type: 'reach', zone: 'road_test', x: 4, z: 14, radius: 2, text: 'Go quietly', waiting: '', when: [{ type: 'flag', flag: 'token', is: 'carried', not: false }], sets: { crossing: 'quiet' } },
       ],
     },
-    { id: 'after', type: 'reach', zone: 'road_test', x: 16, z: 8, radius: 2, text: 'After', when: [], sets: {} },
+    { id: 'after', type: 'reach', zone: 'road_test', x: 16, z: 8, radius: 2, text: 'After', waiting: '', when: [], sets: {} },
   ],
 };
 
@@ -516,7 +517,7 @@ void test('the Gate quest opens after the Warden\'s Lesson, names its level whil
   const objective = must(currentObjective(world, gateQuest), 'objective');
   world.player.level = 3;
   assert.equal(questTarget(world, gateQuest), null);
-  assert.match(objective.text, /level 8/);
+  assert.match(objective.waiting, /level 8/);
   world.player.level = 8;
   const target = must(questTarget(world, gateQuest), 'target');
   assert.equal(target.kind, 'exit');

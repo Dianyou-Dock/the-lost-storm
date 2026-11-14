@@ -368,12 +368,13 @@ function pathObjective(value: unknown, where: string): PathObjective {
   const type: PathObjective['type'] = choice(source, 'type', ['talk', 'reach', 'defeat', 'moment'] as const, where);
   const id: string = text(source, 'id', where);
   const shown: string = text(source, 'text', where);
+  const waiting: string = nullableText(source, 'waiting', where) ?? '';
   const when: Condition[] = conditions(source, 'when', where);
   const sets: Record<string, string> = storyFlags(source['sets'], `${where}.sets`);
-  if (type === 'talk') return { type, id, text: shown, when, sets, npc: text(source, 'npc', where) };
-  if (type === 'defeat') return { type, id, text: shown, when, sets, monster: text(source, 'monster', where) };
-  if (type === 'moment') return { type, id, text: shown, when, sets };
-  return { type, id, text: shown, when, sets, zone: text(source, 'zone', where), x: numeric(source, 'x', where), z: numeric(source, 'z', where), radius: positive(source, 'radius', where) };
+  if (type === 'talk') return { type, id, text: shown, waiting, when, sets, npc: text(source, 'npc', where) };
+  if (type === 'defeat') return { type, id, text: shown, waiting, when, sets, monster: text(source, 'monster', where) };
+  if (type === 'moment') return { type, id, text: shown, waiting, when, sets };
+  return { type, id, text: shown, waiting, when, sets, zone: text(source, 'zone', where), x: numeric(source, 'x', where), z: numeric(source, 'z', where), radius: positive(source, 'radius', where) };
 }
 
 function objective(value: unknown, where: string): ObjectiveDef {
@@ -381,7 +382,7 @@ function objective(value: unknown, where: string): ObjectiveDef {
   if (source['type'] !== 'either') return pathObjective(value, where);
   const paths: PathObjective[] = [...byId(each(source['paths'], `${where}.paths`, pathObjective), `${where}.paths`).values()];
   if (paths.length < 2) throw new ContentError(`${where}.paths`, 'an either objective needs at least two paths');
-  return { type: 'either', id: text(source, 'id', where), text: text(source, 'text', where), when: conditions(source, 'when', where), sets: storyFlags(source['sets'], `${where}.sets`), paths };
+  return { type: 'either', id: text(source, 'id', where), text: text(source, 'text', where), waiting: nullableText(source, 'waiting', where) ?? '', when: conditions(source, 'when', where), sets: storyFlags(source['sets'], `${where}.sets`), paths };
 }
 
 export function quest(value: unknown, where: string): QuestDef {

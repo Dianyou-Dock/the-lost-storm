@@ -407,7 +407,7 @@ void test('a quest, its three kinds of objective, conditions, a waypoint and map
   assert.deepEqual(contentProblems(content), []);
   const errand: QuestDef = must(content.quests.get('errand'), 'errand');
   assert.deepEqual(errand.requires, ['out_of_the_mist']);
-  assert.deepEqual(errand.objectives, extraQuest.objectives.map((goal: object): object => ({ ...goal, when: [], sets: {} })));
+  assert.deepEqual(errand.objectives, extraQuest.objectives.map((goal: object): object => ({ ...goal, waiting: '', when: [], sets: {} })));
   const town: ZoneDef = must(content.zones.get('waystation'), 'town');
   const stair = must(town.exits.find((exit): boolean => exit.id === 'west_gate'), 'town stair');
   assert.deepEqual(stair.requires, [{ ...gate, not: false }, { type: 'quest', quest: 'out_of_the_mist', is: 'done', not: true }]);
