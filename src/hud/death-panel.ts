@@ -1,3 +1,4 @@
+import { inSentence } from '../../sim/name-text.ts';
 import { choicesOpen } from '../../sim/world/death.ts';
 import type { RespawnChoice, World } from '../../sim/world/types.ts';
 import { BACKDROPS } from '../dither/backdrops.ts';
@@ -27,7 +28,7 @@ const CHOICES: readonly ChoiceButton[] = [
 function causeText(world: World): string {
   const death = world.death;
   if (death === null) return '';
-  return `Slain by ${death.killer} with ${death.skill}`;
+  return `Slain by ${inSentence(death.killer)} with ${death.skill}`;
 }
 
 function costText(world: World): string {

@@ -498,7 +498,7 @@
   },
   {
     "id": "timekeeper_gatekeeper",
-    "name": "Timekeeper Gatekeeper",
+    "name": "The Reckoner",
     "rig": "timekeeper",
     "faction": "timekeepers",
     "scale": 1.38,
@@ -530,7 +530,7 @@
       "keeper_gloves"
     ],
     "boss": {
-      "title": "Guardian of the Gate",
+      "title": "Timekeeper",
       "phases": [
         {
           "below": 1,

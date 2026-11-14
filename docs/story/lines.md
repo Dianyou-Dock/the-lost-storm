@@ -47,9 +47,9 @@ Placeholder sentences borrowed from other people's lives; the owner decides the 
 | `unfinished_borrower_said_4` | That is my coat. I know that coat. | Bark, one of these at random when it first notices a foe. |
 | `unfinished_borrower_said_5` | Who let the dog out? | Bark, one of these at random when it first notices a foe. |
 
-## Timekeeper Gatekeeper (`timekeeper_gatekeeper`)
+## The Reckoner (`timekeeper_gatekeeper`)
 
-The boss of the Keeper's Gate, north of the Hall of Time. Working lines; the owner decides the final words. Not voiced yet.
+The boss of the Last Gate, north of the Hall of Time: a Timekeeper come to put the hero back in their line. It is not angry; it is settling a count. The owner kept these lines for the Reckoner. Not voiced yet.
 
 | Id | Line | When |
 |---|---|---|
@@ -62,4 +62,4 @@ The boss of the Keeper's Gate, north of the Hall of Time. Working lines; the own
 
 - **Wardens**: plain and steady; people who walk the same road every day and expect to walk it tomorrow.
 - **The Unfinished Borrower**: says each borrowed sentence as if it were its own, warmly, and does not notice it is wrong.
-- **The Timekeeper Gatekeeper**: unhurried and exact, an official reading out a time that has already passed; American accent.
+- **The Reckoner**: unhurried and exact, an official reading out a time that has already passed; American accent.

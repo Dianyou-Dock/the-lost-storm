@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { must, worldIn, zoneOf } from '../../test/support.ts';
 import { TOWN_CONTENT } from '../../test/town-support.ts';
 import { loadContent } from '../content/content.ts';
+import { inSentence } from '../name-text.ts';
 import type { Content, ObjectiveDef, QuestDef, ZoneExit } from '../content/types.ts';
 import { moveExit } from './exits.ts';
 import { nextAction, objectiveTarget, questTarget, writtenLine } from './objective.ts';
@@ -71,7 +72,7 @@ void test('a target in this zone shows the objective as written, and one past an
   world.quests['errand'] = 1;
   const exit: ObjectiveTarget | null = objectiveTarget(world);
   assert.ok(exit !== null && exit.kind === 'exit');
-  assert.equal(nextAction(exit, 'Reach the fire'), `Go to ${exit.name}`);
+  assert.equal(nextAction(exit, 'Reach the fire'), `Go to ${inSentence(exit.name)}`);
   assert.doesNotMatch(nextAction(exit, ''), /marked/);
 });
 
@@ -88,9 +89,9 @@ void test('an objective still locked shows its waiting line, and once open the l
   world.player.level = 1;
   assert.equal(line(), step.waiting);
   world.player.level = 20;
-  assert.equal(line(), `Go to ${zoneOf(shipped, lair).name}`);
+  assert.equal(line(), `Go to ${inSentence(zoneOf(shipped, lair).name)}`);
   enterZone(world, zoneOf(shipped, lair), { type: 'start' });
-  assert.equal(line(), `Defeat ${must(shipped.monsters.get(step.monster), 'the boss').name}`);
+  assert.equal(line(), `Defeat ${inSentence(must(shipped.monsters.get(step.monster), 'the boss').name)}`);
   world.quests[gate.id] = gate.objectives.length;
   assert.ok(!activeQuests(world).includes(gate));
 });

@@ -110,3 +110,27 @@
 .hud-dialogue.open ~ .hud-bark {
   bottom: 252px;
 }
+
+body.touch .hud-boss {
+  top: var(--ph-target-y);
+  left: var(--ph-target-x);
+  width: var(--ph-target-w);
+  transform: translateY(-22px) scale(0.96);
+}
+
+body.touch .hud-boss.visible {
+  transform: none;
+}
+
+body.touch .hud-boss .boss-name {
+  overflow: hidden;
+  font-size: 13px;
+  letter-spacing: 0.1em;
+  text-indent: 0.1em;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+body.touch .hud-boss .boss-title {
+  font-size: 11px;
+}

@@ -2,6 +2,7 @@ import type { StrikeArea } from '../content/moment-types.ts';
 import type { ObjectiveDef, PathObjective, QuestDef, ZoneDef, ZoneExit, ZoneNpc, ZonePack } from '../content/types.ts';
 import { objectivePaths } from '../content/road.ts';
 import type { Vec2 } from '../math.ts';
+import { inSentence } from '../name-text.ts';
 import { allHold } from './conditions.ts';
 import { fightZones, nearestFight, strikeGround } from './moments.ts';
 import { activeQuests, currentObjective } from './quests.ts';
@@ -144,19 +145,20 @@ export function objectiveTarget(world: World): ObjectiveTarget | null {
 }
 
 function namedAction(target: ObjectiveTarget): string {
+  const name: string = inSentence(target.name);
   let line: string;
   switch (target.kind) {
     case 'person':
-      line = `Talk to ${target.name}`;
+      line = `Talk to ${name}`;
       break;
     case 'monster':
-      line = `Defeat ${target.name}`;
+      line = `Defeat ${name}`;
       break;
     case 'spot':
-      line = target.objective.type === 'defeat' ? `Find ${target.name}` : `Go to ${target.name}`;
+      line = target.objective.type === 'defeat' ? `Find ${name}` : `Go to ${name}`;
       break;
     case 'exit':
-      line = `Go to ${target.name}`;
+      line = `Go to ${name}`;
       break;
   }
   return line;
