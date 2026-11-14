@@ -27,6 +27,16 @@
   transform: translateY(0);
 }
 
+.hud.barking .hud-hint.visible {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+body.touch:has(.hud.barking) .tc-stick.intro .tc-stick-hint {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
 .hint-key {
   display: inline-block;
   min-width: 16px;

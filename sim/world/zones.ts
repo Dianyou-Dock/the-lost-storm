@@ -13,6 +13,8 @@ import type { GroundItem, ItemInstance, PlayerState, RespawnPoint, World } from 
 import type { VoidArrival } from './wake.ts';
 import { beginVoid } from './wake.ts';
 import { clearMoments, startMoments } from './moments.ts';
+import { arriveWith } from './npc-walk.ts';
+import { leavingWith } from './scene.ts';
 
 export function startZone(content: Content): ZoneDef {
   const zone: ZoneDef | undefined = content.zones.get(content.world.start);
@@ -74,6 +76,7 @@ export function placePlayer(world: World): void {
 
 export function enterZone(world: World, zone: ZoneDef, respawn: RespawnPoint): void {
   closeDialogue(world, false);
+  world.scene = null;
   clearMoments(world);
   clearProjectiles(world);
   clearHazards(world);
@@ -95,6 +98,8 @@ export function enterZone(world: World, zone: ZoneDef, respawn: RespawnPoint): v
   beginVoid(world, arrival);
   for (const item of carried) dropOnGround(world, world.player.pos, { kind: 'item', item }).kept = true;
   spawnNpcs(world);
+  if (world.escort !== null) arriveWith(world, world.escort);
+  world.escort = null;
   spawnPacks(world);
   startMoments(world);
 }
@@ -103,6 +108,7 @@ export function travelThrough(world: World, exit: ZoneExit): void {
   const target: ZoneDef | undefined = world.content.zones.get(exit.to);
   if (target === undefined) return;
   const from: string = world.zone.id;
+  world.escort = leavingWith(world, exit.id);
   enterZone(world, target, { type: 'exit', exit: exit.toExit });
   world.events.push({ type: 'zone_changed', from, to: target.id });
 }

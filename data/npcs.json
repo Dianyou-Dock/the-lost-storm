@@ -35,6 +35,55 @@
         ]
       },
       {
+        "id": "warden_guide_between",
+        "once": true,
+        "when": [
+          {
+            "type": "flag",
+            "flag": "fire_lesson",
+            "is": "given"
+          }
+        ],
+        "lines": [
+          "warden_guide_born",
+          "warden_guide_far_apart",
+          "warden_guide_gap"
+        ]
+      },
+      {
+        "id": "warden_guide_gate",
+        "once": true,
+        "when": [
+          {
+            "type": "flag",
+            "flag": "fire_lesson",
+            "is": "given"
+          },
+          {
+            "type": "flag",
+            "flag": "keeper_defeated",
+            "not": true
+          }
+        ],
+        "lines": [
+          "warden_guide_reckoner",
+          "warden_guide_stronger"
+        ]
+      },
+      {
+        "id": "warden_guide_after",
+        "once": true,
+        "when": [
+          {
+            "type": "flag",
+            "flag": "keeper_defeated"
+          }
+        ],
+        "lines": [
+          "warden_guide_short"
+        ]
+      },
+      {
         "id": "warden_guide_talk",
         "once": false,
         "when": [],

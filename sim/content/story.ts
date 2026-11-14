@@ -9,6 +9,10 @@ export function storyFlagNames(content: Content): ReadonlySet<string> {
   }
   for (const book of content.books.values()) for (const page of book.pages) for (const key of Object.keys(page.sets)) names.add(key);
   for (const key of roadFlagNames(content)) names.add(key);
+  for (const monster of content.monsters.values()) {
+    const first: string | null = monster.boss?.firstKill?.flag ?? null;
+    if (first !== null) names.add(first);
+  }
   return names;
 }
 

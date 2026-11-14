@@ -155,6 +155,47 @@
   ],
   "waypoint": null,
   "npcs": [],
+  "scenes": [
+    {
+      "id": "warden_meeting",
+      "npc": "warden_guide",
+      "when": [
+        {
+          "type": "visited",
+          "zone": "hideout",
+          "not": true
+        },
+        {
+          "type": "flag",
+          "flag": "warden_met",
+          "not": true
+        }
+      ],
+      "x": 72,
+      "z": 30,
+      "radius": 9,
+      "moment": "campfire",
+      "fight": 2.5,
+      "arrive": 1.6,
+      "strike": "warden_sweep",
+      "lines": [
+        "warden_guide_fell",
+        "warden_guide_counted",
+        "warden_guide_road"
+      ],
+      "lead": {
+        "exit": "east",
+        "x": 75.5,
+        "z": 26.5,
+        "ahead": 6,
+        "walk": 3.4,
+        "run": 6.4
+      },
+      "sets": {
+        "warden_met": "yes"
+      }
+    }
+  ],
   "ambience": {"background": "#0a0e16", "abyss": "#05070b", "fogNear": 34, "fogFar": 110, "skyColor": "#5a6f94", "groundColor": "#344057", "skyIntensity": 6.8, "keyColor": "#b9cbe8", "keyIntensity": 4.8},
   "weather": {"lightning": {"first": 1.4, "min": 5, "max": 10}, "rain": 0.85, "wet": 0.6, "mistWall": {"from": {"x": -10, "z": -6}, "to": {"x": -10, "z": 66}, "height": 7}},
   "moments": {

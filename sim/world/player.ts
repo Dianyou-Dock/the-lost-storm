@@ -29,6 +29,7 @@ import type { GaitChoice } from '../gait.ts';
 import { chooseHero, HERO, heroRig } from '../hero.ts';
 import { stepWaypoints, teleport } from './waypoints.ts';
 import { findExit, stepCheckpoints, travelThrough } from './zones.ts';
+import { exitWaits } from './scene.ts';
 
 const PLAYER = {
   moveDeadZone: 0.7,
@@ -422,7 +423,11 @@ function stepIntent(world: World, dt: number): void {
         return;
       }
       if (distance(player.pos, exit) <= exit.radius) {
-        travelThrough(world, exit);
+        if (exitWaits(world, exit.id)) {
+          player.moving = false;
+          player.intent = { type: 'idle' };
+          player.path = [];
+        } else travelThrough(world, exit);
         return;
       }
       pursue(world, exit, dt);

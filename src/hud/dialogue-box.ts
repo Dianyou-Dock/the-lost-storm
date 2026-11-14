@@ -7,6 +7,7 @@ import { promptText, use } from './prompts.ts';
 const DIALOGUE_BOX = {
   next: 'continue',
   last: 'close',
+  swapMs: 260,
 } as const;
 
 export function dialogueHint(last: boolean, touch: boolean): string {
@@ -31,6 +32,13 @@ export function createDialogueBox(root: HTMLElement, context: HudContext): Dialo
   const count: HTMLDivElement = el('div', 'dialogue-count', foot);
   const hint: HTMLDivElement = el('div', 'dialogue-hint', foot);
   let open: boolean = false;
+  let swap: number | null = null;
+
+  const write = (line: string): void => {
+    text.textContent = line;
+    text.classList.remove('leaving');
+    retrigger(text, 'line');
+  };
 
   let touched: boolean = false;
   element.addEventListener('pointerdown', (event: PointerEvent): void => {
@@ -56,8 +64,17 @@ export function createDialogueBox(root: HTMLElement, context: HudContext): Dialo
       const titleChanged: boolean = setText(title, speaker?.title ?? '', false);
       setText(count, `${event.index + 1} / ${total}`, false);
       setText(hint, dialogueHint(event.last, context.api.touch), false);
-      text.textContent = event.line.text;
-      retrigger(text, 'line');
+      if (swap !== null) window.clearTimeout(swap);
+      swap = null;
+      if (open) {
+        text.classList.add('leaving');
+        swap = window.setTimeout((): void => {
+          swap = null;
+          write(event.line.text);
+        }, DIALOGUE_BOX.swapMs);
+      } else {
+        write(event.line.text);
+      }
       if (open) {
         retrigger(foot, 'tick');
         if (nameChanged || titleChanged) retrigger(head, 'tick');
@@ -71,6 +88,8 @@ export function createDialogueBox(root: HTMLElement, context: HudContext): Dialo
     close(): void {
       if (!open) return;
       open = false;
+      if (swap !== null) window.clearTimeout(swap);
+      swap = null;
       element.classList.remove('open');
       context.api.voice.stop();
     },

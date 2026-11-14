@@ -1,12 +1,13 @@
 import type { LineDef } from '../../sim/content/types.ts';
+import { lineSeconds } from '../../sim/world/reading.ts';
 import type { HudContext } from './context.ts';
 import { el, retrigger, setText } from './dom.ts';
 
 const BARKS = {
-  minMs: 2400,
-  perWordMs: 380,
-  gapMs: 260,
+  msPerSecond: 1000,
   leaveMs: 520,
+  swapMs: 260,
+  speakingClass: 'barking',
 } as const;
 
 interface Bark {
@@ -21,7 +22,7 @@ export interface BarkStrip {
 }
 
 function readingTime(text: string): number {
-  return Math.max(BARKS.minMs, text.split(/\s+/).length * BARKS.perWordMs);
+  return lineSeconds(text) * BARKS.msPerSecond;
 }
 
 export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStrip {
@@ -31,27 +32,47 @@ export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStr
   const queue: Bark[] = [];
   let timer: number | null = null;
   let showing: boolean = false;
+  let lingering: boolean = false;
 
   const nameOf = (speaker: string): string => {
     const content = context.api.world.content;
     return content.monsters.get(speaker)?.name ?? content.npcs.get(speaker)?.name ?? speaker;
   };
 
-  const next = (): void => {
-    const bark: Bark | undefined = queue.shift();
-    if (bark === undefined) {
-      showing = false;
-      timer = null;
-      element.classList.remove('visible');
-      return;
-    }
+  const show = (bark: Bark): void => {
     showing = true;
+    root.classList.add(BARKS.speakingClass);
     setText(name, nameOf(bark.speaker), false);
     text.textContent = bark.line.text;
+    text.classList.remove('leaving');
     retrigger(text, 'line');
     element.classList.add('visible');
     context.api.voice.play(bark.line);
-    timer = window.setTimeout(next, readingTime(bark.line.text) + BARKS.gapMs);
+    timer = window.setTimeout(next, readingTime(bark.line.text));
+  };
+
+  const hide = (): void => {
+    showing = false;
+    lingering = false;
+    timer = null;
+    root.classList.remove(BARKS.speakingClass);
+    element.classList.remove('visible');
+  };
+
+  const next = (): void => {
+    const bark: Bark | undefined = queue.shift();
+    if (bark === undefined) {
+      lingering = true;
+      timer = window.setTimeout(hide, BARKS.leaveMs);
+      return;
+    }
+    lingering = false;
+    if (!showing) {
+      show(bark);
+      return;
+    }
+    text.classList.add('leaving');
+    timer = window.setTimeout((): void => show(bark), BARKS.swapMs);
   };
 
   return {
@@ -59,13 +80,19 @@ export function createBarkStrip(root: HTMLElement, context: HudContext): BarkStr
     say(speaker: string, line: LineDef): void {
       queue.push({ speaker, line });
       if (!showing) next();
+      else if (lingering) {
+        if (timer !== null) window.clearTimeout(timer);
+        next();
+      }
     },
     clear(): void {
       queue.length = 0;
       if (timer !== null) window.clearTimeout(timer);
       timer = null;
+      lingering = false;
       if (!showing) return;
       showing = false;
+      root.classList.remove(BARKS.speakingClass);
       element.classList.remove('visible');
       context.api.voice.stop();
     },

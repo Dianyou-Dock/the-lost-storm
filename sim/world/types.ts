@@ -1,7 +1,7 @@
 import type { FlaskDef, FlaskResource } from '../content/flasks.ts';
 import type { GlitchKind } from '../content/glitches.ts';
 import type { GlitchState, PathAct, PathLog, Silhouette } from './glitch-types.ts';
-import type { Content, ItemSlot, LineDef, MonsterDef, NpcDef, SkillDef, StatBlock, StatMod, TalkDef, XpReduction, ZoneDef, ZoneNpc, ZonePack } from '../content/types.ts';
+import type { Content, ItemSlot, LineDef, MonsterDef, NpcDef, SkillDef, StatBlock, StatMod, TalkDef, XpReduction, ZoneDef, ZonePack } from '../content/types.ts';
 import type { ServiceKind } from '../content/trade-types.ts';
 import type { MomentDef } from '../content/moment-types.ts';
 import type { ZoneWake } from '../content/story-types.ts';
@@ -12,8 +12,11 @@ import type { PackTimer } from './pack-return.ts';
 import type { GridStamp, NavGrid } from '../nav/grid.ts';
 import type { MomentFigure } from './moment-figure.ts';
 import type { Rng } from '../rng.ts';
+import type { NpcState } from './npc-types.ts';
+import type { Escort, SceneState } from './scene-state.ts';
 
 export type { MomentFigure } from './moment-figure.ts';
+export type { NpcState } from './npc-types.ts';
 
 export interface RolledAffix {
   readonly affix: string;
@@ -213,15 +216,6 @@ export interface MonsterState extends ActorState {
 }
 
 export type Actor = PlayerState | MonsterState;
-
-export interface NpcState {
-  readonly id: number;
-  readonly def: NpcDef;
-  readonly placement: ZoneNpc;
-  readonly pos: Vec2;
-  readonly homeFacing: number;
-  facing: number;
-}
 
 export interface DialogueState {
   readonly npcId: number;
@@ -591,6 +585,7 @@ export type WorldEvent =
   | { readonly type: 'boss_phase'; readonly monsterId: number; readonly phase: number }
   | { readonly type: 'boss_defeated'; readonly monsterId: number; readonly monster: string; readonly first: boolean }
   | { readonly type: 'bark'; readonly speaker: string; readonly line: LineDef }
+  | { readonly type: 'scene_lead'; readonly scene: string; readonly npcId: number }
   | { readonly type: 'notice'; readonly reason: NoticeReason }
   | { readonly type: 'flasks_refilled' }
   | { readonly type: 'flask_used'; readonly slot: number; readonly flask: string; readonly resource: FlaskResource; readonly pos: Vec2 }
@@ -693,4 +688,6 @@ export interface World {
   moments: MomentState[];
   strikeTimer: number;
   strikeMisses: number;
+  scene: SceneState | null;
+  escort: Escort | null;
 }

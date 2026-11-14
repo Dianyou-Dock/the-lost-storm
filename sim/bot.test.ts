@@ -128,7 +128,8 @@ void test('a foe that was dropped is not picked again as the preferred one, and 
   foe.pos = { x: world.player.pos.x + 3, z: world.player.pos.z };
   bot.ignored.set(foe.id, world.time + 1000);
   botFight(bot, (): boolean => false, foe.def.id);
-  assert.notEqual(world.player.intent.type, 'attack');
+  const intent = world.player.intent;
+  assert.ok(intent.type !== 'attack' || intent.targetId !== foe.id);
   bot.ignored.clear();
   botFight(bot, (): boolean => world.player.intent.type === 'attack', foe.def.id);
   assert.notEqual(bot.focus, -1);

@@ -44,4 +44,10 @@ export interface LevelCondition {
   readonly not: boolean;
 }
 
-export type Condition = QuestCondition | ObjectiveCondition | FlagCondition | ShoreCondition | HeroCondition | LevelCondition;
+export interface VisitedCondition {
+  readonly type: 'visited';
+  readonly zone: string;
+  readonly not: boolean;
+}
+
+export type Condition = QuestCondition | ObjectiveCondition | FlagCondition | ShoreCondition | HeroCondition | LevelCondition | VisitedCondition;

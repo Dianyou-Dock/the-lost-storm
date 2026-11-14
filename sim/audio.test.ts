@@ -53,6 +53,14 @@ void test('a skill starting plays its start sound where the actor stands', (): v
   assert.deepEqual(theirs[0]?.position, thrall.pos);
 });
 
+void test('a person in the world swinging a skill is heard where they stand', (): void => {
+  const world: World = worldIn(content, 'hideout', 1);
+  const guide = must(world.npcs.find((npc): boolean => npc.def.id === 'warden_guide'), 'the Guide');
+  const swing: readonly SoundCue[] = cuesForEvent(audio, world, { type: 'skill_start', actorId: guide.id, skill: skill('warden_sweep'), direction: AWAY, windup: 0.1, recovery: 0.1 });
+  assert.deepEqual(sounds(swing), ['sword_swing_heavy']);
+  assert.deepEqual(swing[0]?.position, guide.pos);
+});
+
 void test('Thunderclap landing plays a boom and a crack at the origin', (): void => {
   const world: World = fresh();
   const origin: Vec2 = { x: 10, z: 12 };

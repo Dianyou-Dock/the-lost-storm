@@ -186,6 +186,8 @@ export function createWorld(content: Content, options: WorldOptions): World {
     moments: [],
     strikeTimer: 0,
     strikeMisses: 0,
+    scene: null,
+    escort: null,
   };
   placePlayer(world);
   beginVoid(world, 'first');

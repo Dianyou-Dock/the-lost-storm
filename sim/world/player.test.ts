@@ -126,6 +126,7 @@ for (const zone of content.zones.values()) {
       world.zone = { ...world.zone, exits: world.zone.exits.map((each: ZoneExit): ZoneExit => ({ ...each, requires: [] })) };
       world.monsters = [];
       world.wake = null;
+      world.visited.push(exit.to);
       stepWorld(world, [], MOTION_DT);
       const live: ZoneExit = must(world.zone.exits.find((each: ZoneExit): boolean => each.id === exit.id), 'live exit');
       const middle: Vec2 = { x: ((zone.tiles[0]?.length ?? 0) * zone.cellSize) / 2, z: (zone.tiles.length * zone.cellSize) / 2 };

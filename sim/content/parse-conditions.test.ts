@@ -9,3 +9,9 @@ void test('a level condition reads its level and its not, and refuses a level of
   assert.throws((): unknown => condition({ type: 'level', atLeast: 0 }, 'gate'), ContentError);
   assert.throws((): unknown => condition({ type: 'level' }, 'gate'), ContentError);
 });
+
+void test('a visited condition reads its zone and its not, and needs a zone', (): void => {
+  assert.deepEqual(condition({ type: 'visited', zone: 'hideout' }, 'scene'), { type: 'visited', zone: 'hideout', not: false });
+  assert.deepEqual(condition({ type: 'visited', zone: 'hideout', not: true }, 'scene'), { type: 'visited', zone: 'hideout', not: true });
+  assert.throws((): unknown => condition({ type: 'visited' }, 'scene'), ContentError);
+});

@@ -107,6 +107,12 @@
   animation: dialogue-line var(--spring-smooth-ms) var(--spring-smooth);
 }
 
+.bark-text.leaving {
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: opacity var(--spring-snappy-ms) var(--spring-snappy), transform var(--spring-snappy-ms) var(--spring-snappy);
+}
+
 .hud-dialogue.open ~ .hud-bark {
   bottom: 252px;
 }

@@ -38,6 +38,9 @@ export function holds(world: World, condition: Condition): boolean {
     case 'level':
       held = world.player.level >= condition.atLeast;
       break;
+    case 'visited':
+      held = world.visited.includes(condition.zone);
+      break;
   }
   return held !== condition.not;
 }

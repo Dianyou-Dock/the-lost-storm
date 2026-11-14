@@ -46,6 +46,7 @@ import { encounter, storyFlags } from './parse-story.ts';
 import { conditions } from './parse-conditions.ts';
 import { actEnd, drifts, retiredZones, triggers } from './parse-road.ts';
 import { momentField } from './parse-moments.ts';
+import { zoneScenes } from './parse-scene.ts';
 import { zoneWeather } from './parse-weather.ts';
 
 function point(value: unknown, where: string): ZonePoint {
@@ -268,6 +269,7 @@ export function zone(value: unknown, where: string): ZoneDef {
     deathReturn: zoneReturn(source['deathReturn'], `${where}.deathReturn`),
     npcs: each(source['npcs'], `${where}.npcs`, zoneNpc),
     voices: source['voices'] === undefined ? [] : [...byId(each(source['voices'], `${where}.voices`, zoneVoice), `${where}.voices`).values()],
+    scenes: zoneScenes(source['scenes'], `${where}.scenes`),
     ambience: zoneAmbience(source['ambience'], `${where}.ambience`),
     void: kind === 'void' ? zoneVoid(source['void'], `${where}.void`) : null,
     drifts: drifts(source['drifts'], `${where}.drifts`),

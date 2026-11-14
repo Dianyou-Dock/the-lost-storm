@@ -105,6 +105,8 @@ function lightOf(world: World): ZoneExit {
 
 function arrivedBy(zoneId: string, exitId: string): World {
   const world: World = worldIn(content, zoneId, 5);
+  const came: string | undefined = zoneOf(content, zoneId).exits.find((entry: ZoneExit): boolean => entry.id === exitId)?.to;
+  if (came !== undefined) world.visited.push(came);
   enterZone(world, zoneOf(content, zoneId), { type: 'exit', exit: exitId });
   world.events = [];
   return world;

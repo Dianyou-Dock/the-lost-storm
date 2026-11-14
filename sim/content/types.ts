@@ -17,6 +17,7 @@ import type { ChartDef, SkillTarget, SkillVariant } from './chart-types.ts';
 import type { SkillVfx } from './vfx-types.ts';
 import type { XpCurve } from './xp-types.ts';
 import type { BossDef } from './boss-types.ts';
+import type { SceneDef } from './scene-types.ts';
 export type { BossBarks, BossDef, BossDrop, BossFirstKill, BossPhase, BossPoise, BossSkill } from './boss-types.ts';
 export type { XpCurve, XpGap, XpReduction } from './xp-types.ts';
 export { VFX_CUES, VFX_MAX_FORKS, VFX_STYLES } from './vfx-types.ts';
@@ -412,6 +413,7 @@ export interface ZoneDef {
   readonly deathReturn: ZoneReturn | null;
   readonly npcs: readonly ZoneNpc[];
   readonly voices: readonly ZoneVoice[];
+  readonly scenes: readonly SceneDef[];
   readonly ambience: ZoneAmbience;
   readonly void: ZoneVoid | null;
   readonly drifts: readonly ZoneDrift[];

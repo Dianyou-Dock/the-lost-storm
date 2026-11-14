@@ -1,16 +1,19 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { armed, finishQuests, must, withoutGlitches } from '../../test/support.ts';
+import { armed, finishQuests, must, withoutGlitches, worldIn } from '../../test/support.ts';
 import { TOWN_CONTENT } from '../../test/town-support.ts';
-import type { Content, NpcDef, TalkDef } from '../content/types.ts';
+import { loadContent } from '../content/content.ts';
+import type { Content, NpcDef, QuestDef, TalkDef } from '../content/types.ts';
 import { distance } from '../math.ts';
 import { allHold } from './conditions.ts';
 import { createWorld } from './create.ts';
 import { DIALOGUE, hasNews, nextTalk } from './dialogue.ts';
+import { activeQuests, currentObjective } from './quests.ts';
 import { stepWorld } from './step.ts';
 import type { Command, DialogueState, NpcState, World, WorldEvent } from './types.ts';
 
 const content: Content = TOWN_CONTENT;
+const SHIPPED: Content = loadContent();
 const DT: number = 1 / 60;
 const LIMIT: number = 30;
 
@@ -202,4 +205,55 @@ void test('talking to an npc that is not here does nothing, and the dead do not 
   send(world, { type: 'talk', npcId: npcOf(world, 'keeper').id });
   assert.deepEqual(world.player.intent, { type: 'idle' });
   assert.equal(world.dialogue, null);
+});
+
+function atTheFire(): World {
+  const world: World = withoutGlitches(worldIn(SHIPPED, 'hideout', 3));
+  for (const quest of SHIPPED.quests.values()) world.quests[quest.id] = quest.objectives.length;
+  world.quests = Object.fromEntries(Object.entries(world.quests).filter(([id]: [string, number]): boolean => id !== 'the_gate'));
+  world.quests['wardens_lesson'] = 0;
+  world.events = [];
+  return world;
+}
+
+function heardFrom(world: World, id: string): string[] {
+  const shown: string[] = ofType(talkTo(world, id), 'dialogue_line').map((event): string => event.line.id);
+  shown.push(...ofType(finish(world), 'dialogue_line').map((event): string => event.line.id));
+  return shown;
+}
+
+void test('at the fire the Guide follows his lesson with the gap, then names the Reckoner and leaves the Gate on the tracker, and says one last thing once it falls', (): void => {
+  const world: World = atTheFire();
+  const guide: NpcDef = npcOf(world, 'warden_guide').def;
+  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_lesson']);
+  assert.equal(world.flags['fire_lesson'], 'given');
+  assert.equal(hasNews(world, guide), true);
+  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_born', 'warden_guide_far_apart', 'warden_guide_gap']);
+  assert.equal(hasNews(world, guide), true);
+  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_reckoner', 'warden_guide_stronger']);
+  const gate: QuestDef = must(SHIPPED.quests.get('the_gate'), 'the Gate quest');
+  assert.ok(activeQuests(world).includes(gate));
+  assert.equal(currentObjective(world, gate)?.type, 'defeat');
+  assert.equal(hasNews(world, guide), false);
+  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_road']);
+  world.flags['keeper_defeated'] = 'yes';
+  assert.equal(hasNews(world, guide), true);
+  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_short']);
+  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_road']);
+});
+
+void test('a hero who beat the Reckoner before the fire talks existed hears the gap and then the last word, never the warning', (): void => {
+  const world: World = atTheFire();
+  world.quests['wardens_lesson'] = 1;
+  world.flags['fire_lesson'] = 'given';
+  world.flags['keeper_defeated'] = 'yes';
+  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_born', 'warden_guide_far_apart', 'warden_guide_gap']);
+  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_short']);
+  assert.deepEqual(heardFrom(world, 'warden_guide'), ['warden_guide_road']);
+});
+
+void test('before his lesson the Guide has none of the fire talks to give', (): void => {
+  const world: World = atTheFire();
+  world.quests = Object.fromEntries(Object.entries(world.quests).filter(([id]: [string, number]): boolean => id !== 'wardens_lesson'));
+  assert.equal(nextTalk(world, npcOf(world, 'warden_guide').def)?.id, 'warden_guide_talk');
 });

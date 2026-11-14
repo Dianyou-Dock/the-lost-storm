@@ -388,7 +388,7 @@ void test('towns and voids are safe and wild zones have something to fight', ():
   }
 });
 
-void test('every line has a known speaker, is spoken in exactly one conversation, boss bark or place, and says something', (): void => {
+void test('every line has a known speaker, is spoken in exactly one conversation, boss bark or place (a scene may repeat a line of its own speaker), and says something', (): void => {
   const used: Map<string, string> = new Map<string, string>();
   for (const npc of content.npcs.values()) {
     for (const talk of npc.talks) {
@@ -423,6 +423,17 @@ void test('every line has a known speaker, is spoken in exactly one conversation
         must(content.lines.get(lineId), `line ${lineId}`);
         assert.equal(used.get(lineId), undefined, `${lineId} is used twice`);
         used.set(lineId, voice.id);
+      }
+    }
+  }
+  for (const zone of content.zones.values()) {
+    for (const scene of zone.scenes) {
+      const talks: ReadonlySet<string> = new Set<string>(must(content.npcs.get(scene.npc), `npc ${scene.npc}`).talks.map((talk: TalkDef): string => talk.id));
+      for (const lineId of scene.lines) {
+        assert.equal(must(content.lines.get(lineId), `line ${lineId}`).speaker, scene.npc, `${lineId} speaker`);
+        const before: string | undefined = used.get(lineId);
+        assert.ok(before === undefined || talks.has(before), `${lineId} is used twice`);
+        used.set(lineId, scene.id);
       }
     }
   }
@@ -587,14 +598,18 @@ void test('no pack, and no boss while its fight is on, notices the hero at a zon
     }
     for (const progress of states) {
       const probe: World = worldAt(zone, 1, progress);
-      const safe: [string, Vec2][] = [
-        ['start', zone.playerStart],
-        ...zone.exits.filter((exit: ZoneExit): boolean => allHold(probe, exit.requires)).map((exit: ZoneExit): [string, Vec2] => [`arrival ${exit.id}`, exit.arrival]),
-        ...zone.checkpoints.map((checkpoint): [string, Vec2] => [`checkpoint ${checkpoint.id}`, checkpoint]),
+      const safe: [string, Vec2, readonly string[]][] = [
+        ['start', zone.playerStart, []],
+        ...zone.exits.filter((exit: ZoneExit): boolean => allHold(probe, exit.requires)).map((exit: ZoneExit): [string, Vec2, readonly string[]] => [`arrival ${exit.id}`, exit.arrival, [exit.to]]),
+        ...zone.checkpoints.map((checkpoint): [string, Vec2, readonly string[]] => [`checkpoint ${checkpoint.id}`, checkpoint, []]),
       ];
-      if (zone.waypoint !== null) safe.push(['waypoint', zone.waypoint]);
-      for (const [label, point] of safe) {
-        for (const seed of SAFE.seeds) assert.equal(noticed(worldAt(zone, seed, progress), point), false, `${zone.id} ${label}, seed ${seed}, quests ${JSON.stringify(progress)}`);
+      if (zone.waypoint !== null) safe.push(['waypoint', zone.waypoint, []]);
+      for (const [label, point, from] of safe) {
+        for (const seed of SAFE.seeds) {
+          const world: World = worldAt(zone, seed, progress);
+          world.visited.push(...from);
+          assert.equal(noticed(world, point), false, `${zone.id} ${label}, seed ${seed}, quests ${JSON.stringify(progress)}`);
+        }
       }
     }
   }
