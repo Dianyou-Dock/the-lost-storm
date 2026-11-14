@@ -10,6 +10,7 @@ export const PORTAL = {
   withheldEnv: ['VITE_SERVER_URL', 'VITE_ASSET_BASE'],
   privateFolders: ['models/local/', 'audio/local/'],
   siteOnly: ['privacy.html', 'terms.html', 'og.jpg'],
+  siteOnlyPage: /^[^/]+\.html$/,
   limits: { files: 1000, totalBytes: 500 * 1024 * 1024, fileBytes: 200 * 1024 * 1024 },
 } as const;
 
@@ -58,6 +59,7 @@ export function siteAnchors(html: string, site: string): string {
 
 export function shipsInPortal(path: string): boolean {
   if (PORTAL.privateFolders.some((folder: string): boolean => path.startsWith(folder))) return false;
+  if (PORTAL.siteOnlyPage.test(path)) return false;
   return !PORTAL.siteOnly.some((file: string): boolean => path === file);
 }
 

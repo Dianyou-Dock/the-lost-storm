@@ -32,6 +32,9 @@ void test('local-only assets and site-only pages stay out of the portal', (): vo
   assert.equal(shipsInPortal('audio/local/rain.ogg'), false);
   assert.equal(shipsInPortal('privacy.html'), false);
   assert.equal(shipsInPortal('og.jpg'), false);
+  assert.equal(shipsInPortal('google0123456789abcdef.html'), false);
+  assert.equal(shipsInPortal('favicon.ico'), true);
+  assert.equal(shipsInPortal('icon-192.png'), true);
   assert.equal(shipsInPortal('models/characters/man.glb'), true);
   assert.equal(shipsInPortal('favicon.svg'), true);
 });

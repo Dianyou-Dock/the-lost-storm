@@ -26,7 +26,7 @@ Shipped models are CC0 (public domain), CC BY 4.0 with the credit below, or made
 
 ## Landing page images
 
-`src/landing/images/`, `public/og.jpg` and `public/apple-touch-icon.png` are screenshots of this game, captured from it for this project, and `public/favicon.svg` was drawn for it. They fall under the repository's MIT licence. What appears in them (models, textures) is credited in the rows below.
+`src/landing/images/`, `public/og.jpg` and `public/apple-touch-icon.png` are screenshots of this game, captured from it for this project, and `public/favicon.svg` was drawn for it; `public/favicon.ico` and `public/icon-192.png` are that drawing at 48 and 192 pixels. They fall under the repository's MIT licence. What appears in them (models, textures) is credited in the rows below.
 
 ## Interface icons
 

@@ -187,6 +187,11 @@ void test('a changed model or clip under public runs the content check that read
   assert.deepEqual(tests, ['sim/content/content.test.ts', 'test/rules.test.ts']);
 });
 
+void test('a changed page at the root of public runs the head check that reads it', (): void => {
+  const tests: readonly string[] = testsOf(selectTests(['public/terms.html'], REPO.graph, REPO.testFiles, AFFECTED), 'public page');
+  assert.ok(tests.includes('tools/site/head.test.ts'));
+});
+
 void test('every test that reads files from disk is named by a rule, so a change to what it reads runs it', (): void => {
   const named: readonly string[] = [...AFFECTED.alwaysRun, ...AFFECTED.rules.flatMap((rule: AffectedRule): readonly string[] => (rule.kind === 'importers' ? rule.alsoRun : rule.kind === 'only' ? rule.run : []))];
   const readers: readonly string[] = REPO.testFiles.filter((path: string): boolean => /from 'node:fs'/.test(readFileSync(path, 'utf8')) && path !== 'tools/affected.test.ts');

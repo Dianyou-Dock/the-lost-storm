@@ -14,6 +14,8 @@ import { itemsPage } from './pages/items.ts';
 import { skillsPage } from './pages/skills.ts';
 import { startPage } from './pages/start.ts';
 import { treePage } from './pages/tree.ts';
+import type { Crumb } from '../site/head.ts';
+import { article, breadcrumbList, ldScript, shareTags, SITE } from '../site/head.ts';
 
 export interface GuidePage {
   readonly key: string;
@@ -22,12 +24,16 @@ export interface GuidePage {
   readonly render: (data: GuideData) => PageBody;
 }
 
+function indefinite(word: string): string {
+  return /^[aeiou]/i.test(word) ? 'an' : 'a';
+}
+
 function buildEntry(notes: BuildNotes): GuidePage {
   return {
     key: `builds/${notes.id}`,
     href: buildHref(notes.id),
     label: notes.name,
-    render: (data: GuideData): PageBody => ({ kicker: `Build · ${notes.kind}`, title: notes.name, lede: notes.forWho, description: `${notes.name}, a ${notes.kind.toLowerCase()} build for The Lost Storm: the route through the Skill Tree, the skill to lean on, gear and measured numbers.`, body: buildPage(data, notes) }),
+    render: (data: GuideData): PageBody => ({ kicker: `Build · ${notes.kind}`, title: notes.name, lede: notes.forWho, description: `${notes.name}, ${indefinite(notes.kind)} ${notes.kind.toLowerCase()} build for The Lost Storm: the route through the Skill Tree, the skill to lean on, gear and measured numbers.`, body: buildPage(data, notes) }),
   };
 }
 
@@ -86,7 +92,9 @@ export function shellHtml(key: string): string {
     <title>The Lost Storm · Guide</title>
     <meta name="theme-color" content="#05070b" />
     <meta name="color-scheme" content="dark" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icon-192.png" type="image/png" sizes="192x192" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="stylesheet" href="/src/guide/guide.css" />
     <link rel="stylesheet" href="/src/guide/guide-parts.css" />
@@ -98,14 +106,36 @@ export function shellHtml(key: string): string {
 `;
 }
 
+function isBuild(page: GuidePage): boolean {
+  return page.key.startsWith('builds/');
+}
+
+export function guideCrumbs(page: GuidePage): readonly Crumb[] {
+  const home: GuidePage = guidePage('home');
+  const trail: Crumb[] = [{ name: SITE.name, path: '/' }, { name: home.label, path: home.href }];
+  if (isBuild(page)) trail.push({ name: guidePage('builds').label, path: guidePage('builds').href });
+  if (page.key !== 'home') trail.push({ name: page.label, path: page.href });
+  return trail;
+}
+
+export function guideTitle(page: GuidePage, heading: string): string {
+  if (page.key === 'home') return `${SITE.name} · Player’s guide`;
+  return `${heading}${isBuild(page) ? ' build' : ''} · ${SITE.name} guide`;
+}
+
 export function fillShell(html: string, data: GuideData = guideData()): string {
   const match: RegExpExecArray | null = MARK.exec(html);
   const key: string | undefined = match?.[1];
   if (key === undefined) return html;
   const page: GuidePage = guidePage(key);
   const rendered = renderGuideBody(data, page);
-  const title: string = page.key === 'home' ? 'The Lost Storm · Player’s guide' : `${rendered.title} · The Lost Storm guide`;
-  return html
-    .replace(TITLE, `<title>${esc(title)}</title>\n    <meta name="description" content="${esc(rendered.description)}" />\n    <link rel="canonical" href="https://theloststorm.com${esc(page.href)}" />`)
-    .replace(MARK, rendered.html);
+  const title: string = guideTitle(page, rendered.title);
+  const head: readonly string[] = [
+    `<title>${esc(title)}</title>`,
+    `<meta name="description" content="${esc(rendered.description)}" />`,
+    `<link rel="canonical" href="${esc(SITE.origin + page.href)}" />`,
+    ...shareTags({ path: page.href, title, description: rendered.description, kind: 'article' }),
+    ldScript([breadcrumbList(guideCrumbs(page)), article({ path: page.href, headline: title, description: rendered.description })]),
+  ];
+  return html.replace(TITLE, head.join('\n    ')).replace(MARK, rendered.html);
 }

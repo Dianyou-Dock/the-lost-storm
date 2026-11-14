@@ -11,6 +11,8 @@ import { buildPage } from './src/launch/page-html.ts';
 import { defaultBar } from './sim/skill-book.ts';
 import { defaultKeys, titleKeyRows, titleKeysHtml, titleNames } from './src/title-keys.ts';
 import { fillShell, guideInputs } from './tools/guide/site.ts';
+import { fillHome } from './tools/site/head.ts';
+import { robotsTxt, sitemapXml } from './tools/site/crawl.ts';
 
 const ROOT: string = import.meta.dirname;
 function pageLinks(): Plugin {
@@ -38,6 +40,19 @@ function guidePages(): Plugin {
   };
 }
 
+function siteFiles(): Plugin {
+  return {
+    name: 'lost-storm-site-files',
+    transformIndexHtml(html: string): string {
+      return fillHome(html);
+    },
+    generateBundle(): void {
+      this.emitFile({ type: 'asset', fileName: 'sitemap.xml', source: sitemapXml() });
+      this.emitFile({ type: 'asset', fileName: 'robots.txt', source: robotsTxt() });
+    },
+  };
+}
+
 function assetVersions(): Plugin {
   return {
     name: 'lost-storm-asset-versions',
@@ -54,7 +69,7 @@ const CHUNK_WARNING_KB: number = 1500;
 function siteConfig(): UserConfig {
   return {
     server: SERVER,
-    plugins: [guidePages(), pageLinks(), assetVersions()],
+    plugins: [guidePages(), siteFiles(), pageLinks(), assetVersions()],
     build: {
       target: BUILD_TARGET,
       chunkSizeWarningLimit: CHUNK_WARNING_KB,

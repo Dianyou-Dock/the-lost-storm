@@ -105,7 +105,7 @@ export function combatPage(data: GuideData): PageBody {
     kicker: 'Guide',
     title: 'How combat works',
     lede: 'What decides how hard you hit, how much of it you take, and why some fights go badly.',
-    description: 'How combat works in The Lost Storm: damage, critical strikes, armour, resistances, mana, stagger and knockback, experience and the level gap, magic and rare packs, and the first boss.',
+    description: 'How combat works in The Lost Storm: damage, critical strikes, armour, resistances, mana, stagger, experience, magic and rare packs, and the first boss.',
     body: [
       section(
         'damage',

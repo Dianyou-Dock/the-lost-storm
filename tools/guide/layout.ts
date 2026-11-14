@@ -49,6 +49,6 @@ ${next}
 </main>
 <footer class="foot">
 <p>Written for the alpha. Every number on these pages is read from the game itself when the site is built, so a change to the game changes the guide with it.</p>
-<p><a href="/guide/">Guide</a><span aria-hidden="true">·</span><a href="/privacy.html">Privacy</a><span aria-hidden="true">·</span><a href="/terms.html">Terms</a></p>
+<p><a href="/guide/">Guide</a><span aria-hidden="true">·</span><a href="/privacy.html">Privacy</a><span aria-hidden="true">·</span><a href="/terms.html">Terms</a><span aria-hidden="true">·</span><a href="https://mergestorm.ai">Built by Mergestorm</a></p>
 </footer>`;
 }

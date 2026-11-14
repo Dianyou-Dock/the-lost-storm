@@ -25,6 +25,8 @@ npm run dev
 
 You need Node 22.18 or later. Open http://localhost:5193/play/ for the game. A plain clone runs offline and silent: the shared Hideout, chat, trading, the auction house and the ladder need a server (see below), and the sounds are served separately (see Sound). http://localhost:5193/ is the landing page: a static page with its own small entry (`index.html`, `src/landing/`) that loads no Three.js. The game's page is `play/index.html`. With `VITE_SERVER_URL` set, the landing page shows how many players are online and the top of the ladder from `GET /v1/leaderboard`; without it, it makes no request and shows neither.
 
+The build writes `sitemap.xml` and `robots.txt` from the page list in `tools/site/crawl.ts`. Each page's title, description, canonical address, share tags and JSON-LD come from `tools/site/head.ts` (the guide's from the same step that renders it); `privacy.html` and `terms.html` are `noindex`. A file put at the root of `public/`, such as a search engine's verification page, is served as is.
+
 ### Controls
 
 These are the default bindings (`src/settings/bindings.ts` and `skillBar` in `data/player.json`). On a phone the game has touch controls instead.
@@ -97,7 +99,7 @@ npm run test:affected
 npm run build:portal
 ```
 
-This makes the offline build for game portals that host an uploaded HTML5 zip: the folder `dist-portal/` and the zip `the-lost-storm-portal.zip` at the repository root. The game page is `index.html` at the root of the zip, beside `assets/` (the bundle and fonts), `models/` and `textures/`, and every URL in it is relative, so it runs from any sub-path, inside a portal's iframe on its own domain. The landing page, the guide, `privacy.html`, `terms.html` and `og.jpg` are left out; the Guide, Privacy and Terms links on the title screen open those pages on theloststorm.com in a new tab.
+This makes the offline build for game portals that host an uploaded HTML5 zip: the folder `dist-portal/` and the zip `the-lost-storm-portal.zip` at the repository root. The game page is `index.html` at the root of the zip, beside `assets/` (the bundle and fonts), `models/` and `textures/`, and every URL in it is relative, so it runs from any sub-path, inside a portal's iframe on its own domain. The landing page, the guide, `og.jpg`, the sitemap and `robots.txt`, and every `.html` file at the root of `public/` (`privacy.html`, `terms.html`, a search engine's verification file) are left out; the Guide, Privacy and Terms links on the title screen open those pages on theloststorm.com in a new tab.
 
 It is always the offline build: it ignores `.env` files and stops if `VITE_SERVER_URL` or `VITE_ASSET_BASE` is set in the shell. It makes no network request, saves to the browser's `localStorage` (a portal's iframe keeps that save apart from the one on theloststorm.com), and plays without sound. The shared Hideout, chat, trading, the auction house, the ladder, sign-in and feedback are not in it. Local-only assets in `public/models/local/` and `public/audio/local/` never go in. The script prints the file count and total size, and fails if the build is over itch.io's limits: 1,000 files, 500 MB in all, 200 MB for one file.
 
