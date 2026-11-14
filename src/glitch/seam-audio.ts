@@ -9,7 +9,7 @@ export const SEAM_AUDIO = {
 } as const;
 
 export interface SeamAudioOut {
-  playSeam(cue: SoundCue): void;
+  playSeam(cue: SoundCue, cut: number | null): void;
   synth(play: (context: BaseAudioContext, out: AudioNode, at: number) => void): void;
   thinWorld(level: number, seconds: number): void;
 }
@@ -55,7 +55,7 @@ export function createSeamAudio(out: SeamAudioOut, sound: SeamSound, times: Seam
       if (part === null) return;
       const chosen: SeamPartSound = sound.parts[part];
       if (chosen.synth) out.synth(synthFor(part, times));
-      for (const entry of chosen.cues) out.playSeam(cueOf(entry));
+      for (const entry of chosen.cues) out.playSeam(cueOf(entry), chosen.cut);
     },
     end(): void {
       out.thinWorld(1, SEAM_AUDIO.restoreSeconds);

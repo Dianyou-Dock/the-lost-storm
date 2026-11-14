@@ -45,6 +45,7 @@ const SYSTEM = {
   warmLanes: 2,
   warmFill: 0.75,
   fadeTimeConstants: 4,
+  cutFade: 0.12,
 } as const;
 
 export interface Trigger {
@@ -70,7 +71,7 @@ export interface AudioSystem {
   stopAmbience(): void;
   update(dt: number): void;
   setMuffled(on: boolean): void;
-  playSeam(cue: SoundCue): void;
+  playSeam(cue: SoundCue, cut: number | null): void;
   synth(play: (context: BaseAudioContext, out: AudioNode, at: number) => void): void;
   thinWorld(level: number, seconds: number): void;
   onTrigger(listener: (trigger: Trigger) => void): void;
@@ -173,7 +174,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
   });
   const load = (path: string, how: LoadOptions = PLAY_LOAD): Promise<AudioBuffer | null> => buffers.load(path, how);
 
-  const connect = (source: AudioBufferSourceNode, volume: number, pan: number, bus: GainNode, current: Graph, onEnd: () => void): void => {
+  const connect = (source: AudioBufferSourceNode, volume: number, pan: number, bus: GainNode, current: Graph, onEnd: () => void): GainNode => {
     const gain: GainNode = current.context.createGain();
     gain.gain.value = volume;
     const panner: StereoPannerNode = current.context.createStereoPanner();
@@ -187,9 +188,10 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
       panner.disconnect();
       onEnd();
     });
+    return gain;
   };
 
-  const playOn = async (bus: Bus, cue: SoundCue, place: Placement): Promise<void> => {
+  const playOn = async (bus: Bus, cue: SoundCue, place: Placement, cut: number | null): Promise<void> => {
     const current: Graph | null = graph;
     if (current === null) {
       limiter.end(cue.sound);
@@ -213,15 +215,22 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
     const source: AudioBufferSourceNode = current.context.createBufferSource();
     source.buffer = buffer;
     source.playbackRate.value = pitchRate(random);
-    connect(source, cue.volume * place.gain * volumeScale(random), place.pan, current[bus], current, (): void => limiter.end(cue.sound));
+    const level: number = cue.volume * place.gain * volumeScale(random);
+    const voice: GainNode = connect(source, level, place.pan, current[bus], current, (): void => limiter.end(cue.sound));
     source.start();
+    if (cut === null) return;
+    const now: number = current.context.currentTime;
+    const end: number = now + Math.max(0, cut - (clock() - asked));
+    voice.gain.setValueAtTime(level, Math.max(now, end - SYSTEM.cutFade));
+    voice.gain.linearRampToValueAtTime(0, end);
+    source.stop(end);
   };
 
-  const trigger = (bus: Bus, cue: SoundCue, place: Placement): void => {
+  const trigger = (bus: Bus, cue: SoundCue, place: Placement, cut: number | null = null): void => {
     ensureManifest();
     if (!limiter.tryStart(cue.sound, cue.maxVoices, cue.cooldown)) return;
     report(cue, place);
-    playOn(bus, cue, place).catch((): void => limiter.end(cue.sound));
+    playOn(bus, cue, place, cut).catch((): void => limiter.end(cue.sound));
   };
 
   const duck = (delta: number): void => {
@@ -434,8 +443,8 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
       if (graph === null) return;
       graph.muffle.frequency.setTargetAtTime(on ? SYSTEM.muffleClosedHz : SYSTEM.muffleOpenHz, graph.context.currentTime, SYSTEM.muffleSmoothing);
     },
-    playSeam(cue: SoundCue): void {
-      trigger('seam', cue, CENTRE);
+    playSeam(cue: SoundCue, cut: number | null): void {
+      trigger('seam', cue, CENTRE, cut);
     },
     synth(play: (context: BaseAudioContext, out: AudioNode, at: number) => void): void {
       const current: Graph | null = graph;

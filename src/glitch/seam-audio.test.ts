@@ -11,6 +11,7 @@ interface Heard {
   readonly thins: { readonly level: number; readonly seconds: number }[];
   readonly synths: number[];
   readonly cues: string[];
+  readonly cuts: (number | null)[];
 }
 
 const TIMES: SeamTimes = { buildUp: 2, guard: 0.5, tear: 0.36, tearBack: 0.36, settle: 0.8 };
@@ -20,19 +21,20 @@ function sound(synth: boolean): SeamSound {
   return {
     worldFloor: 0.18,
     parts: {
-      buildUp: { synth, cues },
-      tear: { synth, cues },
-      tearBack: { synth, cues },
-      settle: { synth, cues },
+      buildUp: { synth, cut: null, cues },
+      tear: { synth, cut: synth ? null : TIMES.tear, cues },
+      tearBack: { synth, cut: synth ? null : TIMES.tearBack, cues },
+      settle: { synth, cut: null, cues },
     },
   };
 }
 
 function listener(): { readonly out: SeamAudioOut; readonly heard: Heard } {
-  const heard: Heard = { thins: [], synths: [], cues: [] };
+  const heard: Heard = { thins: [], synths: [], cues: [], cuts: [] };
   const out: SeamAudioOut = {
-    playSeam(cue: SoundCue): void {
+    playSeam(cue: SoundCue, cut: number | null): void {
       heard.cues.push(cue.sound);
+      heard.cuts.push(cut);
     },
     synth(): void {
       heard.synths.push(heard.thins.length);
@@ -67,10 +69,11 @@ void test('each tear plays one hit and the settle brings the world back', (): vo
   assert.deepEqual(heard.thins.map((thin: { readonly level: number }): number => thin.level), [0.18, 0, 0, 0, 1]);
 });
 
-void test('a part made of samples plays its cues and no synth', (): void => {
+void test('a part made of samples plays its cues, cut where its data says, and no synth', (): void => {
   const { out, heard } = listener();
   createSeamAudio(out, sound(false), TIMES).phase('tear');
   assert.deepEqual(heard.cues, ['glitch_tear']);
+  assert.deepEqual(heard.cuts, [TIMES.tear]);
   assert.equal(heard.synths.length, 0);
 });
 

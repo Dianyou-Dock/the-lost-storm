@@ -25,6 +25,8 @@ const LIMITS = {
   delayMax: 600,
   reachMin: 5,
   reachMax: 200,
+  cutMin: 0.05,
+  cutMax: 10,
 } as const;
 
 export interface CueDefaults {
@@ -66,6 +68,7 @@ export type SeamPart = (typeof SEAM_PARTS)[number];
 
 export interface SeamPartSound {
   readonly synth: boolean;
+  readonly cut: number | null;
   readonly cues: readonly CueDef[];
 }
 
@@ -183,7 +186,8 @@ function zone(value: unknown, where: string): ZoneAmbience {
 
 function seamPart(value: unknown, defaults: CueDefaults, where: string): SeamPartSound {
   const source: Fields = fields(value, where);
-  return { synth: flag(source, 'synth', where), cues: each(source['cues'], `${where}.cues`, (entry: unknown, entryWhere: string): CueDef => cue(entry, defaults, entryWhere)) };
+  const cut: number | null = source['cut'] === undefined || source['cut'] === null ? null : required(source, 'cut', LIMITS.cutMin, LIMITS.cutMax, where);
+  return { synth: flag(source, 'synth', where), cut, cues: each(source['cues'], `${where}.cues`, (entry: unknown, entryWhere: string): CueDef => cue(entry, defaults, entryWhere)) };
 }
 
 function seamSound(value: unknown, defaults: CueDefaults, where: string): SeamSound {

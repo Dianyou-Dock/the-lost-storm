@@ -3,9 +3,9 @@
   "seam": {
     "worldFloor": 0.18,
     "buildUp": { "synth": true, "cues": [] },
-    "tear": { "synth": true, "cues": [] },
-    "tearBack": { "synth": true, "cues": [] },
-    "settle": { "synth": true, "cues": [] }
+    "tear": { "synth": true, "cut": 0.36, "cues": [{ "sound": "glitch_tear", "volume": 1.25, "maxVoices": 2 }] },
+    "tearBack": { "synth": true, "cut": 0.36, "cues": [{ "sound": "glitch_tear", "volume": 1.25, "maxVoices": 2 }] },
+    "settle": { "synth": false, "cut": 2, "cues": [{ "sound": "swell_slow", "volume": 0.6, "maxVoices": 1 }] }
   },
   "skillStart": {
     "cleave": [{ "sound": "sword_swing_light", "volume": 0.9, "maxVoices": 3 }],
