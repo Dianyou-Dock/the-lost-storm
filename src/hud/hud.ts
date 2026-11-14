@@ -377,7 +377,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
             break;
           case 'boss_defeated': {
             const def: MonsterDef | undefined = api.world.content.monsters.get(event.monster);
-            if (def !== undefined) banners.show(`${def.name} defeated`, event.first ? 'First victory' : (def.boss?.title ?? null), 'act');
+            if (def !== undefined) banners.show(`${def.name} defeated`, event.first ? 'First victory' : (def.boss?.title ?? null), 'boss');
             break;
           }
           case 'bark':

@@ -8,7 +8,7 @@ const BANNERS = {
   gapMs: 160,
 } as const;
 
-export type BannerTone = 'surge' | 'level' | 'zone' | 'checkpoint' | 'quest' | 'act';
+export type BannerTone = 'surge' | 'level' | 'zone' | 'checkpoint' | 'quest' | 'act' | 'boss';
 
 export interface Banners {
   show(title: string, subtitle: string | null, tone: BannerTone): void;
@@ -21,7 +21,7 @@ export interface BannerRequest {
 }
 
 export function bannerHoldMs(tone: BannerTone, waiting: number): number {
-  if (tone === 'act') return BANNERS.actHoldMs;
+  if (tone === 'act' || tone === 'boss') return BANNERS.actHoldMs;
   return waiting > 0 ? BANNERS.queuedHoldMs : BANNERS.holdMs;
 }
 

@@ -35,6 +35,10 @@ void test('a struck monster that dies stays only long enough to show its bar emp
   assert.ok(TARGETING.fallen < GRACE);
 });
 
+void test('a struck boss that dies leaves the target slot at once, so its banner is not crossed by a fallen bar', (): void => {
+  assert.equal(pickTarget([monster(3, { aggro: true, alive: false, def: { boss: {} } })], null, { id: 3, age: 0 }, GRACE), null);
+});
+
 void test('a recent hit is dropped after the grace time or when the monster is gone', (): void => {
   assert.equal(pickTarget([monster(1)], null, { id: 1, age: GRACE + 0.1 }, GRACE), null);
   assert.equal(pickTarget([monster(2)], null, { id: 1, age: 0 }, GRACE), null);

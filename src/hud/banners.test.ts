@@ -9,6 +9,10 @@ void test('a banner with others waiting behind it holds for a shorter time, and 
   assert.ok(bannerHoldMs('act', 0) > bannerHoldMs('zone', 0));
 });
 
+void test('a fallen boss banner holds as long as an act banner, even with others waiting', (): void => {
+  assert.equal(bannerHoldMs('boss', 2), bannerHoldMs('act', 0));
+});
+
 void test('a banner equal to the one showing or to one already waiting is dropped, a different one is kept', (): void => {
   const zone: BannerRequest = { title: 'The Hall of Time', subtitle: null, tone: 'zone' };
   const skill: BannerRequest = { title: 'Dodge Roll', subtitle: 'New skill', tone: 'quest' };
