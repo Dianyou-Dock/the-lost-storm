@@ -29,6 +29,7 @@ export interface BuildPolicy {
   readonly style: PlayStyle;
   readonly keepGap: number;
   readonly weapons: WeaponKind;
+  readonly avoid: readonly string[];
   readonly hero: string | null;
 }
 
@@ -91,6 +92,7 @@ function readBuild(name: string, value: unknown): BuildPolicy {
     style,
     keepGap,
     weapons: source['weapons'] === undefined ? 'any' : choice(source, 'weapons', WEAPONS, where),
+    avoid: source['avoid'] === undefined ? [] : textList(source, 'avoid', where),
     hero: source['hero'] === undefined ? null : text(source, 'hero', where),
   };
 }
@@ -158,5 +160,6 @@ export function planFor(skill: SkillPolicy, build: BuildPolicy): BotPlan {
     style: build.style,
     keepGap: build.keepGap,
     weapons: build.weapons,
+    avoid: build.avoid,
   };
 }

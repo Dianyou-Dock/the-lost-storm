@@ -11,7 +11,7 @@ import type { Command, ItemInstance, World } from './world/types.ts';
 
 const content: Content = loadContent();
 
-const PLAN: BotPlan = { name: 'test', flaskAt: 0.5, manaFlaskAt: null, rolls: true, loot: true, lineSeconds: 0, readSeconds: 0, paths: ['echo'], skills: ['forkline', 'storm_bolt'], route: [], weights: STAND_WEIGHTS, focus: null, style: 'stand', keepGap: 0, weapons: 'any' };
+const PLAN: BotPlan = { name: 'test', flaskAt: 0.5, manaFlaskAt: null, rolls: true, loot: true, lineSeconds: 0, readSeconds: 0, paths: ['echo'], skills: ['forkline', 'storm_bolt'], route: [], weights: STAND_WEIGHTS, focus: null, style: 'stand', keepGap: 0, weapons: 'any', avoid: [] };
 
 function pathOf(id: string): string {
   return content.skillTree.find((node: SkillTreeNodeDef): boolean => node.id === id)?.path ?? 'none';
@@ -135,6 +135,20 @@ void test('a build that keeps its distance does not blink onto its target, and o
   const kites: Command[] = planAttack(world, { ...PLAN, skills: ['mist_step'], style: 'kite', keepGap: 4 }, target, [target]);
   assert.equal(stands.some((command: Command): boolean => command.type === 'skill' && command.slot === 1), true);
   assert.equal(kites.some((command: Command): boolean => command.type === 'skill' && command.slot === 1), false);
+});
+
+void test('a skill a build avoids is never cast even when it is ready and in reach', (): void => {
+  const world: World = createWorld(content, { seed: 9, save: null });
+  const bolt: SkillDef | undefined = content.skills.get('storm_bolt');
+  assert.ok(bolt !== undefined);
+  world.player.skills = [content.skills.get('cleave') ?? null, bolt, null, null, null, null];
+  world.player.mana = 200;
+  const target = world.monsters[0];
+  assert.ok(target !== undefined);
+  target.pos = { x: world.player.pos.x + 5, z: world.player.pos.z };
+  const casts = (plan: BotPlan): boolean => planAttack(world, plan, target, [target]).some((command: Command): boolean => command.type === 'skill' && command.slot === 1);
+  assert.equal(casts({ ...PLAN, skills: ['storm_bolt'] }), true);
+  assert.equal(casts({ ...PLAN, skills: ['storm_bolt'], avoid: ['storm_bolt'] }), false);
 });
 
 void test('with no path named, a build that has spent its route keeps spending on the paths it holds', (): void => {

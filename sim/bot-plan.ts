@@ -47,6 +47,7 @@ export interface BotPlan {
   readonly style: PlayStyle;
   readonly keepGap: number;
   readonly weapons: WeaponKind;
+  readonly avoid: readonly string[];
 }
 
 export interface Power {
@@ -290,7 +291,7 @@ export function planAttack(world: World, plan: BotPlan, target: MonsterState, fo
     .toSorted((a: number, b: number): number => preference(plan, player.skills[a]?.id ?? '') - preference(plan, player.skills[b]?.id ?? ''));
   for (const slot of order) {
     const skill: SkillDef | null = player.skills[slot] ?? null;
-    if (skill === null || !deals(skill) || !ready(player, skill) || (!spare && skill.manaCost > 0 && foes.length < BOT_PLAN.crowd)) continue;
+    if (skill === null || plan.avoid.includes(skill.id) || !deals(skill) || !ready(player, skill) || (!spare && skill.manaCost > 0 && foes.length < BOT_PLAN.crowd)) continue;
     if (!worthCasting(plan, player, skill, target, foes)) continue;
     const press: Command[] = skill.press === null ? [] : [{ type: 'hold', slot, down: true }];
     return [...press, { type: 'skill', slot, aim: target.pos, targetId: target.id }];

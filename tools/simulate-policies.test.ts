@@ -60,6 +60,14 @@ void test('every route names real places and can be walked to its end from nothi
   }
 });
 
+void test('a build lists the skills it never casts, and none by default', (): void => {
+  const base = { skills: {}, milestones: [], endCard: 'e', rare: 'rare', windows: [10], sampleMinutes: 5 };
+  const build = { paths: ['storm'], skills: [] };
+  assert.deepEqual(readPolicies({ ...base, builds: { a: build } }).builds.get('a')?.avoid, []);
+  assert.deepEqual(readPolicies({ ...base, builds: { a: { ...build, avoid: ['thunderhead'] } } }).builds.get('a')?.avoid, ['thunderhead']);
+  assert.throws((): unknown => readPolicies({ ...base, builds: { a: { ...build, avoid: 'thunderhead' } } }));
+});
+
 void test('a build that keeps range names how far, and a style or weapon kind outside the list is refused', (): void => {
   const base = { skills: {}, milestones: [], endCard: 'e', rare: 'rare', windows: [10], sampleMinutes: 5 };
   const build = { paths: ['storm'], skills: [] };
