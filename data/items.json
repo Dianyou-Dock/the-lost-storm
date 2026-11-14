@@ -2444,7 +2444,7 @@
       },
       "power": {
         "family": "millwheel",
-        "text": "Whirling Cleave can be held. It drains mana while you spin.",
+        "text": "Cleave becomes the Millwheel: hold it to keep turning as you run, and every enemy struck builds momentum.",
         "variants": [
           {
             "skill": "cleave",

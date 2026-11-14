@@ -5,6 +5,7 @@ import { HUD_GATE, panelPart, tagPart } from '../hud/hud-gate.ts';
 import type { SkillDef } from '../../sim/content/types.ts';
 import type { Vec2 } from '../../sim/math.ts';
 import { readyToRepeat } from '../../sim/world/skills.ts';
+import { glidesWith } from '../../sim/world/momentum.ts';
 import type { Command, FlaskState, MonsterState, World } from '../../sim/world/types.ts';
 import { cannotStep, isTimeHeld } from '../../sim/world/movement.ts';
 import type { KeyValueStore } from '../backend/backend.ts';
@@ -19,7 +20,7 @@ import { INPUT } from '../input.ts';
 import { createBrowserStore } from '../storage.ts';
 import { TITLE_SCREEN } from '../title-screen.ts';
 import type { ButtonPlan, Candidate, FlaskEntry, SkillBarEntry, StickReading, TouchButton } from './touch-map.ts';
-import { aimedSkill, autoAimTarget, buttonKey, clampKnob, cooldownTurn, facingVector, isTap, joinsPinch, movedIndex, pinchWheelDelta, planButtons, readStick, rotateHintShows, startsStick, stickDirection, stickMove, TOUCH, touchButtons } from './touch-map.ts';
+import { aimedSkill, autoAimTarget, buttonKey, glideAim, clampKnob, cooldownTurn, facingVector, isTap, joinsPinch, movedIndex, pinchWheelDelta, planButtons, readStick, rotateHintShows, startsStick, stickDirection, stickMove, TOUCH, touchButtons } from './touch-map.ts';
 import type { PhoneLayout, Rect, SafeInsets } from './phone-layout.ts';
 import { PHONE, phoneLayout } from './phone-layout.ts';
 import touchCss from './touch.css?inline';
@@ -588,7 +589,8 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
       lifted.clear();
       const holding = player.action;
       if (holding !== null && holding.skill.press !== null && views.some((view: ButtonView, index: number): boolean => heldButtons.has(index) && view.spec.kind !== 'flask' && view.spec.slot === holding.slot)) {
-        commands.push({ type: 'steer', aim: aimedSkill(holding.slot ?? 0, player.pos, ahead, autoAimTarget(monsters(), player.pos, ahead)).aim });
+        const aim: Vec2 = glidesWith(holding.skill.press) ? glideAim(player.pos, direction) : aimedSkill(holding.slot ?? 0, player.pos, ahead, autoAimTarget(monsters(), player.pos, ahead)).aim;
+        commands.push({ type: 'steer', aim });
       }
       return commands;
     },

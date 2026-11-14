@@ -1,7 +1,7 @@
 import { conditions } from './parse-conditions.ts';
 import type { Fields } from './read.ts';
-import { choice, ContentError, fields, fraction, nonNegative, positive, text } from './read.ts';
-import type { BeamDelivery, BlinkDelivery, BrandDef, ChainDelivery, AreaDelivery, PressDef, SkillUnlock } from './shape-types.ts';
+import { choice, ContentError, each, fields, fraction, nonNegative, positive, text } from './read.ts';
+import type { BeamDelivery, BlinkDelivery, BrandDef, ChainDelivery, AreaDelivery, MomentumDef, MomentumTier, PressDef, SkillUnlock } from './shape-types.ts';
 import { AREA_ANCHORS } from './shape-types.ts';
 import type { Content, SkillBinding, SkillDef, SkillTreeNodeDef } from './types.ts';
 
@@ -58,7 +58,7 @@ function press(value: unknown, where: string): PressDef | null {
   if (type === 'channel') {
     const interval: number = positive(source, 'interval', where);
     if (interval < SHAPE_LIMITS.shortestInterval) throw new ContentError(`${where}.interval`, `expected at least ${SHAPE_LIMITS.shortestInterval} seconds`);
-    return { type, interval, max: positive(source, 'max', where) };
+    return { type, interval, max: positive(source, 'max', where), move: source['move'] === undefined ? 0 : fraction(source, 'move', where) };
   }
   return { type, max: positive(source, 'max', where), damageScale: positive(source, 'damageScale', where), areaScale: positive(source, 'areaScale', where) };
 }
@@ -69,13 +69,43 @@ function brand(value: unknown, where: string): BrandDef | null {
   return { duration: positive(source, 'duration', where), burst: text(source, 'burst', where) };
 }
 
+function momentumTier(value: unknown, where: string): MomentumTier {
+  const source: Fields = fields(value, where);
+  return { at: positive(source, 'at', where), turn: positive(source, 'turn', where), reach: positive(source, 'reach', where) };
+}
+
+function momentum(value: unknown, where: string): MomentumDef | null {
+  if (value === undefined || value === null) return null;
+  const source: Fields = fields(value, where);
+  const cap: number = positive(source, 'cap', where);
+  const steady: number = nonNegative(source, 'steady', where);
+  if (steady > cap) throw new ContentError(`${where}.steady`, `expected at most the cap ${cap}`);
+  const tiers: MomentumTier[] = each(source['tiers'], `${where}.tiers`, momentumTier);
+  tiers.forEach((tier: MomentumTier, index: number): void => {
+    const before: MomentumTier | undefined = tiers[index - 1];
+    if (tier.at > cap) throw new ContentError(`${where}.tiers`, `a step at ${tier.at} is past the cap ${cap}`);
+    if (before !== undefined && (tier.at <= before.at || tier.turn < before.turn || tier.reach < before.reach)) throw new ContentError(`${where}.tiers`, 'steps must rise in order');
+  });
+  return {
+    perHit: positive(source, 'perHit', where),
+    cap,
+    grace: nonNegative(source, 'grace', where),
+    drain: positive(source, 'drain', where),
+    steady,
+    manaPerHit: nonNegative(source, 'manaPerHit', where),
+    lifePerHit: nonNegative(source, 'lifePerHit', where),
+    tiers,
+  };
+}
+
 export interface SkillPress {
   readonly press: PressDef | null;
   readonly brand: BrandDef | null;
+  readonly momentum: MomentumDef | null;
 }
 
 export function skillPress(source: Fields, where: string): SkillPress {
-  return { press: press(source['press'], `${where}.press`), brand: brand(source['brand'], `${where}.brand`) };
+  return { press: press(source['press'], `${where}.press`), brand: brand(source['brand'], `${where}.brand`), momentum: momentum(source['momentum'], `${where}.momentum`) };
 }
 
 export function shapeProblems(content: Content): string[] {
@@ -86,6 +116,7 @@ export function shapeProblems(content: Content): string[] {
   for (const used of content.skills.values()) {
     if (used.press !== null) need(used.leap === null && used.delivery.type !== 'dash' && used.delivery.type !== 'blink', `skill ${used.id} moves the caster, so it cannot be held`);
     if (used.press?.type === 'channel') need(used.combo === null && used.leap === null, `skill ${used.id} is channelled, so it cannot combo or leap`);
+    if (used.momentum !== null) need(used.press?.type === 'channel', `skill ${used.id} builds momentum, so it must be channelled`);
     if (used.brand === null) continue;
     const burst: SkillDef | undefined = content.skills.get(used.brand.burst);
     need(burst !== undefined, `skill ${used.id} brands with unknown burst skill ${used.brand.burst}`);

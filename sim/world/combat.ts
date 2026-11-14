@@ -17,6 +17,7 @@ import { mayStrike, provoke, regardOf } from './factions.ts';
 import { gainFlaskCharges } from './flask-charges.ts';
 import { dropOnGround } from './ground.ts';
 import { steadiness } from './poise.ts';
+import { steadied } from './momentum.ts';
 import { flinchTogether } from './unison.ts';
 import type { ActionState, Actor, BrandState, GuardOutcome, ItemInstance, MonsterState, Offence, Team, World } from './types.ts';
 
@@ -103,6 +104,7 @@ export function kill(world: World, target: Actor, direction: ReadonlyVec2): void
   world.events.push({ type: 'death', actorId: target.id, team: teamOf(target), pos: { x: target.pos.x, z: target.pos.z }, direction: { x: direction.x, z: direction.z } });
   if (target.kind === 'player') {
     closeDialogue(world, false);
+    target.momentum = { skill: null, value: 0, quiet: 0 };
     target.intent = { type: 'idle' };
     target.path = [];
     target.queued = null;
@@ -163,11 +165,12 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
   const amount: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded));
   target.life -= amount;
   const poise: number = steadiness(target) * (guard === 'blocked' ? COMBAT.guardedKnockback : 1);
-  if (skill.root > 0 && target.kind === 'player' && target.rootGrace <= 0) {
+  const steady: boolean = steadied(target);
+  if (skill.root > 0 && target.kind === 'player' && target.rootGrace <= 0 && !steady) {
     target.root = Math.max(target.root, skill.root);
     target.rootGrace = target.root + world.content.player.rootGrace;
   }
-  if (skill.hold > 0) setTempo(target, 0, skill.hold);
+  if (skill.hold > 0 && !steady) setTempo(target, 0, skill.hold);
   if (target.kind === 'monster') {
     target.calm = 0;
     provoke(world, target, offence.sourceId, offence.faction ?? PLAYER_SIDE);
@@ -187,7 +190,7 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
     }
     aggroPack(world, target);
   }
-  knockBack(target, { x: direction.x * skill.knockback * poise, z: direction.z * skill.knockback * poise });
+  if (!steady) knockBack(target, { x: direction.x * skill.knockback * poise, z: direction.z * skill.knockback * poise });
   const killed: boolean = target.life <= 0;
   world.events.push({
     type: 'damage',

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Candidate } from './touch-map.ts';
-import { aimedSkill, autoAimTarget, buttonKey, clampKnob, cooldownTurn, isTap, joinsPinch, movedIndex, pinchWheelDelta, planButtons, prefersTouch, readStick, rotateHintShows, sideForPoint, startsStick, stickDirection, stickMove, TOUCH, touchButtons } from './touch-map.ts';
+import { aimedSkill, autoAimTarget, buttonKey, clampKnob, glideAim, cooldownTurn, isTap, joinsPinch, movedIndex, pinchWheelDelta, planButtons, prefersTouch, readStick, rotateHintShows, sideForPoint, startsStick, stickDirection, stickMove, TOUCH, touchButtons } from './touch-map.ts';
 
 const YAW: number = Math.PI / 4;
 const near = (actual: number, expected: number): void => assert.ok(Math.abs(actual - expected) < 1e-9, `${actual} is not ${expected}`);
@@ -165,4 +165,9 @@ void test('a held button keeps its finger when the bar moves it, and loses it on
   assert.equal(movedIndex(before, after, 2), -1);
   assert.equal(movedIndex(before, after, 0), 0);
   assert.equal(movedIndex(before, after, 9), -1);
+});
+
+void test('while a spin carries the hero, the stick points where he goes and a resting stick holds him where he is', (): void => {
+  assert.deepEqual(glideAim({ x: 1, z: 2 }, { x: 0, z: 1 }), { x: 1, z: 2 + TOUCH.stickReach });
+  assert.deepEqual(glideAim({ x: 1, z: 2 }, null), { x: 1, z: 2 });
 });

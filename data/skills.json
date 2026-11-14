@@ -1091,24 +1091,38 @@
   {
     "id": "cleave_millwheel",
     "name": "Millwheel",
-    "description": "Hold Cleave to keep turning: it strikes all around you on every turn and drains mana while you spin.",
+    "description": "Hold Cleave to keep turning as you run: every enemy struck builds momentum, which turns you faster, widens your reach and keeps you on your feet. Each hit gives back a little mana; turning through empty air only spends it.",
     "icon": "cleave",
     "animation": "attack",
     "manaCost": 3,
     "cooldown": 0,
     "windup": 0.18,
-    "recovery": 0.24,
+    "recovery": 0.16,
     "scalesWithAttackSpeed": true,
     "engageRange": 2.2,
     "delivery": { "type": "nova", "radius": 3.2 },
     "damage": { "weaponPercent": 0.75, "flatMin": 0, "flatMax": 0 },
-    "knockback": 4,
+    "knockback": 3,
     "stagger": 0.16,
-    "shake": 0.12,
-    "hitStop": 0.025,
+    "shake": 0.05,
+    "hitStop": 0,
     "category": "channel",
     "vfx": { "style": "slash", "color": "#d6ecff", "cue": "blade", "light": 0.3, "impact": { "sparks": 6, "flash": 0 } },
-    "press": { "type": "channel", "interval": 0.3, "max": 6 }
+    "press": { "type": "channel", "interval": 0.32, "max": 120, "move": 1 },
+    "momentum": {
+      "perHit": 1,
+      "cap": 24,
+      "grace": 0.6,
+      "drain": 12,
+      "steady": 4,
+      "manaPerHit": 0.6,
+      "lifePerHit": 0,
+      "tiers": [
+        { "at": 6, "turn": 1.15, "reach": 1.1 },
+        { "at": 12, "turn": 1.3, "reach": 1.2 },
+        { "at": 20, "turn": 1.45, "reach": 1.3 }
+      ]
+    }
   },
   {
     "id": "thunderhead_leap",

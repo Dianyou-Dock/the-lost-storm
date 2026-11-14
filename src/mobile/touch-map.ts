@@ -83,6 +83,11 @@ export function stickMove(from: Vec2, direction: Vec2 | null, wasMoving: boolean
   return { type: 'walk', held: wasMoving, dest: { x: from.x + direction.x * TOUCH.stickReach, z: from.z + direction.z * TOUCH.stickReach } };
 }
 
+export function glideAim(from: Vec2, direction: Vec2 | null): Vec2 {
+  if (direction === null) return { x: from.x, z: from.z };
+  return { x: from.x + direction.x * TOUCH.stickReach, z: from.z + direction.z * TOUCH.stickReach };
+}
+
 export function facingVector(facing: number): Vec2 {
   return { x: Math.sin(facing), z: Math.cos(facing) };
 }

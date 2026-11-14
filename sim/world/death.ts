@@ -66,6 +66,7 @@ function revive(world: World): void {
   player.tempoTime = 0;
   player.brand = null;
   player.held = [];
+  player.momentum = { skill: null, value: 0, quiet: 0 };
   player.invulnerable = world.content.player.respawnInvulnerability;
   world.death = null;
 }

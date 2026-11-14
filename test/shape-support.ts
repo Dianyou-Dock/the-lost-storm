@@ -16,7 +16,7 @@ export const SHAPE_SKILLS: readonly SkillDef[] = [
   { ...plain, id: 'test_draught', delivery: { type: 'area', range: 10, radius: 6, duration: 0.5, pulse: 0.5, pull: 12, slow: 1, anchor: 'ground' } },
   { ...plain, id: 'test_hush', delivery: { type: 'area', range: 0, radius: 8, duration: 2, pulse: 0, pull: 0, slow: 0.25, anchor: 'caster' } },
   { ...plain, id: 'test_step', delivery: { type: 'blink', range: 6, radius: 2 } },
-  { ...plain, id: 'test_wire', manaCost: 2, delivery: { type: 'beam', range: 10, width: 1 }, press: { type: 'channel', interval: 0.2, max: 2 } },
+  { ...plain, id: 'test_wire', manaCost: 2, delivery: { type: 'beam', range: 10, width: 1 }, press: { type: 'channel', interval: 0.2, max: 2, move: 0 } },
   { ...plain, id: 'test_heave', delivery: { type: 'arc', reach: 3, arcDegrees: 120 }, press: { type: 'charge', max: 1, damageScale: 3, areaScale: 1.5 } },
   { ...plain, id: 'test_brander', delivery: { type: 'arc', reach: 3, arcDegrees: 120 }, brand: { duration: 5, burst: 'test_brand_burst' } },
   { ...plain, id: 'test_brand_burst', delivery: { type: 'nova', radius: 3 }, damage: { type: 'physical', weaponPercent: 0, flatMin: 50, flatMax: 50 } },

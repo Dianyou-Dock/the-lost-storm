@@ -14,6 +14,8 @@ import { effectiveAttackSpeed } from '../stats.ts';
 import { placeArea, timeScaleAt } from './areas.ts';
 import { placeHazard } from './hazards.ts';
 import { raiseFallen } from './revive.ts';
+import { feedMomentum, glidesWith, momentumOf, momentumStep } from './momentum.ts';
+import type { MomentumStep } from './momentum.ts';
 import { resolveBeam, resolveBlink, resolveChain } from './shapes.ts';
 import type { ActionState, Actor, EchoState, NoticeReason, PlayerState, ProjectileState, Team, World } from './types.ts';
 
@@ -160,7 +162,8 @@ export function startSkill(world: World, actor: Actor, requested: SkillDef, dire
   const aimsAhead: boolean = skill.leap !== null || aimedRange(skill.delivery) !== null;
   const target: Vec2 | null = aimsAhead ? { x: actor.pos.x + aim.x * reach, z: actor.pos.z + aim.z * reach } : null;
   const travelSpeed: number = skill.leap === null ? 0 : reach / Math.min(windup, skill.leap.airTime);
-  actor.action = { skill, phase: 'windup', timeLeft: windup, windup, recovery, direction: aim, target, travelSpeed, travelLeft: skill.leap === null ? 0 : reach, slot, elapsed: 0 };
+  const goal: Vec2 | null = glidesWith(skill.press) ? { x: actor.pos.x + direction.x, z: actor.pos.z + direction.z } : null;
+  actor.action = { skill, phase: 'windup', timeLeft: windup, windup, recovery, direction: aim, target, travelSpeed, travelLeft: skill.leap === null ? 0 : reach, slot, elapsed: 0, goal };
   actor.combo = requested.combo === null ? null : { skill: requested.id, hits: hits + 1, timeLeft: windup + recovery + requested.combo.window };
   world.events.push({ type: 'skill_start', actorId: actor.id, skill, direction: aim, windup, recovery });
 }
@@ -252,16 +255,30 @@ function strike(world: World, impact: Impact): number {
   return hits;
 }
 
-function resolve(world: World, impact: Impact, team: Team): void {
+function resolve(world: World, impact: Impact, team: Team): number {
   const hits: number = strike(world, impact);
   const { offence, skill, origin, direction, target } = impact;
   world.events.push({ type: 'skill_impact', actorId: offence.sourceId, team, skill, origin: { x: origin.x, z: origin.z }, direction: { x: direction.x, z: direction.z }, hits, echo: impact.echo });
-  if (impact.echo || skill.echo <= 0) return;
+  if (impact.echo || skill.echo <= 0) return hits;
   world.echoes.push({ ownerId: offence.sourceId, ...offence, skill, origin: { x: origin.x, z: origin.z }, direction: { x: direction.x, z: direction.z }, target: target === null ? null : { x: target.x, z: target.z }, timeLeft: skill.echo });
+  return hits;
+}
+
+export function spunSkill(actor: Actor, skill: SkillDef): SkillDef {
+  if (skill.momentum === null) return skill;
+  const step: MomentumStep = momentumStep(skill.momentum, momentumOf(actor, skill));
+  return step.reach === 1 ? skill : { ...skill, delivery: widened(skill.delivery, step.reach) };
+}
+
+export function channelInterval(actor: Actor, skill: SkillDef, interval: number): number {
+  const speed: number = actor.kind === 'player' && skill.scalesWithAttackSpeed ? effectiveAttackSpeed(actor.stats) : 1;
+  const turn: number = skill.momentum === null ? 1 : momentumStep(skill.momentum, momentumOf(actor, skill)).turn;
+  return interval / (speed * turn);
 }
 
 function resolveImpact(world: World, actor: Actor, action: ActionState, skill: SkillDef): void {
-  resolve(world, { actor, offence: offenceOf(actor), skill, origin: actor.pos, direction: action.direction, target: action.target, echo: false }, teamOf(actor));
+  const hits: number = resolve(world, { actor, offence: offenceOf(actor), skill: spunSkill(actor, skill), origin: actor.pos, direction: action.direction, target: action.target, echo: false }, teamOf(actor));
+  feedMomentum(actor, skill, hits);
 }
 
 export function stepEchoes(world: World, dt: number): void {
@@ -304,7 +321,7 @@ function stepChannel(world: World, actor: Actor, action: ActionState): void {
       toRecovery(action);
       return;
     }
-    action.timeLeft += hold.interval;
+    action.timeLeft += channelInterval(actor, action.skill, hold.interval);
     resolveImpact(world, actor, action, action.skill);
     if (actor.kind === 'player' && firePowers(world, { on: 'pulse', skill: action.skill, target: null, at: actor.pos })) refreshPlayer(world);
   }
@@ -317,7 +334,7 @@ function finishWindup(world: World, actor: Actor, action: ActionState): void {
   const skill: SkillDef = chargedSkill(action.skill, chargeOf(action));
   if (hold?.type === 'channel' && isHeld(actor, action)) {
     action.phase = 'channel';
-    action.timeLeft = Math.max(0, action.timeLeft) + hold.interval;
+    action.timeLeft = Math.max(0, action.timeLeft) + channelInterval(actor, action.skill, hold.interval);
     action.elapsed = 0;
   } else {
     action.phase = 'recovery';
@@ -353,6 +370,7 @@ export function steerAction(world: World, actor: Actor, aim: ReadonlyVec2): void
   const toward: Vec2 = normalize(offset, action.direction);
   action.direction = toward;
   actor.facing = facingOf(toward);
+  if (action.goal !== null) action.goal = { x: aim.x, z: aim.z };
   if (action.target === null || action.skill.leap !== null) return;
   const planned: number = reachOf(action.skill, null, Math.hypot(offset.x, offset.z));
   const reach: number = walksTo(action.skill) ? clearReach(world, actor, toward, planned) : planned;

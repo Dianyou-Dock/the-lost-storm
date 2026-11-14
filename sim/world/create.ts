@@ -94,6 +94,7 @@ function freshPlayer(content: Content, save: SaveData | null, chosen: string | n
     kills: save?.kills ?? 0,
     flasks: createFlasks(content, save?.flasks ?? null),
     powers: emptyPowerState(),
+    momentum: { skill: null, value: 0, quiet: 0 },
   };
 }
 

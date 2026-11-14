@@ -21,11 +21,12 @@ void test('a field that pulses less often than it lasts, a fractional jump count
 });
 
 void test('hold and brand are optional and read as charge, channel or a burst skill', (): void => {
-  assert.deepEqual(skillPress({}, 'x'), { press: null, brand: null });
-  assert.deepEqual(skillPress({ press: { type: 'channel', interval: 0.2, max: 3 } }, 'x').press, { type: 'channel', interval: 0.2, max: 3 });
+  assert.deepEqual(skillPress({}, 'x'), { press: null, brand: null, momentum: null });
+  assert.deepEqual(skillPress({ press: { type: 'channel', interval: 0.2, max: 3 } }, 'x').press, { type: 'channel', interval: 0.2, max: 3, move: 0 });
   assert.deepEqual(skillPress({ press: { type: 'charge', max: 1, damageScale: 3, areaScale: 1.4 }, brand: { duration: 6, burst: 'pop' } }, 'x'), {
     press: { type: 'charge', max: 1, damageScale: 3, areaScale: 1.4 },
     brand: { duration: 6, burst: 'pop' },
+    momentum: null,
   });
 });
 
@@ -38,4 +39,21 @@ void test('a brand must burst as a nova, and a blink or a leap cannot be held', 
   ];
   const content: Content = { ...SHAPE_CONTENT, skills: new Map<string, SkillDef>([...SHAPE_CONTENT.skills, ...bad.map((def: SkillDef): [string, SkillDef] => [def.id, def])]) };
   assert.equal(shapeProblems(content).length, 3);
+});
+
+void test('a channel may carry the hero along, and a momentum block reads its gain, cap, grace, drain, steady mark and rising steps', (): void => {
+  assert.equal(skillPress({ press: { type: 'channel', interval: 0.3, max: 60, move: 1 } }, 'x').press?.type, 'channel');
+  assert.throws(() => skillPress({ press: { type: 'channel', interval: 0.3, max: 60, move: 1.5 } }, 'x'), ContentError);
+  const block = { perHit: 1, cap: 20, grace: 0.6, drain: 10, steady: 4, manaPerHit: 0.5, lifePerHit: 0, tiers: [{ at: 5, turn: 1.1, reach: 1.1 }, { at: 12, turn: 1.3, reach: 1.2 }] };
+  assert.deepEqual(skillPress({ momentum: block }, 'x').momentum, block);
+  assert.throws(() => skillPress({ momentum: { ...block, steady: 30 } }, 'x'), ContentError);
+  assert.throws(() => skillPress({ momentum: { ...block, tiers: [{ at: 12, turn: 1.3, reach: 1.2 }, { at: 5, turn: 1.1, reach: 1.1 }] } }, 'x'), ContentError);
+  assert.throws(() => skillPress({ momentum: { ...block, tiers: [{ at: 25, turn: 1.3, reach: 1.2 }] } }, 'x'), ContentError);
+});
+
+void test('only a channelled skill can build momentum', (): void => {
+  const block = { perHit: 1, cap: 20, grace: 0.6, drain: 10, steady: 4, manaPerHit: 0.5, lifePerHit: 0, tiers: [] };
+  const loose: SkillDef = { ...shapeSkill('test_fork'), id: 'bad_momentum', momentum: block };
+  const content: Content = { ...SHAPE_CONTENT, skills: new Map<string, SkillDef>([...SHAPE_CONTENT.skills, [loose.id, loose]]) };
+  assert.deepEqual(shapeProblems(content), ['skill bad_momentum builds momentum, so it must be channelled']);
 });

@@ -46,6 +46,7 @@ export interface ChannelPress {
   readonly type: 'channel';
   readonly interval: number;
   readonly max: number;
+  readonly move: number;
 }
 
 export type PressDef = ChargePress | ChannelPress;
@@ -55,12 +56,30 @@ export interface BrandDef {
   readonly burst: string;
 }
 
+export interface MomentumTier {
+  readonly at: number;
+  readonly turn: number;
+  readonly reach: number;
+}
+
+export interface MomentumDef {
+  readonly perHit: number;
+  readonly cap: number;
+  readonly grace: number;
+  readonly drain: number;
+  readonly steady: number;
+  readonly manaPerHit: number;
+  readonly lifePerHit: number;
+  readonly tiers: readonly MomentumTier[];
+}
+
 export interface SkillShape {
   readonly leap: SkillLeap | null;
   readonly root: number;
   readonly commit: SkillCommit | null;
   readonly press: PressDef | null;
   readonly brand: BrandDef | null;
+  readonly momentum: MomentumDef | null;
 }
 
 export interface SkillUnlock {

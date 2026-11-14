@@ -19,6 +19,7 @@ import type { Steering, SteerStep } from './movement.ts';
 import { beingKnocked, faceToward, steerAlong, stepKnock, stepTimers } from './movement.ts';
 import { allHold } from './conditions.ts';
 import { blockedReason, startSkill, steerAction, stepAction } from './skills.ts';
+import { aimGlide, glide, glidesWith, stepMomentum } from './momentum.ts';
 import type { Actor, Command, GroundItem, MomentState, NoticeReason, NpcState, PlayerState, SkillCommand, World } from './types.ts';
 import { handlePurse } from './purse.ts';
 import { handleTrade, meetNpc, openStation, stationAt, stationReach } from './trade.ts';
@@ -148,8 +149,8 @@ function useSkill(world: World, command: SkillCommand): void {
     return;
   }
   const target: Actor | null = command.targetId === null ? null : findActor(world, command.targetId);
-  if (target === null || !target.alive) {
-    fire(world, skill, command.aim, command.slot);
+  if (target === null || !target.alive || glidesWith(skill.press)) {
+    fire(world, skill, target?.alive === true ? target.pos : command.aim, command.slot);
     return;
   }
   if (inEngageRange(player, target, skill)) {
@@ -354,6 +355,7 @@ export function handleCommand(world: World, command: Command): void {
     case 'teleport':
       if (!player.alive) return;
       if (command.type !== 'skill') closeDialogue(world, false);
+      if ((command.type === 'move' || command.type === 'walk') && aimGlide(player, command.dest)) return;
       if (cutsRecovery(player, command)) player.action = null;
       if (player.action !== null) {
         player.queued = command;
@@ -544,6 +546,7 @@ export function stepPlayer(world: World, dt: number): void {
   player.life = Math.min(player.maxLife, player.life + player.stats.lifeRegen * dt);
   player.mana = Math.min(player.stats.maxMana, player.mana + player.stats.manaRegen * dt);
   stepTimers(player, dt);
+  stepMomentum(player, dt);
   stepKnock(world.grid, player, dt);
   stepAction(world, player, dt * player.tempo);
   player.moving = false;
@@ -566,7 +569,7 @@ export function stepPlayer(world: World, dt: number): void {
         player.repathTimer = PLAYER.repathInterval;
       } else if (player.path.length === 0) player.repathTimer = 0;
     }
-  }
+  } else if (glide(world.grid, player, dt)) player.moving = true;
   player.walked = player.moving ? { x: player.pos.x - startX, z: player.pos.z - startZ } : { x: 0, z: 0 };
   if (player.moving) emitSteps(world, player, Math.hypot(player.pos.x - startX, player.pos.z - startZ));
   else player.stridePhase = PLAYER.firstStepFraction;

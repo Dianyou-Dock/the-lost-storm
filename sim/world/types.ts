@@ -16,6 +16,7 @@ import type { MomentFigure } from './moment-figure.ts';
 import type { Rng } from '../rng.ts';
 import type { NpcState } from './npc-types.ts';
 import type { Escort, SceneState } from './scene-state.ts';
+import type { MomentumState } from './momentum-types.ts';
 
 export type { MomentFigure } from './moment-figure.ts';
 export type { NpcState } from './npc-types.ts';
@@ -50,6 +51,7 @@ export interface ActionState {
   travelLeft: number;
   readonly slot: number | null;
   elapsed: number;
+  goal: Vec2 | null;
 }
 
 export interface Offence {
@@ -181,6 +183,7 @@ export interface PlayerState extends ActorState {
   kills: number;
   flasks: FlaskState[];
   powers: PowerState;
+  momentum: MomentumState;
 }
 
 export type MonsterStance = 'approach' | 'engage' | 'hold' | 'retreat';
