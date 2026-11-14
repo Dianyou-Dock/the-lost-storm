@@ -1768,6 +1768,588 @@
       }
     },
     {
+      "id": "skinning_knife",
+      "name": "Skinning Knife",
+      "slot": "weapon",
+      "material": null,
+      "icon": "sword",
+      "dropWeight": 6,
+      "minLevel": 3,
+      "visual": "skinning_knife",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 4
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 11
+        },
+        {
+          "stat": "attackSpeed",
+          "op": "add",
+          "value": 0.15
+        },
+        {
+          "stat": "critChance",
+          "op": "add",
+          "value": 0.03
+        },
+        {
+          "stat": "moveSpeed",
+          "op": "percent",
+          "value": 0.04
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "quarry_maul",
+      "name": "Quarry Maul",
+      "slot": "weapon",
+      "material": null,
+      "icon": "greatsword",
+      "dropWeight": 4,
+      "minLevel": 10,
+      "visual": "quarry_maul",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 26
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 42
+        },
+        {
+          "stat": "attackSpeed",
+          "op": "add",
+          "value": -0.24
+        },
+        {
+          "stat": "armour",
+          "op": "add",
+          "value": 12
+        },
+        {
+          "stat": "maxLife",
+          "op": "add",
+          "value": 30
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "couriers_dirk",
+      "name": "Courier's Dirk",
+      "slot": "weapon",
+      "material": null,
+      "icon": "sword",
+      "dropWeight": 4,
+      "minLevel": 10,
+      "visual": "couriers_dirk",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 12
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 21
+        },
+        {
+          "stat": "attackSpeed",
+          "op": "add",
+          "value": 0.2
+        },
+        {
+          "stat": "critMultiplier",
+          "op": "add",
+          "value": 0.15
+        },
+        {
+          "stat": "moveSpeed",
+          "op": "percent",
+          "value": 0.05
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "ashwood_stave",
+      "name": "Ashwood Stave",
+      "slot": "weapon",
+      "material": null,
+      "icon": "staff",
+      "dropWeight": 4,
+      "minLevel": 13,
+      "visual": "ashwood_stave",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 15
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 25
+        },
+        {
+          "stat": "maxMana",
+          "op": "add",
+          "value": 44
+        },
+        {
+          "stat": "manaRegen",
+          "op": "add",
+          "value": 2.5
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.08
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "fordbreaker",
+      "name": "Fordbreaker",
+      "slot": "weapon",
+      "material": null,
+      "icon": "greatsword",
+      "dropWeight": 3,
+      "minLevel": 15,
+      "visual": "fordbreaker",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 33
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 55
+        },
+        {
+          "stat": "attackSpeed",
+          "op": "add",
+          "value": -0.2
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.18
+        },
+        {
+          "stat": "maxLife",
+          "op": "add",
+          "value": 30
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "longwatch_arbalest",
+      "name": "Longwatch Arbalest",
+      "slot": "weapon",
+      "material": null,
+      "icon": "crossbow",
+      "dropWeight": 3,
+      "minLevel": 15,
+      "visual": "longwatch_arbalest",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 20
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 31
+        },
+        {
+          "stat": "critChance",
+          "op": "add",
+          "value": 0.06
+        },
+        {
+          "stat": "critMultiplier",
+          "op": "add",
+          "value": 0.25
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.12
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": -90,
+        "roll": 0,
+        "yawJitter": 180
+      },
+      "variants": [
+        {
+          "skill": "cleave",
+          "becomes": "quarrel"
+        }
+      ]
+    },
+    {
+      "id": "windcutter",
+      "name": "Windcutter",
+      "slot": "weapon",
+      "material": null,
+      "icon": "sword",
+      "dropWeight": 3,
+      "minLevel": 17,
+      "visual": "windcutter",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 17
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 29
+        },
+        {
+          "stat": "attackSpeed",
+          "op": "add",
+          "value": 0.22
+        },
+        {
+          "stat": "critChance",
+          "op": "add",
+          "value": 0.06
+        },
+        {
+          "stat": "critMultiplier",
+          "op": "add",
+          "value": 0.15
+        },
+        {
+          "stat": "moveSpeed",
+          "op": "percent",
+          "value": 0.06
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "thunderwood_staff",
+      "name": "Thunderwood Staff",
+      "slot": "weapon",
+      "material": null,
+      "icon": "staff",
+      "dropWeight": 3,
+      "minLevel": 18,
+      "visual": "thunderwood_staff",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 19
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 31
+        },
+        {
+          "stat": "critChance",
+          "op": "add",
+          "value": 0.05
+        },
+        {
+          "stat": "maxMana",
+          "op": "add",
+          "value": 50
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.12
+        },
+        {
+          "stat": "stormResist",
+          "op": "add",
+          "value": 0.1
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "cairn_maul",
+      "name": "Cairn Maul",
+      "slot": "weapon",
+      "material": null,
+      "icon": "greatsword",
+      "dropWeight": 3,
+      "minLevel": 21,
+      "visual": "cairn_maul",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 44
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 72
+        },
+        {
+          "stat": "attackSpeed",
+          "op": "add",
+          "value": -0.26
+        },
+        {
+          "stat": "armour",
+          "op": "add",
+          "value": 20
+        },
+        {
+          "stat": "maxLife",
+          "op": "add",
+          "value": 48
+        },
+        {
+          "stat": "lifeRegen",
+          "op": "add",
+          "value": 3
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "stormlatch_repeater",
+      "name": "Stormlatch Repeater",
+      "slot": "weapon",
+      "material": null,
+      "icon": "crossbow",
+      "dropWeight": 3,
+      "minLevel": 21,
+      "visual": "stormlatch_repeater",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 26
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 39
+        },
+        {
+          "stat": "attackSpeed",
+          "op": "add",
+          "value": 0.16
+        },
+        {
+          "stat": "moveSpeed",
+          "op": "percent",
+          "value": 0.05
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.14
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": -90,
+        "roll": 0,
+        "yawJitter": 180
+      },
+      "variants": [
+        {
+          "skill": "cleave",
+          "becomes": "quarrel"
+        }
+      ]
+    },
+    {
+      "id": "deepwater_staff",
+      "name": "Deepwater Staff",
+      "slot": "weapon",
+      "material": null,
+      "icon": "staff",
+      "dropWeight": 3,
+      "minLevel": 23,
+      "visual": "deepwater_staff",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 24
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 38
+        },
+        {
+          "stat": "maxMana",
+          "op": "add",
+          "value": 60
+        },
+        {
+          "stat": "manaRegen",
+          "op": "add",
+          "value": 3.5
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.15
+        },
+        {
+          "stat": "frostResist",
+          "op": "add",
+          "value": 0.12
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
+      "id": "gullwing_blade",
+      "name": "Gullwing Blade",
+      "slot": "weapon",
+      "material": null,
+      "icon": "sword",
+      "dropWeight": 3,
+      "minLevel": 23,
+      "visual": "gullwing_blade",
+      "wear": [],
+      "implicit": [
+        {
+          "stat": "damageMin",
+          "op": "add",
+          "value": 22
+        },
+        {
+          "stat": "damageMax",
+          "op": "add",
+          "value": 34
+        },
+        {
+          "stat": "attackSpeed",
+          "op": "add",
+          "value": 0.25
+        },
+        {
+          "stat": "critChance",
+          "op": "add",
+          "value": 0.07
+        },
+        {
+          "stat": "critMultiplier",
+          "op": "add",
+          "value": 0.2
+        },
+        {
+          "stat": "moveSpeed",
+          "op": "percent",
+          "value": 0.07
+        },
+        {
+          "stat": "damagePercent",
+          "op": "add",
+          "value": 0.1
+        }
+      ],
+      "ground": {
+        "model": "held",
+        "scale": 1.15,
+        "pitch": 0,
+        "roll": 0,
+        "yawJitter": 180
+      }
+    },
+    {
       "id": "stitched_tunic",
       "name": "Stitched Tunic",
       "slot": "chest",

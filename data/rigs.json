@@ -257,6 +257,19 @@
               "impactFraction": 0.1
             }
           }
+        },
+        "heavy": {
+          "idle": "Sword_Idle",
+          "actions": {
+            "attack_b": {
+              "clip": "Sword_Slam",
+              "impactFraction": 0.245
+            },
+            "attack_c": {
+              "clip": "Sword_Slam_Charged",
+              "impactFraction": 0.38
+            }
+          }
         }
       }
     },
@@ -484,6 +497,19 @@
               "impactFraction": 0.1
             }
           }
+        },
+        "heavy": {
+          "idle": "Sword_Idle",
+          "actions": {
+            "attack_b": {
+              "clip": "Sword_Slam",
+              "impactFraction": 0.245
+            },
+            "attack_c": {
+              "clip": "Sword_Slam_Charged",
+              "impactFraction": 0.38
+            }
+          }
         }
       }
     },
@@ -680,6 +706,19 @@
               "impactFraction": 0.1
             }
           }
+        },
+        "heavy": {
+          "idle": "Sword_Idle",
+          "actions": {
+            "attack_b": {
+              "clip": "Sword_Slam",
+              "impactFraction": 0.245
+            },
+            "attack_c": {
+              "clip": "Sword_Slam_Charged",
+              "impactFraction": 0.38
+            }
+          }
         }
       }
     },
@@ -844,6 +883,19 @@
             "shoot": {
               "clip": "Pistol_Shoot",
               "impactFraction": 0.1
+            }
+          }
+        },
+        "heavy": {
+          "idle": "Sword_Idle",
+          "actions": {
+            "attack_b": {
+              "clip": "Sword_Slam",
+              "impactFraction": 0.245
+            },
+            "attack_c": {
+              "clip": "Sword_Slam_Charged",
+              "impactFraction": 0.38
             }
           }
         }
