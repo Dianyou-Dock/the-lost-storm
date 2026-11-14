@@ -20,6 +20,9 @@ Shipped models are CC0 (public domain), CC BY 4.0 with the credit below, or made
 | MakeHuman community garments (suits02) | Donitz (makehumancommunity.org) | http://www.makehumancommunity.org/clothes.html | CC0 1.0 | [licenses/MakeHuman-community-assets.txt](licenses/MakeHuman-community-assets.txt) |
 | MakeHuman base mesh | The MakeHuman project: Data Collection AB, Joel Palmius, Jonas Hauquier (makehumancommunity.org) | https://github.com/makehumancommunity/makehuman | CC0 1.0 | [licenses/MakeHuman-community-assets.txt](licenses/MakeHuman-community-assets.txt) |
 | Poly Haven models and textures | The authors named in the tables below (polyhaven.com) | https://polyhaven.com | CC0 1.0 | [licenses/Poly-Haven-CC0.txt](licenses/Poly-Haven-CC0.txt) |
+| Poly Pizza models by Quaternius | Quaternius (quaternius.com) | https://poly.pizza/u/Quaternius | CC0 1.0 | [licenses/Poly-Pizza-Quaternius-CC0.txt](licenses/Poly-Pizza-Quaternius-CC0.txt) |
+| Poly Pizza models by Kay Lousberg | Kay Lousberg (kaylousberg.com) | https://poly.pizza/u/Kay%20Lousberg | CC0 1.0 | [licenses/Poly-Pizza-Kay-Lousberg-CC0.txt](licenses/Poly-Pizza-Kay-Lousberg-CC0.txt) |
+| Graveyard Kit (5.0) | Kenney (kenney.nl) | https://kenney.nl/assets/graveyard-kit | CC0 1.0 | [licenses/Kenney-Graveyard-Kit.txt](licenses/Kenney-Graveyard-Kit.txt) |
 
 ## Landing page images
 
@@ -327,6 +330,93 @@ sh tools/half-textures.sh
 | `public/textures/worn_marble_color.webp`, `public/textures/worn_marble_normal.webp`, `public/textures/worn_marble_orm.webp`, `public/textures/half/worn_marble_color.webp`, `public/textures/half/worn_marble_normal.webp`, `public/textures/half/worn_marble_orm.webp` | "Marble 01" (`marble_01`) | Rob Tuytel | CC0 1.0 |
 | `public/textures/dark_stone_color.webp`, `public/textures/dark_stone_normal.webp`, `public/textures/dark_stone_orm.webp`, `public/textures/half/dark_stone_color.webp`, `public/textures/half/dark_stone_normal.webp`, `public/textures/half/dark_stone_orm.webp` | "Dark Rock 02" (`dark_rock_02`) | Amal Kumar | CC0 1.0 |
 | `public/textures/lichen_rock_color.webp`, `public/textures/lichen_rock_normal.webp`, `public/textures/lichen_rock_orm.webp`, `public/textures/half/lichen_rock_color.webp`, `public/textures/half/lichen_rock_normal.webp`, `public/textures/half/lichen_rock_orm.webp` | "Lichen Rock" (`lichen_rock`) | Rico Cilliers | CC0 1.0 |
+
+## Cave dressing
+
+Rocks, bones, containers, lamps and other dressing for the underground levels, in `public/models/cave/`. Every file is one `.glb` standing on its origin: the middle of its footprint at x and z and its lowest point at y = 0, scaled to the size it should have in the world. Each went through the same steps. The model was taken from the source below, its animations and skin were dropped, it was grouped under one node that carries the scale, the origin move and, for `pickaxe_old`, a turn onto its side, and `tools/compress-models.ts` compressed it. The scans from Poly Haven were first reduced to 1400 to 2850 triangles and their textures to at most 1024 pixels by `blender/import_polyhaven.py`. The models from Poly Pizza and Kenney keep the materials of their authors; where a material was metal 0.4 by default it was made non-metallic unless it is metal, gold or iron. `stalagmites_dark` had its 2048 pixel texture reduced to 1024.
+
+### Scans from Poly Haven
+
+| File | Poly Haven asset | Authors | Licence |
+|---|---|---|---|
+| `public/models/cave/rock_chunk_a.glb` | "Rock 07" (`rock_07`) | Jenelle van Heerden | CC0 1.0 |
+| `public/models/cave/rock_chunk_b.glb` | "Rock 09" (`rock_09`) | Jenelle van Heerden | CC0 1.0 |
+| `public/models/cave/rock_face_a.glb` | "Rock Face 01" (`rock_face_01`) | Dario Barresi | CC0 1.0 |
+| `public/models/cave/rock_face_b.glb` | "Rock Face 02" (`rock_face_02`) | Dario Barresi, Rico Cilliers | CC0 1.0 |
+| `public/models/cave/boulder_large.glb` | "Boulder 01" (`boulder_01`) | Rico Cilliers | CC0 1.0 |
+| `public/models/cave/scree_shards.glb` | "Rock Moss Set 02" (`rock_moss_set_02`) | Kless Gyzen | CC0 1.0 |
+| `public/models/cave/earth_roots_a.glb` | "Root Cluster 01" (`root_cluster_01`) | Jenelle van Heerden, Rico Cilliers | CC0 1.0 |
+| `public/models/cave/earth_roots_b.glb` | "Root Cluster 02" (`root_cluster_02`) | Jenelle van Heerden | CC0 1.0 |
+| `public/models/cave/urn_white.glb` | "Ceramic Vase 04" (`ceramic_vase_04`) | James Ray Cock | CC0 1.0 |
+| `public/models/cave/jug_white.glb` | "Ceramic Vase 02" (`ceramic_vase_02`) | James Ray Cock | CC0 1.0 |
+| `public/models/cave/pot_clay.glb` | "Planter Pot Clay" (`planter_pot_clay`) | Amal Kumar | CC0 1.0 |
+| `public/models/cave/basket_lidded.glb` | "Wicker Basket 02" (`wicker_basket_02`) | Kuutti Siitonen | CC0 1.0 |
+| `public/models/cave/pickaxe_old.glb` | "Picke Dirty 01" (`picke_dirty_01`) | Dennis Halbeck | CC0 1.0 |
+| `public/models/cave/ladder_wood.glb` | "Wooden Ladder 02" (`wooden_ladder_02`) | JN_3DPRINTINGNERD | CC0 1.0 |
+
+### Models by Quaternius and Kay Lousberg from Poly Pizza
+
+Poly Pizza (https://poly.pizza) lists each model below with the licence CC0 1.0 and the author named in the row; the page of the model is the link in the row. The licence texts are in [licenses/Poly-Pizza-Quaternius-CC0.txt](licenses/Poly-Pizza-Quaternius-CC0.txt) and [licenses/Poly-Pizza-Kay-Lousberg-CC0.txt](licenses/Poly-Pizza-Kay-Lousberg-CC0.txt).
+
+| File | Poly Pizza model | Author | Licence | Changes |
+|---|---|---|---|---|
+| `public/models/cave/stalagmites_dark.glb` | "Rocks" (https://poly.pizza/m/gYhoEOKItJ) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/boulder_mossy_a.glb` | "Rock Medium" (https://poly.pizza/m/JQxF95498B) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/boulder_mossy_b.glb` | "Rock Medium" (https://poly.pizza/m/KZdEP3uUpa) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/boulder_mossy_c.glb` | "Rock Medium" (https://poly.pizza/m/s1OJ3bBzqc) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/rock_large_a.glb` | "Rock Large" (https://poly.pizza/m/54jZKTAt5p) | Quaternius | CC0 1.0 | Scaled and set on the ground, palette texture replaced by a flat dark grey colour; materials made non-metallic where they are not metal |
+| `public/models/cave/rock_large_b.glb` | "Rock Large" (https://poly.pizza/m/li0YBlBEMz) | Quaternius | CC0 1.0 | Scaled and set on the ground, palette texture replaced by a flat dark grey colour; materials made non-metallic where they are not metal |
+| `public/models/cave/stalagmite_tall.glb` | "Rock" (https://poly.pizza/m/R2UjZAX3By) | Quaternius | CC0 1.0 | Scaled and set on the ground, palette texture replaced by a flat dark grey colour; materials made non-metallic where they are not metal |
+| `public/models/cave/shards_grey.glb` | "Rock" (https://poly.pizza/m/JmFMh7ztL9) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/spire_grey.glb` | "Rock" (https://poly.pizza/m/4MUaQTcDdc) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/crystal_purple.glb` | "Crystal" (https://poly.pizza/m/nBlnK8G6xw) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/crystal_cluster.glb` | "Big Crystal" (https://poly.pizza/m/pf5lzmgr2J) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/mineral_pink.glb` | "Mineral" (https://poly.pizza/m/STixpWYaTd) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/bone_a.glb` | "Bone" (https://poly.pizza/m/uMs0lDp1u3) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/bone_b.glb` | "Bone" (https://poly.pizza/m/2jLwMoAb2y) | Kay Lousberg | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/giant_ribs.glb` | "Large Bone" (https://poly.pizza/m/A67un3x9nV) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/ribcage.glb` | "Ribcage" (https://poly.pizza/m/UlVnlvHPtv) | Kay Lousberg | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/skull_a.glb` | "Skull" (https://poly.pizza/m/7clFQGz5jH) | Kay Lousberg | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/skull_b.glb` | "Skull" (https://poly.pizza/m/YgmRBtFlcF) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/skull_crossbones.glb` | "Skull" (https://poly.pizza/m/ExZmhOIjka) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/satchel.glb` | "Bag" (https://poly.pizza/m/Wq1JPPqHZS) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/sack_open.glb` | "Bag Open" (https://poly.pizza/m/rJuZexcuhU) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/sacks_stack.glb` | "Bags" (https://poly.pizza/m/gzvyAQ797z) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/coin_bag.glb` | "Coin Bag" (https://poly.pizza/m/iUpWtNWXI7) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/gold_bag.glb` | "Gold Bag" (https://poly.pizza/m/vFFblhnHtb) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/coin_pile.glb` | "Coin Piles" (https://poly.pizza/m/9OWkKczINo) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/gold_ore.glb` | "Gold ore" (https://poly.pizza/m/i1ic0r7FUI) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/broken_cart.glb` | "Broken Cart" (https://poly.pizza/m/NBDHe8J7f9) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/lantern.glb` | "Lantern" (https://poly.pizza/m/CtHBJ1ufeW) | Kay Lousberg | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/lantern_hanging.glb` | "Hanging Lantern" (https://poly.pizza/m/3jzk3YShv1) | Kay Lousberg | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/torch.glb` | "Torch" (https://poly.pizza/m/Gq38E7hFZw) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/column_round.glb` | "Column Round" (https://poly.pizza/m/n8ZvVFcJhl) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/pillar.glb` | "Pillar" (https://poly.pizza/m/1nt8n3rVKU) | Kay Lousberg | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/debris_pile.glb` | "Debris Pile" (https://poly.pizza/m/WrIiMMxyEP) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/mushrooms_grey.glb` | "Mushroom" (https://poly.pizza/m/aOW08oSrd4) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/mushroom_shelf.glb` | "Mushroom Laetiporus" (https://poly.pizza/m/mxDOl0n6zt) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+| `public/models/cave/mushroom_red.glb` | "Mushroom" (https://poly.pizza/m/db1tjMhmiA) | Quaternius | CC0 1.0 | Scaled and set on the ground; materials made non-metallic where they are not metal |
+
+### Models from Kenney's Graveyard Kit
+
+| File | Source | Author | Licence | Changes |
+|---|---|---|---|---|
+| `public/models/cave/urn_round.glb` | `urn-round` of Graveyard Kit (5.0) | Kenney | CC0 1.0 | Scaled and set on the ground |
+| `public/models/cave/urn_square.glb` | `urn-square` of Graveyard Kit (5.0) | Kenney | CC0 1.0 | Scaled and set on the ground |
+
+### Cave surface textures
+
+Ground and rock textures from polyhaven.com, all CC0, made like the surface textures above: the 1k JPEG download of the diffuse, normal (OpenGL) and ARM maps written as `cwebp` WebP at 1024 pixels, and half-size copies in `public/textures/half/`. The ARM map (occlusion, roughness, metalness) is the `orm` file.
+
+| Files | Poly Haven asset | Authors | Licence |
+|---|---|---|---|
+| `public/textures/wet_rock_color.webp`, `public/textures/wet_rock_normal.webp`, `public/textures/wet_rock_orm.webp`, `public/textures/half/wet_rock_color.webp`, `public/textures/half/wet_rock_normal.webp`, `public/textures/half/wet_rock_orm.webp` | "Seaside Rock" (`seaside_rock`) | Dimitrios Savva | CC0 1.0 |
+| `public/textures/grit_color.webp`, `public/textures/grit_normal.webp`, `public/textures/grit_orm.webp`, `public/textures/half/grit_color.webp`, `public/textures/half/grit_normal.webp`, `public/textures/half/grit_orm.webp` | "Gravel Stones" (`gravel_stones`) | Amal Kumar | CC0 1.0 |
+| `public/textures/pebbles_color.webp`, `public/textures/pebbles_normal.webp`, `public/textures/pebbles_orm.webp`, `public/textures/half/pebbles_color.webp`, `public/textures/half/pebbles_normal.webp`, `public/textures/half/pebbles_orm.webp` | "Dry River Pebbles" (`dry_river_pebbles`) | Amal Kumar | CC0 1.0 |
+| `public/textures/moss_rock_color.webp`, `public/textures/moss_rock_normal.webp`, `public/textures/moss_rock_orm.webp`, `public/textures/half/moss_rock_color.webp`, `public/textures/half/moss_rock_normal.webp`, `public/textures/half/moss_rock_orm.webp` | "Mossy Rock" (`mossy_rock`) | Rob Tuytel | CC0 1.0 |
+| `public/textures/cave_mud_color.webp`, `public/textures/cave_mud_normal.webp`, `public/textures/cave_mud_orm.webp`, `public/textures/half/cave_mud_color.webp`, `public/textures/half/cave_mud_normal.webp`, `public/textures/half/cave_mud_orm.webp` | "Mud Forest" (`mud_forest`) | eye-candy.xyz | CC0 1.0 |
+| `public/textures/dark_cobble_color.webp`, `public/textures/dark_cobble_normal.webp`, `public/textures/dark_cobble_orm.webp`, `public/textures/half/dark_cobble_color.webp`, `public/textures/half/dark_cobble_normal.webp`, `public/textures/half/dark_cobble_orm.webp` | "Rock Wall 08" (`rock_wall_08`) | Amal Kumar | CC0 1.0 |
+| `public/textures/old_tiles_color.webp`, `public/textures/old_tiles_normal.webp`, `public/textures/old_tiles_orm.webp`, `public/textures/half/old_tiles_color.webp`, `public/textures/half/old_tiles_normal.webp`, `public/textures/half/old_tiles_orm.webp` | "Mixed Stone Tiles" (`mixed_stone_tiles`) | Dimitrios Savva | CC0 1.0 |
 
 ## Fonts
 

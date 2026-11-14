@@ -1,6 +1,6 @@
 import { attacksHeld } from './glitch-hold.ts';
 import type { AmbushBehaviour, StalkerBehaviour, SummonDef, SwarmBehaviour } from '../content/combat-types.ts';
-import type { MonsterDef, RangedBehaviour, SkillDef, SurgeRules } from '../content/types.ts';
+import type { MonsterDef, RangedBehaviour, SkillDef, SurgeRules, ZonePack } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { clamp, directionOf, distance, facingOf, normalize, rotate } from '../math.ts';
 import { isWalkable, lineOfSight, lineWalkable, nearestWalkable, routedGrid } from '../nav/grid.ts';
@@ -9,12 +9,11 @@ import { findPath } from '../nav/path.ts';
 import { lifePhase, pickBossSkill } from './boss.ts';
 import { aggroPack } from './combat.ts';
 import { allHold } from './conditions.ts';
-import { modsNamed, withMods } from './elites.ts';
 import type { Steering, SteerStep } from './movement.ts';
 import { beingKnocked, faceToward, steerAlong, steerToward, stepKnock, stepTimers } from './movement.ts';
 import { blockedReason, startSkill, stepAction } from './skills.ts';
 import { monsterLevel, SPAWN, spawnMonster } from './spawn.ts';
-import { rankPack, ranksHere, rollRank } from './ranks.ts';
+import { alarmTarget, spawnPack, surgeExtra, wakePack } from './packs.ts';
 import { mayStrike } from './factions.ts';
 import { homeReached, LEASH, shellPoint, shutOut } from './leash.ts';
 import { revivable } from './revive.ts';
@@ -262,7 +261,7 @@ function summonOf(world: World, monster: MonsterState, summon: SummonDef, dt: nu
   if (def === undefined) return;
   const called: number = world.monsters.filter((other: MonsterState): boolean => other.alive && other.summonerId === monster.id).length;
   for (let index: number = 0; index < Math.min(summon.count, summon.limit - called); index += 1) {
-    const minion: MonsterState = spawnMonster(world, def, monster.packId, monster.pos, { summonerId: monster.id, scatter: SPAWN.summonScatter, revived: false });
+    const minion: MonsterState = spawnMonster(world, def, monster.packId, monster.pos, { summonerId: monster.id, scatter: SPAWN.summonScatter, revived: false, level: monster.level });
     minion.aggro = true;
     world.events.push({ type: 'aggro', monsterId: minion.id });
   }
@@ -426,6 +425,14 @@ export function stepMonster(world: World, monster: MonsterState, dt: number): vo
     if (!strikes(world, monster, world.player)) monster.aggro = false;
     return;
   }
+  const call: ZonePack | null = alarmTarget(world, monster);
+  if (call !== null) {
+    if (distance(monster.pos, call) > (monster.def.alarm?.cry ?? 0)) {
+      approach(world, monster, call, local);
+      return;
+    }
+    wakePack(world, call);
+  }
   if (support(world, monster)) return;
   const shut: MomentState | null = foe.kind === 'player' ? shutOut(world, monster, foe.pos) : null;
   if (shut !== null) {
@@ -477,31 +484,15 @@ export function spawnPackNear(world: World, monster: string, count: number, at: 
   if (def === undefined || count < 1) return [];
   const packId: number = world.nextPackId;
   world.nextPackId += 1;
-  return Array.from({ length: Math.floor(count) }, (): MonsterState => spawnMonster(world, def, packId, at, { summonerId: null, scatter: SPAWN.spawnScatter, revived: false }));
+  return Array.from({ length: Math.floor(count) }, (): MonsterState => spawnMonster(world, def, packId, at, { summonerId: null, scatter: SPAWN.spawnScatter, revived: false, level: monsterLevel(world) }));
 }
 
 export function spawnPacks(world: World): void {
-  const rules: SurgeRules | null = world.zone.surge;
-  const extra: number = rules === null ? 0 : Math.min(rules.maxExtraMonsters, Math.floor((world.surge - 1) / Math.max(1, rules.surgesPerExtraMonster)));
+  const extra: number = surgeExtra(world);
   for (const pack of world.zone.packs) {
     if (world.spawnedPacks.includes(pack) || !allHold(world, pack.when)) continue;
-    world.spawnedPacks.push(pack);
-    const packId: number = world.nextPackId;
-    world.nextPackId += 1;
-    if (world.zone.packReturn !== null) world.packReturns.push({ pack, packId, left: null });
-    const defs: MonsterDef[] = [];
-    pack.members.forEach((member, index: number): void => {
-      const base: MonsterDef | undefined = world.content.monsters.get(member.monster);
-      if (base === undefined) return;
-      const def: MonsterDef = withMods(base, modsNamed(world.content.monsterMods, member.mods));
-      const count: number = member.count + (index === 0 ? extra : 0);
-      for (let spawned: number = 0; spawned < count; spawned += 1) defs.push(def);
-    });
-    const ranked: MonsterDef[] = world.zone.ranks && ranksHere(defs) ? rankPack(world.content, world.rng, rollRank(world.content.packRanks, world.rng, monsterLevel(world)), defs) : defs;
-    const row: Vec2 = pack.row ?? { x: 0, z: 0 };
-    ranked.forEach((def: MonsterDef, place: number): void => {
-      spawnMonster(world, def, packId, { x: pack.x + row.x * place, z: pack.z + row.z * place }, { summonerId: null, scatter: pack.row === undefined ? SPAWN.spawnScatter : 0, revived: false });
-    });
+    if (pack.waits !== undefined && !world.roused.includes(pack)) continue;
+    spawnPack(world, pack, extra, false);
   }
 }
 
@@ -519,6 +510,7 @@ export function stepSurge(world: World, dt: number): void {
   world.surgeTimer = null;
   world.surge += 1;
   world.spawnedPacks = [];
+  world.roused = [];
   world.packReturns = [];
   spawnPacks(world);
   world.events.push({ type: 'surge', surge: world.surge });

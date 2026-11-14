@@ -3,6 +3,8 @@ import type { ZoneDrift } from '../content/road-types.ts';
 import type { ReadonlyVec2, Vec2 } from '../math.ts';
 import { outlineGap } from './outline.ts';
 import { barrierPieces, sizedProp } from './barrier.ts';
+import { cliffRocks } from './cliff-rocks.ts';
+import { standsAt, surfacesMeet } from './terrain.ts';
 import { CORNER_PILLAR_RADIUS, isFloorCell, tileAtCell, wallCorners } from './layout.ts';
 
 export interface NavGrid {
@@ -95,11 +97,16 @@ function blockers(zone: ZoneDef, props: ReadonlyMap<string, PropDef>): Blocker[]
     const def: PropDef | undefined = props.get(piece.prop);
     if (def !== undefined) list.push(...propBlockers(sizedProp(def, piece.size), piece.x, piece.z, piece.rotationDegrees));
   }
+  for (const rock of cliffRocks(zone, props)) {
+    const def: PropDef | undefined = props.get(rock.prop);
+    if (def !== undefined) list.push(...propBlockers(sizedProp(def, rock.size), rock.x, rock.z, rock.rotationDegrees));
+  }
   if (zone.walls !== null) for (const corner of wallCorners(zone)) list.push({ kind: 'capsule', from: { x: corner.x, z: corner.z }, to: { x: corner.x, z: corner.z }, radius: CORNER_PILLAR_RADIUS });
   return list;
 }
 
 function insideFloor(zone: ZoneDef, x: number, z: number, margin: number): boolean {
+  if (zone.terrain?.rough !== null && zone.terrain?.rough !== undefined) return standsAt(zone, x, z, margin);
   const size: number = zone.cellSize;
   const column: number = Math.floor(x / size);
   const row: number = Math.floor(z / size);
@@ -110,14 +117,14 @@ function insideFloor(zone: ZoneDef, x: number, z: number, margin: number): boole
   const nearEast: boolean = size - localX < margin;
   const nearNorth: boolean = localZ < margin;
   const nearSouth: boolean = size - localZ < margin;
-  if (nearWest && !isFloorCell(zone, column - 1, row)) return false;
-  if (nearEast && !isFloorCell(zone, column + 1, row)) return false;
-  if (nearNorth && !isFloorCell(zone, column, row - 1)) return false;
-  if (nearSouth && !isFloorCell(zone, column, row + 1)) return false;
-  if (nearWest && nearNorth && !isFloorCell(zone, column - 1, row - 1)) return false;
-  if (nearEast && nearNorth && !isFloorCell(zone, column + 1, row - 1)) return false;
-  if (nearWest && nearSouth && !isFloorCell(zone, column - 1, row + 1)) return false;
-  if (nearEast && nearSouth && !isFloorCell(zone, column + 1, row + 1)) return false;
+  if (nearWest && !surfacesMeet(zone, column, row, -1, 0)) return false;
+  if (nearEast && !surfacesMeet(zone, column, row, 1, 0)) return false;
+  if (nearNorth && !surfacesMeet(zone, column, row, 0, -1)) return false;
+  if (nearSouth && !surfacesMeet(zone, column, row, 0, 1)) return false;
+  if (nearWest && nearNorth && !surfacesMeet(zone, column, row, -1, -1)) return false;
+  if (nearEast && nearNorth && !surfacesMeet(zone, column, row, 1, -1)) return false;
+  if (nearWest && nearSouth && !surfacesMeet(zone, column, row, -1, 1)) return false;
+  if (nearEast && nearSouth && !surfacesMeet(zone, column, row, 1, 1)) return false;
   return true;
 }
 

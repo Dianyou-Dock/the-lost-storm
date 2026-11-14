@@ -2,12 +2,20 @@ import type { Content, PropDef, ZoneDef, ZoneExit } from '../../sim/content/type
 
 export function zoneProps(zone: ZoneDef): string[] {
   const walls: string[] = zone.walls === null ? [] : [...zone.walls.tall, zone.walls.low, zone.walls.corner];
-  return [...walls, ...zone.props.map((placed): string => placed.prop), ...(zone.outside?.edge?.props ?? []), ...(zone.outside?.barrier?.rows.flatMap((row): readonly string[] => [...row.far.props, ...row.near.props]) ?? []), ...zone.scatter.flatMap((rule): readonly string[] => rule.props), ...(zone.void?.shore?.props ?? []).map((placed): string => placed.prop)];
+  return [...walls, ...zone.props.map((placed): string => placed.prop), ...(zone.outside?.edge?.props ?? []), ...(zone.outside?.barrier?.rows ?? []).concat(zone.outside?.barrier?.drop ?? []).flatMap((row): readonly string[] => row.far.props.concat(row.near.props)), ...zone.scatter.flatMap((rule): readonly string[] => rule.props), ...(zone.terrain?.cliffs ?? []).flatMap((rule): readonly string[] => rule.props), ...(zone.void?.shore?.props ?? []).map((placed): string => placed.prop)];
+}
+
+function shownProps(content: Content, zone: ZoneDef): string[] {
+  const ids: string[] = zoneProps(zone);
+  return [...ids, ...ids.flatMap((propId: string): string[] => {
+    const opened: string | null = content.props.get(propId)?.cache?.opened ?? null;
+    return opened === null ? [] : [opened];
+  })];
 }
 
 export function zoneModels(content: Content, zone: ZoneDef): Set<string> {
   const models: Set<string> = new Set<string>();
-  for (const propId of zoneProps(zone)) {
+  for (const propId of shownProps(content, zone)) {
     const def: PropDef | undefined = content.props.get(propId);
     if (def !== undefined) models.add(def.model);
   }
@@ -21,7 +29,7 @@ export function zoneSurfaces(content: Content, zone: ZoneDef): Set<string> {
   if (shoreSurface !== null) ids.add(shoreSurface);
   const pathSurface: string | null = zone.void?.shore?.path?.surface ?? null;
   if (pathSurface !== null) ids.add(pathSurface);
-  for (const propId of zoneProps(zone)) {
+  for (const propId of shownProps(content, zone)) {
     const def: PropDef | undefined = content.props.get(propId);
     if (def !== undefined) for (const id of Object.values(def.surfaces)) ids.add(id);
   }

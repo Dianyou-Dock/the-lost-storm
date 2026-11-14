@@ -1,7 +1,8 @@
 import type { Fields } from './read.ts';
 import { choice, ContentError, fields, nonNegative, positive, textList } from './read.ts';
-import type { ScatterSize, ZoneScatter } from './types.ts';
-import { SCATTER_TYPES } from './types.ts';
+import type { ScatterSize, ZoneScatter } from './scatter-types.ts';
+import { SCATTER_TYPES } from './scatter-types.ts';
+import { cliffRule } from './parse-terrain.ts';
 
 function scatterSize(value: unknown, where: string): ScatterSize {
   const source: Fields = fields(value, where);
@@ -24,6 +25,9 @@ export function zoneScatter(value: unknown, where: string): ZoneScatter {
       break;
     case 'around':
       read = { type, props, anchors: textList(source, 'anchors', where), each: positive(source, 'each', where), spread: positive(source, 'spread', where), size };
+      break;
+    case 'cliff':
+      read = { type, props, ...cliffRule(source, where), size };
       break;
   }
   return read;

@@ -27,6 +27,8 @@ export function stepPackReturns(world: World, dt: number): void {
   }
   if (due.length === 0) return;
   world.packReturns = world.packReturns.filter((timer: PackTimer): boolean => !due.includes(timer));
-  world.spawnedPacks = world.spawnedPacks.filter((pack): boolean => !due.some((timer: PackTimer): boolean => timer.pack === pack));
+  const back = (pack: ZonePack): boolean => !due.some((timer: PackTimer): boolean => timer.pack === pack);
+  world.spawnedPacks = world.spawnedPacks.filter(back);
+  world.roused = world.roused.filter(back);
   spawnPacks(world);
 }

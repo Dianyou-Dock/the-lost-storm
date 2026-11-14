@@ -293,7 +293,7 @@ void test('a zone parses with its kind, level, exits, checkpoints, surge rules a
   assert.equal(arena.ambience.background, shallows.ambience.background);
   assert.equal(arena.floors['.'], 'silt');
   assert.deepEqual(arena.outside, { ...shallows.outside, edge: null });
-  assert.deepEqual(town.outside, { ...waystation.outside, edge: null });
+  assert.deepEqual(town.outside, { ...waystation.outside, edge: null, barrier: { ...waystation.outside.barrier, drop: [] } });
   assert.equal(arena.walls, null);
   assert.equal(content.world.start, 'shallows');
   assert.deepEqual(content.world.scaling, world.scaling);
@@ -566,7 +566,7 @@ void test('surfaces parse, and a floor, an outside or a prop dressed in an unkno
   assert.equal(must(content.props.get('castle_wall_a'), 'wall').surfaces['stone'], 'castle_wall');
   const town = (change: object): RawContent => ({ ...shipped, zones: zones({ ...waystation, ...change }, shallows) });
   assert.ok(has(town({ floors: { ...waystation.floors, '.': 'no_such_surface' } }), 'zone waystation floor uses unknown surface no_such_surface'));
-  assert.ok(has(town({ outside: { surface: 'no_such_surface', reach: 2 } }), 'zone waystation outside uses unknown surface no_such_surface'));
+  assert.ok(has(town({ outside: { surface: 'no_such_surface', reach: 2 } }), 'zone waystation outside uses unknown surface no_such_surface') && has(town({ terrain: { rise: 1, levels: waystation.tiles.map((line: string): string => '0'.repeat(line.length)), cliff: 'no_such_surface', rough: null, blends: [], cliffs: [] } }), 'zone waystation cliff uses unknown surface no_such_surface'));
   const odd = { id: 'odd_torch', model: 'models/world/torch.glb', scale: 1, blockRadius: 0, light: null, surfaces: { wood: 'no_such_surface' } };
   assert.ok(has({ ...shipped, props: [...propDefs, odd] }, 'prop odd_torch dresses wood in unknown surface no_such_surface'));
   assert.throws((): Content => parseContent({ ...shipped, surfaces: [{ ...cobble, metres: 0 }] }), ContentError);

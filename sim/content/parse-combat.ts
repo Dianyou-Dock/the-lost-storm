@@ -1,6 +1,6 @@
 import type { Fields } from './read.ts';
 import { ContentError, fields, flag, nullableText, numeric, positive, text, textList } from './read.ts';
-import type { DormantDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, SkillCommit, SkillLeap, SummonDef } from './combat-types.ts';
+import type { AlarmDef, DormantDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, SkillCommit, SkillLeap, SummonDef } from './combat-types.ts';
 import type { MonsterRank } from './rank-types.ts';
 import type { Content, MonsterDef, SkillDef } from './types.ts';
 
@@ -70,6 +70,10 @@ function dormant(source: Fields, where: string): DormantDef {
   return { noiseRadius: positive(source, 'noiseRadius', where) };
 }
 
+function alarm(source: Fields, where: string): AlarmDef {
+  return { reach: positive(source, 'reach', where), cry: positive(source, 'cry', where) };
+}
+
 function poise(source: Fields, where: string): MonsterPoise {
   return { knockback: share(source, 'knockback', where), stagger: share(source, 'stagger', where), resolve: zeroOrMore(source, 'resolve', where) };
 }
@@ -101,6 +105,7 @@ export interface MonsterTraits {
   readonly mods: readonly string[];
   readonly faction: string;
   readonly dormant: DormantDef | null;
+  readonly alarm: AlarmDef | null;
   readonly support: string | null;
   readonly barks: readonly string[];
   readonly regen: number;
@@ -116,6 +121,7 @@ export function monsterTraits(source: Fields, where: string): MonsterTraits {
     mods: [],
     faction: text(source, 'faction', where),
     dormant: optional(source['dormant'], `${where}.dormant`, dormant),
+    alarm: optional(source['alarm'], `${where}.alarm`, alarm),
     support: nullableText(source, 'support', where),
     barks: source['barks'] === undefined ? [] : textList(source, 'barks', where),
     regen: zeroOrMore(source, 'regen', where),
@@ -175,6 +181,7 @@ export function combatProblems(content: Content): string[] {
       if (helper !== undefined) need(helper.delivery.type === 'revive', `monster ${def.id} supports with skill ${def.support}, which raises nobody`);
     }
     need(def.dormant === null || def.boss === null, `boss ${def.id} cannot be dormant`);
+    need(def.alarm === null || def.boss === null, `boss ${def.id} cannot raise an alarm`);
     const used: SkillDef | undefined = content.skills.get(def.skill);
     if (used !== undefined) need(used.delivery.type !== 'revive', `monster ${def.id} attacks with ${def.skill}, which only raises the fallen`);
     if (def.behaviour.type === 'stalker' && used !== undefined) need(used.engageRange > def.behaviour.orbitRange, `monster ${def.id} circles at ${def.behaviour.orbitRange}, outside the reach of its skill ${def.skill}`);

@@ -21,5 +21,6 @@ export function zoneBarrier(value: unknown, where: string): ZoneBarrier | null {
   const source: Fields = fields(value, where);
   const rows: BarrierRow[] = each(source['rows'], `${where}.rows`, barrierRow);
   if (rows.length === 0) throw new ContentError(`${where}.rows`, 'a barrier needs at least one row');
-  return { nearSides: choiceList(source, 'nearSides', BARRIER_SIDES, where), exitClear: nonNegative(source, 'exitClear', where), rows };
+  const drop: BarrierRow[] = source['drop'] === undefined ? [] : each(source['drop'], `${where}.drop`, barrierRow);
+  return { nearSides: choiceList(source, 'nearSides', BARRIER_SIDES, where), exitClear: nonNegative(source, 'exitClear', where), rows, drop };
 }

@@ -196,7 +196,7 @@ function turn(world: World, moment: MomentState, sure: boolean): number[] {
   const reach: Uint8Array = reachFrom(routedGrid(world.grid), world.player.pos);
   rising.forEach(({ figure, entry, def: base }, index: number): void => {
     const def: MonsterDef = ranked[index] ?? base;
-    const monster: MonsterState = spawnMonster(world, def, packId, figure.pos, { summonerId: null, scatter: 0, revived: false });
+    const monster: MonsterState = spawnMonster(world, def, packId, figure.pos, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(world) });
     standClear(world, monster);
     standJoined(world, monster, reach);
     monster.facing = figure.facing;

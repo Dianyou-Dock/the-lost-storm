@@ -1,3 +1,4 @@
+import { heightAt } from '../../sim/nav/terrain.ts';
 import type { Object3D, Scene } from 'three';
 import { Color, Group, PointLight } from 'three';
 import type { ExitLook, ZoneCheckpoint, ZoneDef, ZoneExit } from '../../sim/content/types.ts';
@@ -64,7 +65,7 @@ export function createZoneMarkers(scene: Scene, zone: ZoneDef): ZoneMarkers {
     const lightPower: number = shape.light;
     const color: Color = new Color(hex);
     const glow: LightPool = createLightPool(color, shape.column);
-    glow.place(x, zone.floorHeight + MARKERS.lift, z, radius);
+    glow.place(x, heightAt(zone, x, z) + MARKERS.lift, z, radius);
     glow.group.traverse((part: Object3D): void => {
       part.renderOrder = 4;
     });

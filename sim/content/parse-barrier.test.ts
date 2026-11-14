@@ -7,7 +7,8 @@ const ROW = { far: { props: ['crag'], out: -0.9, step: 2.6, turn: 70 }, near: { 
 const BARRIER = { nearSides: ['south', 'east'], exitClear: 3, rows: [ROW, { ...ROW, near: { ...ROW.near, props: [] }, collide: false, shadow: false }] } as const;
 
 void test('a barrier reads its rows, its camera-side edges and the room it leaves at exits', (): void => {
-  assert.deepEqual(zoneBarrier(BARRIER, 'zone.outside.barrier'), BARRIER);
+  assert.deepEqual(zoneBarrier(BARRIER, 'zone.outside.barrier'), { ...BARRIER, drop: [] });
+  assert.deepEqual(zoneBarrier({ ...BARRIER, drop: [ROW] }, 'zone.outside.barrier')?.drop, [ROW]);
   assert.equal(zoneBarrier(undefined, 'zone.outside.barrier'), null);
   assert.equal(zoneBarrier(null, 'zone.outside.barrier'), null);
 });

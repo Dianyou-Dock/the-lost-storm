@@ -1,3 +1,4 @@
+import { liftHere } from './terrain-lift.ts';
 import type { Color, Object3D } from 'three';
 import { PointLight } from 'three';
 import { flashLevel, KIT } from './effect-kit.ts';
@@ -37,7 +38,7 @@ export function createFlashLights(parent: Object3D, count: number): FlashLights 
       next = (next + 1) % flashes.length;
       if (entry === undefined) return;
       entry.light.color.copy(color);
-      entry.light.position.set(x, y, z);
+      entry.light.position.set(x, y + liftHere(x, z), z);
       entry.peak = intensity;
       entry.age = 0;
       entry.rise = Math.max(KIT.flashRise, rise);

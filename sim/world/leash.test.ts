@@ -9,7 +9,7 @@ import { distance } from '../math.ts';
 import { createWorld } from './create.ts';
 import { LEASH } from './leash.ts';
 import { forceStrike } from './moments.ts';
-import { spawnMonster } from './spawn.ts';
+import { monsterLevel, spawnMonster } from './spawn.ts';
 import { stepWorld } from './step.ts';
 import type { MomentState, MonsterState, World } from './types.ts';
 import { enterZone } from './zones.ts';
@@ -36,7 +36,7 @@ function heroInBubble(roamerId: string): Shut {
   stepWorld(world, [], PROBE.dt);
   assert.equal(moment.phase, 'awake');
   const def: MonsterDef = must(content.monsters.get(roamerId), roamerId);
-  const roamer: MonsterState = spawnMonster(world, def, world.nextPackId, { x: at.x + moment.def.radius + PROBE.home, z: at.z }, { summonerId: null, scatter: 0, revived: false });
+  const roamer: MonsterState = spawnMonster(world, def, world.nextPackId, { x: at.x + moment.def.radius + PROBE.home, z: at.z }, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(world) });
   roamer.spawnTime = 0;
   roamer.pos = { x: at.x + moment.def.radius + PROBE.outside, z: at.z };
   roamer.aggro = true;
@@ -82,7 +82,7 @@ for (const offset of HOMEWARD.onHome) {
     world.monsters = [];
     world.player.invulnerable = Infinity;
     const home: Vec2 = { x: world.player.pos.x + offset, z: world.player.pos.z };
-    const roamer: MonsterState = spawnMonster(world, must(content.monsters.get('unfinished_taker'), 'taker'), world.nextPackId, home, { summonerId: null, scatter: 0, revived: false });
+    const roamer: MonsterState = spawnMonster(world, must(content.monsters.get('unfinished_taker'), 'taker'), world.nextPackId, home, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(world) });
     roamer.spawnTime = 0;
     roamer.pos = { x: home.x - HOMEWARD.back, z: home.z };
     roamer.aggro = false;
@@ -121,7 +121,7 @@ function homeWorld(): World {
 }
 
 function sendHome(world: World, def: MonsterDef, home: Vec2, from: Vec2, packId: number = world.nextPackId): MonsterState {
-  const roamer: MonsterState = spawnMonster(world, def, packId, home, { summonerId: null, scatter: 0, revived: false });
+  const roamer: MonsterState = spawnMonster(world, def, packId, home, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(world) });
   roamer.spawnTime = 0;
   roamer.pos = { ...from };
   roamer.aggro = false;

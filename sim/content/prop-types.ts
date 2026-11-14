@@ -22,6 +22,13 @@ export interface SurfaceDef {
   readonly pace: number;
 }
 
+export interface PropCache {
+  readonly goldMin: number;
+  readonly goldMax: number;
+  readonly itemChance: number;
+  readonly opened: string | null;
+}
+
 export interface PropDef {
   readonly id: string;
   readonly model: string;
@@ -35,4 +42,5 @@ export interface PropDef {
   readonly surfaces: Readonly<Record<string, string>>;
   readonly tint: string | null;
   readonly service: ServiceKind | null;
+  readonly cache: PropCache | null;
 }

@@ -1,3 +1,4 @@
+import { liftHere } from './terrain-lift.ts';
 import type { Object3D } from 'three';
 import { Color } from 'three';
 import type { VfxImpact, VfxLightning } from '../../sim/content/types.ts';
@@ -385,10 +386,10 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
       const travelled: number = Math.hypot(x - body.startX, z - body.startZ);
       const length: number = Math.min(KIT.bodyLength, travelled + KIT.bodyStart);
       tail.x = x - dirX * length;
-      tail.y = y;
+      tail.y = y + liftHere(x, z);
       tail.z = z - dirZ * length;
       head.x = x;
-      head.y = y;
+      head.y = y + liftHere(x, z);
       head.z = z;
       if (body.handle !== null) {
         body.dice.reset(body.seed);

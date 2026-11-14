@@ -63,6 +63,7 @@ export function arena(seed: number, content: Content = ARENA_CONTENT): World {
 export function place(world: World, kind: string, at: Vec2, mods: readonly string[] = []): MonsterState {
   world.zone = { ...world.zone, packs: [{ x: at.x, z: at.z, members: [{ monster: kind, count: 1, mods }], when: [] }] };
   world.spawnedPacks = [];
+  world.roused = [];
   spawnPacks(world);
   const monster: MonsterState = must(world.monsters.at(-1), `${kind} spawned`);
   monster.pos = must(nearestWalkable(routedGrid(world.grid), at, 6), 'walkable spawn');

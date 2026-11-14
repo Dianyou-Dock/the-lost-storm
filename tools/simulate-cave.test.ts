@@ -1,0 +1,43 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { OUTPOST_CONTENT, OUTPOST_ZONE } from '../test/road-support.ts';
+import { must } from '../test/support.ts';
+import type { Vec2 } from '../sim/math.ts';
+import { distance } from '../sim/math.ts';
+import { cellIndex, isWalkable } from '../sim/nav/grid.ts';
+import { createWorld } from '../sim/world/create.ts';
+import type { World } from '../sim/world/types.ts';
+import { enterZone } from '../sim/world/zones.ts';
+import { farthestPoint, routeBack, walkDistances, walkFrom } from './simulate-cave.ts';
+
+function outpost(): World {
+  const world: World = createWorld(OUTPOST_CONTENT, { seed: 1, save: null });
+  enterZone(world, OUTPOST_ZONE, { type: 'start' });
+  return world;
+}
+
+void test('walking distances start at zero under the hero and grow one cell at a time', (): void => {
+  const world: World = outpost();
+  const field: Int32Array = walkDistances(world.grid, world.player.pos);
+  assert.equal(walkFrom(world.grid, field, world.player.pos), 0);
+  const far: Vec2 = farthestPoint(world.grid, field);
+  const steps: number = walkFrom(world.grid, field, far);
+  assert.ok(steps > 0);
+  assert.ok(field.every((value: number): boolean => value <= steps));
+  assert.equal(field[cellIndex(world.grid, far.x, far.z)], steps);
+});
+
+void test('a route back runs over walkable cells from the hero to the point, in legs no longer than asked', (): void => {
+  const world: World = outpost();
+  const field: Int32Array = walkDistances(world.grid, world.player.pos);
+  const far: Vec2 = farthestPoint(world.grid, field);
+  const legs: Vec2[] = routeBack(world.grid, field, far, 3);
+  const last: Vec2 = must(legs[legs.length - 1], 'last leg');
+  assert.ok(distance(last, far) < world.grid.cellSize);
+  assert.ok(legs.every((leg: Vec2): boolean => isWalkable(world.grid, leg.x, leg.z)));
+  for (let index: number = 1; index < legs.length; index += 1) {
+    const from: Vec2 = must(legs[index - 1], 'leg');
+    const to: Vec2 = must(legs[index], 'leg');
+    assert.ok(Math.abs(walkFrom(world.grid, field, to) - walkFrom(world.grid, field, from)) <= 3);
+  }
+});

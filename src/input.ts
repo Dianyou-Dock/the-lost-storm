@@ -1,3 +1,4 @@
+import { heightAt, terrainMap } from '../sim/nav/terrain.ts';
 import type { Box3 as Box3Type } from 'three';
 import { Box3, Vector2, Vector3 } from 'three';
 import type { ZoneExit } from '../sim/content/types.ts';
@@ -8,6 +9,8 @@ import { readyToRepeat } from '../sim/world/skills.ts';
 import { stationNear } from '../sim/world/trade.ts';
 import { chestNear, chestSpot } from '../sim/world/moment-chest.ts';
 import type { Station } from '../sim/world/trade.ts';
+import { cacheNear } from '../sim/world/caches.ts';
+import type { Cache } from '../sim/world/caches.ts';
 import type { Command, GroundItem, MomentState, MonsterState, NpcState, World } from '../sim/world/types.ts';
 import { waypointAt } from '../sim/world/waypoints.ts';
 import type { Hud } from './hud/hud-api.ts';
@@ -247,9 +250,9 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
     return chestNear(world, ground);
   };
 
-  const stationAt = (ground: Vec2 | null): Station | null => {
+  const stationAt = (ground: Vec2 | null): Station | Cache | null => {
     if (ground === null || !pointerInside || hud.isPointerOverUi()) return null;
-    return stationNear(world, ground);
+    return stationNear(world, ground) ?? cacheNear(world, ground);
   };
 
   return {
@@ -289,7 +292,7 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
       hoveredId = target?.id ?? person?.id ?? null;
       const other: string | null = target === null && person === null ? playerAt() : null;
       hooks.hoverPlayer(other);
-      const groundHit: Vector3 | null = camera.groundPoint(pointer);
+      const groundHit: Vector3 | null = camera.groundPoint(pointer, terrainMap(world.zone) === null ? undefined : (x: number, z: number): number => heightAt(world.zone, x, z));
       const ground: Vec2 | null = groundHit === null ? null : { x: groundHit.x, z: groundHit.z };
       look = mouse && pointerInside ? ground : null;
       const item: GroundItem | null = target === null && person === null && other === null ? itemAt(ground) : null;
@@ -297,7 +300,7 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
       const exit: ZoneExit | null = target === null && person === null && other === null && item === null ? exitAt(ground) : null;
       hooks.aimExit(exit?.id ?? null);
       const chest: MomentState | null = target === null && person === null && item === null && exit === null ? chestAt(ground) : null;
-      const station: Station | null = target === null && person === null && item === null && exit === null && chest === null ? stationAt(ground) : null;
+      const station: Station | Cache | null = target === null && person === null && item === null && exit === null && chest === null ? stationAt(ground) : null;
       const marked: boolean = target === null && person === null && item === null && exit === null && chest === null && station === null && onWaypointMark(ground);
       if (tapping) {
         tapping = false;

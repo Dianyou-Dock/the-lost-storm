@@ -87,6 +87,11 @@ export interface DormantDef {
   readonly noiseRadius: number;
 }
 
+export interface AlarmDef {
+  readonly reach: number;
+  readonly cry: number;
+}
+
 export const REGARDS = ['hostile', 'wary', 'neutral', 'friendly'] as const;
 export type Regard = (typeof REGARDS)[number];
 

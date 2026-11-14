@@ -13,7 +13,7 @@ import { echoMonsters, forceStrike, wakeMoment } from './moments.ts';
 import { lineSeconds } from './reading.ts';
 import { questPins } from './quest-pins.ts';
 import { SCENE } from './scene.ts';
-import { spawnMonster } from './spawn.ts';
+import { monsterLevel, spawnMonster } from './spawn.ts';
 import { stepWorld } from './step.ts';
 import type { Command, MomentState, MonsterState, NpcState, World, WorldEvent } from './types.ts';
 import { enterZone } from './zones.ts';
@@ -145,7 +145,7 @@ void test('he speaks his three lines in order, each given the reading time of th
   const world: World = hall();
   untilPhase(world, 'strike', towardExit(world));
   const brute: MonsterDef = must(content.monsters.get('unfinished_brute'), 'a brute');
-  const foe: MonsterState = spawnMonster(world, brute, world.nextPackId, { x: world.player.pos.x + ADJACENT, z: world.player.pos.z }, { summonerId: null, scatter: 0, revived: false });
+  const foe: MonsterState = spawnMonster(world, brute, world.nextPackId, { x: world.player.pos.x + ADJACENT, z: world.player.pos.z }, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(world) });
   world.nextPackId += 1;
   foe.aggro = true;
   foe.foeId = world.player.id;

@@ -10,6 +10,7 @@ export type ItemSource =
   | { readonly kind: 'boss'; readonly monster: string; readonly zone: string }
   | { readonly kind: 'moment'; readonly moment: string; readonly zone: string }
   | { readonly kind: 'find'; readonly find: string; readonly zone: string }
+  | { readonly kind: 'cache'; readonly prop: string; readonly zone: string }
   | { readonly kind: 'start'; readonly base: string }
   | { readonly kind: 'trader'; readonly base: string; readonly rarity: string };
 

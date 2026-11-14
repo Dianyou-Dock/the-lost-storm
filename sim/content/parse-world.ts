@@ -48,6 +48,7 @@ import { actEnd, drifts, retiredZones, triggers } from './parse-road.ts';
 import { momentField } from './parse-moments.ts';
 import { zoneScenes } from './parse-scene.ts';
 import { zoneWeather } from './parse-weather.ts';
+import { zoneTerrain } from './parse-terrain.ts';
 
 function point(value: unknown, where: string): ZonePoint {
   const source: Fields = fields(value, where);
@@ -64,11 +65,19 @@ function packMember(value: unknown, where: string): PackMember {
   return { monster: text(source, 'monster', where), count: numeric(source, 'count', where), mods: packMods(source, where) };
 }
 
+function packLevel(source: Fields, where: string): number {
+  const level: number = positive(source, 'level', where);
+  if (!Number.isInteger(level)) throw new ContentError(`${where}.level`, 'a pack level is a whole number');
+  return level;
+}
+
 function pack(value: unknown, where: string): ZonePack {
   const source: Fields = fields(value, where);
   const row: Fields | null = source['row'] === undefined || source['row'] === null ? null : fields(source['row'], `${where}.row`);
-  const read: ZonePack = { x: numeric(source, 'x', where), z: numeric(source, 'z', where), members: each(source['members'], `${where}.members`, packMember), when: conditions(source, 'when', where) };
-  return row === null ? read : { ...read, row: { x: numeric(row, 'x', `${where}.row`), z: numeric(row, 'z', `${where}.row`) } };
+  const base: ZonePack = { x: numeric(source, 'x', where), z: numeric(source, 'z', where), members: each(source['members'], `${where}.members`, packMember), when: conditions(source, 'when', where) };
+  const ranked: ZonePack = source['level'] === undefined ? base : { ...base, level: packLevel(source, where) };
+  const waiting: ZonePack = source['waits'] === undefined ? ranked : { ...ranked, waits: { near: positive(fields(source['waits'], `${where}.waits`), 'near', `${where}.waits`) } };
+  return row === null ? waiting : { ...waiting, row: { x: numeric(row, 'x', `${where}.row`), z: numeric(row, 'z', `${where}.row`) } };
 }
 
 function packReturn(value: unknown, where: string): PackReturn | null {
@@ -265,6 +274,7 @@ export function zone(value: unknown, where: string): ZoneDef {
     stormTier: source['stormTier'] === undefined ? 0 : nonNegative(source, 'stormTier', where),
     cellSize: positive(source, 'cellSize', where),
     floorHeight: numeric(source, 'floorHeight', where),
+    terrain: zoneTerrain(source['terrain'], `${where}.terrain`, tiles, positive(source, 'cellSize', where)),
     tiles,
     floors,
     outside: zoneOutside(source['outside'], `${where}.outside`),

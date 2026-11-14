@@ -20,7 +20,7 @@ export function raiseFallen(world: World, casterId: number, faction: string, del
   for (const corpse of fallen) {
     world.monsters = world.monsters.filter((monster: MonsterState): boolean => monster !== corpse);
     world.events.push({ type: 'monster_remove', monsterId: corpse.id });
-    const raised: MonsterState = spawnMonster(world, corpse.def, corpse.packId, corpse.pos, { summonerId: null, scatter: 0, revived: true });
+    const raised: MonsterState = spawnMonster(world, corpse.def, corpse.packId, corpse.pos, { summonerId: null, scatter: 0, revived: true, level: corpse.level });
     raised.facing = corpse.facing;
     raised.life = Math.max(1, Math.round(raised.maxLife * delivery.lifeShare));
     raised.aggro = true;

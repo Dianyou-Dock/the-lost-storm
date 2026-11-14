@@ -439,6 +439,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
           case 'moment_gone':
           case 'moment_chest':
           case 'chest_opened':
+          case 'cache_opened':
           case 'path_marked':
           case 'skill_impact':
           case 'hazard':

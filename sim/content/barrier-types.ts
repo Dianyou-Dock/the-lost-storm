@@ -19,4 +19,5 @@ export interface ZoneBarrier {
   readonly nearSides: readonly BarrierSide[];
   readonly exitClear: number;
   readonly rows: readonly BarrierRow[];
+  readonly drop: readonly BarrierRow[];
 }

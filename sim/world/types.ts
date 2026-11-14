@@ -358,9 +358,7 @@ export interface PickupCommand {
   readonly groundId: number;
 }
 
-export interface StopCommand {
-  readonly type: 'stop';
-}
+export interface StopCommand { readonly type: 'stop' }
 
 export interface HeroCommand {
   readonly type: 'hero';
@@ -398,9 +396,7 @@ export interface RefundCommand {
   readonly node: string;
 }
 
-export interface RespecCommand {
-  readonly type: 'respec';
-}
+export interface RespecCommand { readonly type: 'respec' }
 
 export interface TravelCommand {
   readonly type: 'travel';
@@ -412,9 +408,7 @@ export interface TalkCommand {
   readonly npcId: number;
 }
 
-export interface AdvanceCommand {
-  readonly type: 'advance';
-}
+export interface AdvanceCommand { readonly type: 'advance' }
 
 export interface HoldCommand {
   readonly type: 'hold';
@@ -614,7 +608,8 @@ export type WorldEvent =
   | { readonly type: 'moment_gone'; readonly momentId: number }
   | { readonly type: 'moment_chest'; readonly moment: MomentState }
   | UnisonEvent
-  | { readonly type: 'chest_opened'; readonly moment: MomentState; readonly pos: Vec2; readonly gold: number };
+  | { readonly type: 'chest_opened'; readonly moment: MomentState; readonly pos: Vec2; readonly gold: number }
+  | { readonly type: 'cache_opened'; readonly prop: number; readonly pos: Vec2; readonly gold: number };
 
 export interface VendorStock {
   stock: (ItemInstance | null)[];
@@ -656,7 +651,9 @@ export interface World {
   readonly player: PlayerState;
   monsters: MonsterState[];
   spawnedPacks: ZonePack[];
+  roused: ZonePack[];
   packReturns: PackTimer[];
+  cachesOpened: number[];
   npcs: NpcState[];
   dialogue: DialogueState | null;
   heard: string[];

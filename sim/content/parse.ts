@@ -1,4 +1,5 @@
 import { packRanks, rankProblems } from './parse-ranks.ts';
+import { propCache } from './parse-cache.ts';
 import { atlasProblems } from './atlas.ts';
 import { affix, family, itemBase, rarity } from './parse-items.ts';
 import { itemProblems } from './item-rules.ts';
@@ -344,6 +345,7 @@ function prop(value: unknown, where: string): PropDef {
     surfaces: dressing(source['surfaces'], `${where}.surfaces`),
     tint: source['tint'] === undefined ? null : colour(source, 'tint', where),
     service: service(source, where),
+    cache: propCache(source['cache'], `${where}.cache`),
   };
 }
 
@@ -557,6 +559,8 @@ export function contentProblems(content: Content): string[] {
   for (const grant of content.chart.grants) known(`chart point grant ${grant.id}`, grant.when);
   for (const def of content.props.values()) {
     for (const [material, surfaceId] of Object.entries(def.surfaces)) need(content.surfaces.has(surfaceId), `prop ${def.id} dresses ${material} in unknown surface ${surfaceId}`);
+    const opened: string | null = def.cache?.opened ?? null;
+    need(opened === null || content.props.has(opened), `prop ${def.id} opens into unknown prop ${opened ?? ''}`);
   }
   for (const def of content.attachments.values()) {
     need(def.stance === null || [...content.rigs.values()].some((rigDef: RigDef): boolean => rigDef.clips.stances[def.stance ?? ''] !== undefined), `attachment ${def.id} is held in stance ${def.stance ?? ''}, which no rig has`);
@@ -574,6 +578,9 @@ export function contentProblems(content: Content): string[] {
     const at: string = `zone ${zoneDef.id}`;
     for (const floor of Object.values(zoneDef.floors)) need(content.surfaces.has(floor), `${at} floor uses unknown surface ${floor}`);
     if (zoneDef.outside !== null) need(content.surfaces.has(zoneDef.outside.surface), `${at} outside uses unknown surface ${zoneDef.outside.surface}`);
+    if (zoneDef.terrain !== null) need(content.surfaces.has(zoneDef.terrain.cliff), `${at} cliff uses unknown surface ${zoneDef.terrain.cliff}`);
+    for (const blend of zoneDef.terrain?.blends ?? []) need(content.surfaces.has(blend.surface), `${at} blends unknown surface ${blend.surface}`);
+    for (const rule of zoneDef.terrain?.cliffs ?? []) for (const id of rule.props) need(content.props.has(id), `${at} lays unknown cliff rock ${id}`);
     const shoreSurface: string | null = zoneDef.void?.shore?.surface ?? null;
     if (shoreSurface !== null) need(content.surfaces.has(shoreSurface), `${at} shore uses unknown surface ${shoreSurface}`);
     const shorePathSurface: string | null = zoneDef.void?.shore?.path?.surface ?? null;

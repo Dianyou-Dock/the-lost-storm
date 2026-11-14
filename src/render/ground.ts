@@ -5,6 +5,9 @@ import type { Content, SurfaceDef, ZoneDef, ZoneProp } from '../../sim/content/t
 import { distanceToCell, floorCells, isFloorCell, outsideCells, tileAtCell, zoneColumns, zoneRows } from '../../sim/nav/layout.ts';
 import type { FloorCell, OutsideCell } from '../../sim/nav/layout.ts';
 import { surfaceMaterial } from './surfaces.ts';
+import { buildCliffs } from './ground-cliffs.ts';
+import { buildTerrainGround } from './ground-terrain.ts';
+import { tileLift } from './terrain-lift.ts';
 import { wetGround } from './wet-ground.ts';
 import type { SurfaceUse } from './surfaces.ts';
 
@@ -54,6 +57,7 @@ export function occlusionAt(occluders: readonly Occluder[], x: number, z: number
 
 export interface Batch {
   readonly positions: number[];
+  readonly normals: number[];
   readonly uvs: number[];
   readonly colors: number[];
   readonly indices: number[];
@@ -77,6 +81,7 @@ export function growAt(zone: ZoneDef, column: number, row: number): Grow {
 
 interface Corner {
   readonly x: number;
+  readonly y: number;
   readonly z: number;
   readonly shade: number;
   readonly alpha: number;
@@ -186,10 +191,11 @@ function shadeAt(shading: Shading, x: number, z: number): number {
   return macro * detail * wall * occluded;
 }
 
-function emit(batch: Batch, corners: readonly [Corner, Corner, Corner, Corner], y: number): void {
+function emit(batch: Batch, corners: readonly [Corner, Corner, Corner, Corner]): void {
   const base: number = batch.positions.length / 3;
   for (const corner of corners) {
-    batch.positions.push(corner.x, y, corner.z);
+    batch.positions.push(corner.x, corner.y, corner.z);
+    batch.normals.push(0, 1, 0);
     batch.uvs.push(corner.x, corner.z);
     batch.colors.push(corner.shade, corner.shade, corner.shade, corner.alpha);
   }
@@ -213,7 +219,7 @@ function cover(shading: Shading, batch: Batch, column: number, row: number, y: n
   const size: number = GROUND.divisions + 1;
   const grid: Corner[] = [];
   for (const z of zs) {
-    for (const x of xs) grid.push({ x, z, shade: shadeAt(shading, x, z) * tone, alpha: alphaAt === null ? 1 : alphaAt(x, z) });
+    for (const x of xs) grid.push({ x, y: y + tileLift(zone, column, row, x, z), z, shade: shadeAt(shading, x, z) * tone, alpha: alphaAt === null ? 1 : alphaAt(x, z) });
   }
   const at = (i: number, j: number): Corner => {
     const found: Corner | undefined = grid[j * size + i];
@@ -224,7 +230,7 @@ function cover(shading: Shading, batch: Batch, column: number, row: number, y: n
     for (let i: number = 0; i < GROUND.divisions; i += 1) {
       const corners: [Corner, Corner, Corner, Corner] = [at(i, j), at(i + 1, j), at(i, j + 1), at(i + 1, j + 1)];
       if (corners.every((entry: Corner): boolean => entry.alpha <= 0)) continue;
-      emit(batch, corners, y);
+      emit(batch, corners);
     }
   }
 }
@@ -232,7 +238,7 @@ function cover(shading: Shading, batch: Batch, column: number, row: number, y: n
 function batchFor(batches: Map<string, Batch>, key: string): Batch {
   const found: Batch | undefined = batches.get(key);
   if (found !== undefined) return found;
-  const made: Batch = { positions: [], uvs: [], colors: [], indices: [] };
+  const made: Batch = { positions: [], normals: [], uvs: [], colors: [], indices: [] };
   batches.set(key, made);
   return made;
 }
@@ -282,7 +288,7 @@ function toMesh(content: Content, surfaceId: string, use: SurfaceUse, batch: Bat
   geometry.setAttribute('position', new Float32BufferAttribute(batch.positions, 3));
   geometry.setAttribute('uv', new Float32BufferAttribute(batch.uvs, 2));
   geometry.setAttribute('color', new Float32BufferAttribute(batch.colors, 4));
-  geometry.setAttribute('normal', new Float32BufferAttribute(batch.positions.map((_: number, index: number): number => (index % 3 === 1 ? 1 : 0)), 3));
+  geometry.setAttribute('normal', new Float32BufferAttribute(batch.normals, 3));
   geometry.setIndex(batch.indices);
   const mesh: Mesh = new Mesh(geometry, surfaceMaterial(def, use, wet));
   mesh.receiveShadow = true;
@@ -321,6 +327,10 @@ function shapeGround(content: Content, zone: ZoneDef): GroundBatches {
   const shading: Shading = { zone, occluders, grid };
 
   const drifting: Map<ZoneDrift, Map<string, Batch>> = new Map<ZoneDrift, Map<string, Batch>>();
+  if (zone.terrain !== null && zone.terrain.rough !== null) {
+    buildTerrainGround(zone, { batchFor: (surface: string, onTop: boolean): Batch => batchFor(onTop ? overlay : solid, surface) });
+    return { solid, overlay, drifting };
+  }
   for (const cell of floorCells(zone)) {
     const own: SurfaceDef | null = spills.at(cell.column, cell.row);
     if (own === null) continue;
@@ -356,6 +366,7 @@ function shapeGround(content: Content, zone: ZoneDef): GroundBatches {
     const cells: OutsideCell[] = outsideCells(zone, outside.reach);
     for (const cell of cells) cover(shading, batchFor(overlay, outside.surface), cell.column, cell.row, floorY + GROUND.outsideLift, GROUND.outsideShade, alphaAt);
   }
+  if (zone.terrain !== null) buildCliffs(zone, batchFor(solid, zone.terrain.cliff));
   return { solid, overlay, drifting };
 }
 

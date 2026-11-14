@@ -108,7 +108,7 @@ import { momentEffects } from './render/moment-effects.ts';
 import type { Ward } from './render/ward.ts';
 import { createWard } from './render/ward.ts';
 import type { IsoCamera } from './render/iso-camera.ts';
-import { createIsoCamera } from './render/iso-camera.ts';
+import { createIsoCamera, liftAt } from './render/iso-camera.ts';
 import { cameraSight } from './render/sight.ts';
 import type { ItemThumbnails } from './render/item-thumbnails.ts';
 import { createItemThumbnails, wornImageKey } from './render/item-thumbnails.ts';
@@ -488,7 +488,7 @@ async function start(): Promise<void> {
     await warmUpWithin(stage, stage.scene, stage.camera, [...actors.standIns(world.zone), ...loot.standIns(world)], createBrowserTimers(), WARM_UP.zoneWaitMs);
     startZoneAmbience();
     glitches.refresh();
-    camera.snap(world.player.pos.x, world.player.pos.z);
+    camera.snap(world.player.pos.x, world.player.pos.z, liftAt(world.zone, world.player.pos.x, world.player.pos.z));
     stage.follow(world.player.pos.x, world.player.pos.z);
     const hideWarm: () => void = effects.showWarm(world.player.pos.x, world.player.pos.z);
     stage.render();
@@ -556,7 +556,7 @@ async function start(): Promise<void> {
       loot.sync(world);
       opening.update();
       journalCount?.update();
-      camera.update(dt, world.player.pos.x, world.player.pos.z);
+      camera.update(dt, world.player.pos.x, world.player.pos.z, liftAt(world.zone, world.player.pos.x, world.player.pos.z));
       effects.update(dt, world);
       ward.update(dt, world);
       stage.follow(world.player.pos.x, world.player.pos.z);
@@ -594,7 +594,7 @@ async function start(): Promise<void> {
     if (document.hidden) saveNow();
   });
 
-  camera.snap(world.player.pos.x, world.player.pos.z);
+  camera.snap(world.player.pos.x, world.player.pos.z, liftAt(world.zone, world.player.pos.x, world.player.pos.z));
   runFrames(
     frame,
     (error: unknown): void => {

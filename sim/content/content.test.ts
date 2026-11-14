@@ -188,6 +188,16 @@ function bareMaterials(path: string): string[] {
   return bare;
 }
 
+function morphedMeshes(path: string): number {
+  const file: Buffer = readFileSync(path);
+  const parsed: Fields = fields(JSON.parse(file.subarray(GLB.jsonStart, GLB.jsonStart + file.readUInt32LE(GLB.jsonLength)).toString('utf8')), path);
+  return (parsed['meshes'] === undefined ? [] : items(parsed['meshes'], `${path}.meshes`)).filter((mesh: unknown): boolean => items(fields(mesh, path)['primitives'], path).some((primitive: unknown): boolean => fields(primitive, path)['targets'] !== undefined)).length;
+}
+
+void test('no prop model carries morph targets, which instanced props cannot draw', (): void => {
+  for (const prop of content.props.values()) assert.equal(morphedMeshes(`public/${prop.model}`), 0, `${prop.id} uses ${prop.model}, which has morph targets`);
+});
+
 void test('every prop placed in a zone or a moment dresses each untextured material in a surface, so nothing draws as a flat colour', (): void => {
   const placed: Set<string> = new Set<string>([...content.zones.values()].flatMap((zone: ZoneDef): string[] => zone.props.map((entry) => entry.prop)));
   for (const def of content.moments.defs.values()) for (const entry of def.props) placed.add(entry.prop);

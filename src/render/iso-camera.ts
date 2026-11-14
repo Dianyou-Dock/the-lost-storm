@@ -1,7 +1,9 @@
+import { rayToSurface } from './terrain-lift.ts';
 import type { PerspectiveCamera, Vector2 } from 'three';
 import { Plane, Raycaster, Vector3 } from 'three';
 import type { ElementSize } from './element-size.ts';
 import { watchSize } from './element-size.ts';
+export { liftAt } from './terrain-lift.ts';
 
 export const CAMERA = {
   fov: 30,
@@ -38,14 +40,14 @@ export interface CameraShot {
 }
 
 export interface IsoCamera {
-  update(dt: number, targetX: number, targetZ: number): void;
-  snap(targetX: number, targetZ: number): void;
+  update(dt: number, targetX: number, targetZ: number, targetY?: number): void;
+  snap(targetX: number, targetZ: number, targetY?: number): void;
   shift(byX: number, byZ: number): void;
   frame(shot: CameraShot | null): void;
   zoomBy(wheelDelta: number): void;
   addTrauma(amount: number): void;
   punch(dirX: number, dirZ: number, amount: number): void;
-  groundPoint(pointer: Vector2): Vector3 | null;
+  groundPoint(pointer: Vector2, heightOf?: (x: number, z: number) => number): Vector3 | null;
   rayDistanceTo(pointer: Vector2, bottom: Vector3, height: number): number;
   project(x: number, y: number, z: number, out: Vector2): boolean;
 }
@@ -110,7 +112,7 @@ export function createIsoCamera(camera: PerspectiveCamera, canvas: HTMLCanvasEle
     const shakeX: number = noise(time * CAMERA.shakeFrequency, 1) * shake * CAMERA.shakeDistance + swayX;
     const shakeY: number = noise(time * CAMERA.shakeFrequency, 2) * shake * CAMERA.shakeDistance + swayY;
     const lookX: number = focus.x + punchOffset.x + right.x * shakeX;
-    const lookY: number = lookHeight + shakeY;
+    const lookY: number = focus.y + lookHeight + shakeY;
     const lookZ: number = focus.z + punchOffset.z + right.z * shakeX;
     camera.position.set(lookX + offset.x * reach, lookY + offset.y * reach, lookZ + offset.z * reach);
     camera.up.set(0, 1, 0);
@@ -120,10 +122,11 @@ export function createIsoCamera(camera: PerspectiveCamera, canvas: HTMLCanvasEle
   };
 
   return {
-    update(dt: number, targetX: number, targetZ: number): void {
+    update(dt: number, targetX: number, targetZ: number, targetY: number = 0): void {
       time += dt;
       const follow: number = 1 - Math.exp(-CAMERA.followRate * dt);
       focus.x += (targetX - focus.x) * follow;
+      focus.y += (targetY - focus.y) * follow;
       focus.z += (targetZ - focus.z) * follow;
       distance += (wantedDistance - distance) * (1 - Math.exp(-zoomRate * dt));
       if (zoomRate > 0 && Math.abs(wantedDistance - distance) < CAMERA.settled) zoomRate = CAMERA.zoomRate;
@@ -131,8 +134,8 @@ export function createIsoCamera(camera: PerspectiveCamera, canvas: HTMLCanvasEle
       punchOffset.multiplyScalar(Math.exp(-CAMERA.punchDecay * dt));
       place();
     },
-    snap(targetX: number, targetZ: number): void {
-      focus.set(targetX, 0, targetZ);
+    snap(targetX: number, targetZ: number, targetY: number = 0): void {
+      focus.set(targetX, targetY, targetZ);
       place();
     },
     shift(byX: number, byZ: number): void {
@@ -156,8 +159,9 @@ export function createIsoCamera(camera: PerspectiveCamera, canvas: HTMLCanvasEle
       punchOffset.x += dirX * amount;
       punchOffset.z += dirZ * amount;
     },
-    groundPoint(pointer: Vector2): Vector3 | null {
+    groundPoint(pointer: Vector2, heightOf?: (x: number, z: number) => number): Vector3 | null {
       raycaster.setFromCamera(pointer, camera);
+      if (heightOf !== undefined) return rayToSurface(raycaster.ray, heightOf, hit);
       return raycaster.ray.intersectPlane(ground, hit) === null ? null : hit;
     },
     rayDistanceTo(pointer: Vector2, bottom: Vector3, height: number): number {

@@ -104,6 +104,12 @@ The simulator does not read the game's log output. `sim/measure.ts` turns each s
 
 Pass `--record DIR` to keep the streams. `npm run simulate -- replay DIR/*.jsonl` turns them back into a report. A dev build (`npm run dev`) records the same stream while you play. Type `storm.saveMeasurements()` in the browser console to download it as `the-lost-storm-session.jsonl`. Its header says `source: "game"` and `scenario: "live"`, and `npm run simulate -- replay the-lost-storm-session.jsonl` reports it, so a human's numbers can sit beside the bots'. Production builds do not load the recorder.
 
+## A wild zone with fixed-level packs
+
+`node tools/simulate-cave-cli.ts` plays the slice, farms to `--enter` (default 8), then puts the hero in `--zone` (default `under_hall`) for `--minutes` (default 60), `--runs` seeds per policy pair. Options `--build` and `--skill` take comma lists as above. It prints one row per build and skill: median minutes to levels 10, 12 and 14 after entering, deaths per hour, kills per minute, median minutes to the far end, and fights lost by pack rank (a fight is lost when the hero dies while that pack is still standing).
+
+The bot clears every pack once, nearest first by walking distance, then walks to the farthest walkable point, then farms whatever stands nearest. Two habits a person has are built in: with the life flasks empty and life low (below 90%, 60% and 25% for careful, average and poor), or after any death with them empty, it walks back to the zone's waypoint to refill; and for three minutes after a death it goes elsewhere first. A monster that hits the hero is never left ignored.
+
 ## Guard rails
 
 `tools/simulate-run.test.ts` runs a few seeds and fails when a tuning change moves the game outside wide bounds. A failure there means the change was large enough to decide on deliberately: widen the bound in the same pull request and say why.

@@ -4,11 +4,15 @@ import { loadContent } from '../content/content.ts';
 import type { Content, PropDef, ZoneDef, ZoneExit } from '../content/types.ts';
 import type { ReadonlyVec2 } from '../math.ts';
 import { must } from '../../test/support.ts';
-import type { BarrierPiece } from './barrier.ts';
-import { BARRIER_WORK, barrierPieces, barrierRuns, floorDepth, sizedProp } from './barrier.ts';
+import type { BarrierRow, ZoneBarrier } from '../content/barrier-types.ts';
+import { roadZone } from '../../test/road-support.ts';
+import type { BarrierPiece, BarrierRun } from './barrier.ts';
+import { BARRIER, BARRIER_WORK, barrierPieces, barrierRuns, floorDepth, sizedProp } from './barrier.ts';
 import type { Blocker, NavGrid } from './grid.ts';
 import { blockerGap, buildNavGrid, cellCenter, isWalkable, propBlockers } from './grid.ts';
+import { isFloorCell } from './layout.ts';
 import { findPath } from './path.ts';
+import { heightAt, tileHeight } from './terrain.ts';
 
 const content: Content = loadContent();
 const fenced: ZoneDef[] = [...content.zones.values()].filter((zone: ZoneDef): boolean => zone.outside?.barrier !== null && zone.outside?.barrier !== undefined);
@@ -36,6 +40,18 @@ function walls(zone: ZoneDef, pieces: readonly BarrierPiece[]): Blocker[] {
 function nearExit(zone: ZoneDef, point: ReadonlyVec2, band: number): boolean {
   const clear: number = zone.outside?.barrier?.exitClear ?? 0;
   return zone.exits.some((exit: ZoneExit): boolean => Math.hypot(point.x - exit.x, point.z - exit.z) < exit.radius + clear + band);
+}
+
+function besideDrop(zone: ZoneDef, x: number, z: number): boolean {
+  const column: number = Math.floor(x / zone.cellSize);
+  const row: number = Math.floor(z / zone.cellSize);
+  const here: number = heightAt(zone, x, z);
+  for (let dr: number = -1; dr <= 1; dr += 1) {
+    for (let dc: number = -1; dc <= 1; dc += 1) {
+      if (!isFloorCell(zone, column + dc, row + dr) && tileHeight(zone, column + dc, row + dr, x, z) < here - BARRIER.drop) return true;
+    }
+  }
+  return false;
 }
 
 function walkableIn(grid: NavGrid, x: number, z: number, radius: number): number {
@@ -72,7 +88,7 @@ for (const zone of fenced) {
     for (let index: number = 0; index < full.walkable.length; index += 1) {
       if (full.walkable[index] !== 1) continue;
       const centre: ReadonlyVec2 = cellCenter(full, index);
-      if (floorDepth(zone, centre.x, centre.z) > EDGE.edgeBand || nearExit(zone, centre, EDGE.exitBand)) continue;
+      if (floorDepth(zone, centre.x, centre.z) > EDGE.edgeBand || nearExit(zone, centre, EDGE.exitBand) || besideDrop(zone, centre.x, centre.z)) continue;
       if (EDGE.neighbours.every((step: ReadonlyVec2): boolean => isWalkable(full, centre.x + step.x, centre.z + step.z))) continue;
       const gap: number = Math.min(...blockers.map((blocker: Blocker): number => blockerGap(blocker, centre.x, centre.z))) - content.player.radius;
       if (gap > worst) {
@@ -133,3 +149,29 @@ for (const zone of fenced) {
     assert.equal(BARRIER_WORK.gaps - gaps, spent);
   });
 }
+
+const DROP_ROW: BarrierRow = { far: { props: ['cave_crag_a'], out: -0.9, step: 2.6, turn: 70 }, near: { props: ['cave_edge_a'], out: -0.6, step: 1.1, turn: 90 }, collide: true, shadow: true };
+
+function ledge(drop: readonly BarrierRow[]): ZoneDef {
+  const barrier: ZoneBarrier = { nearSides: [], exitClear: 3, rows: [DROP_ROW], drop };
+  return roadZone({
+    id: 'ledge_test',
+    cellSize: 4,
+    tiles: ['        ', ' wwwwww ', ' wwwwww ', ' wwwwww ', ' wwwwww ', '        '],
+    terrain: { rise: 1, levels: ['09999999', '03333339', '03333339', '03333339', '03333339', '09999999'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] },
+    outside: { surface: 'road_firm', reach: 2, edge: null, barrier },
+    playerStart: { x: 12, z: 12 },
+  });
+}
+
+void test('an edge over a drop takes the drop rows, and an edge under a wall keeps the wall rows', (): void => {
+  const open: ZoneDef = ledge([]);
+  const runs: BarrierRun[] = barrierRuns(open);
+  assert.ok(runs.some((run: BarrierRun): boolean => run.side === 'west' && run.drop));
+  assert.ok(runs.every((run: BarrierRun): boolean => run.side === 'west' || !run.drop));
+  const bare: readonly BarrierPiece[] = barrierPieces(open, content.props);
+  assert.ok(bare.some((piece: BarrierPiece): boolean => piece.side === 'east'));
+  assert.ok(bare.every((piece: BarrierPiece): boolean => piece.side !== 'west'));
+  const lipped: readonly BarrierPiece[] = barrierPieces(ledge([DROP_ROW]), content.props);
+  assert.ok(lipped.some((piece: BarrierPiece): boolean => piece.side === 'west'));
+});

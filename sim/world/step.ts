@@ -5,6 +5,7 @@ import { stepAreas, timeScaleOf } from './areas.ts';
 import { stepHazards } from './hazards.ts';
 import { removeCorpses, stepMonster, stepSurge } from './monsters.ts';
 import { stepPackReturns } from './pack-return.ts';
+import { stepWaitingPacks } from './packs.ts';
 import { stepExploration } from './exploration.ts';
 import { stepFlasks } from './flasks.ts';
 import { heldCommands, stepGlitch } from './glitch.ts';
@@ -68,6 +69,7 @@ export function stepWorld(world: World, commands: readonly Command[], dt: number
   removeCorpses(world);
   stepSurge(world, dt);
   stepPackReturns(world, dt);
+  stepWaitingPacks(world);
   stepScene(world, dt);
   stepMoments(world, dt);
   stepNpcs(world, dt);

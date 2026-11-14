@@ -2,6 +2,8 @@ import type { RigDef, SkillDef, ZoneExit } from '../content/types.ts';
 import { forceStrike } from './moments.ts';
 import { spawnPackNear } from './monsters.ts';
 import { chestOf, chestReach, chestSpot, openChest } from './moment-chest.ts';
+import { cacheAt, cacheReach, openCache } from './caches.ts';
+import type { Cache } from './caches.ts';
 import type { Vec2 } from '../math.ts';
 import { distance } from '../math.ts';
 import { isWalkable, lineWalkable } from '../nav/grid.ts';
@@ -229,9 +231,11 @@ function act(world: World, command: Command): void {
       return;
     case 'use': {
       const station: Station | null = stationAt(world, command.prop);
-      if (station === null) return;
-      player.intent = { type: 'use', prop: station.index };
-      setDestination(world, station.placed);
+      const cache: Cache | null = station === null ? cacheAt(world, command.prop) : null;
+      const placed: Vec2 | null = station?.placed ?? cache?.placed ?? null;
+      if (placed === null) return;
+      player.intent = { type: 'use', prop: command.prop };
+      setDestination(world, placed);
       return;
     }
     case 'open': {
@@ -461,22 +465,9 @@ function stepIntent(world: World, dt: number): void {
       pursue(world, npc.pos, dt);
       return;
     }
-    case 'use': {
-      const station: Station | null = stationAt(world, intent.prop);
-      if (station === null) {
-        player.intent = { type: 'idle' };
-        player.path = [];
-        return;
-      }
-      if (distance(player.pos, station.placed) <= stationReach(world, station)) {
-        player.intent = { type: 'idle' };
-        player.path = [];
-        openStation(world, station);
-        return;
-      }
-      pursue(world, station.placed, dt);
+    case 'use':
+      useProp(world, intent.prop, dt);
       return;
-    }
     case 'open': {
       const moment: MomentState | null = chestOf(world, intent.momentId);
       const spot: Vec2 | null = moment === null ? null : chestSpot(moment);
@@ -495,6 +486,22 @@ function stepIntent(world: World, dt: number): void {
       return;
     }
   }
+}
+
+function useProp(world: World, index: number, dt: number): void {
+  const player: PlayerState = world.player;
+  const station: Station | null = stationAt(world, index);
+  const cache: Cache | null = station === null ? cacheAt(world, index) : null;
+  const placed: Vec2 | null = station?.placed ?? cache?.placed ?? null;
+  const reach: number = station !== null ? stationReach(world, station) : cache !== null ? cacheReach(world, cache) : 0;
+  if (placed !== null && distance(player.pos, placed) > reach) {
+    pursue(world, placed, dt);
+    return;
+  }
+  player.intent = { type: 'idle' };
+  player.path = [];
+  if (station !== null) openStation(world, station);
+  if (cache !== null) openCache(world, cache);
 }
 
 function collectGold(world: World): void {

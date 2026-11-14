@@ -1,4 +1,4 @@
-import type { MonsterDef } from '../content/types.ts';
+import type { MonsterDef, ZonePack } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { nearestWalkable, routedGrid } from '../nav/grid.ts';
 import type { MonsterScale } from './monster-scale.ts';
@@ -17,6 +17,12 @@ export interface SpawnOrigin {
   readonly summonerId: number | null;
   readonly scatter: number;
   readonly revived: boolean;
+  readonly level: number;
+}
+
+export interface LevelSpan {
+  readonly least: number;
+  readonly most: number;
 }
 
 export function areaLevel(world: World): number {
@@ -27,8 +33,18 @@ export function monsterLevel(world: World): number {
   return areaLevel(world) + (world.zone.surge === null ? 0 : world.surge - 1);
 }
 
+export function packLevel(world: World, pack: ZonePack): number {
+  return pack.level ?? monsterLevel(world);
+}
+
+export function levelSpan(world: World): LevelSpan {
+  const levels: number[] = world.zone.packs.map((pack: ZonePack): number => packLevel(world, pack));
+  if (levels.length === 0) return { least: monsterLevel(world), most: monsterLevel(world) };
+  return { least: Math.min(...levels), most: Math.max(...levels) };
+}
+
 export function spawnMonster(world: World, def: MonsterDef, packId: number, center: Vec2, origin: SpawnOrigin): MonsterState {
-  const level: number = monsterLevel(world);
+  const level: number = origin.level;
   const scale: MonsterScale = monsterScale(world.content.world.scaling, level);
   const angle: number = world.rng.range(0, Math.PI * 2);
   const reach: number = world.rng.range(0, origin.scatter);

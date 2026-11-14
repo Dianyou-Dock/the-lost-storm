@@ -33,8 +33,8 @@ void test('a monster that spawns in a following zone has the hero level and the 
   const def: MonsterDef = must(OUTPOST_CONTENT.monsters.get('mended'), 'mended');
   const low: World = worldAt(FOLLOWING, 2);
   const high: World = worldAt(FOLLOWING, 6);
-  const weak: MonsterState = spawnMonster(low, def, 0, { x: 28, z: 30 }, { summonerId: null, scatter: 0, revived: false });
-  const strong: MonsterState = spawnMonster(high, def, 0, { x: 28, z: 30 }, { summonerId: null, scatter: 0, revived: false });
+  const weak: MonsterState = spawnMonster(low, def, 0, { x: 28, z: 30 }, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(low) });
+  const strong: MonsterState = spawnMonster(high, def, 0, { x: 28, z: 30 }, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(high) });
   assert.equal(weak.level, 2);
   assert.equal(strong.level, monsterLevel(high));
   assert.equal(strong.level, 6);
@@ -44,8 +44,10 @@ void test('a monster that spawns in a following zone has the hero level and the 
 
 void test('a monster whose life does not scale keeps its base life at every level while its damage still grows', (): void => {
   const def: MonsterDef = { ...must(OUTPOST_CONTENT.monsters.get('mended'), 'mended'), life: 1, scalesLife: false };
-  const low: MonsterState = spawnMonster(worldAt(FOLLOWING, 2), def, 0, { x: 28, z: 30 }, { summonerId: null, scatter: 0, revived: false });
-  const high: MonsterState = spawnMonster(worldAt(FOLLOWING, 8), def, 0, { x: 28, z: 30 }, { summonerId: null, scatter: 0, revived: false });
+  const lowWorld: World = worldAt(FOLLOWING, 2);
+  const highWorld: World = worldAt(FOLLOWING, 8);
+  const low: MonsterState = spawnMonster(lowWorld, def, 0, { x: 28, z: 30 }, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(lowWorld) });
+  const high: MonsterState = spawnMonster(highWorld, def, 0, { x: 28, z: 30 }, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(highWorld) });
   assert.deepEqual([low.maxLife, high.maxLife, high.life], [1, 1, 1]);
   assert.ok(high.damageMax > low.damageMax);
 });

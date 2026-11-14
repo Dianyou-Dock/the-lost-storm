@@ -425,6 +425,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
             labelFor(world, event.ground);
             break;
           case 'chest_opened':
+          case 'cache_opened':
             if (event.gold > 0) float(`+${event.gold} gold`, 'gold', event.pos.x, OVERLAYS.chestHeight, event.pos.z);
             break;
           case 'pickup': {

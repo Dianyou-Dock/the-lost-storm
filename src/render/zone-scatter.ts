@@ -1,4 +1,6 @@
-import type { AroundScatter, Content, OpenScatter, PropDef, ScatterSize, ZoneDef, ZoneExit, ZoneProp, ZoneScatter } from '../../sim/content/types.ts';
+import type { AroundScatter, CliffScatter, Content, OpenScatter, PropDef, ScatterSize, ZoneDef, ZoneExit, ZoneProp, ZoneScatter } from '../../sim/content/types.ts';
+import { cliffRocks, cliffSpots } from '../../sim/nav/cliff-rocks.ts';
+import type { CliffSpot } from '../../sim/nav/cliff-rocks.ts';
 import type { ReadonlyVec2 } from '../../sim/math.ts';
 import type { Blocker } from '../../sim/nav/grid.ts';
 import { blockerGap, propBlockers, propOutlines } from '../../sim/nav/grid.ts';
@@ -51,6 +53,10 @@ function zoneBlockers(content: Content, zone: ZoneDef): Blocker[] {
   for (const piece of barrierPieces(zone, content.props)) {
     const def: PropDef | undefined = content.props.get(piece.prop);
     if (def !== undefined) blockers.push(...propBlockers(sizedProp(def, piece.size), piece.x, piece.z, piece.rotationDegrees));
+  }
+  for (const rock of cliffRocks(zone, content.props)) {
+    const def: PropDef | undefined = content.props.get(rock.prop);
+    if (def !== undefined) blockers.push(...propBlockers(sizedProp(def, rock.size), rock.x, rock.z, rock.rotationDegrees));
   }
   return blockers;
 }
@@ -127,6 +133,14 @@ function aroundStones(content: Content, zone: ZoneDef, rule: AroundScatter, bloc
   return stones;
 }
 
+function cliffStones(zone: ZoneDef, rule: CliffScatter, blockers: readonly Blocker[], salt: number): ScatterStone[] {
+  return cliffSpots(zone, rule, salt).flatMap((spot: CliffSpot): ScatterStone[] => {
+    const prop: string | undefined = picked(rule.props, spot.pick);
+    if (prop === undefined || !clearOf(blockers, spot.x, spot.z, 0)) return [];
+    return [{ prop, x: spot.x, z: spot.z, yaw: (spot.rotationDegrees * Math.PI) / 180, size: sized(rule.size, spot.grow) }];
+  });
+}
+
 export function scatterStones(content: Content, zone: ZoneDef): ScatterStone[] {
   if (zone.scatter.length === 0) return [];
   const blockers: Blocker[] = zoneBlockers(content, zone);
@@ -139,6 +153,9 @@ export function scatterStones(content: Content, zone: ZoneDef): ScatterStone[] {
         break;
       case 'around':
         stones = aroundStones(content, zone, rule, blockers, salt);
+        break;
+      case 'cliff':
+        stones = cliffStones(zone, rule, blockers, salt);
         break;
     }
     return stones;

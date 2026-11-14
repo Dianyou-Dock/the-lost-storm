@@ -155,6 +155,7 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
     case 'moment_gone':
     case 'moment_chest':
     case 'chest_opened':
+    case 'cache_opened':
     case 'path_marked':
     case 'character_changed':
     case 'explored':

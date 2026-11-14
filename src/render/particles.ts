@@ -1,3 +1,4 @@
+import { liftHere } from './terrain-lift.ts';
 import type { Color, Scene } from 'three';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, DynamicDrawUsage, Points, ShaderMaterial } from 'three';
 import { renderBudget } from '../mobile/quality.ts';
@@ -9,6 +10,7 @@ export const PARTICLES = {
   fadeIn: 0.04,
   fadeInShare: 0.3,
   fadeOut: 2.2,
+  floorGap: 0.03,
 } as const;
 
 export interface Range {
@@ -99,6 +101,7 @@ export function createParticles(scene: Scene): ParticleSystem {
   const baseSizes: Float32Array = new Float32Array(capacity);
   const gravities: Float32Array = new Float32Array(capacity);
   const drags: Float32Array = new Float32Array(capacity);
+  const floors: Float32Array = new Float32Array(capacity);
   let cursor: number = 0;
 
   const geometry: BufferGeometry = new BufferGeometry();
@@ -138,7 +141,8 @@ export function createParticles(scene: Scene): ParticleSystem {
         const angle: number = baseAngle + (Math.random() - 0.5) * options.spread;
         const speed: number = pick(options.speed);
         positions[index * 3] = options.x + (Math.random() - 0.5) * options.jitter;
-        positions[index * 3 + 1] = options.y + (Math.random() - 0.5) * options.jitter;
+        floors[index] = liftHere(options.x, options.z);
+        positions[index * 3 + 1] = options.y + (floors[index] ?? 0) + (Math.random() - 0.5) * options.jitter;
         positions[index * 3 + 2] = options.z + (Math.random() - 0.5) * options.jitter;
         velocities[index * 3] = Math.sin(angle) * speed;
         velocities[index * 3 + 1] = pick(options.lift);
@@ -171,7 +175,7 @@ export function createParticles(scene: Scene): ParticleSystem {
         velocities[index * 3 + 1] = vy;
         velocities[index * 3 + 2] = vz;
         positions[index * 3] = (positions[index * 3] ?? 0) + vx * dt;
-        positions[index * 3 + 1] = Math.max(0.03, (positions[index * 3 + 1] ?? 0) + vy * dt);
+        positions[index * 3 + 1] = Math.max((floors[index] ?? 0) + PARTICLES.floorGap, (positions[index * 3 + 1] ?? 0) + vy * dt);
         positions[index * 3 + 2] = (positions[index * 3 + 2] ?? 0) + vz * dt;
         const span: number = spans[index] ?? 1;
         const t: number = Math.max(0, next) / Math.max(1e-4, span);

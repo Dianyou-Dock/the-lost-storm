@@ -1,9 +1,10 @@
+import { liftAt, useTerrain } from './terrain-lift.ts';
 import type { FigureSize } from './figure-gauge.ts';
 import { isTall, resetCutaway, setOccluders, withCutaway } from './prop-cutaway.ts';
 import type { Material, Object3D, Scene } from 'three';
 import { BufferGeometry, Color, Euler, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, PlaneGeometry, PointLight, Quaternion, Vector3 } from 'three';
 import type { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
-import type { Content, PropDef, PropLight, ZoneDef, ZoneProp, ZoneScatter, ZoneWalls } from '../../sim/content/types.ts';
+import type { Content, PropCache, PropDef, PropLight, ZoneDef, ZoneProp, ZoneScatter, ZoneWalls } from '../../sim/content/types.ts';
 import { wallCorners, wallEdges, zoneColumns, zoneRows } from '../../sim/nav/layout.ts';
 import { allHold } from '../../sim/world/conditions.ts';
 import type { World } from '../../sim/world/types.ts';
@@ -25,6 +26,7 @@ import type { PropLook } from './prop-surface.ts';
 import { lookOf, withPropLook } from './prop-surface.ts';
 import { edgeRocks } from './zone-edge.ts';
 import { barrierPieces } from '../../sim/nav/barrier.ts';
+import { cliffRocks } from '../../sim/nav/cliff-rocks.ts';
 import { scatterStones } from './zone-scatter.ts';
 import { momentSurfaces, zoneModels, zoneSurfaces } from './zone-assets.ts';
 import { renderBudget } from '../mobile/quality.ts';
@@ -54,6 +56,7 @@ interface Batch {
 
 interface Conditional {
   readonly placed: ZoneProp;
+  readonly wanted: (world: World) => boolean;
   readonly def: PropDef;
   readonly point: Vector3 | null;
   readonly materials: MeshStandardMaterial[];
@@ -202,12 +205,14 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
     if (def === undefined) return;
     const key: string = `${propId}:${String(castShadow)}`;
     const batch: Batch = placements.get(key) ?? { prop: propId, castShadow, list: [] };
-    batch.list.push({ matrix: transform(x, y, z, yaw, def.scale * size) });
+    const lifted: number = y + liftAt(zone, x, z);
+    batch.list.push({ matrix: transform(x, lifted, z, yaw, def.scale * size) });
     placements.set(key, batch);
     if (def.light === null) return;
-    sources.push({ point: lightPoint(def.light, x, y, z, yaw), color: new Color(def.light.color), intensity: def.light.intensity, distance: def.light.distance, phase: hash(x, z, 1) * 40, conditional: null, score: 0 });
+    sources.push({ point: lightPoint(def.light, x, lifted, z, yaw), color: new Color(def.light.color), intensity: def.light.intensity, distance: def.light.distance, phase: hash(x, z, 1) * 40, conditional: null, score: 0 });
   };
 
+  useTerrain(zone);
   const ground: Ground = buildGround(content, zone);
   for (const mesh of ground.meshes) group.add(mesh);
   const walls: ZoneWalls | null = zone.walls;
@@ -219,19 +224,26 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
   if (walls !== null) for (const corner of wallCorners(zone)) place(walls.corner, corner.x, 0, corner.z, 0, true);
   for (const rock of edgeRocks(content, zone)) place(rock.prop, rock.x, 0, rock.z, rock.yaw, true);
   for (const piece of barrierPieces(zone, content.props)) if (piece.collide || piece.row < renderBudget().barrierRows) place(piece.prop, piece.x, 0, piece.z, piece.rotationDegrees * DEGREES, piece.shadow, piece.size);
+  for (const rock of cliffRocks(zone, content.props)) place(rock.prop, rock.x, 0, rock.z, rock.rotationDegrees * DEGREES, true, rock.size);
   for (const stone of scatterStones(content, zone)) place(stone.prop, stone.x, 0, stone.z, stone.yaw, false, stone.size);
-  for (const prop of zone.props) {
-    if (prop.when.length === 0) {
-      place(prop.prop, prop.x, prop.y, prop.z, prop.rotationDegrees * DEGREES, true);
-      continue;
-    }
-    const def: PropDef | undefined = content.props.get(prop.prop);
-    if (def === undefined) continue;
-    const point: Vector3 | null = def.light === null ? null : lightPoint(def.light, prop.x, prop.y, prop.z, prop.rotationDegrees * DEGREES);
-    const conditional: Conditional = { placed: prop, def, point, materials: [], object: null, shown: 0, on: null };
+  const showWhen = (prop: ZoneProp, def: PropDef, wanted: (world: World) => boolean): void => {
+    const point: Vector3 | null = def.light === null ? null : lightPoint(def.light, prop.x, prop.y + liftAt(zone, prop.x, prop.z), prop.z, prop.rotationDegrees * DEGREES);
+    const conditional: Conditional = { placed: prop, wanted, def, point, materials: [], object: null, shown: 0, on: null };
     conditionals.push(conditional);
     if (def.light !== null && point !== null) sources.push({ point, color: new Color(def.light.color), intensity: def.light.intensity, distance: def.light.distance, phase: hash(prop.x, prop.z, 1) * 40, conditional, score: 0 });
-  }
+  };
+  zone.props.forEach((prop: ZoneProp, index: number): void => {
+    const def: PropDef | undefined = content.props.get(prop.prop);
+    if (def === undefined) return;
+    const cache: PropCache | null = def.cache;
+    if (prop.when.length === 0 && cache === null) {
+      place(prop.prop, prop.x, prop.y, prop.z, prop.rotationDegrees * DEGREES, true);
+      return;
+    }
+    showWhen(prop, def, (world: World): boolean => allHold(world, prop.when) && !world.cachesOpened.includes(index));
+    const opened: PropDef | undefined = cache?.opened === null || cache?.opened === undefined ? undefined : content.props.get(cache.opened);
+    if (opened !== undefined) showWhen({ ...prop, prop: opened.id }, opened, (world: World): boolean => allHold(world, prop.when) && world.cachesOpened.includes(index));
+  });
 
   const pool: PointLight[] = [];
   for (let index: number = 0; index < Math.min(ZONE_VIEW.lightBudget, renderBudget().zoneLights, sources.length); index += 1) {
@@ -277,7 +289,7 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
     conditionals.map(async (conditional: Conditional): Promise<void> => {
       const gltf: GLTF = await loadModel(loader, conditional.def.model);
       const object: Object3D = gltf.scene.clone(true);
-      object.position.set(conditional.placed.x, conditional.placed.y, conditional.placed.z);
+      object.position.set(conditional.placed.x, conditional.placed.y + liftAt(zone, conditional.placed.x, conditional.placed.z), conditional.placed.z);
       object.rotation.y = conditional.placed.rotationDegrees * DEGREES;
       object.scale.setScalar(conditional.def.scale);
       object.traverse((child: Object3D): void => {
@@ -355,7 +367,7 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
       ground.update(world.time);
       mistWall?.update(time, focus.flash);
       for (const conditional of conditionals) {
-        const wanted: boolean = allHold(world, conditional.placed.when);
+        const wanted: boolean = conditional.wanted(world);
         if (conditional.on === null) conditional.shown = wanted ? 1 : 0;
         if (wanted !== conditional.on) {
           conditional.on = wanted;

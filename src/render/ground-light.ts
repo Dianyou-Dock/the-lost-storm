@@ -2,6 +2,8 @@ import type { Color, IUniform } from 'three';
 import { CustomBlending, DoubleSide, Mesh, NormalBlending, OneFactor, OneMinusSrcAlphaFactor, PlaneGeometry, ShaderMaterial } from 'three';
 import type { Spring } from '../hud/character-spring.ts';
 import { springTo, stepSpring } from '../hud/character-spring.ts';
+import type { LiftUniforms } from './terrain-lift.ts';
+import { LIFT_UNIFORMS, LIFT_VERTEX } from './terrain-lift.ts';
 
 export const GROUND_LIGHT = {
   reachWidths: 3.2,
@@ -31,6 +33,7 @@ export const GROUND_LIGHT = {
   holdRise: 0.18,
   holdFall: 0.3,
   hollowFloor: 0.3,
+  segments: 24,
 } as const;
 
 function smooth(t: number): number {
@@ -97,11 +100,14 @@ interface GroundUniforms {
   readonly uShade: IUniform<number>;
   readonly uHollow: IUniform<number>;
   readonly uGrain: IUniform<number>;
+  readonly uLiftMap: LiftUniforms['uLiftMap'];
+  readonly uLiftArea: LiftUniforms['uLiftArea'];
+  readonly uLiftOn: LiftUniforms['uLiftOn'];
 }
 
 const glsl = (value: number): string => value.toFixed(4);
 
-export const GROUND_LIGHT_VERTEX: string = ['uniform float uExtent;', 'varying vec2 vSpot;', 'void main() {', '  vSpot = position.xy * 2.0 * uExtent;', '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);', '}'].join('\n');
+export const GROUND_LIGHT_VERTEX: string = ['uniform float uExtent;', 'varying vec2 vSpot;', ...LIFT_VERTEX, 'void main() {', '  vSpot = position.xy * 2.0 * uExtent;', '  gl_Position = projectionMatrix * viewMatrix * liftedWorld(position);', '}'].join('\n');
 
 export const GROUND_LIGHT_FRAGMENT: string = [
   'uniform vec3 uColor;',
@@ -192,6 +198,9 @@ export function groundLightMaterial(color: Color, form: GroundLightForm, look: G
     uShade: { value: tone === 'shade' ? 1 : 0 },
     uHollow: { value: look.hollow ?? 0 },
     uGrain: { value: look.grain ?? GROUND_LIGHT.insideDepth },
+    uLiftMap: LIFT_UNIFORMS.uLiftMap,
+    uLiftArea: LIFT_UNIFORMS.uLiftArea,
+    uLiftOn: LIFT_UNIFORMS.uLiftOn,
   };
   return new ShaderMaterial({ uniforms, vertexShader: GROUND_LIGHT_VERTEX, fragmentShader: GROUND_LIGHT_FRAGMENT, transparent: true, depthWrite: false, blending: tone === 'shade' ? NormalBlending : CustomBlending, blendSrc: OneFactor, blendDst: OneMinusSrcAlphaFactor, side: DoubleSide });
 }
@@ -203,7 +212,7 @@ function setUniform(material: ShaderMaterial, name: string, value: number): void
 
 export function createGroundLight(color: Color, form: GroundLightForm, look: GroundLightLook, tone: GroundTone = 'light'): GroundLight {
   const material: ShaderMaterial = groundLightMaterial(color, form, look, tone);
-  const mesh: Mesh<PlaneGeometry, ShaderMaterial> = new Mesh(new PlaneGeometry(1, 1), material);
+  const mesh: Mesh<PlaneGeometry, ShaderMaterial> = new Mesh(new PlaneGeometry(1, 1, GROUND_LIGHT.segments, GROUND_LIGHT.segments), material);
   mesh.rotation.x = -Math.PI / 2;
   mesh.scale.setScalar(groundLightExtent(form, look) * 2);
   mesh.renderOrder = tone === 'shade' ? GROUND_LIGHT.shadeOrder : GROUND_LIGHT.order;

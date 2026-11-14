@@ -1,3 +1,5 @@
+import { heightAt } from '../../sim/nav/terrain.ts';
+import { liftAt } from './terrain-lift.ts';
 import type { Object3D, Scene } from 'three';
 import { Group, Mesh } from 'three';
 import type { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -205,10 +207,10 @@ export async function createLootView(loader: GLTFLoader, scene: Scene, library: 
         const t: number = Math.min(1, ground.age / LOOT.tossTime);
         const x: number = ground.from.x + (ground.pos.x - ground.from.x) * t;
         const z: number = ground.from.z + (ground.pos.z - ground.from.z) * t;
-        entry.group.position.set(x, tossOffset(ground.age), z);
+        entry.group.position.set(x, tossOffset(ground.age) + liftAt(world.zone, x, z), z);
         const landed: boolean = ground.age > LOOT.tossTime;
         if (entry.kind !== 'gold' && entry.light !== null) {
-          entry.light.place(ground.pos.x, world.zone.floorHeight, ground.pos.z);
+          entry.light.place(ground.pos.x, heightAt(world.zone, ground.pos.x, ground.pos.z), ground.pos.z);
           entry.light.show(landed);
         }
         switch (entry.kind) {
@@ -217,7 +219,7 @@ export async function createLootView(loader: GLTFLoader, scene: Scene, library: 
             break;
           case 'model': {
             const remaining: number = (1 - t) * (1 - t);
-            const height: number = entry.group.position.y;
+            const height: number = entry.group.position.y - liftAt(world.zone, x, z);
             entry.pivot.rotation.y = entry.yaw;
             entry.pivot.rotation.x = remaining * LOOT.tumbleTurns * FULL_TURN;
             entry.shadow.position.y = world.zone.floorHeight - height + CONTACT_SHADOW.lift;

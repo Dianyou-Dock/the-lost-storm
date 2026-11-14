@@ -4,6 +4,7 @@ import type { ReadonlyVec2 } from '../math.ts';
 import type { WallEdge } from './layout.ts';
 import { isFloorCell, wallEdges } from './layout.ts';
 import { outlineGap } from './outline.ts';
+import { tileHeight } from './terrain.ts';
 
 export const BARRIER = {
   tolerance: 0.25,
@@ -15,6 +16,7 @@ export const BARRIER = {
   fill: 0.2,
   propClear: 0.3,
   corridor: 40,
+  drop: 0.5,
 } as const;
 
 export interface BarrierPiece {
@@ -34,6 +36,7 @@ export interface BarrierRun {
   readonly line: number;
   readonly from: number;
   readonly to: number;
+  readonly drop: boolean;
 }
 
 export const BARRIER_WORK: { placements: number; gaps: number } = { placements: 0, gaps: 0 };
@@ -104,18 +107,24 @@ export function runPoint(run: BarrierRun, along: number): ReadonlyVec2 {
   return alongX(run.side) ? { x: along, z: run.line } : { x: run.line, z: along };
 }
 
+function overDrop(zone: ZoneDef, edge: WallEdge): boolean {
+  const out: ReadonlyVec2 = outwardOf(edge.side);
+  const below: number = tileHeight(zone, edge.column + out.x, edge.row + out.z, edge.x, edge.z);
+  return below < tileHeight(zone, edge.column, edge.row, edge.x, edge.z) - BARRIER.drop;
+}
+
 export function barrierRuns(zone: ZoneDef): BarrierRun[] {
   const half: number = zone.cellSize / 2;
   const pieces: BarrierRun[] = wallEdges(zone).map((edge: WallEdge): BarrierRun => {
     const across: boolean = alongX(edge.side);
     const middle: number = across ? edge.x : edge.z;
-    return { side: edge.side, line: across ? edge.z : edge.x, from: middle - half, to: middle + half };
+    return { side: edge.side, line: across ? edge.z : edge.x, from: middle - half, to: middle + half, drop: overDrop(zone, edge) };
   });
   pieces.sort((a: BarrierRun, b: BarrierRun): number => (a.side === b.side ? (a.line === b.line ? a.from - b.from : a.line - b.line) : a.side.localeCompare(b.side)));
   const runs: BarrierRun[] = [];
   for (const piece of pieces) {
     const last: BarrierRun | undefined = runs[runs.length - 1];
-    if (last !== undefined && last.side === piece.side && Math.abs(last.line - piece.line) < BARRIER.joint && Math.abs(last.to - piece.from) < BARRIER.joint) runs[runs.length - 1] = { ...last, to: piece.to };
+    if (last !== undefined && last.side === piece.side && last.drop === piece.drop && Math.abs(last.line - piece.line) < BARRIER.joint && Math.abs(last.to - piece.from) < BARRIER.joint) runs[runs.length - 1] = { ...last, to: piece.to };
     else runs.push(piece);
   }
   return runs;
@@ -347,5 +356,7 @@ function placeBarrier(zone: ZoneDef, props: ReadonlyMap<string, PropDef>): Barri
   BARRIER_WORK.placements += 1;
   const runs: BarrierRun[] = barrierRuns(zone);
   const keep: Keepout = keepout(zone, props, barrier, runs);
-  return barrier.rows.flatMap((row: BarrierRow, rowIndex: number): BarrierPiece[] => runs.flatMap((run: BarrierRun, runIndex: number): BarrierPiece[] => rowPieces(zone, props, barrier, keep, row, rowIndex, run, runIndex)));
+  const piecesOf = (rows: readonly BarrierRow[], drop: boolean): BarrierPiece[] =>
+    rows.flatMap((row: BarrierRow, rowIndex: number): BarrierPiece[] => runs.flatMap((run: BarrierRun, runIndex: number): BarrierPiece[] => (run.drop === drop ? rowPieces(zone, props, barrier, keep, row, rowIndex, run, runIndex) : [])));
+  return [...piecesOf(barrier.rows, false), ...piecesOf(barrier.drop, true)];
 }

@@ -1,3 +1,4 @@
+import { liftHere } from './terrain-lift.ts';
 import type { Group, Object3D, Scene, Vector3 } from 'three';
 import { Color, Mesh, MeshBasicMaterial, SphereGeometry } from 'three';
 import type { FlaskResource } from '../../sim/content/flasks.ts';
@@ -518,6 +519,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
             break;
           }
           case 'chest_opened':
+          case 'cache_opened':
             spray(event.pos.x, CHEST_BURST.height, event.pos.z, GOLD, CHEST_BURST.count, CHEST_SPRAY);
             ring(event.pos.x, event.pos.z, CHEST_BURST.ring, GOLD, CHEST_BURST.ringTime);
             camera.addTrauma(CHEST_BURST.shake);
@@ -619,7 +621,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
         }
         const view: ProjectileView | null = projectileView(projectile);
         if (view === null) continue;
-        view.mesh.position.set(projectile.pos.x, EFFECTS.projectileHeight, projectile.pos.z);
+        view.mesh.position.set(projectile.pos.x, EFFECTS.projectileHeight + liftHere(projectile.pos.x, projectile.pos.z), projectile.pos.z);
         view.mesh.rotation.z += dt * 14;
         if (projectile.skill.vfx.trail > 0) kit.carry(projectile.id, projectile.pos.x, EFFECTS.projectileHeight, projectile.pos.z, projectile.direction.x, projectile.direction.z, view.color, null, projectile.skill.vfx.trail, dt);
         else spray(projectile.pos.x, EFFECTS.projectileHeight, projectile.pos.z, view.color, 2, { speed: { min: 0, max: 1.2 }, lift: { min: -0.6, max: 0.8 }, life: { min: 0.12, max: 0.32 }, size: { min: 0.3, max: 0.7 }, gravity: 0, jitter: 0.25 });

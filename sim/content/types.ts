@@ -1,12 +1,14 @@
+import type { ZoneTerrain } from './terrain-types.ts';
 import type { MonsterRank, PackRanks } from './rank-types.ts';
 import type { ZoneBarrier } from './barrier-types.ts';
 import type { AffixDef, FamilyDef, ItemBaseDef, ItemScaling, RarityDef } from './item-types.ts';
 import type { FlaskDef } from './flasks.ts';
 import type { AttachmentDef, RigDef } from './rig-types.ts';
-import type { DormantDef, FactionDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, StalkerBehaviour, SummonDef, SwarmBehaviour, AmbushBehaviour } from './combat-types.ts';
+import type { AlarmDef, AmbushBehaviour, DormantDef, FactionDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, StalkerBehaviour, SummonDef, SwarmBehaviour } from './combat-types.ts';
 import type { AreaDelivery, BeamDelivery, BlinkDelivery, ChainDelivery, SkillShape, SkillUnlock } from './shape-types.ts';
 import type { ServiceKind, TradeDef } from './trade-types.ts';
 import type { PropDef, SurfaceDef } from './prop-types.ts';
+import type { ZoneScatter } from './scatter-types.ts';
 import type { Condition } from './condition-types.ts';
 import type { ZoneAmbience } from './ambience-types.ts';
 import type { BookDef, StoryFlags, ZoneVoid } from './story-types.ts';
@@ -196,6 +198,7 @@ export interface MonsterDef {
   readonly mods: readonly string[];
   readonly faction: string;
   readonly dormant: DormantDef | null;
+  readonly alarm: AlarmDef | null;
   readonly support: string | null;
   readonly barks: readonly string[];
   readonly regen: number;
@@ -245,7 +248,7 @@ export interface SkillTreeNodeDef {
 
 export type { ChartDef, ChartGroup, ChartPath, ChartRespec, PointGrant, SkillTarget, SkillVariant } from './chart-types.ts';
 
-export type { PropDef, PropLight, SurfaceDef } from './prop-types.ts';
+export type { PropCache, PropDef, PropLight, SurfaceDef } from './prop-types.ts';
 
 export type { AttachmentDef, RigActionClip, RigClips, RigContact, RigDef, RigGait, RigSocket, RigStanceClips, Triple } from './rig-types.ts';
 
@@ -263,33 +266,8 @@ export interface ZoneProp {
   readonly when: readonly Condition[];
 }
 
-export interface ScatterSize {
-  readonly least: number;
-  readonly most: number;
-}
-
-export interface OpenScatter {
-  readonly type: 'open';
-  readonly props: readonly string[];
-  readonly count: number;
-  readonly clump: number;
-  readonly spread: number;
-  readonly size: ScatterSize;
-  readonly clear: number;
-}
-
-export interface AroundScatter {
-  readonly type: 'around';
-  readonly props: readonly string[];
-  readonly anchors: readonly string[];
-  readonly each: number;
-  readonly spread: number;
-  readonly size: ScatterSize;
-}
-
-export type ZoneScatter = OpenScatter | AroundScatter;
-
-export const SCATTER_TYPES = ['open', 'around'] as const;
+export type { AroundScatter, CliffScatter, OpenScatter, ScatterSize, ZoneScatter } from './scatter-types.ts';
+export { SCATTER_TYPES } from './scatter-types.ts';
 
 export interface ZoneVoice {
   readonly id: string;
@@ -312,6 +290,12 @@ export interface ZonePack {
   readonly members: readonly PackMember[];
   readonly when: readonly Condition[];
   readonly row?: ZonePoint;
+  readonly level?: number;
+  readonly waits?: PackWait;
+}
+
+export interface PackWait {
+  readonly near: number;
 }
 
 export interface PackReturn { readonly after: number; readonly away: number }
@@ -399,6 +383,7 @@ export interface ZoneDef {
   readonly stormTier: number;
   readonly cellSize: number;
   readonly floorHeight: number;
+  readonly terrain: ZoneTerrain | null;
   readonly tiles: readonly string[];
   readonly floors: Readonly<Record<string, string>>;
   readonly outside: ZoneOutside | null;

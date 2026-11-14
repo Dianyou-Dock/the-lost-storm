@@ -55,5 +55,7 @@
   {"id": "lacquer", "color": "textures/silt_color.webp", "normal": "textures/silt_normal.webp", "orm": "textures/silt_orm.webp", "metres": 1.6, "tint": "#f6eedf", "roughness": 1, "metalness": 0, "normalScale": 0.1, "spill": 0},
   {"id": "mask_iron", "color": "textures/silt_color.webp", "normal": "textures/silt_normal.webp", "orm": "textures/silt_orm.webp", "metres": 0.3, "tint": "#8d8a84", "roughness": 0.5, "metalness": 0.7, "normalScale": 0.05, "spill": 0},
   {"id": "helm_steel", "color": "textures/silt_color.webp", "normal": "textures/silt_normal.webp", "orm": "textures/silt_orm.webp", "metres": 0.3, "tint": "#aaa69e", "roughness": 0.5, "metalness": 0.85, "normalScale": 0.05, "spill": 0},
-  {"id": "clean_bronze", "color": "textures/silt_color.webp", "normal": "textures/silt_normal.webp", "orm": "textures/silt_orm.webp", "metres": 0.3, "tint": "#c49a58", "roughness": 0.45, "metalness": 0.9, "normalScale": 0.05, "spill": 0}
+  {"id": "clean_bronze", "color": "textures/silt_color.webp", "normal": "textures/silt_normal.webp", "orm": "textures/silt_orm.webp", "metres": 0.3, "tint": "#c49a58", "roughness": 0.45, "metalness": 0.9, "normalScale": 0.05, "spill": 0},
+  {"id": "coin_gold", "color": "textures/iron_color.webp", "normal": "textures/iron_normal.webp", "orm": "textures/iron_orm.webp", "metres": 0.35, "tint": "#e6b54c", "roughness": 0.35, "metalness": 0.85, "normalScale": 0.6, "spill": 0},
+  {"id": "rose_crystal", "color": "textures/worn_marble_color.webp", "normal": "textures/worn_marble_normal.webp", "orm": "textures/worn_marble_orm.webp", "metres": 0.6, "tint": "#e07ac0", "roughness": 0.25, "metalness": 0, "normalScale": 0.8, "spill": 1}
 ]

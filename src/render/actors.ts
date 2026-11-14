@@ -1,3 +1,4 @@
+import { heightAt } from '../../sim/nav/terrain.ts';
 import type { Sight } from './sight.ts';
 import { SEES_ALL } from './sight.ts';
 import type { Box3, Object3D, Scene } from 'three';
@@ -256,15 +257,15 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       return viewOf(actorId)?.height ?? ACTORS.defaultHeight;
     },
     sync(dt: number, current: World, hoveredId: number | null): void {
-      const floor: number = current.zone.floorHeight;
+      const floorAt = (x: number, z: number): number => heightAt(current.zone, x, z);
       sight.refresh();
-      const seen = (view: ActorView, x: number, z: number): boolean => sight.sees(x, floor + view.height / 2, z, view.height);
+      const seen = (view: ActorView, x: number, z: number): boolean => sight.sees(x, floorAt(x, z) + view.height / 2, z, view.height);
       standChosen(current);
       holdEquipped(content, playerView.rig, current.player.equipped);
       playerView.wake(current.wake === null ? null : wakePose(wakeStage(current.wake.plan, current.wake.elapsed), current.wake.elapsed));
       const spun: SpinPose = spin.step(dt, current.time, current.player);
       playerView.spin(spun.animation, spun.turn);
-      playerView.sync(dt, poseOf(current.player, null), { rise: 1, floor, turnRate: ACTOR.turnRate, seen: true });
+      playerView.sync(dt, poseOf(current.player, null), { rise: 1, floor: floorAt(current.player.pos.x, current.player.pos.z), turnRate: ACTOR.turnRate, seen: true });
       for (const monster of current.monsters) {
         const entry: MonsterEntry | null = entryFor(current, monster);
         if (entry === null) continue;
@@ -276,7 +277,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           if (fade > 0) fadeEcho(entry.view, entry.echo.ghost, fade);
         }
         entry.view.setHover(monster.id === hoveredId);
-        entry.view.sync(dt, poseOf(monster, unisonOf(current, monster) === null ? null : current.time), { rise: entry.echo === null ? turning : 1, floor, turnRate: ACTOR.turnRate, seen: seen(entry.view, monster.pos.x, monster.pos.z) });
+        entry.view.sync(dt, poseOf(monster, unisonOf(current, monster) === null ? null : current.time), { rise: entry.echo === null ? turning : 1, floor: floorAt(monster.pos.x, monster.pos.z), turnRate: ACTOR.turnRate, seen: seen(entry.view, monster.pos.x, monster.pos.z) });
       }
       for (let index: number = leaving.length - 1; index >= 0; index -= 1) {
         const echo: LeavingEcho | undefined = leaving[index];
@@ -302,7 +303,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           entry.view.setShadowOpacity(easedFade(npc.fade));
         }
         entry.view.setHover(npc.id === hoveredId);
-        entry.view.sync(dt, entry.pose, { rise: entry.shown, floor, turnRate: ACTOR.npcTurnRate, seen: seen(entry.view, entry.pose.pos.x, entry.pose.pos.z) });
+        entry.view.sync(dt, entry.pose, { rise: entry.shown, floor: floorAt(entry.pose.pos.x, entry.pose.pos.z), turnRate: ACTOR.npcTurnRate, seen: seen(entry.view, entry.pose.pos.x, entry.pose.pos.z) });
       }
       for (const [id, entry] of npcs) {
         if (current.npcs.some((npc: NpcState): boolean => npc.id === id)) continue;
@@ -313,7 +314,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           continue;
         }
         entry.view.setHover(false);
-        entry.view.sync(dt, entry.pose, { rise: entry.shown, floor, turnRate: ACTOR.npcTurnRate, seen: seen(entry.view, entry.pose.pos.x, entry.pose.pos.z) });
+        entry.view.sync(dt, entry.pose, { rise: entry.shown, floor: floorAt(entry.pose.pos.x, entry.pose.pos.z), turnRate: ACTOR.npcTurnRate, seen: seen(entry.view, entry.pose.pos.x, entry.pose.pos.z) });
       }
     },
     handle(events: readonly WorldEvent[], current: World): void {
@@ -425,6 +426,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           case 'moment_gone':
           case 'moment_chest':
           case 'chest_opened':
+          case 'cache_opened':
           case 'path_marked':
             break;
         }

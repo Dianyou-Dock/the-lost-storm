@@ -1,3 +1,4 @@
+import { heightAt } from '../../sim/nav/terrain.ts';
 import type { Scene } from 'three';
 import { Color, Vector2 } from 'three';
 import type { ObjectiveTarget } from '../../sim/world/objective.ts';
@@ -82,7 +83,7 @@ export function createObjectiveMarker(scene: Scene, camera: IsoCamera, hud: HTML
       previous = target;
       const goal: number = glowsAt(target) ? 1 : 0;
       level += (goal - level) * (1 - Math.exp(-OBJECTIVE.ease * dt));
-      if (target !== null) glow.place(target.pos.x, world.zone.floorHeight + OBJECTIVE.lift, target.pos.z, target.radius);
+      if (target !== null) glow.place(target.pos.x, heightAt(world.zone, target.pos.x, target.pos.z) + OBJECTIVE.lift, target.pos.z, target.radius);
       glow.group.visible = level > 0.01;
       glow.set(level * OBJECTIVE.glowStrength * (1 + Math.sin(time * OBJECTIVE.pulseSpeed) * OBJECTIVE.pulseDepth), time);
       let placement: ArrowPlacement | null = null;
@@ -99,7 +100,7 @@ export function createObjectiveMarker(scene: Scene, camera: IsoCamera, hud: HTML
           hints = hudRects(hud, OBJECTIVE.hintBoxes);
           sinceRead = 0;
         }
-        placement = arrowToward(project, world.player.pos, target.pos, bearing, world.zone.floorHeight, { width: window.innerWidth, height: window.innerHeight, margin: OBJECTIVE.screenMargin, gap: OBJECTIVE.hudGap, blockers, hints });
+        placement = arrowToward(project, world.player.pos, target.pos, bearing, heightAt(world.zone, world.player.pos.x, world.player.pos.z), { width: window.innerWidth, height: window.innerHeight, margin: OBJECTIVE.screenMargin, gap: OBJECTIVE.hudGap, blockers, hints });
       }
       arrow.classList.toggle('visible', placement !== null);
       if (placement === null) glide.started = false;
