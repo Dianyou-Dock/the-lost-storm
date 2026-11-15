@@ -176,7 +176,7 @@ function behaviour(value: unknown, where: string): MonsterBehaviour {
   if (type === 'stalker') return { type, orbitRange: positive(source, 'orbitRange', where) };
   if (type === 'swarm') return { type, ring: positive(source, 'ring', where) };
   if (type === 'ambush') return { type, spring: positive(source, 'spring', where) };
-  return { type, preferredRange: numeric(source, 'preferredRange', where), retreatRange: numeric(source, 'retreatRange', where) };
+  return { type, preferredRange: numeric(source, 'preferredRange', where), retreatRange: numeric(source, 'retreatRange', where), lead: source['lead'] === undefined ? 0 : nonNegative(source, 'lead', where) };
 }
 
 function monster(value: unknown, where: string): MonsterDef {

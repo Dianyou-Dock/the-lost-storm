@@ -194,5 +194,26 @@
     "regards": {
       "player": "hostile"
     }
+  },
+  {
+    "id": "cinders",
+    "name": "Cinders",
+    "palette": {
+      "tints": [
+        "#7a645a",
+        "#5e4a40",
+        "#6a5a52",
+        "#574a44",
+        "#8a5040",
+        "#74443a",
+        "#9a6248"
+      ],
+      "glow": "#ff6a1c"
+    },
+    "wearables": [],
+    "weapons": [],
+    "regards": {
+      "player": "hostile"
+    }
   }
 ]

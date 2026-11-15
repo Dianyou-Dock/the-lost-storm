@@ -129,6 +129,31 @@ void test('a leap crouches first, then flies to where the hero stood and lands t
   assert.ok(world.player.life < life, 'the landing hits a hero who stayed');
 });
 
+void test('a leap that leaves burning ground lays it where it landed, and it burns a hero who stays', (): void => {
+  const pounce: SkillDef = must(content.skills.get('cinder_pounce'), 'cinder_pounce');
+  const left: SkillDef = must(content.skills.get(must(pounce.leaves, 'what it leaves')), 'patch');
+  const world: World = arena(8);
+  const ghoul: MonsterState = place(world, 'test_ghoul', { x: ARENA_CENTRE.x + 7, z: ARENA_CENTRE.z });
+  const leaping: SkillDef = { ...must(world.content.skills.get('test_pounce'), 'pounce'), leaves: left.id };
+  const hero: Vec2 = { ...world.player.pos };
+  startSkill(world, ghoul, leaping, { x: hero.x - ghoul.pos.x, z: hero.z - ghoul.pos.z });
+  const landing: Vec2 = must(ghoul.action?.target, 'landing point');
+  for (let step: number = 0; step < Math.round((leaping.windup + 0.1) / DT); step += 1) {
+    world.player.pos = { ...hero };
+    stepWorld(world, [], DT);
+  }
+  const patch: AreaState = must(world.areas.find((area: AreaState): boolean => area.skill.id === left.id), 'burning ground');
+  assert.equal(patch.ownerId, ghoul.id);
+  assert.ok(distance(patch.pos, landing) < 0.3, 'the ground burns where it landed');
+  world.player.burn = null;
+  for (let step: number = 0; step < Math.round(0.9 / DT); step += 1) {
+    world.player.pos = { ...hero };
+    stepWorld(world, [], DT);
+  }
+  assert.equal(world.player.burn?.skill.id, left.id, 'a hero who stays in it is set alight by the ground');
+  assert.equal(world.areas.filter((area: AreaState): boolean => area.skill.id === left.id).length, 1, 'an echo-free leap leaves one patch');
+});
+
 void test('a hero who steps aside is missed: the leap still lands where the hero was', (): void => {
   const world: World = arena(7);
   const ghoul: MonsterState = place(world, 'test_ghoul', { x: ARENA_CENTRE.x + 7, z: ARENA_CENTRE.z });

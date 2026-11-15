@@ -274,8 +274,15 @@ function strike(world: World, impact: Impact): number {
   return hits;
 }
 
+function leave(world: World, impact: Impact): void {
+  if (impact.echo || impact.skill.leaves === null) return;
+  const left: SkillDef | undefined = world.content.skills.get(impact.skill.leaves);
+  if (left !== undefined) placeArea(world, impact.offence, left, impact.origin);
+}
+
 function resolve(world: World, impact: Impact, team: Team): number {
   const hits: number = strike(world, impact);
+  leave(world, impact);
   const { offence, skill, origin, direction, target } = impact;
   world.events.push({ type: 'skill_impact', actorId: offence.sourceId, team, skill, origin: { x: origin.x, z: origin.z }, direction: { x: direction.x, z: direction.z }, hits, echo: impact.echo });
   if (impact.echo || skill.echo <= 0) return hits;

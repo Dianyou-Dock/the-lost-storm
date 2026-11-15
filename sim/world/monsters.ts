@@ -19,6 +19,7 @@ import { mayStrike } from './factions.ts';
 import { homeReached, LEASH, shellPoint, shutOut } from './leash.ts';
 import { wardedFrom } from './wards.ts';
 import { revivable } from './revive.ts';
+import { ledAim } from './lead.ts';
 import { roomAhead } from './queue.ts';
 import { insideShell } from './shell.ts';
 import { heldInUnison, lookTogether } from './unison.ts';
@@ -104,7 +105,8 @@ function approach(world: World, monster: MonsterState, target: Vec2, dt: number)
 
 function attack(world: World, monster: MonsterState, skill: SkillDef, foe: Actor): boolean {
   if (blockedReason(monster, skill) !== null || attacksHeld(world) || !onBeat(world, monster)) return false;
-  startSkill(world, monster, skill, { x: foe.pos.x - monster.pos.x, z: foe.pos.z - monster.pos.z });
+  const aim: Vec2 = ledAim(foe, monster.def.behaviour.type === 'ranged' ? monster.def.behaviour.lead : 0);
+  startSkill(world, monster, skill, { x: aim.x - monster.pos.x, z: aim.z - monster.pos.z });
   monster.nextSkill = null;
   stepMeasure(world, monster);
   return true;

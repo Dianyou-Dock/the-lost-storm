@@ -61,6 +61,7 @@ export interface SkillMotion {
   readonly echoTurn: number;
   readonly lifeOnHit: number;
   readonly commit: SkillCommit | null;
+  readonly leaves: string | null;
 }
 
 export function skillMotion(source: Fields, where: string): SkillMotion {
@@ -72,6 +73,7 @@ export function skillMotion(source: Fields, where: string): SkillMotion {
     echoTurn: source['echoTurn'] === undefined ? 0 : numeric(source, 'echoTurn', where),
     lifeOnHit: zeroOrMore(source, 'lifeOnHit', where),
     commit: optional(source['commit'], `${where}.commit`, commit),
+    leaves: source['leaves'] === undefined ? null : text(source, 'leaves', where),
   };
 }
 
@@ -225,6 +227,11 @@ export function combatProblems(content: Content): string[] {
     if (used.leap !== null) need(used.delivery.type === 'arc' || used.delivery.type === 'nova', `skill ${used.id} leaps, so it must land with an arc or a nova`);
     if (used.leap !== null) need(used.leap.airTime <= used.windup, `skill ${used.id} is in the air longer than its windup`);
     if (used.echo > 0) need(used.delivery.type !== 'dash' && used.delivery.type !== 'revive', `skill ${used.id} echoes, but a ${used.delivery.type} cannot be replayed`);
+    if (used.leaves !== null) {
+      const left: SkillDef | undefined = content.skills.get(used.leaves);
+      need(left !== undefined, `skill ${used.id} leaves unknown skill ${used.leaves}`);
+      if (left !== undefined) need(left.delivery.type === 'area' && left.leaves === null, `skill ${used.id} leaves ${used.leaves}, which is not a lasting area that leaves nothing itself`);
+    }
   }
   return problems;
 }

@@ -157,6 +157,7 @@ export interface SkillDef extends SkillShape {
   readonly echo: number;
   readonly echoTurn: number;
   readonly lifeOnHit: number;
+  readonly leaves: string | null;
 }
 
 export interface ChaserBehaviour {
@@ -167,6 +168,7 @@ export interface RangedBehaviour {
   readonly type: 'ranged';
   readonly preferredRange: number;
   readonly retreatRange: number;
+  readonly lead: number;
 }
 
 export interface FixedBehaviour {
