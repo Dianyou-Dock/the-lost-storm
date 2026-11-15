@@ -99,7 +99,7 @@ void test('projectiles sound when they spawn and when they run out, not when the
   const bolt: SkillDef = skill('storm_bolt');
   const spawned: readonly SoundCue[] = cuesForEvent(audio, world, {
     type: 'projectile_spawn',
-    projectile: { id: 1, ownerId: world.player.id, team: 'player', faction: null, skill: bolt, damageMin: 1, damageMax: 2, damagePercent: 0, critChance: 0, critMultiplier: 1.5, pos: { x: 1, z: 2 }, direction: { x: 0, z: 1 }, distanceLeft: 10, pierceLeft: 0, hitIds: [] },
+    projectile: { id: 1, ownerId: world.player.id, from: { x: 1, z: 2 }, team: 'player', faction: null, skill: bolt, damageMin: 1, damageMax: 2, damagePercent: 0, critChance: 0, critMultiplier: 1.5, pos: { x: 1, z: 2 }, direction: { x: 0, z: 1 }, distanceLeft: 10, pierceLeft: 0, hitIds: [] },
   });
   assert.deepEqual(sounds(spawned), ['bolt_whoosh']);
   assert.deepEqual(cuesForEvent(audio, world, { type: 'projectile_end', id: 1, pos: AWAY, hit: true, skill: bolt }), []);

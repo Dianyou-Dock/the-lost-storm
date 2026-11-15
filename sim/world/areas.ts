@@ -2,6 +2,7 @@ import type { AreaDelivery } from '../content/shape-types.ts';
 import type { SkillDef } from '../content/types.ts';
 import type { ReadonlyVec2, Vec2 } from '../math.ts';
 import { moveWithCollision } from '../nav/grid.ts';
+import { launchPoint } from './wards.ts';
 import { gridFor } from './movement.ts';
 import { applyHit, findActor, targetsOf } from './combat.ts';
 import { isDashing } from './dash.ts';
@@ -20,7 +21,7 @@ export function areaOf(skill: SkillDef): AreaDelivery | null {
 export function placeArea(world: World, offence: Offence, skill: SkillDef, at: ReadonlyVec2): AreaState | null {
   const delivery: AreaDelivery | null = areaOf(skill);
   if (delivery === null) return null;
-  const area: AreaState = { id: world.nextId, ownerId: offence.sourceId, skill, offence, pos: { x: at.x, z: at.z }, timeLeft: delivery.duration, pulseLeft: delivery.pulse };
+  const area: AreaState = { id: world.nextId, ownerId: offence.sourceId, from: launchPoint(world, offence.sourceId, { x: at.x, z: at.z }), skill, offence, pos: { x: at.x, z: at.z }, timeLeft: delivery.duration, pulseLeft: delivery.pulse };
   world.nextId += 1;
   world.areas.push(area);
   world.events.push({ type: 'area', area, stage: 'start', hits: 0 });
@@ -47,7 +48,7 @@ export function timeScaleOf(world: World, actor: Actor): number {
 
 function pull(world: World, area: AreaState, delivery: AreaDelivery, dt: number): void {
   if (delivery.pull <= 0) return;
-  for (const target of targetsOf(world, area.offence)) {
+  for (const target of targetsOf(world, { sourceId: area.offence.sourceId, faction: area.offence.faction, from: area.from })) {
     if (!covers(area, delivery, target.pos, target.radius) || (target.action !== null && !isDashing(target))) continue;
     const offset: Vec2 = { x: area.pos.x - target.pos.x, z: area.pos.z - target.pos.z };
     const gap: number = Math.hypot(offset.x, offset.z);
@@ -60,7 +61,7 @@ function pull(world: World, area: AreaState, delivery: AreaDelivery, dt: number)
 
 function pulse(world: World, area: AreaState, delivery: AreaDelivery): void {
   let hits: number = 0;
-  for (const target of targetsOf(world, area.offence)) {
+  for (const target of targetsOf(world, { sourceId: area.offence.sourceId, faction: area.offence.faction, from: area.from })) {
     if (!covers(area, delivery, target.pos, target.radius)) continue;
     const offset: Vec2 = { x: target.pos.x - area.pos.x, z: target.pos.z - area.pos.z };
     const gap: number = Math.hypot(offset.x, offset.z);

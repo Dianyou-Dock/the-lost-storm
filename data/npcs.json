@@ -20,6 +20,22 @@
     ],
     "talks": [
       {
+        "id": "warden_guide_first",
+        "once": true,
+        "when": [
+          {
+            "type": "flag",
+            "flag": "warden_met",
+            "is": "owed"
+          }
+        ],
+        "lines": [
+          "warden_guide_fell",
+          "warden_guide_counted",
+          "warden_guide_road"
+        ]
+      },
+      {
         "id": "warden_guide_lesson",
         "once": true,
         "when": [

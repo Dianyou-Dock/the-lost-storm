@@ -13,6 +13,7 @@ import { firePowers } from '../powers.ts';
 import { isDashing, isInvulnerable } from './dash.ts';
 import { knockTime, readablePush } from './movement.ts';
 import { closeDialogue } from './dialogue.ts';
+import type { Side } from './factions.ts';
 import { mayStrike, provoke, regardOf } from './factions.ts';
 import { gainFlaskCharges } from './flask-charges.ts';
 import { dropOnGround } from './ground.ts';
@@ -47,7 +48,7 @@ export function offenceOf(actor: Actor): Offence {
   return { sourceId: actor.id, team: 'monster', faction: actor.def.faction, damageMin: actor.damageMin, damageMax: actor.damageMax, damagePercent: 0, critChance: 0, critMultiplier: 1 };
 }
 
-export function targetsOf(world: World, offence: Pick<Offence, 'sourceId' | 'faction'>): Actor[] {
+export function targetsOf(world: World, offence: Side): Actor[] {
   const actors: Actor[] = [world.player, ...world.monsters];
   return actors.filter((actor: Actor): boolean => !isInvulnerable(actor) && mayStrike(world, offence, actor));
 }

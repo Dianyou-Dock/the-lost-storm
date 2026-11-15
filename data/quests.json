@@ -101,6 +101,7 @@
         "id": "ask",
         "type": "talk",
         "npc": "warden_guide",
+        "talk": "warden_guide_lesson",
         "text": "Talk to the Warden Guide",
         "sets": {
           "fire_lesson": "given"

@@ -37,13 +37,13 @@ const errand: QuestDef = {
   requires: [],
   when: [],
   objectives: [
-    { id: 'ask', type: 'talk', npc: 'keeper', text: 'Ask', waiting: '', when: [], sets: {} },
+    { id: 'ask', type: 'talk', npc: 'keeper', talk: null, text: 'Ask', waiting: '', when: [], sets: {} },
     { id: 'go', type: 'reach', zone: 'hub', x: 20, z: 18, radius: 1.5, text: 'Go', waiting: '', when: [], sets: {} },
     { id: 'kill', type: 'defeat', monster: 'mender', text: 'Kill', waiting: '', when: [], sets: {} },
   ],
 };
 
-const sequel: QuestDef = { id: 'sequel', name: 'After', requires: ['errand'], when: [], objectives: [{ id: 'tell', type: 'talk', npc: 'courier', text: 'Tell', waiting: '', when: [], sets: {} }] };
+const sequel: QuestDef = { id: 'sequel', name: 'After', requires: ['errand'], when: [], objectives: [{ id: 'tell', type: 'talk', npc: 'courier', talk: null, text: 'Tell', waiting: '', when: [], sets: {} }] };
 
 function during(objective: string): Condition[] {
   return [{ type: 'objective', quest: 'errand', objective, is: 'current', not: false }];
@@ -536,4 +536,28 @@ void test('the Gate quest opens after the Warden\'s Lesson, names its level whil
   assert.equal(questState(world, gateQuest.id), 'done');
   assert.ok(ofType(events, 'quest_completed').some((event): boolean => event.quest === gateQuest.id));
   assert.equal(world.flags['alpha_slice_complete'], 'reached');
+});
+
+void test('at the fire the first lines the Warden still owes come once before his lesson, and only the lesson answers the step that names it', (): void => {
+  const real: Content = loadContent();
+  const world: World = worldIn(real, 'hideout', 5);
+  for (const id of ['out_of_the_mist', 'the_first_taker', 'to_the_waystation']) world.quests[id] = must(real.quests.get(id), id).objectives.length;
+  world.quests['wardens_lesson'] = 0;
+  world.flags['warden_met'] = 'owed';
+  const guide: NpcState = must(world.npcs.find((npc: NpcState): boolean => npc.def.id === 'warden_guide'), 'the Guide');
+  world.player.pos = { x: guide.pos.x + 1, z: guide.pos.z };
+  const hear = (): string => {
+    for (let step: number = 0; step < LIMIT / DT && world.dialogue === null; step += 1) stepWorld(world, [{ type: 'talk', npcId: guide.id }], DT);
+    const talk: string = must(world.dialogue, 'a talk').talk.id;
+    for (let step: number = 0; step < LIMIT && world.dialogue !== null; step += 1) stepWorld(world, [{ type: 'advance' }], DT);
+    return talk;
+  };
+  assert.equal(hear(), 'warden_guide_first');
+  assert.equal(questState(world, 'wardens_lesson'), 'active');
+  assert.equal(world.flags['fire_lesson'], undefined);
+  assert.equal(hear(), 'warden_guide_lesson');
+  assert.equal(questState(world, 'wardens_lesson'), 'done');
+  assert.equal(world.flags['fire_lesson'], 'given');
+  assert.equal(hear(), 'warden_guide_between');
+  assert.equal(nextTalk(world, guide.def)?.id, 'warden_guide_gate');
 });

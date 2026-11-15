@@ -219,7 +219,7 @@ void test('a moment the hero walks out of before it is cleared dissolves at once
   assert.equal(killed.some((event: WorldEvent): boolean => event.type === 'xp' && event.amount > 0), false);
   const thrower: MonsterState = must(echoesOf(world, moment).find((monster: MonsterState): boolean => monster.alive), 'a living echo');
   const stone: SkillDef = must(world.content.skills.get(thrower.def.skill), 'the echo skill');
-  world.projectiles.push({ id: STONE.id, ownerId: thrower.id, team: 'monster', faction: thrower.def.faction, skill: stone, damageMin: 1, damageMax: 1, damagePercent: 0, critChance: 0, critMultiplier: 1, pos: { ...thrower.pos }, direction: { x: 1, z: 0 }, distanceLeft: STONE.reach, pierceLeft: 0, hitIds: [] });
+  world.projectiles.push({ id: STONE.id, ownerId: thrower.id, from: { ...thrower.pos }, team: 'monster', faction: thrower.def.faction, skill: stone, damageMin: 1, damageMax: 1, damagePercent: 0, critChance: 0, critMultiplier: 1, pos: { ...thrower.pos }, direction: { x: 1, z: 0 }, distanceLeft: STONE.reach, pierceLeft: 0, hitIds: [] });
   standAt(world, FAR);
   const events: WorldEvent[] = run(world, DT * 2);
   assert.equal(moment.outcome, 'left');

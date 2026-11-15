@@ -9,7 +9,7 @@ export function objectivePaths(objective: ObjectiveDef): readonly PathObjective[
 export function roadFlagNames(content: Content): string[] {
   const names: string[] = [];
   for (const zone of content.zones.values()) for (const trigger of zone.triggers) names.push(...Object.keys(trigger.sets));
-  for (const zone of content.zones.values()) for (const scene of zone.scenes) names.push(...Object.keys(scene.sets));
+  for (const zone of content.zones.values()) for (const scene of zone.scenes) names.push(...Object.keys(scene.owes), ...Object.keys(scene.sets));
   for (const quest of content.quests.values()) {
     for (const objective of quest.objectives) {
       names.push(...Object.keys(objective.sets));
@@ -49,6 +49,7 @@ function pathProblems(content: Content, at: string, path: PathObjective): string
   switch (path.type) {
     case 'talk':
       if (!content.npcs.has(path.npc)) problem = `${at} names unknown npc ${path.npc}`;
+      else if (path.talk !== null && !(content.npcs.get(path.npc)?.talks.some((talk): boolean => talk.id === path.talk) ?? false)) problem = `${at} names talk ${path.talk}, which ${path.npc} does not have`;
       break;
     case 'reach':
       if (!content.zones.has(path.zone)) problem = `${at} names unknown zone ${path.zone}`;

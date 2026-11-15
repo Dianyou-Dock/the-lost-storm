@@ -1,11 +1,14 @@
 import type { FactionDef, Regard } from '../content/combat-types.ts';
 import { PLAYER_SIDE } from '../content/combat-types.ts';
 import type { Content } from '../content/types.ts';
+import type { Vec2 } from '../math.ts';
 import type { Actor, MonsterState, World } from './types.ts';
+import { wardStops } from './wards.ts';
 
 export interface Side {
   readonly sourceId: number;
   readonly faction: string | null;
+  readonly from?: Vec2;
 }
 
 export function sideOf(actor: Actor): string {
@@ -27,7 +30,7 @@ function grudge(world: World, sourceId: number, target: Actor): boolean {
 }
 
 export function mayStrike(world: World, side: Side, target: Actor): boolean {
-  if (!target.alive || target.id === side.sourceId) return false;
+  if (!target.alive || target.id === side.sourceId || wardStops(world, side, target)) return false;
   const from: string = side.faction ?? PLAYER_SIDE;
   const toward: string = sideOf(target);
   if (from === toward) return false;

@@ -387,6 +387,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
             barks.say(event.speaker, event.line);
             break;
           case 'scene_lead':
+          case 'scene_ward':
           case 'flask_used':
             break;
           case 'skill_unlocked':

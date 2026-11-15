@@ -3,6 +3,7 @@ import type { ReadonlyVec2, Vec2 } from '../math.ts';
 import type { Offence } from './combat.ts';
 import { applyHit, offenceOf, setTempo, targetsOf } from './combat.ts';
 import { timeScaleAt } from './areas.ts';
+import { launchPoint } from './wards.ts';
 import type { Actor, HazardState, MonsterState, World, WorldEvent } from './types.ts';
 
 export const HAZARDS = {
@@ -16,6 +17,7 @@ export function placeHazard(world: World, offence: Offence, skill: SkillDef, at:
   const hazard: HazardState = {
     id: world.nextId,
     ownerId: offence.sourceId,
+    from: launchPoint(world, offence.sourceId, { x: at.x, z: at.z }),
     team: offence.team,
     faction: offence.faction,
     skill,
@@ -36,7 +38,7 @@ export function placeHazard(world: World, offence: Offence, skill: SkillDef, at:
 }
 
 function inside(world: World, hazard: HazardState): Actor[] {
-  return targetsOf(world, { sourceId: hazard.ownerId, faction: hazard.faction }).filter((target: Actor): boolean => Math.hypot(target.pos.x - hazard.pos.x, target.pos.z - hazard.pos.z) <= hazard.radius + target.radius);
+  return targetsOf(world, { sourceId: hazard.ownerId, faction: hazard.faction, from: hazard.from }).filter((target: Actor): boolean => Math.hypot(target.pos.x - hazard.pos.x, target.pos.z - hazard.pos.z) <= hazard.radius + target.radius);
 }
 
 function slowInside(world: World, hazard: HazardState): void {

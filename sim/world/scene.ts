@@ -1,5 +1,5 @@
 import type { SceneDef } from '../content/scene-types.ts';
-import type { LineDef, SkillDef, ZoneExit, ZoneNpc } from '../content/types.ts';
+import type { SkillDef, ZoneExit, ZoneNpc } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { DEGREES_TO_RADIANS, directionOf, distance, facingOf, normalize } from '../math.ts';
 import { nearestWalkable } from '../nav/grid.ts';
@@ -8,12 +8,12 @@ import { heldIn } from './bubble.ts';
 import { applyHit, kill } from './combat.ts';
 import { allHold } from './conditions.ts';
 import { npcAt } from './dialogue.ts';
-import { spokenLine } from './glitch-word.ts';
 import { echoMonsters, forceStrike, wakeMoment } from './moments.ts';
-import { lineSeconds } from './reading.ts';
 import type { Escort, SceneState } from './scene-state.ts';
 import { setFlags } from './story.ts';
 import type { MomentState, MonsterState, NpcState, Offence, World } from './types.ts';
+import type { WardState } from './wards.ts';
+import { findWard, lowerWard, raiseWard } from './wards.ts';
 
 export const SCENE = {
   appear: 0.45,
@@ -188,7 +188,7 @@ function strike(world: World, scene: SceneState, dt: number): void {
   const npc: NpcState | null = npcOf(world, scene);
   const skill: SkillDef | undefined = world.content.skills.get(scene.def.strike);
   if (npc === null || skill === undefined) {
-    scene.phase = 'speak';
+    ward(world, scene);
     return;
   }
   const before: number = scene.elapsed;
@@ -204,34 +204,60 @@ function strike(world: World, scene: SceneState, dt: number): void {
   }
   if (before < lands && scene.elapsed >= lands) cut(world, npc, skill, foes);
   if (scene.elapsed < lands + skill.recovery + SCENE.pause) return;
-  scene.phase = 'speak';
-  scene.elapsed = 0;
-  scene.spoken = 0;
+  ward(world, scene);
 }
 
-function speak(world: World, scene: SceneState, dt: number): void {
+function wardCentre(world: World, npc: NpcState): Vec2 {
+  const hero: Vec2 = world.player.pos;
+  const middle: Vec2 = { x: (hero.x + npc.pos.x) / 2, z: (hero.z + npc.pos.z) / 2 };
+  return nearestWalkable(world.grid, middle, SCENE.reach) ?? middle;
+}
+
+function ward(world: World, scene: SceneState): void {
   const npc: NpcState | null = npcOf(world, scene);
-  if (npc !== null) faceHero(world, npc);
-  scene.elapsed -= dt;
-  if (scene.elapsed > 0) return;
-  const lineId: string | undefined = scene.def.lines[scene.spoken];
-  if (lineId === undefined) {
-    setFlags(world, scene.def.sets);
-    scene.phase = 'lead';
-    if (npc === null) return;
-    npc.route = findPath(world.grid, npc.pos, scene.def.lead);
-    world.events.push({ type: 'scene_lead', scene: scene.def.id, npcId: npc.id });
+  scene.phase = 'ward';
+  scene.elapsed = 0;
+  if (npc === null) return;
+  scene.wardId = raiseWard(world, scene.def.ward, npc, wardCentre(world, npc)).id;
+  setFlags(world, scene.def.owes);
+  world.events.push({ type: 'scene_ward', scene: scene.def.id, npcId: npc.id, wardId: scene.wardId });
+}
+
+function heard(world: World, scene: SceneState): boolean {
+  return world.heard.includes(scene.def.talk);
+}
+
+function talkingWith(world: World, npc: NpcState): boolean {
+  return world.dialogue?.npcId === npc.id;
+}
+
+function walkedAway(world: World, scene: SceneState, raised: WardState | null): boolean {
+  const centre: Vec2 = raised?.pos ?? world.player.pos;
+  return distance(world.player.pos, centre) > scene.def.ward.radius + scene.def.ward.leave;
+}
+
+function sheltering(world: World, scene: SceneState): void {
+  const npc: NpcState | null = npcOf(world, scene);
+  if (npc === null) {
+    dropScene(world);
     return;
   }
-  scene.spoken += 1;
-  const line: LineDef | undefined = world.content.lines.get(lineId);
-  if (line === undefined) return;
-  const spoken: LineDef = spokenLine(world, line);
-  world.events.push({ type: 'bark', speaker: line.speaker, line: spoken });
-  scene.elapsed = lineSeconds(spoken.text);
+  const raised: WardState | null = findWard(world, scene.wardId);
+  const talking: boolean = talkingWith(world, npc);
+  if (!talking) faceHero(world, npc);
+  const away: boolean = walkedAway(world, scene, raised);
+  const standing: boolean = raised !== null && raised.lowering === null;
+  if (!heard(world, scene) && !away && (standing || talking)) return;
+  if (talking && !away) return;
+  if (raised !== null) lowerWard(raised);
+  if (heard(world, scene)) setFlags(world, scene.def.sets);
+  scene.phase = 'lead';
+  npc.route = findPath(world.grid, npc.pos, scene.def.lead);
+  world.events.push({ type: 'scene_lead', scene: scene.def.id, npcId: npc.id });
 }
 
-function lags(world: World, npc: NpcState, ahead: number): boolean {
+function lags(world: World, scene: SceneState, npc: NpcState, ahead: number): boolean {
+  if (!scene.def.lead.waits) return false;
   const waiting: boolean = npc.pace === 0;
   return distance(npc.pos, world.player.pos) > (waiting ? ahead - SCENE.slack : ahead);
 }
@@ -242,7 +268,7 @@ function lead(world: World, scene: SceneState): void {
   const def = scene.def.lead;
   const hero: Vec2 = world.player.pos;
   const ahead: boolean = distance(hero, def) < distance(npc.pos, def);
-  const behind: boolean = lags(world, npc, def.ahead);
+  const behind: boolean = lags(world, scene, npc, def.ahead);
   const exit: ZoneExit | null = exitOf(world, scene.def);
   if (npc.route.length === 0 && def.through !== null && exit !== null && !behind) {
     npc.route = findPath(world.grid, npc.pos, exit);
@@ -265,7 +291,7 @@ function through(world: World, scene: SceneState, dt: number): void {
   }
   const passing: boolean = scene.elapsed > 0 || distance(npc.pos, exit) <= exit.radius || npc.route.length === 0;
   if (!passing) {
-    npc.pace = lags(world, npc, scene.def.lead.ahead) ? 0 : scene.def.lead.walk;
+    npc.pace = lags(world, scene, npc, scene.def.lead.ahead) ? 0 : scene.def.lead.walk;
     if (npc.pace === 0) faceHero(world, npc);
     return;
   }
@@ -279,7 +305,7 @@ function begin(world: World): void {
   if (!world.player.alive) return;
   const def: SceneDef | undefined = world.zone.scenes.find((entry: SceneDef): boolean => distance(world.player.pos, entry) <= entry.radius && allHold(world, entry.when));
   if (def === undefined) return;
-  world.scene = { def, phase: 'bring', momentId: null, elapsed: 0, missed: 0, spoken: 0, npcId: null, placement: null };
+  world.scene = { def, phase: 'bring', momentId: null, elapsed: 0, missed: 0, wardId: null, npcId: null, placement: null };
 }
 
 export function dropScene(world: World): void {
@@ -308,8 +334,8 @@ export function stepScene(world: World, dt: number): void {
     case 'strike':
       strike(world, scene, dt);
       return;
-    case 'speak':
-      speak(world, scene, dt);
+    case 'ward':
+      sheltering(world, scene);
       return;
     case 'lead':
       lead(world, scene);
@@ -322,13 +348,12 @@ export function stepScene(world: World, dt: number): void {
 
 export function exitWaits(world: World, exitId: string): boolean {
   const scene: SceneState | null = world.scene;
-  return scene !== null && scene.def.lead.exit === exitId && scene.phase !== 'lead' && scene.phase !== 'through';
+  return scene !== null && scene.def.lead.exit === exitId && (scene.phase === 'bring' || scene.phase === 'fight' || scene.phase === 'strike');
 }
 
 export function leavingWith(world: World, exitId: string): Escort | null {
   const scene: SceneState | null = world.scene;
   if (scene === null || scene.npcId === null || scene.def.lead.exit !== exitId) return null;
-  if (scene.phase !== 'speak' && scene.phase !== 'lead' && scene.phase !== 'through') return null;
-  setFlags(world, scene.def.sets);
+  if (scene.phase !== 'ward' && scene.phase !== 'lead' && scene.phase !== 'through') return null;
   return { npc: scene.def.npc, pace: scene.def.lead.walk };
 }

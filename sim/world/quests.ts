@@ -60,7 +60,7 @@ function pathMet(world: World, objective: PathObjective, events: readonly WorldE
   let done: boolean;
   switch (objective.type) {
     case 'talk':
-      done = events.some((event: WorldEvent): boolean => event.type === 'dialogue_closed' && event.finished && !event.replay && event.npc === objective.npc);
+      done = events.some((event: WorldEvent): boolean => event.type === 'dialogue_closed' && event.finished && !event.replay && event.npc === objective.npc && (objective.talk === null || event.talk === objective.talk));
       break;
     case 'reach':
       done = world.zone.id === objective.zone && world.player.alive && distance(world.player.pos, objective) <= objective.radius;

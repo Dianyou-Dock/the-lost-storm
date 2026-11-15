@@ -530,6 +530,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
             break;
           case 'bark':
           case 'scene_lead':
+          case 'scene_ward':
           case 'flasks_refilled':
           case 'monster_remove':
           case 'aggro':

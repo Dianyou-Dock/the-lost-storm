@@ -399,7 +399,7 @@ const extraQuest = {
   name: 'An Errand',
   requires: ['out_of_the_mist'],
   objectives: [
-    { id: 'ask', type: 'talk', npc: 'warden_guide', text: 'Ask' },
+    { id: 'ask', type: 'talk', npc: 'warden_guide', talk: null, text: 'Ask' },
     { id: 'go', type: 'reach', zone: 'waystation', x: 30, z: 20, radius: 1.5, text: 'Go' },
     { id: 'kill', type: 'defeat', monster: 'mender', text: 'Kill' },
   ],

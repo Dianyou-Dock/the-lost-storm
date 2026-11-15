@@ -16,7 +16,7 @@ const march: QuestDef = {
   requires: [],
   when: [],
   objectives: [
-    { id: 'ask', type: 'talk', npc: 'keeper', text: 'Ask', waiting: '', when: [], sets: {} },
+    { id: 'ask', type: 'talk', npc: 'keeper', talk: null, text: 'Ask', waiting: '', when: [], sets: {} },
     { id: 'go', type: 'reach', zone: 'outpost', x: 38, z: 9.6, radius: 2, text: 'Go', waiting: '', when: [], sets: {} },
   ],
 };

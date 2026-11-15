@@ -16,6 +16,7 @@ import { monsterLevel, SPAWN, spawnMonster } from './spawn.ts';
 import { alarmTarget, spawnPack, surgeExtra, wakePack } from './packs.ts';
 import { mayStrike } from './factions.ts';
 import { homeReached, LEASH, shellPoint, shutOut } from './leash.ts';
+import { wardedFrom } from './wards.ts';
 import { revivable } from './revive.ts';
 import { roomAhead } from './queue.ts';
 import { insideShell } from './shell.ts';
@@ -377,6 +378,15 @@ function heldAtShell(world: World, monster: MonsterState, moment: MomentState, f
   else face(monster, foe.pos, dt);
 }
 
+function loseInterest(world: World, monster: MonsterState): void {
+  monster.aggro = false;
+  if (!wardedFrom(world, monster, world.player)) return;
+  monster.foeId = null;
+  monster.returning = true;
+  monster.leashTime = 0;
+  monster.path = [];
+}
+
 function walkHome(world: World, monster: MonsterState, dt: number): void {
   if (homeReached(world, monster)) {
     monster.returning = false;
@@ -422,7 +432,7 @@ export function stepMonster(world: World, monster: MonsterState, dt: number): vo
   }
   monster.returning = false;
   if (foe === null) {
-    if (!strikes(world, monster, world.player)) monster.aggro = false;
+    if (!strikes(world, monster, world.player)) loseInterest(world, monster);
     return;
   }
   const call: ZonePack | null = alarmTarget(world, monster);

@@ -176,6 +176,7 @@ function spawnProjectiles(world: World, origin: ReadonlyVec2, skill: SkillDef, d
     const projectile: ProjectileState = {
       id: world.nextId,
       ownerId: offence.sourceId,
+      from: { x: origin.x, z: origin.z },
       team: offence.team,
       faction: offence.faction,
       skill,
@@ -290,7 +291,7 @@ export function stepEchoes(world: World, dt: number): void {
     return false;
   });
   for (const echo of due) {
-    const offence: Offence = { sourceId: echo.ownerId, team: echo.team, faction: echo.faction, damageMin: echo.damageMin, damageMax: echo.damageMax, damagePercent: echo.damagePercent, critChance: echo.critChance, critMultiplier: echo.critMultiplier };
+    const offence: Offence = { sourceId: echo.ownerId, team: echo.team, faction: echo.faction, damageMin: echo.damageMin, damageMax: echo.damageMax, damagePercent: echo.damagePercent, critChance: echo.critChance, critMultiplier: echo.critMultiplier, from: { x: echo.origin.x, z: echo.origin.z } };
     resolve(world, { actor: null, offence, skill: echo.skill, origin: echo.origin, direction: echo.direction, target: echo.target, echo: true }, echo.team);
   }
 }
@@ -393,7 +394,7 @@ function stepProjectile(world: World, projectile: ProjectileState, dt: number): 
       world.events.push({ type: 'projectile_end', id: projectile.id, pos: { ...projectile.pos }, hit: true, skill: projectile.skill });
       return false;
     }
-    for (const target of targetsOf(world, { sourceId: projectile.ownerId, faction: projectile.faction })) {
+    for (const target of targetsOf(world, { sourceId: projectile.ownerId, faction: projectile.faction, from: projectile.from })) {
       if (projectile.hitIds.includes(target.id)) continue;
       if (Math.hypot(target.pos.x - projectile.pos.x, target.pos.z - projectile.pos.z) > delivery.radius + target.radius) continue;
       projectile.hitIds.push(target.id);

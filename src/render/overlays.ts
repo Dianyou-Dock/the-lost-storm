@@ -201,6 +201,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
   const anchor: Vector2 = new Vector2();
   const tagSizes: TagSizes<HTMLElement> = createTagSizes(browserTagMeasure());
   const tagRects: ScreenRect[] = [];
+  const plateRects: ScreenRect[] = [];
   const keepClear = (element: HTMLElement): TagBound | null => {
     const tag: Element | null = element.firstElementChild;
     if (!(tag instanceof HTMLElement)) return null;
@@ -243,6 +244,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
       const element: HTMLElement | undefined = pending[tag.id]?.element;
       if (element === undefined) continue;
       const [x, y] = keepTagInView(tag.x, tag.y + (apart.get(tag.id) ?? 0), tag.width, tag.height, view);
+      plateRects.push({ left: x - tag.width / 2, top: y - tag.height, right: x + tag.width / 2, bottom: y });
       point.set(x, y);
       place(element, point);
     }
@@ -498,6 +500,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           case 'boss_defeated':
           case 'bark':
           case 'scene_lead':
+          case 'scene_ward':
           case 'flask_used':
           case 'revive':
           case 'flasks_refilled':
@@ -516,6 +519,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
       }
       if (exitsOf !== world.zone) showExits(world);
       tagRects.length = 0;
+      plateRects.length = 0;
       for (const rect of hudRects) tagRects.push(rect);
       const pins: readonly QuestPin[] = questPins(world);
       for (const label of exits) {
@@ -586,6 +590,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
         };
       });
       for (const ground of world.ground) labelFor(world, ground);
+      const lootBlockers: readonly ScreenRect[] = [...hudRects, ...plateRects];
       const boxes: RankedBox[] = [];
       const settled: RankedBox[] = [];
       const items: Map<number, ItemPoint> = new Map<number, ItemPoint>();
@@ -617,7 +622,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           label.height = size.height;
         }
         if (shown) {
-          const first: TagPlace = placeTag(point.x, point.y, label.width, label.height, view, hudRects);
+          const first: TagPlace = placeTag(point.x, point.y, label.width, label.height, view, lootBlockers);
           items.set(id, { x: point.x, y: point.y });
           if (first.away) moved.add(id);
           const box: RankedBox = { id, x: first.x, y: first.y, width: label.width, height: label.height, rank: label.rank };
@@ -631,7 +636,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
       }
       const folding: Folding = foldPiles(pilesFold(all) ? settled : [], OVERLAYS.pileReach, OVERLAYS.pileKeep);
       for (const [id, label] of labels) foldLabel(label, folding.folded.has(id), folding.more.get(id) ?? 0);
-      const spots: Map<number, LabelSpot> = settleLabels(boxes.filter((box: RankedBox): boolean => !folding.folded.has(box.id)), OVERLAYS.labelGap, view, hudRects);
+      const spots: Map<number, LabelSpot> = settleLabels(boxes.filter((box: RankedBox): boolean => !folding.folded.has(box.id)), OVERLAYS.labelGap, view, lootBlockers);
       for (const box of boxes) {
         const label: LootLabel | undefined = labels.get(box.id);
         const item: ItemPoint | undefined = items.get(box.id);

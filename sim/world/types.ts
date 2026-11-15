@@ -16,11 +16,12 @@ import type { GridStamp, NavGrid } from '../nav/grid.ts';
 import type { MomentFigure } from './moment-figure.ts';
 import type { Rng } from '../rng.ts';
 import type { NpcState } from './npc-types.ts';
+import type { HazardState, ProjectileState } from './delivery-types.ts';
 import type { Escort, SceneState } from './scene-state.ts';
+import type { WardState } from './wards.ts';
 import type { MomentumState } from './momentum-types.ts';
 
-export type { MomentFigure } from './moment-figure.ts';
-export type { NpcState } from './npc-types.ts';
+export type { HazardState, MomentFigure, NpcState, ProjectileState };
 
 export interface RolledAffix {
   readonly affix: string;
@@ -64,6 +65,7 @@ export interface Offence {
   readonly damagePercent: number;
   readonly critChance: number;
   readonly critMultiplier: number;
+  readonly from?: Vec2;
 }
 
 export interface BrandState {
@@ -234,41 +236,6 @@ export interface DialogueState {
 
 export type Team = 'player' | 'monster';
 
-export interface ProjectileState {
-  readonly id: number;
-  readonly ownerId: number;
-  readonly team: Team;
-  readonly faction: string | null;
-  readonly skill: SkillDef;
-  readonly damageMin: number;
-  readonly damageMax: number;
-  readonly damagePercent: number;
-  readonly critChance: number;
-  readonly critMultiplier: number;
-  pos: Vec2;
-  readonly direction: Vec2;
-  distanceLeft: number;
-  pierceLeft: number;
-  readonly hitIds: number[];
-}
-
-export interface HazardState {
-  readonly id: number;
-  readonly ownerId: number;
-  readonly team: Team;
-  readonly faction: string | null;
-  readonly skill: SkillDef;
-  readonly pos: Vec2;
-  readonly radius: number;
-  readonly delay: number;
-  readonly damageMin: number;
-  readonly damageMax: number;
-  readonly damagePercent: number;
-  readonly critChance: number;
-  readonly critMultiplier: number;
-  timeLeft: number;
-}
-
 export interface EchoState {
   readonly ownerId: number;
   readonly team: Team;
@@ -301,6 +268,7 @@ export interface PowerState {
 export interface AreaState {
   readonly id: number;
   readonly ownerId: number;
+  readonly from: Vec2;
   readonly skill: SkillDef;
   readonly offence: Offence;
   readonly pos: Vec2;
@@ -452,9 +420,7 @@ export interface StrikeCommand {
 }
 
 export type MomentPhase = 'mark' | 'dormant' | 'awake' | 'fading';
-
 export type MomentOutcome = 'faded' | 'played' | 'resolved' | 'expired' | 'left' | 'opened';
-
 export type ChestState = 'none' | 'closed' | 'opening' | 'opened';
 
 export interface MomentState {
@@ -596,6 +562,7 @@ export type WorldEvent =
   | { readonly type: 'boss_defeated'; readonly monsterId: number; readonly monster: string; readonly first: boolean }
   | { readonly type: 'bark'; readonly speaker: string; readonly line: LineDef }
   | { readonly type: 'scene_lead'; readonly scene: string; readonly npcId: number }
+  | { readonly type: 'scene_ward'; readonly scene: string; readonly npcId: number; readonly wardId: number }
   | { readonly type: 'notice'; readonly reason: NoticeReason }
   | { readonly type: 'flasks_refilled' }
   | { readonly type: 'flask_used'; readonly slot: number; readonly flask: string; readonly resource: FlaskResource; readonly pos: Vec2 }
@@ -692,6 +659,7 @@ export interface World {
   strikeMisses: number;
   scene: SceneState | null;
   escort: Escort | null;
+  wards: WardState[];
 }
 
 export type { ShoreState };

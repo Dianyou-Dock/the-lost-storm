@@ -1,7 +1,7 @@
 import type { SceneDef } from '../content/scene-types.ts';
 import type { ZoneNpc } from '../content/types.ts';
 
-export type ScenePhase = 'bring' | 'fight' | 'strike' | 'speak' | 'lead' | 'through';
+export type ScenePhase = 'bring' | 'fight' | 'strike' | 'ward' | 'lead' | 'through';
 
 export interface SceneState {
   readonly def: SceneDef;
@@ -9,7 +9,7 @@ export interface SceneState {
   momentId: number | null;
   elapsed: number;
   missed: number;
-  spoken: number;
+  wardId: number | null;
   npcId: number | null;
   placement: ZoneNpc | null;
 }

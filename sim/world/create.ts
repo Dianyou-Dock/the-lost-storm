@@ -190,6 +190,7 @@ export function createWorld(content: Content, options: WorldOptions): World {
     strikeTimer: 0,
     strikeMisses: 0,
     scene: null,
+    wards: [],
     escort: null,
   };
   placePlayer(world);

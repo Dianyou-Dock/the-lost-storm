@@ -434,6 +434,7 @@ export interface ObjectiveBase {
 export interface TalkObjective extends ObjectiveBase {
   readonly type: 'talk';
   readonly npc: string;
+  readonly talk: string | null;
 }
 
 export interface ReachObjective extends ObjectiveBase {

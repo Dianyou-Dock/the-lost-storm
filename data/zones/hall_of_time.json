@@ -178,11 +178,17 @@
       "fight": 2.5,
       "arrive": 1.6,
       "strike": "warden_sweep",
-      "lines": [
-        "warden_guide_fell",
-        "warden_guide_counted",
-        "warden_guide_road"
-      ],
+      "talk": "warden_guide_first",
+      "ward": {
+        "radius": 4.5,
+        "rise": 0.8,
+        "fall": 0.8,
+        "lifetime": 60,
+        "admits": ["player"],
+        "stopsStrikes": true,
+        "grace": 4,
+        "leave": 3
+      },
       "lead": {
         "exit": "east",
         "x": 75.5,
@@ -190,10 +196,11 @@
         "ahead": 6,
         "walk": 3.4,
         "run": 6.4,
-        "through": 0.7
+        "through": 0.7,
+        "waits": false
       },
-      "sets": {
-        "warden_met": "yes"
+      "owes": {
+        "warden_met": "owed"
       }
     }
   ],

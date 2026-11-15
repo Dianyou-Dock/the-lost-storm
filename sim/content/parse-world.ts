@@ -401,7 +401,7 @@ function pathObjective(value: unknown, where: string): PathObjective {
   const waiting: string = nullableText(source, 'waiting', where) ?? '';
   const when: Condition[] = conditions(source, 'when', where);
   const sets: Record<string, string> = storyFlags(source['sets'], `${where}.sets`);
-  if (type === 'talk') return { type, id, text: shown, waiting, when, sets, npc: text(source, 'npc', where) };
+  if (type === 'talk') return { type, id, text: shown, waiting, when, sets, npc: text(source, 'npc', where), talk: nullableText(source, 'talk', where) };
   if (type === 'defeat') return { type, id, text: shown, waiting, when, sets, monster: text(source, 'monster', where) };
   if (type === 'moment') return { type, id, text: shown, waiting, when, sets };
   return { type, id, text: shown, waiting, when, sets, zone: text(source, 'zone', where), x: numeric(source, 'x', where), z: numeric(source, 'z', where), radius: positive(source, 'radius', where) };

@@ -4,6 +4,8 @@ import { warnInConsole } from '../backend/console-log.ts';
 import type { Effects } from './effects.ts';
 import type { MomentView, MomentViewDeps } from './moment-view.ts';
 import { createMomentView } from './moment-view.ts';
+import type { WardView } from './ward-view.ts';
+import { createWardView } from './ward-view.ts';
 
 export const MOMENT_EFFECTS = {
   missWarning: 3,
@@ -16,6 +18,7 @@ export interface MomentEffects extends Effects {
 
 export function momentEffects(effects: Effects, deps: MomentViewDeps, renderer: WebGLRenderer, camera: Camera): MomentEffects {
   const moments: MomentView = createMomentView(deps);
+  const wards: WardView = createWardView(deps.scene, deps.tier.name === 'mobile');
   const ready: Promise<void> = moments.warm(renderer, camera);
   let warned: number = 0;
   return {
@@ -26,6 +29,7 @@ export function momentEffects(effects: Effects, deps: MomentViewDeps, renderer: 
     update(dt: number, world: World): void {
       effects.update(dt, world);
       moments.update(dt, world);
+      wards.update(dt, world);
       if (import.meta.env.DEV && world.strikeMisses >= MOMENT_EFFECTS.missWarning && world.strikeMisses !== warned) {
         warned = world.strikeMisses;
         warnInConsole(`Moment strikes: ${world.strikeMisses} strikes in a row found no clear spot in ${world.zone.id}`);
@@ -43,6 +47,7 @@ export function momentEffects(effects: Effects, deps: MomentViewDeps, renderer: 
     clear(): void {
       effects.clear();
       moments.clear();
+      wards.clear();
     },
     showWarm(x: number, z: number): () => void {
       return moments.showWarm(x, z);

@@ -395,14 +395,15 @@ void test('towns and voids are safe and wild zones have something to fight', ():
   }
 });
 
-void test('every line has a known speaker, is spoken in exactly one conversation, boss bark or place (a scene may repeat a line of its own speaker), and says something', (): void => {
+void test('every line has a known speaker, is spoken in exactly one conversation, boss bark or place (a speaker’s everyday talk may repeat a line of their own), and says something', (): void => {
   const used: Map<string, string> = new Map<string, string>();
   for (const npc of content.npcs.values()) {
     for (const talk of npc.talks) {
       for (const lineId of talk.lines) {
         const line = must(content.lines.get(lineId), `line ${lineId}`);
         assert.equal(line.speaker, npc.id, `${lineId} speaker`);
-        assert.equal(used.get(lineId), undefined, `${lineId} is used twice`);
+        const before: string | undefined = used.get(lineId);
+        assert.ok(before === undefined || (!talk.once && npc.talks.some((own: TalkDef): boolean => own.id === before)), `${lineId} is used twice`);
         used.set(lineId, talk.id);
       }
     }
@@ -430,17 +431,6 @@ void test('every line has a known speaker, is spoken in exactly one conversation
         must(content.lines.get(lineId), `line ${lineId}`);
         assert.equal(used.get(lineId), undefined, `${lineId} is used twice`);
         used.set(lineId, voice.id);
-      }
-    }
-  }
-  for (const zone of content.zones.values()) {
-    for (const scene of zone.scenes) {
-      const talks: ReadonlySet<string> = new Set<string>(must(content.npcs.get(scene.npc), `npc ${scene.npc}`).talks.map((talk: TalkDef): string => talk.id));
-      for (const lineId of scene.lines) {
-        assert.equal(must(content.lines.get(lineId), `line ${lineId}`).speaker, scene.npc, `${lineId} speaker`);
-        const before: string | undefined = used.get(lineId);
-        assert.ok(before === undefined || talks.has(before), `${lineId} is used twice`);
-        used.set(lineId, scene.id);
       }
     }
   }
@@ -692,8 +682,13 @@ void test('the hero walks out of the In-Between, has the first moment marked cle
   assert.equal(world.flags['camp'], 'reached');
   assert.equal(world.flags['alpha_slice_complete'], undefined);
   const guide = must(world.npcs.find((npc): boolean => npc.def.id === 'warden_guide'), 'guide npc');
-  for (let step: number = 0; step < 900 && world.dialogue === null; step += 1) stepWorld(world, step === 0 ? [{ type: 'talk', npcId: guide.id }] : [], 1 / 30);
-  for (let guard: number = 0; guard < 40 && world.dialogue !== null; guard += 1) stepWorld(world, [{ type: 'advance' }], 1 / 30);
+  const heardAtFire: string[] = [];
+  for (let talk: number = 0; talk < 4 && world.flags['fire_lesson'] === undefined; talk += 1) {
+    for (let step: number = 0; step < 900 && world.dialogue === null; step += 1) stepWorld(world, step === 0 ? [{ type: 'talk', npcId: guide.id }] : [], 1 / 30);
+    heardAtFire.push(world.dialogue?.talk.id ?? '');
+    for (let guard: number = 0; guard < 40 && world.dialogue !== null; guard += 1) stepWorld(world, [{ type: 'advance' }], 1 / 30);
+  }
+  assert.deepEqual(heardAtFire, ['warden_guide_first', 'warden_guide_lesson']);
   assert.equal(world.flags['fire_lesson'], 'given');
   assert.equal(world.flags['alpha_slice_complete'], undefined);
 });

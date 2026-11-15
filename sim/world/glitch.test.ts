@@ -497,7 +497,7 @@ void test('no seam during a boss fight, a scripted scene, an escort, a conversat
   assert.equal(glitchBlock(world, request), null);
   world.monsters = [];
   const meeting = must(zoneOf(content, 'hall_of_time').scenes[0], 'the Warden meeting');
-  world.scene = { def: meeting, phase: 'bring', momentId: null, elapsed: 0, missed: 0, spoken: 0, npcId: null, placement: null };
+  world.scene = { def: meeting, phase: 'bring', momentId: null, elapsed: 0, missed: 0, wardId: null, npcId: null, placement: null };
   assert.equal(glitchBlock(world, request), 'scene');
   world.scene = null;
   world.escort = { npc: 'warden_guide', pace: 1 };

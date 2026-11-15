@@ -77,6 +77,7 @@ export function placePlayer(world: World): void {
 export function enterZone(world: World, zone: ZoneDef, respawn: RespawnPoint): void {
   closeDialogue(world, false);
   world.scene = null;
+  world.wards = [];
   clearMoments(world);
   clearProjectiles(world);
   clearHazards(world);

@@ -3,19 +3,22 @@ import { test } from 'node:test';
 import { must, withoutGlitches, worldIn, zoneOf } from '../../test/support.ts';
 import { loadContent } from '../content/content.ts';
 import type { SceneDef } from '../content/scene-types.ts';
-import type { Content, MonsterDef, SkillDef, ZoneExit } from '../content/types.ts';
+import type { Content, MonsterDef, NpcDef, SkillDef, TalkDef, ZoneExit } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { distance, facingOf } from '../math.ts';
 import { isWalkable, lineWalkable } from '../nav/grid.ts';
 import { parseSaveText, toSave } from '../save.ts';
 import { createWorld } from './create.ts';
 import { echoMonsters, forceStrike, wakeMoment } from './moments.ts';
-import { lineSeconds } from './reading.ts';
+import { nextTalk, replayable } from './dialogue.ts';
 import { questPins } from './quest-pins.ts';
 import { SCENE } from './scene.ts';
 import { monsterLevel, spawnMonster } from './spawn.ts';
 import { stepWorld } from './step.ts';
 import type { Command, MomentState, MonsterState, NpcState, World, WorldEvent } from './types.ts';
+import { questState } from './conditions.ts';
+import { findWard, wardStrength } from './wards.ts';
+import type { WardState } from './wards.ts';
 import { enterZone } from './zones.ts';
 
 const content: Content = loadContent();
@@ -80,6 +83,34 @@ function warden(world: World): NpcState {
   return must(world.npcs.find((npc: NpcState): boolean => npc.id === world.scene?.npcId), 'the Warden in the scene');
 }
 
+function patient(world: World): World {
+  const def: SceneDef = meeting();
+  world.zone = { ...world.zone, scenes: [{ ...def, lead: { ...def.lead, waits: true } }] };
+  return world;
+}
+
+function wardOf(world: World): WardState {
+  return must(findWard(world, world.scene?.wardId ?? null), 'the ward');
+}
+
+function firstTalk(): TalkDef {
+  const guide: NpcDef = must(content.npcs.get(meeting().npc), 'the Guide');
+  return must(guide.talks.find((talk: TalkDef): boolean => talk.id === meeting().talk), 'the first talk');
+}
+
+function talkTo(world: World, npc: NpcState): WorldEvent[] {
+  const events: WorldEvent[] = run(world, LIMIT.reach, (): Command[] => [{ type: 'talk', npcId: npc.id }], (): boolean => world.dialogue !== null);
+  for (let line: number = 0; line < LIMIT.reach && world.dialogue !== null; line += 1) events.push(...stepWorld(world, [{ type: 'advance' }], DT));
+  return events;
+}
+
+function heard(world: World): WorldEvent[] {
+  const events: WorldEvent[] = untilPhase(world, 'ward', towardExit(world));
+  events.push(...talkTo(world, warden(world)));
+  events.push(...run(world, LIMIT.meeting, (): Command[] => [], (): boolean => world.scene?.phase !== 'ward'));
+  return events;
+}
+
 function untilPhase(world: World, phase: string, commands: () => Command[] = (): Command[] => []): WorldEvent[] {
   const events: WorldEvent[] = run(world, LIMIT.meeting, commands, (): boolean => world.scene?.phase === phase);
   assert.equal(world.scene?.phase, phase, `the scene reaches ${phase}`);
@@ -97,7 +128,11 @@ void test('the shipped meeting stands on open ground away from the exit it leads
   assert.ok(distance(exit, def) + exit.radius <= def.radius, 'every way to the exit passes through the meeting');
   const skill: SkillDef = must(content.skills.get(def.strike), 'the strike');
   assert.ok(skill.knockback > 0 && skill.stagger > 0 && skill.shake > 0 && skill.hitStop > 0 && skill.vfx.impact !== null);
-  assert.deepEqual(def.lines, ['warden_guide_fell', 'warden_guide_counted', 'warden_guide_road']);
+  assert.deepEqual(firstTalk().lines, ['warden_guide_fell', 'warden_guide_counted', 'warden_guide_road']);
+  assert.ok(firstTalk().once);
+  assert.deepEqual(def.ward.admits, ['player']);
+  assert.ok(def.ward.stopsStrikes);
+  assert.equal(def.lead.waits, false, 'once he has spoken he goes in without waiting');
 });
 
 void test('the first time the hero nears the far end a moment is brought down on the path, wakes around the hero and holds the fight', (): void => {
@@ -130,7 +165,7 @@ void test('the Warden appears beside the hero from outside the fight and cuts do
   assert.ok(distance(npc.pos, moment.pos) > distance(world.player.pos, moment.pos), 'he comes in from outside the fight, not from among the echoes');
   assert.ok(distance(npc.pos, world.player.pos) <= meeting().arrive + SCENE.reach, 'he lands beside the hero, where the camera sees him');
   assert.ok(ofType(events, 'skill_start').every((event): boolean => event.actorId !== npc.id));
-  const struck: WorldEvent[] = untilPhase(world, 'speak');
+  const struck: WorldEvent[] = untilPhase(world, 'ward');
   const start: EventOf<'skill_start'> = must(ofType(struck, 'skill_start').find((event): boolean => event.actorId === npc.id), 'his swing');
   assert.equal(start.skill.id, meeting().strike);
   const hits: EventOf<'damage'>[] = ofType(struck, 'damage').filter((event): boolean => event.sourceId === npc.id);
@@ -141,41 +176,104 @@ void test('the Warden appears beside the hero from outside the fight and cuts do
   assert.ok(ofType(struck, 'moment_ended').some((event): boolean => event.moment.id === moment.id && event.outcome === 'resolved'));
 });
 
-void test('he speaks his three lines in order, each given the reading time of the words shown, and nothing can hit the hero while he does', (): void => {
+void test('after his cut he raises a ward around himself and the hero: nothing outside can come in, strike in or hold the hero, and nothing inside strikes out', (): void => {
   const world: World = hall();
-  untilPhase(world, 'strike', towardExit(world));
+  untilPhase(world, 'ward', towardExit(world));
+  const ward: WardState = wardOf(world);
+  const npc: NpcState = warden(world);
+  assert.ok(distance(world.player.pos, ward.pos) < ward.def.radius && distance(npc.pos, ward.pos) < ward.def.radius, 'both stand inside it');
+  assert.equal(world.flags['warden_met'], 'owed');
   const brute: MonsterDef = must(content.monsters.get('unfinished_brute'), 'a brute');
-  const foe: MonsterState = spawnMonster(world, brute, world.nextPackId, { x: world.player.pos.x + ADJACENT, z: world.player.pos.z }, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(world) });
+  const away: Vec2 = { x: ward.pos.x, z: ward.pos.z + ward.def.radius + 6 };
+  const foe: MonsterState = spawnMonster(world, brute, world.nextPackId, away, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(world) });
   world.nextPackId += 1;
+  foe.pos = { x: ward.pos.x, z: ward.pos.z + ward.def.radius + foe.radius + 0.2 };
   foe.aggro = true;
   foe.foeId = world.player.id;
   const life: number = world.player.life;
-  world.glitch.wrongWord = world.time + LIMIT.meeting;
-  const said: WorldEvent[] = [];
-  const times: number[] = [];
-  for (let elapsed: number = 0; elapsed < LIMIT.meeting && world.scene?.phase !== 'lead'; elapsed += DT) {
-    const events: WorldEvent[] = stepWorld(world, [], DT);
-    if (ofType(events, 'bark').length > 0) times.push(world.time);
-    said.push(...events);
-  }
-  assert.equal(world.scene?.phase, 'lead');
-  assert.equal(world.player.life, life);
-  assert.equal(ofType(said, 'damage').filter((event): boolean => event.targetTeam === 'player').length, 0);
-  const barks: EventOf<'bark'>[] = ofType(said, 'bark');
-  assert.deepEqual(barks.map((event): string => event.line.id), meeting().lines);
-  assert.ok(barks.every((event): boolean => event.speaker === meeting().npc));
-  assert.notEqual(barks[0]?.line.text, content.lines.get(meeting().lines[0] ?? '')?.text, 'a wrong word lengthens the first line');
-  barks.slice(0, -1).forEach((event, index: number): void => {
-    const gap: number = (times[index + 1] ?? 0) - (times[index] ?? 0);
-    assert.ok(Math.abs(gap - lineSeconds(event.line.text)) <= DT * 2, `${event.line.id} is given its reading time`);
+  const closest: number[] = [];
+  const strayed: number = distance(foe.pos, foe.home);
+  const events: WorldEvent[] = run(world, 6, (): Command[] => {
+    closest.push(distance(foe.pos, ward.pos));
+    return [];
   });
-  assert.equal(world.flags['warden_met'], 'yes');
-  assert.ok(ofType(run(world, 5), 'damage').some((event): boolean => event.targetTeam === 'player'), 'once he has spoken the fight is the hero’s again');
+  assert.equal(world.player.life, life);
+  assert.equal(ofType(events, 'damage').filter((event): boolean => event.targetTeam === 'player').length, 0);
+  assert.ok(closest.every((reach: number): boolean => reach >= ward.def.radius + foe.radius - 1e-6), 'the brute never crosses the edge');
+  assert.equal(foe.aggro, false, 'it loses the hero behind the ward');
+  assert.ok(distance(foe.pos, foe.home) < strayed - 1, 'and walks back where it came from');
+  assert.equal(world.scene?.phase, 'ward', 'he waits for the hero to speak with him');
+  assert.equal(wardStrength(ward), 1);
 });
 
-void test('on the walk he keeps the hero’s pace, waits when the hero lags, and waits beside the way out without covering it', (): void => {
+void test('the hero clicks him inside the ward and hears the three first lines in order with their voices, then he lowers the ward and walks straight into the way out', (): void => {
   const world: World = hall();
-  untilPhase(world, 'lead', towardExit(world));
+  world.quests = { out_of_the_mist: 1, the_first_taker: 1, to_the_waystation: 0 };
+  untilPhase(world, 'ward', towardExit(world));
+  const npc: NpcState = warden(world);
+  const ward: WardState = wardOf(world);
+  assert.deepEqual(questPins(world), [{ kind: 'npc', npcId: npc.id }], 'he carries the pin while the ward stands');
+  const said: WorldEvent[] = talkTo(world, npc);
+  assert.deepEqual(ofType(said, 'dialogue_line').map((event): string => event.line.id), firstTalk().lines);
+  assert.ok(ofType(said, 'dialogue_closed').some((event): boolean => event.talk === meeting().talk && event.finished));
+  assert.ok(world.heard.includes(meeting().talk));
+  run(world, DT * 2);
+  assert.equal(world.scene?.phase, 'lead');
+  assert.notEqual(ward.lowering, null, 'the ward comes down once he has spoken');
+  run(world, ward.def.fall + DT * 2);
+  assert.equal(wardStrength(ward), 0);
+  const exit: ZoneExit = exitOf(world, meeting().lead.exit);
+  const stood: Vec2 = { x: world.player.pos.x, z: world.player.pos.z };
+  run(world, LIMIT.walk, (): Command[] => [], (): boolean => world.scene?.phase === 'through');
+  assert.equal(phaseOf(world), 'through', 'he goes without waiting for the hero');
+  assert.deepEqual(questPins(world), [{ kind: 'exit', exit: exit.id }], 'then the pin is on the way in');
+  run(world, LIMIT.walk, (): Command[] => [], (): boolean => world.scene === null);
+  assert.equal(world.scene, null);
+  run(world, ward.def.grace);
+  assert.equal(findWard(world, ward.id), null);
+  assert.ok(!world.npcs.includes(npc));
+  assert.ok(distance(world.player.pos, stood) < 1e-6);
+  assert.equal(world.zone.id, HALL);
+});
+
+void test('a hero who walks off without speaking with him leaves him to lower the ward and go in alone, and the first lines wait once at the fire', (): void => {
+  const world: World = hall();
+  untilPhase(world, 'ward', towardExit(world));
+  const npc: NpcState = warden(world);
+  const ward: WardState = wardOf(world);
+  world.player.pos = { x: ward.pos.x - ward.def.radius - meeting().ward.leave - 1, z: ward.pos.z };
+  run(world, DT * 2);
+  assert.equal(world.scene?.phase, 'lead');
+  assert.notEqual(ward.lowering, null);
+  run(world, LIMIT.walk, (): Command[] => [], (): boolean => world.scene === null);
+  assert.ok(!world.npcs.includes(npc), 'he went in alone');
+  assert.equal(world.flags['warden_met'], 'owed');
+  assert.ok(!world.heard.includes(meeting().talk));
+  enterZone(world, zoneOf(content, 'hideout'), { type: 'start' });
+  const guide: NpcState = must(world.npcs.find((entry: NpcState): boolean => entry.def.id === meeting().npc), 'the Guide at the fire');
+  assert.equal(nextTalk(world, guide.def)?.id, meeting().talk);
+  world.player.pos = { x: guide.pos.x + ADJACENT, z: guide.pos.z };
+  const said: WorldEvent[] = talkTo(world, guide);
+  assert.deepEqual(ofType(said, 'dialogue_line').map((event): string => event.line.id), firstTalk().lines);
+  assert.notEqual(nextTalk(world, guide.def)?.id, meeting().talk, 'heard once');
+  assert.ok(replayable(world, guide.def).some((talk: TalkDef): boolean => talk.id === meeting().talk), 'and it can be heard again');
+});
+
+void test('the ward stands for a bounded time: left alone it comes down at its lifetime and he goes in without the hero', (): void => {
+  const world: World = hall();
+  untilPhase(world, 'ward', towardExit(world));
+  const ward: WardState = wardOf(world);
+  run(world, ward.def.lifetime - 1);
+  assert.equal(world.scene?.phase, 'ward');
+  assert.equal(ward.lowering, null);
+  run(world, 1 + DT * 2);
+  assert.notEqual(ward.lowering, null);
+  assert.equal(phaseOf(world), 'lead');
+});
+
+void test('a lead that waits keeps the hero’s pace, waits when the hero lags, and waits beside the way out without covering it', (): void => {
+  const world: World = patient(hall());
+  heard(world);
   const npc: NpcState = warden(world);
   const lead = meeting().lead;
   world.player.pos = { ...LAGGING };
@@ -199,7 +297,7 @@ void test('on the walk he keeps the hero’s pace, waits when the hero lags, and
 
 void test('the hero clicks the way out, the Warden goes through with him and walks to his place at the fire', (): void => {
   const world: World = hall();
-  untilPhase(world, 'lead', towardExit(world));
+  heard(world);
   const exit: ZoneExit = exitOf(world, meeting().lead.exit);
   const events: WorldEvent[] = run(world, LIMIT.walk, (): Command[] => [{ type: 'travel', exit: exit.id }], (): boolean => world.zone.id !== HALL);
   assert.equal(world.zone.id, exit.to);
@@ -218,10 +316,10 @@ void test('the hero clicks the way out, the Warden goes through with him and wal
 
 void test('the meeting happens once: walking back to the far end later brings no second moment and no second Warden', (): void => {
   const world: World = hall();
-  untilPhase(world, 'lead', towardExit(world));
+  heard(world);
   world.player.pos = { ...APPROACH };
   run(world, 1);
-  assert.equal(world.scene?.phase, 'lead');
+  assert.notEqual(world.scene?.phase, 'ward');
   enterZone(world, zoneOf(content, HALL), { type: 'start' });
   quiet(world);
   world.player.pos = { ...APPROACH };
@@ -303,22 +401,19 @@ void test('a quiet moment beside the hero, where the brought one would land, is 
   assert.deepEqual(world.moments.map((moment: MomentState): number => moment.id), [own.id]);
 });
 
-void test('a hero who reaches the way out before any fight is met at the door, the way out waits while he speaks, and they go through together', (): void => {
+void test('a hero who reaches the way out before any fight is met at the door and warded there, and a click on the way out takes them through together with his first lines left owed at the fire', (): void => {
   const world: World = hall();
   const exit: ZoneExit = exitOf(world, meeting().lead.exit);
   world.player.pos = { x: exit.x - exit.radius - DOORSTEP, z: exit.z };
   const travel = (): Command[] => [{ type: 'travel', exit: exit.id }];
-  const met: WorldEvent[] = run(world, LIMIT.reach, travel, (): boolean => world.scene?.phase === 'speak');
-  assert.equal(world.scene?.phase, 'speak');
+  run(world, LIMIT.reach, travel, (): boolean => world.scene?.phase === 'ward');
+  assert.equal(world.scene?.phase, 'ward');
   assert.ok(distance(warden(world).pos, world.player.pos) <= SCENE.beside + SCENE.reach);
-  const heard: WorldEvent[] = run(world, LIMIT.meeting, (): Command[] => [], (): boolean => world.scene?.phase === 'lead');
-  heard.push(...run(world, 1));
-  assert.equal(world.zone.id, HALL, 'a click made while he spoke does not travel by itself once he is done');
-  assert.deepEqual(world.player.intent, { type: 'idle' });
-  const said: WorldEvent[] = run(world, LIMIT.meeting, travel, (): boolean => world.zone.id !== HALL);
-  assert.deepEqual(ofType([...met, ...heard, ...said], 'bark').map((event): string => event.line.id), meeting().lines);
+  assert.equal(world.zone.id, HALL, 'the way out waited while he came');
+  run(world, LIMIT.meeting, travel, (): boolean => world.zone.id !== HALL);
   assert.equal(world.zone.id, exit.to);
-  assert.equal(world.flags['warden_met'], 'yes');
+  assert.equal(world.flags['warden_met'], 'owed');
+  assert.ok(!world.heard.includes(meeting().talk));
   assert.ok(must(world.npcs.find((npc: NpcState): boolean => npc.def.id === meeting().npc), 'the Guide').route.length > 0, 'he came through with the hero');
 });
 
@@ -331,7 +426,7 @@ function following(world: World): () => Command[] {
 
 void test('with the hero beside him at the way out he does not stop: he walks on into it and fades out as he passes in, and the way out keeps the hero', (): void => {
   const world: World = hall();
-  untilPhase(world, 'lead', towardExit(world));
+  heard(world);
   const npc: NpcState = warden(world);
   const exit: ZoneExit = exitOf(world, meeting().lead.exit);
   const fade: number = must(meeting().lead.through, 'the meeting ends through its exit');
@@ -350,14 +445,14 @@ void test('with the hero beside him at the way out he does not stop: he walks on
   const fading: number = fades.filter((value: number): boolean => value < 1).length * DT;
   assert.ok(fading >= fade - DT * 2 && fading <= fade + DT * 2, 'a short eased fade, not a pop');
   assert.equal(world.zone.id, HALL, 'he does not take the hero with him');
-  assert.equal(world.flags['warden_met'], 'yes');
+  assert.ok(world.heard.includes(meeting().talk));
   run(world, 1);
   assert.ok(!world.npcs.some((entry: NpcState): boolean => entry.def.id === meeting().npc), 'he does not come back');
 });
 
-void test('a hero who stays far behind is waited for at the way out, and once the hero comes back he goes on through', (): void => {
-  const world: World = hall();
-  untilPhase(world, 'lead', towardExit(world));
+void test('on a lead that waits, a hero who stays far behind is waited for at the way out, and once the hero comes back he goes on through', (): void => {
+  const world: World = patient(hall());
+  heard(world);
   const npc: NpcState = warden(world);
   world.player.pos = { ...LAGGING };
   run(world, 2);
@@ -370,12 +465,14 @@ void test('a hero who stays far behind is waited for at the way out, and once th
   assert.equal(phaseOf(world), 'through');
 });
 
-void test('a hero who falls back while he walks into the way out is waited for there, until the fade has begun', (): void => {
-  const world: World = hall();
-  untilPhase(world, 'lead', towardExit(world));
+void test('on a lead that waits, a hero who falls back while he walks into the way out is waited for there, until the fade has begun', (): void => {
+  const world: World = patient(hall());
+  heard(world);
   untilPhase(world, 'through', following(world));
   const npc: NpcState = warden(world);
   world.player.pos = { ...LAGGING };
+  world.player.intent = { type: 'idle' };
+  world.player.path = [];
   run(world, 3);
   assert.equal(world.scene?.phase, 'through');
   assert.equal(npc.fade, 1, 'he waits rather than going without the hero');
@@ -385,8 +482,9 @@ void test('a hero who falls back while he walks into the way out is waited for t
 void test('once he has gone through, the way out he took carries the quest pin until the hero follows, and the hero finds him at the fire', (): void => {
   const world: World = hall();
   world.quests = { out_of_the_mist: 1, the_first_taker: 1, to_the_waystation: 0 };
-  untilPhase(world, 'lead', towardExit(world));
+  heard(world);
   const exit: ZoneExit = exitOf(world, meeting().lead.exit);
+  assert.equal(world.scene?.phase, 'lead');
   assert.deepEqual(questPins(world), [{ kind: 'npc', npcId: warden(world).id }], 'while he leads, he carries the pin');
   untilPhase(world, 'through', following(world));
   assert.deepEqual(questPins(world), [{ kind: 'exit', exit: exit.id }], 'the pin moves to the way out as he walks into it');
@@ -397,4 +495,56 @@ void test('once he has gone through, the way out he took carries the quest pin u
   const guide: NpcState = must(world.npcs.find((npc: NpcState): boolean => npc.def.id === meeting().npc), 'the Guide at the fire');
   assert.deepEqual({ x: guide.pos.x, z: guide.pos.z }, { x: guide.placement.x, z: guide.placement.z });
   assert.equal(guide.fade, 1);
+});
+
+const FIRE: Vec2 = { x: 24, z: 20 };
+const TALKS_AT_FIRE: number = 6;
+
+function onTheRoad(): World {
+  const world: World = hall();
+  world.quests = { out_of_the_mist: 1, the_first_taker: 1, to_the_waystation: 0 };
+  return world;
+}
+
+function toTheFire(world: World): void {
+  run(world, LIMIT.walk, (): Command[] => [], (): boolean => world.scene === null);
+  const exit: ZoneExit = exitOf(world, meeting().lead.exit);
+  run(world, LIMIT.walk, (): Command[] => [{ type: 'travel', exit: exit.id }], (): boolean => world.zone.id !== HALL);
+  assert.equal(world.zone.id, 'hideout');
+  world.player.pos = { ...FIRE };
+  run(world, DT * 2);
+  assert.equal(questState(world, 'wardens_lesson'), 'active');
+}
+
+function talksUntilTaught(world: World): string[] {
+  const guide: NpcState = must(world.npcs.find((npc: NpcState): boolean => npc.def.id === meeting().npc), 'the Guide at the fire');
+  world.player.pos = { x: guide.pos.x + ADJACENT, z: guide.pos.z };
+  const talks: string[] = [];
+  for (let talk: number = 0; talk < TALKS_AT_FIRE && questState(world, 'wardens_lesson') !== 'done'; talk += 1) {
+    for (const event of ofType(talkTo(world, guide), 'dialogue_closed')) talks.push(event.talk);
+  }
+  return talks;
+}
+
+void test('the whole road from the meeting to the lesson: the first lines heard in the Hall are not offered again, and the lesson ends the step at the fire', (): void => {
+  const world: World = onTheRoad();
+  heard(world);
+  assert.ok(world.heard.includes(meeting().talk));
+  toTheFire(world);
+  assert.deepEqual(talksUntilTaught(world), ['warden_guide_lesson']);
+  assert.equal(world.flags['fire_lesson'], 'given');
+});
+
+void test('the whole road from the meeting to the lesson: walked away from in the Hall, the first lines come once at the fire before the lesson, and the lesson still ends the step', (): void => {
+  const world: World = onTheRoad();
+  untilPhase(world, 'ward', towardExit(world));
+  const ward: WardState = wardOf(world);
+  world.player.pos = { x: ward.pos.x - ward.def.radius - meeting().ward.leave - 1, z: ward.pos.z };
+  run(world, DT * 2);
+  assert.equal(world.scene?.phase, 'lead');
+  toTheFire(world);
+  assert.deepEqual(talksUntilTaught(world), [meeting().talk, 'warden_guide_lesson']);
+  assert.equal(world.flags['fire_lesson'], 'given');
+  const guide: NpcState = must(world.npcs.find((npc: NpcState): boolean => npc.def.id === meeting().npc), 'the Guide at the fire');
+  assert.notEqual(nextTalk(world, guide.def)?.id, meeting().talk, 'nothing is left owed');
 });

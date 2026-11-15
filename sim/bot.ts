@@ -20,6 +20,7 @@ export const BOT = {
   step: 1 / 30,
   walkLimit: 90,
   talkLimit: 60,
+  talksPerVisit: 4,
   fightLimit: 300,
   bubbleKeep: 0.8,
   questLimit: 900,
@@ -425,6 +426,14 @@ export function botTalk(bot: Bot, npcId: string): boolean {
   return !talking(world);
 }
 
+function botHearOut(bot: Bot, npcId: string, done: () => boolean): boolean {
+  for (let talk: number = 0; talk < BOT.talksPerVisit; talk += 1) {
+    if (!botTalk(bot, npcId)) return false;
+    if (done()) return true;
+  }
+  return false;
+}
+
 function zoneOfNpc(world: World, npcId: string): string | null {
   if (world.npcs.some((npc: NpcState): boolean => npc.def.id === npcId)) return world.zone.id;
   for (const zone of world.content.zones.values()) {
@@ -449,7 +458,7 @@ export function botObjective(bot: Bot, quest: QuestDef, goal: ObjectiveDef): boo
   switch (objective.type) {
     case 'talk': {
       const zone: string | null = zoneOfNpc(world, objective.npc);
-      finished = zone !== null && botTravelTo(bot, zone) && botTalk(bot, objective.npc) && done();
+      finished = zone !== null && botTravelTo(bot, zone) && botHearOut(bot, objective.npc, done);
       break;
     }
     case 'reach':
