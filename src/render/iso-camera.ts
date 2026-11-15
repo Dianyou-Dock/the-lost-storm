@@ -12,7 +12,7 @@ export const CAMERA = {
   pitchDegrees: 50,
   distance: 28,
   minDistance: 9,
-  maxDistance: 50,
+  maxDistance: 32,
   zoomStep: 0.0016,
   zoomRate: 9,
   followRate: 11,
@@ -55,6 +55,10 @@ export interface IsoCamera {
 
 function noise(time: number, seed: number): number {
   return Math.sin(time * 1.0 + seed * 12.9) * 0.5 + Math.sin(time * 2.3 + seed * 78.2) * 0.3 + Math.sin(time * 4.1 + seed * 37.7) * 0.2;
+}
+
+export function zoomTarget(wanted: number, wheelDelta: number): number {
+  return Math.min(CAMERA.maxDistance, Math.max(CAMERA.minDistance, wanted * (1 + wheelDelta * CAMERA.zoomStep)));
 }
 
 export function createIsoCamera(camera: PerspectiveCamera, canvas: HTMLCanvasElement): IsoCamera {
@@ -151,7 +155,7 @@ export function createIsoCamera(camera: PerspectiveCamera, canvas: HTMLCanvasEle
     },
     zoomBy(wheelDelta: number): void {
       zoomRate = CAMERA.zoomRate;
-      wantedDistance = Math.min(CAMERA.maxDistance, Math.max(CAMERA.minDistance, wantedDistance * (1 + wheelDelta * CAMERA.zoomStep)));
+      wantedDistance = zoomTarget(wantedDistance, wheelDelta);
     },
     addTrauma(amount: number): void {
       trauma = Math.min(1, trauma + amount);
