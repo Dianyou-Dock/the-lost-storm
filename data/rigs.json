@@ -2457,5 +2457,73 @@
     "sockets": {},
     "hiddenNodes": [],
     "bodyParts": {}
+  },
+  {
+    "id": "standing_clock",
+    "url": "models/creatures/standing_clock.glb",
+    "clipFolder": "models/animations/standing_clock",
+    "scale": 1.0,
+    "yawOffsetDegrees": 0,
+    "height": 2.7,
+    "rootMotionBone": null,
+    "gaits": [
+      {
+        "clip": "Clock_Idle",
+        "groundSpeed": 0.5
+      }
+    ],
+    "clips": {
+      "idle": "Clock_Idle",
+      "run": "Clock_Idle",
+      "hit": [
+        "Clock_Hit"
+      ],
+      "death": [
+        "Clock_Death"
+      ],
+      "actions": {
+        "cast": {
+          "clip": "Clock_Idle",
+          "impactFraction": 0.5
+        }
+      }
+    },
+    "sockets": {},
+    "hiddenNodes": [],
+    "bodyParts": {}
+  },
+  {
+    "id": "ledger_plinth",
+    "url": "models/creatures/ledger_plinth.glb",
+    "clipFolder": "models/animations/ledger_plinth",
+    "scale": 1.0,
+    "yawOffsetDegrees": 0,
+    "height": 1.1,
+    "rootMotionBone": null,
+    "gaits": [
+      {
+        "clip": "Ledger_Idle",
+        "groundSpeed": 0.5
+      }
+    ],
+    "clips": {
+      "idle": "Ledger_Idle",
+      "run": "Ledger_Idle",
+      "hit": [
+        "Ledger_Hit"
+      ],
+      "death": [
+        "Ledger_Death"
+      ],
+      "actions": {
+        "cast": {
+          "clip": "Ledger_Idle",
+          "impactFraction": 0.5
+        }
+      }
+    },
+    "sockets": {},
+    "hiddenNodes": [],
+    "bodyParts": {}
   }
 ]
