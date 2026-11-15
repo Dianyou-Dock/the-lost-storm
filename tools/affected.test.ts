@@ -182,9 +182,9 @@ void test('the rules file reads into typed rules and refuses an unknown kind', (
 
 const REPO = readRepository('.', AFFECTED);
 
-void test('a changed model or clip under public runs the content check that reads it', (): void => {
+void test('a changed model or clip under public runs the content and body checks that read it', (): void => {
   const tests: readonly string[] = testsOf(selectTests(['public/models/characters/hero.glb'], REPO.graph, REPO.testFiles, AFFECTED), 'public model');
-  assert.deepEqual(tests, ['sim/content/content.test.ts', 'test/rules.test.ts']);
+  assert.deepEqual(tests, ['sim/content/bodies.test.ts', 'sim/content/content.test.ts', 'test/rules.test.ts']);
 });
 
 void test('a changed page at the root of public runs the head check that reads it', (): void => {

@@ -4,6 +4,7 @@ import type { Command, World, WorldEvent } from '../sim/world/types.ts';
 import type { AudioSystem, Trigger } from './audio/system.ts';
 import type { MeasureRecorder } from './measure-recorder.ts';
 import type { MemoryReport } from './mobile/memory.ts';
+import type { WalkReport } from './walk/body-walk.ts';
 import { measureMemory } from './mobile/memory.ts';
 
 export interface DebugHandle {
@@ -15,6 +16,7 @@ export interface DebugHandle {
   memory(): MemoryReport;
   glitch(kind: GlitchKind): void;
   spawn(monster: string, count: number): void;
+  walk(): Promise<WalkReport>;
   saveMeasurements(): void;
 }
 
@@ -48,7 +50,7 @@ export function attachDebug(deps: DebugDeps): DebugHooks {
       if (window.storm !== undefined) window.storm = { ...window.storm, saveMeasurements: (): void => module.saveRecording(made) };
     };
     void attachRecorder();
-    window.storm = { world, scene, audio, sounds, send, memory: (): MemoryReport => measureMemory(renderer, scene), glitch: (kind: GlitchKind): void => send({ type: 'glitch', kind }), spawn: (monster: string, count: number): void => send({ type: 'spawn', monster, count }), saveMeasurements: (): void => undefined };
+    window.storm = { world, scene, audio, sounds, send, memory: (): MemoryReport => measureMemory(renderer, scene), glitch: (kind: GlitchKind): void => send({ type: 'glitch', kind }), spawn: (monster: string, count: number): void => send({ type: 'spawn', monster, count }), walk: async (): Promise<WalkReport> => (await import('./walk/body-walk.ts')).walkBodies({ world, scene, send, sleep: (ms: number): Promise<void> => new Promise<void>((resolve: () => void): void => void window.setTimeout(resolve, ms)) }), saveMeasurements: (): void => undefined };
   }
   return {
     record: (events: readonly WorldEvent[]): void => {

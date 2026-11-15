@@ -7,7 +7,7 @@ import { Color } from 'three';
 import type { Content, MonsterDef, ZoneDef } from '../../sim/content/types.ts';
 import type { Look } from '../../sim/wear.ts';
 import { HERO, heroRig } from '../../sim/hero.ts';
-import { heroBase, lookOf, wornWearables } from '../../sim/wear.ts';
+import { heroBase, lookOf, wearKey, wornWearables } from '../../sim/wear.ts';
 import { wakeStage } from '../../sim/world/wake.ts';
 import { wakePose } from './wake-pose.ts';
 import type { ActorState, Equipment, MomentState, MonsterState, NpcState, World, WorldEvent } from '../../sim/world/types.ts';
@@ -23,6 +23,9 @@ import { unisonOf } from '../../sim/world/unison.ts';
 import type { ParticleSystem } from './particles.ts';
 import type { SpinPose, SpinView } from './spin-view.ts';
 import { createSpinView } from './spin-view.ts';
+import type { ActorGuard } from './actor-guard.ts';
+import { createActorGuard } from './actor-guard.ts';
+import { warnInConsole } from '../backend/console-log.ts';
 
 export const ACTORS = {
   monsterFlash: 1,
@@ -37,6 +40,7 @@ export const ACTORS = {
   turnRim: 4,
   leaveTime: 1.2,
   pooledPerKind: 8,
+  wearWait: 4,
 } as const;
 
 interface EchoLook {
@@ -50,6 +54,8 @@ interface MonsterEntry {
   readonly view: ActorView;
   readonly spawnTime: number;
   readonly echo: EchoLook | null;
+  readonly partial: boolean;
+  checked: boolean;
 }
 
 interface LeavingEcho {
@@ -165,18 +171,22 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
 
   const pool: Map<string, ActorView[]> = new Map<string, ActorView[]>();
 
-  const makeMonsterView = (def: MonsterDef, facing: number, echo: EchoLook | null): ActorView | null => {
+  const guard: ActorGuard = createActorGuard(warnInConsole);
+  const waiting: Map<number, number> = new Map<number, number>();
+
+  const makeMonsterView = (def: MonsterDef, facing: number, echo: EchoLook | null, partial: boolean = false): ActorView | null => {
     const rig: LoadedRig | undefined = library.rigs.get(def.rig);
-    if (rig === undefined || !hasWear(library, rig.def.frame, wornWearables(content, def.rig, def.wear, null), def.gear)) return null;
+    if (rig === undefined || (!partial && !hasWear(library, rig.def.frame, wornWearables(content, def.rig, def.wear, null), def.gear))) return null;
     const view: ActorView = createActorView(instantiateRig(rig, library, { tint: echo === null ? def.tint : '#ffffff', glow: echo === null ? def.color : '#ffffff', ghost: echo?.ghost ?? null, feather }), def.scale, facing);
-    view.rig.setGear(def.gear);
-    dress(content, def.rig, view.rig, def.wear, null);
+    view.rig.setGear(partial ? def.gear.filter((id: string): boolean => library.attachments.has(id)) : def.gear);
+    dress(content, def.rig, view.rig, partial ? def.wear.filter((id: string): boolean => library.wearables.has(wearKey(rig.def.frame, id))) : def.wear, null);
     view.rig.setOpacity(ACTORS.echoOpacity);
     if (echo !== null) view.setShadowOpacity(ACTORS.echoOpacity);
     return view;
   };
 
-  const monsterView = (def: MonsterDef, facing: number, echo: EchoLook | null): ActorView | null => {
+  const monsterView = (def: MonsterDef, facing: number, echo: EchoLook | null, partial: boolean): ActorView | null => {
+    if (partial) return makeMonsterView(def, facing, echo, true);
     const pooled: ActorView | undefined = echo === null ? pool.get(monsterKey(def))?.pop() : undefined;
     if (pooled === undefined) return makeMonsterView(def, facing, echo);
     pooled.face(facing);
@@ -196,18 +206,31 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   };
 
   const retire = (entry: MonsterEntry): void => {
-    if (entry.echo === null) keep(entry.def, entry.view);
+    if (entry.echo === null && !entry.partial) keep(entry.def, entry.view);
     else entry.view.dispose();
   };
+
+  const unloaded = (def: MonsterDef, frame: string): string[] => [
+    ...wornWearables(content, def.rig, def.wear, null).filter((id: string): boolean => !library.wearables.has(wearKey(frame, id))),
+    ...def.gear.filter((id: string): boolean => !library.attachments.has(id)),
+  ];
 
   const entryFor = (current: World, monster: MonsterState): MonsterEntry | null => {
     const existing: MonsterEntry | undefined = monsters.get(monster.id);
     if (existing !== undefined) return existing;
+    const rig: LoadedRig | undefined = library.rigs.get(monster.def.rig);
+    const missing: string[] = rig === undefined ? [] : unloaded(monster.def, rig.def.frame);
+    const since: number = waiting.get(monster.id) ?? current.time;
+    waiting.set(monster.id, since);
+    if (rig === undefined || (missing.length > 0 && current.time - since < ACTORS.wearWait)) return null;
+    waiting.delete(monster.id);
+    const partial: boolean = missing.length > 0;
+    if (partial) guard.missing(monster.id, monster.def.id, missing.join(', '));
     const echo: EchoLook | null = echoLook(current, monster);
-    const view: ActorView | null = monsterView(monster.def, monster.facing, echo);
+    const view: ActorView | null = monsterView(monster.def, monster.facing, echo, partial);
     if (view === null) return null;
     scene.add(view.rig.root);
-    const entry: MonsterEntry = { def: monster.def, view, spawnTime: Math.max(monster.spawnTime, 1e-3), echo };
+    const entry: MonsterEntry = { def: monster.def, view, spawnTime: Math.max(monster.spawnTime, 1e-3), echo, partial, checked: false };
     monsters.set(monster.id, entry);
     if (!monster.alive) view.die();
     return entry;
@@ -277,7 +300,15 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           if (fade > 0) fadeEcho(entry.view, entry.echo.ghost, fade);
         }
         entry.view.setHover(monster.id === hoveredId);
+        if (monster.alive) guard.keep(monster.id, entry.view.rig.root, scene, monster.def.id);
         entry.view.sync(dt, poseOf(monster, unisonOf(current, monster) === null ? null : current.time), { rise: entry.echo === null ? turning : 1, floor: floorAt(monster.pos.x, monster.pos.z), turnRate: ACTOR.turnRate, seen: seen(entry.view, monster.pos.x, monster.pos.z) });
+        if (!entry.checked && monster.alive && (entry.echo === null || echoFade(current, monster.id) === 0)) {
+          entry.checked = true;
+          if (!guard.inspect(monster.id, entry.view.rig.root, monster.def.id)) {
+            entry.view.rig.setGear([]);
+            entry.view.rig.setWear([], []);
+          }
+        }
       }
       for (let index: number = leaving.length - 1; index >= 0; index -= 1) {
         const echo: LeavingEcho | undefined = leaving[index];
@@ -361,6 +392,8 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
             break;
           case 'monster_remove': {
             const entry: MonsterEntry | undefined = monsters.get(event.monsterId);
+            guard.forget(event.monsterId);
+            waiting.delete(event.monsterId);
             if (entry !== undefined) {
               if (entry.echo === null) retire(entry);
               else leaving.push({ entry, ghost: entry.echo.ghost, age: entry.echo.ghost.dissolve.value * ACTORS.leaveTime });
@@ -370,6 +403,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           }
           case 'zone_changed':
             spin.clear();
+            waiting.clear();
             for (const entry of monsters.values()) retire(entry);
             monsters.clear();
             for (const echo of leaving.splice(0, leaving.length)) echo.entry.view.dispose();
