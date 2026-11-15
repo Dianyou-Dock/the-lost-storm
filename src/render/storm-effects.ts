@@ -3,14 +3,14 @@ import { Color, PointLight, Vector3 } from 'three';
 import type { BufferGeometry, Mesh, MeshBasicMaterial, Object3D } from 'three';
 import type { AreaDelivery } from '../../sim/content/shape-types.ts';
 import type { SkillDef, VfxImpact, VfxLightning } from '../../sim/content/types.ts';
-import type { VfxPunch } from '../../sim/content/vfx-types.ts';
+import type { VfxPunch, VfxShadow } from '../../sim/content/vfx-types.ts';
 import type { Vec2 } from '../../sim/math.ts';
 import { areaOf } from '../../sim/world/areas.ts';
 import { chargeOf, SKILLS } from '../../sim/world/skills.ts';
 import type { Actor, AreaState, EmpowerState, MonsterState, ProjectileState, World, WorldEvent } from '../../sim/world/types.ts';
 import { heldLook } from '../../sim/world/character.ts';
 import { glow, groundArcs, lightningLine, skyBolt } from './effect-shapes.ts';
-import type { GroundLight } from './ground-light.ts';
+import type { GroundLight, GroundLightForm } from './ground-light.ts';
 import type { ShotTint } from './projectile-views.ts';
 import { createGroundLight, GROUND_LIGHT } from './ground-light.ts';
 import { STRAND } from './strand-shape.ts';
@@ -42,6 +42,13 @@ export const STORM_EFFECTS = {
   pullSpray: 16,
   areaBandWidth: 0.1,
   areaWobble: 0.07,
+  poolFill: 1,
+  poolSoft: 0.45,
+  poolWobble: 0.14,
+  poolTint: 0.08,
+  poolEdgeFill: 0.02,
+  poolEdgeGlow: 0.16,
+  biteMotes: 10,
   areaFadeOut: 0.3,
   areaGoneBelow: 0.004,
   windSpin: 2.6,
@@ -102,6 +109,8 @@ export interface StormEffects {
 
 interface AreaView {
   readonly light: GroundLight;
+  readonly pool: GroundLight | null;
+  readonly depth: number;
   readonly glow: number;
   readonly color: Color;
   readonly delivery: AreaDelivery;
@@ -271,12 +280,20 @@ export function createStormEffects(kit: StormKit): StormEffects {
     if (delivery === null) return;
     const color: Color = areaColor(area);
     const gap: boolean = delivery.pulse === 0 && delivery.pull === 0;
-    const light: GroundLight = createGroundLight(color, { kind: 'round', radius: delivery.radius, inner: 0, arc: Math.PI * 2 }, { fill: gap ? STORM_EFFECTS.gapFill : STORM_EFFECTS.areaFill, band: 1, width: delivery.radius * STORM_EFFECTS.areaBandWidth, wobble: delivery.radius * STORM_EFFECTS.areaWobble });
+    const shadow: VfxShadow | null = area.skill.vfx.shadow;
+    const round: GroundLightForm = { kind: 'round', radius: delivery.radius, inner: 0, arc: Math.PI * 2 };
+    const light: GroundLight = createGroundLight(color, round, { fill: shadow !== null ? STORM_EFFECTS.poolEdgeFill : gap ? STORM_EFFECTS.gapFill : STORM_EFFECTS.areaFill, band: 1, width: delivery.radius * STORM_EFFECTS.areaBandWidth, wobble: delivery.radius * STORM_EFFECTS.areaWobble });
     light.mesh.position.set(area.pos.x, floorUp(area.pos.x, GROUND_LIGHT.height, area.pos.z), area.pos.z);
-    const shine: number = gap ? STORM_EFFECTS.gapGlow : STORM_EFFECTS.areaGlow;
+    const shine: number = shadow !== null ? STORM_EFFECTS.poolEdgeGlow : gap ? STORM_EFFECTS.gapGlow : STORM_EFFECTS.areaGlow;
     light.show(shine);
     kit.addObject(light.mesh);
-    areas.set(area.id, { light, glow: shine, color, delivery, duration: delivery.duration, ownerId: area.offence.sourceId, skillId: area.skill.id, center: { x: area.pos.x, z: area.pos.z }, age: 0, moteTimer: 0, lashes: 0 });
+    const pool: GroundLight | null = shadow === null ? null : createGroundLight(kit.colorOf(shadow.color).clone().multiplyScalar(STORM_EFFECTS.poolTint), round, { fill: STORM_EFFECTS.poolFill, band: 0, width: delivery.radius * STORM_EFFECTS.poolSoft, wobble: delivery.radius * STORM_EFFECTS.poolWobble }, 'shade');
+    if (pool !== null) {
+      pool.mesh.position.copy(light.mesh.position);
+      pool.show(shadow?.strength ?? 0);
+      kit.addObject(pool.mesh);
+    }
+    areas.set(area.id, { light, pool, depth: shadow?.strength ?? 0, glow: shine, color, delivery, duration: delivery.duration, ownerId: area.offence.sourceId, skillId: area.skill.id, center: { x: area.pos.x, z: area.pos.z }, age: 0, moteTimer: 0, lashes: 0 });
     if (gap && delivery.slow < 1) kit.flashLight(area.pos.x, 3, area.pos.z, color, STORM_EFFECTS.gapLight);
   };
 
@@ -324,6 +341,8 @@ export function createStormEffects(kit: StormKit): StormEffects {
   };
 
   const onLash = (event: Extract<WorldEvent, { type: 'damage' }>): void => {
+    const shadow: VfxShadow | null = event.skill.vfx.shadow;
+    if (shadow !== null && areaOf(event.skill) !== null) kit.spray(event.pos.x, STORM_EFFECTS.bodyHeight, event.pos.z, kit.colorOf(event.skill.vfx.color), STORM_EFFECTS.biteMotes, { speed: { min: 0.3, max: 1.4 }, lift: { min: 0.6, max: 2 }, life: { min: 0.5, max: 0.9 }, size: { min: 0.45, max: 0.8 }, gravity: -0.6, drag: 1, jitter: 0.3 });
     const lightning = event.skill.vfx.lightning;
     if (lightning === null || areaOf(event.skill)?.anchor !== 'caster') return;
     const view: AreaView | undefined = [...areas.values()].find((shown: AreaView): boolean => shown.ownerId === event.sourceId && shown.skillId === event.skill.id);
@@ -340,6 +359,10 @@ export function createStormEffects(kit: StormKit): StormEffects {
     if (view === undefined) return;
     view.light.show(0);
     fading.push(view.light);
+    if (view.pool !== null) {
+      view.pool.show(0);
+      fading.push(view.pool);
+    }
     areas.delete(id);
   };
 
@@ -417,6 +440,11 @@ export function createStormEffects(kit: StormKit): StormEffects {
       view.light.show(area.timeLeft > STORM_EFFECTS.areaFadeOut ? view.glow : 0);
       view.light.mesh.position.set(area.pos.x, floorUp(area.pos.x, GROUND_LIGHT.height, area.pos.z), area.pos.z);
       view.light.step(dt, world.time);
+      if (view.pool !== null) {
+        view.pool.show(area.timeLeft > STORM_EFFECTS.areaFadeOut ? view.depth : 0);
+        view.pool.mesh.position.copy(view.light.mesh.position);
+        view.pool.step(dt, world.time);
+      }
       motes(view, area, dt);
     }
     for (const id of areas.keys()) if (!world.areas.some((area: AreaState): boolean => area.id === id)) dropArea(id);
@@ -561,7 +589,10 @@ export function createStormEffects(kit: StormKit): StormEffects {
       return veiledShots.get(projectileId) ?? null;
     },
     clear(): void {
-      for (const view of areas.values()) view.light.dispose();
+      for (const view of areas.values()) {
+        view.light.dispose();
+        view.pool?.dispose();
+      }
       areas.clear();
       for (const light of fading.splice(0, fading.length)) light.dispose();
       for (const view of brands.values()) view.mark.dispose();
