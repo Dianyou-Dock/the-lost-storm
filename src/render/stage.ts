@@ -19,6 +19,7 @@ import { RIM_LIGHT } from './character-loader.ts';
 import { aimCutaway } from './prop-cutaway.ts';
 import { ditheredOutputPass } from './output-dither.ts';
 import { GPU } from '../gpu-release.ts';
+import { installDarkLightSkip } from './dark-lights.ts';
 
 export const STAGE = {
   exposure: 1.22,
@@ -91,6 +92,7 @@ export function installGrade(): void {
 }
 
 installGrade();
+installDarkLightSkip();
 
 export function rimFor(ambience: ZoneAmbience): Color {
   const background: Color = new Color(ambience.background);
