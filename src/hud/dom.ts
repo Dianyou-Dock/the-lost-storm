@@ -31,13 +31,15 @@ function settleTick(node: HTMLElement): void {
   });
 }
 
+export function tick(node: HTMLElement): void {
+  settleTick(node);
+  retrigger(node, TICK_CLASS);
+}
+
 export function setText(node: HTMLElement, value: string, animate: boolean): boolean {
   if (node.textContent === value) return false;
   node.textContent = value;
-  if (animate) {
-    settleTick(node);
-    retrigger(node, TICK_CLASS);
-  }
+  if (animate) tick(node);
   return true;
 }
 

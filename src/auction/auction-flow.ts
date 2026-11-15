@@ -2,7 +2,7 @@ import type { ItemSpot, Listable, ListRefusal } from '../../sim/world/purse.ts';
 import { findLedger, freeSlots, hasRoom, itemAt, listable } from '../../sim/world/purse.ts';
 import type { PurseEntry } from '../../sim/world/ledger.ts';
 import type { Command, ItemInstance, World } from '../../sim/world/types.ts';
-import type { AuctionAnswer, AuctionFilters, AuctionRules, Listed, Listing, ListingPage, MyAuction, PublicSale, Sale } from '../backend/auction-api.ts';
+import type { AuctionAnswer, AuctionFilters, AuctionRules, Listed, Listing, ListingPage, MyAuction, PriceBasis, PriceSuggestion, PublicSale, Sale } from '../backend/auction-api.ts';
 import type { AuctionHouse } from '../backend/auction.ts';
 import type { AuctionLine, AuctionTab, SalesView } from './auction-model.ts';
 import { AUCTION_LINES, collectedLine, FIRST_PAGE, parsePrice, peekDue, pickLine, priceLine, RECORDING_LINE, refusalLine } from './auction-model.ts';
@@ -18,6 +18,7 @@ export interface AuctionState {
   readonly sales: SalesView;
   readonly picked: string | null;
   readonly price: string;
+  readonly suggested: PriceBasis | null;
   readonly confirm: string | null;
   readonly work: AuctionWork | null;
   readonly loading: boolean;
@@ -34,6 +35,7 @@ interface FlowState {
   sales: SalesView;
   picked: string | null;
   price: string;
+  suggested: PriceBasis | null;
   confirm: string | null;
   work: AuctionWork | null;
   loading: boolean;
@@ -59,6 +61,9 @@ export interface AuctionFlow {
   turn(delta: number): void;
   pick(spot: ItemSpot): void;
   setPrice(text: string): void;
+  close(): void;
+  openCount(): number;
+  full(): boolean;
   list(): Promise<void>;
   ask(listing: string): void;
   buy(listing: string): Promise<void>;
@@ -76,7 +81,7 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
     const item: ItemInstance | null = itemAt(options.world(), spot);
     return reason === 'unverified' && item !== null && !options.unverified(item) ? RECORDING_LINE : pickLine(reason);
   };
-  const state: FlowState = { tab: 'browse', filters: FIRST_PAGE, page: null, mine: null, history: null, sales: { kind: 'loading' }, picked: null, price: '', confirm: null, work: null, loading: false, line: null, closed: false };
+  const state: FlowState = { tab: 'browse', filters: FIRST_PAGE, page: null, mine: null, history: null, sales: { kind: 'loading' }, picked: null, price: '', suggested: null, confirm: null, work: null, loading: false, line: null, closed: false };
   let changes: number = 0;
   let browseTurn: number = 0;
   let mineTurn: number = 0;
@@ -84,6 +89,8 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
   let salesTurn: number = 0;
   let peekedAt: number | null = null;
   let peeking: boolean = false;
+  let suggestTurn: number = 0;
+  let typed: boolean = false;
 
   const touch = (): void => {
     changes += 1;
@@ -193,6 +200,28 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
     touch();
   };
 
+  const suggest = async (ledger: string): Promise<void> => {
+    suggestTurn += 1;
+    const turn: number = suggestTurn;
+    const answer: AuctionAnswer<PriceSuggestion> = await house.price(ledger);
+    if (turn !== suggestTurn || typed || state.picked !== ledger || answer.kind !== 'ok') return;
+    state.price = String(answer.value.price);
+    state.suggested = answer.value.basis;
+    touch();
+  };
+
+  const forgetSuggestion = (): void => {
+    suggestTurn += 1;
+    if (!typed) state.price = '';
+    state.suggested = null;
+  };
+
+  const openCount = (): number => state.mine?.listings.length ?? 0;
+  const full = (): boolean => {
+    const current: AuctionRules | null = rules();
+    return current !== null && openCount() >= current.maxListings;
+  };
+
   const listingOf = (id: string): Listing | null => state.page?.listings.find((listing: Listing): boolean => listing.id === id) ?? state.mine?.listings.find((listing: Listing): boolean => listing.id === id) ?? null;
 
   return {
@@ -238,13 +267,28 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
         say(refusedLine(found.reason, spot));
         return;
       }
-      state.picked = found.ledger;
+      if (state.picked !== found.ledger) {
+        forgetSuggestion();
+        state.picked = found.ledger;
+        void suggest(found.ledger);
+      }
       say(null);
     },
     setPrice(text: string): void {
       state.price = text;
+      state.suggested = null;
+      typed = text.trim() !== '';
       touch();
     },
+    close(): void {
+      forgetSuggestion();
+      typed = false;
+      state.price = '';
+      state.picked = null;
+      touch();
+    },
+    openCount,
+    full,
     async list(): Promise<void> {
       const world: World = options.world();
       const spot: ItemSpot | null = state.picked === null ? null : findLedger(world, state.picked);
@@ -262,6 +306,10 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
         say(refusalLine('level_too_low', rules()));
         return;
       }
+      if (full()) {
+        say(refusalLine('too_many_listings', rules()));
+        return;
+      }
       const price: number | null = parsePrice(state.price, rules());
       if (price === null) {
         say(priceLine(rules()));
@@ -274,6 +322,8 @@ export function createAuctionFlow(options: AuctionFlowOptions): AuctionFlow {
           apply(listed.entries);
           state.picked = null;
           state.price = '';
+          state.suggested = null;
+          typed = false;
           state.line = AUCTION_LINES.listed;
           void refreshMine();
           void browse();

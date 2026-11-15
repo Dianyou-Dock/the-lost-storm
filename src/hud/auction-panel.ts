@@ -6,10 +6,10 @@ import type { ItemSpot } from '../../sim/world/purse.ts';
 import type { ItemInstance, World } from '../../sim/world/types.ts';
 import type { AuctionFlow, AuctionState } from '../auction/auction-flow.ts';
 import type { AuctionTab, SalesView, ShownItems } from '../auction/auction-model.ts';
-import { agoLine, AUCTION_TABS, choiceFilter, createShownItems, parseLevel, parsePrice, proceeds, saleLine, SORTS, TAB_NAMES, termsLine, timeLeft, tradeLine, UNSELLABLE_HINT } from '../auction/auction-model.ts';
-import type { AuctionRules, AuctionSort, Listing, PublicSale, Sale } from '../backend/auction-api.ts';
+import { agoLine, AUCTION_TABS, choiceFilter, createShownItems, listedLine, parseLevel, parsePrice, proceeds, saleLine, SORTS, suggestionLine, TAB_NAMES, termsLine, timeLeft, tradeLine, UNSELLABLE_HINT } from '../auction/auction-model.ts';
+import type { AuctionRules, AuctionSort, Listing, PriceBasis, PublicSale, Sale } from '../backend/auction-api.ts';
 import type { HudContext, PanelView } from './context.ts';
-import { el, label, setText } from './dom.ts';
+import { el, label, setText, tick } from './dom.ts';
 import type { Dropdown, DropdownChoice } from './dropdown.ts';
 import { createDropdown } from './dropdown.ts';
 import { iconSvg } from './icons.ts';
@@ -195,7 +195,11 @@ export function createAuctionPanel(parent: HTMLElement, context: HudContext): Pa
   const pricing: HTMLDivElement = el('div', 'auction-pricing', sellView);
   const price: HTMLInputElement = numberField(pricing, 'Price', 'gold');
   const listButton: HTMLButtonElement = actButton(pricing, AUCTION_PANEL.list, null);
-  const terms: HTMLDivElement = label('auction-terms', '', sellView);
+  const source: HTMLDivElement = label('auction-source', '', sellView);
+  const termsRow: HTMLDivElement = el('div', 'auction-terms-row', sellView);
+  const terms: HTMLDivElement = label('auction-terms', '', termsRow);
+  const listedCount: HTMLDivElement = label('auction-count', '', termsRow);
+  let filledFrom: PriceBasis | null = null;
   label('panel-subtitle', AUCTION_PANEL.stash, sellView);
   const stashGrid: HTMLDivElement = el('div', 'inv-grid stash-grid auction-stash', sellView);
   const stashCells: ItemCell[] = Array.from({ length: context.api.world.content.trade.stashSize }, (_: unknown, index: number): ItemCell => {
@@ -389,10 +393,21 @@ export function createAuctionPanel(parent: HTMLElement, context: HudContext): Pa
     pickedName.style.setProperty('--rarity', item === null ? 'var(--text-dim)' : rarityOf(world.content, item).color);
     const asked: number | null = parsePrice(state.price, rules);
     setText(pickedSub, item === null ? '' : asked === null ? `Level ${item.level}` : `Level ${item.level} · you get ${proceeds(asked, rules)} gold`, true);
-    if (price.value !== state.price && document.activeElement !== price) price.value = state.price;
-    listButton.disabled = item === null || state.work !== null;
+    const filled: boolean = state.suggested !== null && state.suggested !== filledFrom;
+    filledFrom = state.suggested;
+    if (price.value !== state.price && (filled || document.activeElement !== price)) {
+      price.value = state.price;
+      tick(price);
+    }
+    if (state.suggested !== null) setText(source, suggestionLine(state.suggested), source.classList.contains('shown'));
+    shown(source, state.suggested !== null && item !== null);
+    const full: boolean = flow?.full() === true;
+    listButton.disabled = item === null || state.work !== null || full;
     listButton.classList.toggle('busy', state.work === 'list');
     setText(terms, rules === null ? '' : termsLine(rules), false);
+    if (rules !== null && state.mine !== null) setText(listedCount, listedLine(flow?.openCount() ?? 0, rules), true);
+    shown(listedCount, rules !== null && state.mine !== null);
+    listedCount.classList.toggle('full', full);
     let changed: boolean = false;
     for (const [index, view] of stashCells.entries()) {
       if (showItem(context, view, world.stash[index] ?? null)) changed = true;

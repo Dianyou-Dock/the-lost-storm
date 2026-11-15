@@ -11,8 +11,18 @@ import { readEntries } from './purse-read.ts';
 
 export const LISTING_ID: RegExp = /^lst_[A-Za-z0-9_-]{22}$/;
 
-export const AUCTION_API: { readonly listingsPath: string; readonly mePath: string; readonly collectPath: string; readonly historyPath: string; readonly salesPath: string; readonly closedCode: string; readonly maxPage: number } = {
+export const AUCTION_API: {
+  readonly listingsPath: string;
+  readonly mePath: string;
+  readonly collectPath: string;
+  readonly historyPath: string;
+  readonly salesPath: string;
+  readonly pricePath: string;
+  readonly closedCode: string;
+  readonly maxPage: number;
+} = {
   listingsPath: '/v1/auction/listings',
+  pricePath: '/v1/auction/price',
   mePath: '/v1/auction/me',
   collectPath: '/v1/auction/collect',
   historyPath: '/v1/auction/history',
@@ -105,6 +115,13 @@ export interface PublicSale {
   readonly you: SaleSide | null;
 }
 
+export type PriceBasis = { readonly kind: 'similar'; readonly count: number } | { readonly kind: 'default' };
+
+export interface PriceSuggestion {
+  readonly price: number;
+  readonly basis: PriceBasis;
+}
+
 export type AuctionAnswer<T> = { readonly kind: 'ok'; readonly value: T } | { readonly kind: 'refused'; readonly code: AuctionRefusal } | { readonly kind: 'closed' } | { readonly kind: 'failed' };
 
 export interface AuctionApi {
@@ -116,6 +133,7 @@ export interface AuctionApi {
   collect(token: string, purse: number, signal: AbortSignal): Promise<AuctionAnswer<readonly PurseEntry[]>>;
   history(token: string, signal: AbortSignal): Promise<AuctionAnswer<readonly Sale[]>>;
   sales(token: string | null, signal: AbortSignal): Promise<AuctionAnswer<readonly PublicSale[]>>;
+  price(token: string, ledger: string, signal: AbortSignal): Promise<AuctionAnswer<PriceSuggestion>>;
 }
 
 function wholeOf(source: Fields, key: string, min: number): number | null {
@@ -173,6 +191,20 @@ export function readRules(value: unknown): AuctionRules | null {
   if (minPrice === null || maxPrice === null || maxPrice < minPrice || maxListings === null || sellLevel === null) return null;
   if (typeof cut !== 'number' || !Number.isFinite(cut) || cut < 0 || cut >= 1 || typeof lifeHours !== 'number' || !Number.isFinite(lifeHours) || lifeHours <= 0) return null;
   return { minPrice, maxPrice, maxListings, cut, lifeHours, sellLevel };
+}
+
+function readBasis(value: unknown): PriceBasis | null {
+  if (!isFields(value)) return null;
+  if (value['kind'] === 'default') return { kind: 'default' };
+  const count: number | null = wholeOf(value, 'count', 1);
+  return value['kind'] === 'similar' && count !== null ? { kind: 'similar', count } : null;
+}
+
+export function readPriceSuggestion(value: unknown): PriceSuggestion | null {
+  if (!isFields(value)) return null;
+  const price: number | null = wholeOf(value, 'price', 1);
+  const basis: PriceBasis | null = readBasis(value['basis']);
+  return price === null || basis === null ? null : { price, basis };
 }
 
 function readWaiting(content: Content, value: unknown): Waiting | null {
@@ -313,5 +345,7 @@ export function createAuctionApi(baseUrl: string, fetchFn: FetchFn, content: Con
         (body: unknown): PublicSale[] | null => readPublicSales(content, body),
         [200],
       ),
+    price: async (token: string, ledger: string, signal: AbortSignal): Promise<AuctionAnswer<PriceSuggestion>> =>
+      settled(await get(token, `${AUCTION_API.pricePath}?item=${encodeURIComponent(ledger)}`, signal), readPriceSuggestion, [200]),
   };
 }

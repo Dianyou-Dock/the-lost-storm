@@ -5,7 +5,7 @@ import type { Content } from '../../sim/content/types.ts';
 import type { PurseEntry } from '../../sim/world/ledger.ts';
 import type { Command, ItemInstance, World } from '../../sim/world/types.ts';
 import { worldIn } from '../../test/support.ts';
-import type { AuctionAnswer, AuctionFilters, Listed, Listing, ListingPage, MyAuction, PublicSale, Sale } from '../backend/auction-api.ts';
+import type { AuctionAnswer, AuctionFilters, Listed, Listing, ListingPage, MyAuction, PriceSuggestion, PublicSale, Sale } from '../backend/auction-api.ts';
 import type { AuctionHouse } from '../backend/auction.ts';
 import { createAuctionFlow } from './auction-flow.ts';
 import type { AuctionFlow } from './auction-flow.ts';
@@ -34,6 +34,7 @@ interface Answers {
   collect: AuctionAnswer<readonly PurseEntry[]>;
   history: AuctionAnswer<readonly Sale[]>;
   sales: AuctionAnswer<readonly PublicSale[]>;
+  price: AuctionAnswer<PriceSuggestion>;
 }
 
 interface Rig {
@@ -70,6 +71,7 @@ function rig(): Rig {
     collect: { kind: 'failed' },
     history: { kind: 'ok', value: [SALE] },
     sales: { kind: 'ok', value: [PUBLIC] },
+    price: { kind: 'failed' },
   };
   const note = (name: string, args: readonly unknown[]): void => {
     calls.push({ name, args });
@@ -107,6 +109,10 @@ function rig(): Rig {
     sales: (): Promise<AuctionAnswer<readonly PublicSale[]>> => {
       note('sales', []);
       return Promise.resolve(answers.sales);
+    },
+    price: (ledger: string): Promise<AuctionAnswer<PriceSuggestion>> => {
+      note('price', [ledger]);
+      return Promise.resolve(answers.price);
     },
   };
   const sync = (): Promise<void> => {
@@ -369,4 +375,88 @@ void test('the quiet check stays silent on a refusal and waits while the panel i
   state.flow.watch(AUCTION_WATCH.everyMs * 2 - 1, false);
   await settle();
   assert.equal(named(state.calls, 'mine').length, 1);
+});
+
+const SUGGESTED: PriceSuggestion = { price: 130, basis: { kind: 'similar', count: 4 } };
+
+async function picking(answer: AuctionAnswer<PriceSuggestion>): Promise<Rig> {
+  const state: Rig = await opened();
+  state.world.player.inventory[0] = { uid: 60, ...ITEM, ledger: LEDGER };
+  state.answers.price = answer;
+  state.flow.pick({ place: 'bag', index: 0 });
+  return state;
+}
+
+void test('picking an item asks for a price and fills the empty field with it and where it came from', async (): Promise<void> => {
+  const state: Rig = await picking({ kind: 'ok', value: SUGGESTED });
+  assert.deepEqual(named(state.calls, 'price')[0]?.args, [LEDGER]);
+  await settle();
+  assert.equal(state.flow.state().price, '130');
+  assert.deepEqual(state.flow.state().suggested, SUGGESTED.basis);
+  state.flow.pick({ place: 'bag', index: 0 });
+  assert.equal(named(state.calls, 'price').length, 1);
+});
+
+void test('a suggestion never overwrites a price the player typed, and editing drops the source line', async (): Promise<void> => {
+  const typedFirst: Rig = await picking({ kind: 'ok', value: SUGGESTED });
+  typedFirst.flow.setPrice('90');
+  await settle();
+  assert.equal(typedFirst.flow.state().price, '90');
+  assert.equal(typedFirst.flow.state().suggested, null);
+  const editedAfter: Rig = await picking({ kind: 'ok', value: SUGGESTED });
+  await settle();
+  editedAfter.flow.setPrice('135');
+  assert.equal(editedAfter.flow.state().price, '135');
+  assert.equal(editedAfter.flow.state().suggested, null);
+});
+
+void test('a typed price stays when another item is picked, and a cleared field takes the next suggestion', async (): Promise<void> => {
+  const state: Rig = await picking({ kind: 'failed' });
+  state.flow.setPrice('90');
+  state.world.player.inventory[1] = { uid: 61, ...ITEM, ledger: 'itm_EEEEEEEEEEEEEEEEEEEEEE' };
+  state.answers.price = { kind: 'ok', value: SUGGESTED };
+  state.flow.pick({ place: 'bag', index: 1 });
+  await settle();
+  assert.equal(state.flow.state().price, '90');
+  state.flow.setPrice('');
+  state.flow.pick({ place: 'bag', index: 0 });
+  await settle();
+  assert.equal(state.flow.state().price, '130');
+});
+
+void test('an older server, a refusal or a failure leaves the field empty and the house open', async (): Promise<void> => {
+  const answers: readonly AuctionAnswer<PriceSuggestion>[] = [{ kind: 'closed' }, { kind: 'refused', code: 'not_listable' }, { kind: 'failed' }];
+  const rigs: readonly Rig[] = await Promise.all(answers.map((answer: AuctionAnswer<PriceSuggestion>): Promise<Rig> => picking(answer)));
+  await settle();
+  for (const state of rigs) {
+    assert.equal(state.flow.state().price, '');
+    assert.equal(state.flow.state().suggested, null);
+    assert.equal(state.flow.state().closed, false);
+    assert.equal(state.flow.state().picked, LEDGER);
+  }
+});
+
+void test('a suggestion that arrives after the panel closed is dropped', async (): Promise<void> => {
+  const state: Rig = await picking({ kind: 'ok', value: SUGGESTED });
+  state.flow.close();
+  await settle();
+  assert.equal(state.flow.state().price, '');
+  assert.equal(state.flow.state().suggested, null);
+  assert.equal(state.flow.state().picked, null);
+});
+
+void test('at the listing cap the count is full and listing is refused before any request', async (): Promise<void> => {
+  const state: Rig = rig();
+  const open: readonly Listing[] = Array.from({ length: RULES.maxListings }, (_: unknown, index: number): Listing => ({ ...LISTING, id: `lst_${String(index).padStart(22, 'Z')}`, yours: true }));
+  state.answers.mine = { kind: 'ok', value: { listings: open, waiting: { gold: 0, items: [] }, rules: RULES, entries: [] } };
+  state.flow.open();
+  await settle();
+  assert.equal(state.flow.openCount(), RULES.maxListings);
+  assert.equal(state.flow.full(), true);
+  state.world.player.inventory[0] = { uid: 62, ...ITEM, ledger: LEDGER };
+  state.flow.pick({ place: 'bag', index: 0 });
+  state.flow.setPrice('120');
+  await state.flow.list();
+  assert.equal(named(state.calls, 'list').length, 0);
+  assert.equal(state.flow.state().line?.text, 'All 10 of your listings are open. Cancel one or wait for a sale.');
 });

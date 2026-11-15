@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { content } from '../../test/backend-support.ts';
 import { must } from '../../test/support.ts';
 import type { FetchFn } from './api.ts';
-import { createAuctionApi, filterQuery, readHistory, readListing, readListingPage, readMyAuction, readPublicSale, readPublicSales, readRules, readSale } from './auction-api.ts';
+import { createAuctionApi, filterQuery, readHistory, readListing, readListingPage, readMyAuction, readPriceSuggestion, readPublicSale, readPublicSales, readRules, readSale } from './auction-api.ts';
 import type { AuctionApi, AuctionFilters } from './auction-api.ts';
 
 const SERVER: string = 'http://localhost:8787';
@@ -187,4 +187,19 @@ void test('the public sale history is asked for without a token, or with one to 
   await signed.api.sales('tok', SIGNAL);
   assert.equal(new Headers(only(signed.seen).init.headers).get('authorization'), 'Bearer tok');
   assert.deepEqual(await client(404, { error: { code: 'not_found', message: 'no route' } }).api.sales(null, SIGNAL), { kind: 'closed' });
+});
+
+void test('a price suggestion is a whole price and a basis of similar items with a count or the default table', (): void => {
+  assert.deepEqual(readPriceSuggestion({ price: 130, basis: { kind: 'similar', count: 4 } }), { price: 130, basis: { kind: 'similar', count: 4 } });
+  assert.deepEqual(readPriceSuggestion({ price: 150, basis: { kind: 'default' }, extra: 1 }), { price: 150, basis: { kind: 'default' } });
+  for (const value of [{ price: 0, basis: { kind: 'default' } }, { price: 12.5, basis: { kind: 'default' } }, { price: 10, basis: { kind: 'similar' } }, { price: 10, basis: { kind: 'similar', count: 0 } }, { price: 10, basis: { kind: 'guess' } }, { price: 10 }, null]) assert.equal(readPriceSuggestion(value), null);
+});
+
+void test('the price is asked for with the item in the query and the token, and an older server without the route is a closed answer', async (): Promise<void> => {
+  const { api, seen } = client(200, { price: 130, basis: { kind: 'similar', count: 4 } });
+  assert.deepEqual(await api.price('tok', ITEM.id, SIGNAL), { kind: 'ok', value: { price: 130, basis: { kind: 'similar', count: 4 } } });
+  assert.equal(only(seen).url, `${SERVER}/v1/auction/price?item=${ITEM.id}`);
+  assert.equal(new Headers(only(seen).init.headers).get('authorization'), 'Bearer tok');
+  assert.deepEqual(await client(404, { error: { code: 'not_found', message: 'no route' } }).api.price('tok', ITEM.id, SIGNAL), { kind: 'closed' });
+  assert.deepEqual(await client(409, { error: { code: 'not_listable', message: 'not yours' } }).api.price('tok', ITEM.id, SIGNAL), { kind: 'refused', code: 'not_listable' });
 });

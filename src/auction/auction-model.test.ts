@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { MyAuction, PublicSale, Sale } from '../backend/auction-api.ts';
-import { agoLine, AUCTION_WATCH, choiceFilter, collectedLine, createShownItems, parseLevel, parsePrice, peekDue, pickLine, proceeds, refusalLine, saleLine, termsLine, timeLeft, tradeLine, waitingCue } from './auction-model.ts';
+import { agoLine, AUCTION_WATCH, choiceFilter, collectedLine, createShownItems, listedLine, parseLevel, parsePrice, peekDue, pickLine, proceeds, refusalLine, saleLine, suggestionLine, termsLine, timeLeft, tradeLine, waitingCue } from './auction-model.ts';
 
 const RULES = { minPrice: 5, maxPrice: 1000, maxListings: 10, cut: 0.1, lifeHours: 48, sellLevel: 3 };
 
@@ -34,7 +34,7 @@ void test('the terms and the proceeds follow the cut the server sends', (): void
 
 void test('refusals and picks read as short lines', (): void => {
   assert.equal(refusalLine('level_too_low', RULES).text, 'Selling needs level 3.');
-  assert.equal(refusalLine('too_many_listings', RULES).text, 'At most 10 listings can be open.');
+  assert.equal(refusalLine('too_many_listings', RULES).text, 'All 10 of your listings are open. Cancel one or wait for a sale.');
   assert.equal(refusalLine('not_enough_gold', null).tone, 'refusal');
   assert.equal(pickLine('empty').tone, 'note');
   assert.deepEqual(pickLine('unverified'), { text: 'This item was never recorded, so it cannot be sold. Trader purchases and some early or offline finds are not recorded.', tone: 'refusal' });
@@ -100,4 +100,12 @@ void test('the house is asked about waiting gold once, then again only while lis
   assert.equal(peekDue(0, AUCTION_WATCH.everyMs, null), true);
   assert.equal(waitingCue(225), '225 at the auctioneer');
   assert.equal(waitingCue(0), '');
+});
+
+void test('the suggestion says where it came from and the count says how many of the allowed listings are open', (): void => {
+  assert.equal(suggestionLine({ kind: 'similar', count: 4 }), 'Suggested from 4 similar items');
+  assert.equal(suggestionLine({ kind: 'similar', count: 1 }), 'Suggested from 1 similar item');
+  assert.equal(suggestionLine({ kind: 'default' }), 'Suggested price: no similar items yet');
+  assert.equal(listedLine(9, RULES), '9 of 10 listed');
+  assert.equal(listedLine(12, RULES), '10 of 10 listed');
 });

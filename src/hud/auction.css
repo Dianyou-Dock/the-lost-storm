@@ -395,9 +395,51 @@
   width: 110px;
 }
 
+.auction-source {
+  min-height: 15px;
+  margin: -2px 0 6px;
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0;
+  transform: translateY(-3px);
+  transition:
+    opacity var(--spring-snappy-ms) var(--spring-snappy),
+    transform var(--spring-smooth-ms) var(--spring-smooth);
+}
+
+.auction-source.shown {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.auction-terms-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .auction-terms {
   font-size: 11px;
   color: var(--text-dim);
+}
+
+.auction-count {
+  flex: none;
+  font-size: 11px;
+  color: var(--text-dim);
+  opacity: 0;
+  transition:
+    opacity var(--spring-snappy-ms) var(--spring-snappy),
+    color var(--spring-smooth-ms) var(--spring-smooth);
+}
+
+.auction-count.shown {
+  opacity: 1;
+}
+
+.auction-count.full {
+  color: var(--ember);
 }
 
 .auction-stash .cell {

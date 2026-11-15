@@ -2,7 +2,7 @@ import { ITEM_SLOTS } from '../../sim/content/types.ts';
 import type { LedgerItem } from '../../sim/world/ledger.ts';
 import type { ListRefusal } from '../../sim/world/purse.ts';
 import type { ItemInstance } from '../../sim/world/types.ts';
-import type { AuctionFilters, AuctionRefusal, AuctionRules, AuctionSort, MyAuction, PublicSale, Sale } from '../backend/auction-api.ts';
+import type { AuctionFilters, AuctionRefusal, AuctionRules, AuctionSort, MyAuction, PriceBasis, PublicSale, Sale } from '../backend/auction-api.ts';
 
 export type AuctionTab = 'browse' | 'sell' | 'mine' | 'history';
 
@@ -91,8 +91,17 @@ export const AUCTION_LINES: {
 
 export function refusalLine(code: AuctionRefusal, rules: AuctionRules | null): AuctionLine {
   if (code === 'level_too_low' && rules !== null && rules.sellLevel > 0) return { text: `Selling needs level ${rules.sellLevel}.`, tone: 'refusal' };
-  if (code === 'too_many_listings' && rules !== null) return { text: `At most ${rules.maxListings} listings can be open.`, tone: 'refusal' };
+  if (code === 'too_many_listings' && rules !== null) return { text: `All ${rules.maxListings} of your listings are open. Cancel one or wait for a sale.`, tone: 'refusal' };
   return { text: REFUSAL_LINES[code], tone: 'refusal' };
+}
+
+export function suggestionLine(basis: PriceBasis): string {
+  if (basis.kind === 'default') return 'Suggested price: no similar items yet';
+  return basis.count === 1 ? 'Suggested from 1 similar item' : `Suggested from ${basis.count} similar items`;
+}
+
+export function listedLine(open: number, rules: AuctionRules): string {
+  return `${Math.min(open, rules.maxListings)} of ${rules.maxListings} listed`;
 }
 
 export const UNSELLABLE_HINT: string = "Can't be sold here: never recorded";

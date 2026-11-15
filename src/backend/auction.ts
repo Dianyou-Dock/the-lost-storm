@@ -1,5 +1,5 @@
 import type { PurseEntry } from '../../sim/world/ledger.ts';
-import type { AuctionAnswer, AuctionApi, AuctionFilters, Listed, ListingPage, MyAuction, PublicSale, Sale } from './auction-api.ts';
+import type { AuctionAnswer, AuctionApi, AuctionFilters, Listed, ListingPage, MyAuction, PriceSuggestion, PublicSale, Sale } from './auction-api.ts';
 import type { KeyValueStore } from './backend.ts';
 import { parseSyncRecord, SYNC_KEY } from './sync-record.ts';
 import type { SyncRecord } from './sync-record.ts';
@@ -17,6 +17,7 @@ export interface AuctionHouse {
   collect(purse: number): Promise<AuctionAnswer<readonly PurseEntry[]>>;
   history(): Promise<AuctionAnswer<readonly Sale[]>>;
   sales(): Promise<AuctionAnswer<readonly PublicSale[]>>;
+  price(ledger: string): Promise<AuctionAnswer<PriceSuggestion>>;
 }
 
 export interface AuctionHouseOptions {
@@ -50,5 +51,6 @@ export function createAuctionHouse(options: AuctionHouseOptions): AuctionHouse {
     collect: (purse: number): Promise<AuctionAnswer<readonly PurseEntry[]>> => held((current: string): Promise<AuctionAnswer<readonly PurseEntry[]>> => api.collect(current, purse, signal())),
     history: (): Promise<AuctionAnswer<readonly Sale[]>> => held((current: string): Promise<AuctionAnswer<readonly Sale[]>> => api.history(current, signal())),
     sales: (): Promise<AuctionAnswer<readonly PublicSale[]>> => api.sales(token(), signal()),
+    price: (ledger: string): Promise<AuctionAnswer<PriceSuggestion>> => held((current: string): Promise<AuctionAnswer<PriceSuggestion>> => api.price(current, ledger, signal())),
   };
 }

@@ -52,6 +52,7 @@ export function createTradeHud(root: HTMLElement, context: HudContext, track: (e
       markOverlay(panels[kind].element, false);
       context.tooltip.hide();
       context.sale.set(null);
+      if (kind === 'auction') context.api.auction?.close();
       if (context.api.world.service !== null) {
         closing = true;
         context.api.send({ type: 'trade', action: { type: 'close' } });
