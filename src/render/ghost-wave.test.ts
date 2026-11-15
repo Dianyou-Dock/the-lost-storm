@@ -4,7 +4,7 @@ import { loadContent } from '../../sim/content/content.ts';
 import type { SkillDef } from '../../sim/content/types.ts';
 import type { VfxRipple, VfxWave } from '../../sim/content/vfx-types.ts';
 import { must } from '../../test/support.ts';
-import { finished, GHOST_WAVE, hushed, riseIn, rippleLevel, rippleReach } from './ghost-wave.ts';
+import { finished, GHOST_WAVE, hushed, mistLasts, riseIn, rippleLevel, rippleReach } from './ghost-wave.ts';
 
 const RIPPLE: VfxRipple = { delay: 1, strength: 0.5 };
 
@@ -50,4 +50,12 @@ void test('Ghost Wave leaves on the attack and its after-waves leave on the meas
   assert.equal(Math.min(...strengths), strengths.at(-1));
   assert.ok(Math.max(...strengths) < Math.max(...look.swell));
   assert.ok(Math.abs(look.quiet + wave.windup - 2.3) < 0.01);
+});
+
+void test('mist left by a wave is gone by the time the wave falls quiet', (): void => {
+  const look: VfxWave = { halfWidth: 1, depth: 1, mist: 10, swell: [1, 1], ripples: [RIPPLE], quiet: 2 };
+  assert.equal(mistLasts(look, 0), GHOST_WAVE.mistLifeMax);
+  assert.ok(Math.abs(mistLasts(look, 2 - GHOST_WAVE.mistLifeMax / 2) - GHOST_WAVE.mistLifeMax / 2) < 1e-9);
+  assert.equal(mistLasts(look, 2), 0);
+  assert.equal(mistLasts(look, 3), 0);
 });

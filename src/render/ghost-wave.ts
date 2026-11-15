@@ -11,27 +11,31 @@ import { floorUp } from './terrain-lift.ts';
 
 export const GHOST_WAVE = {
   height: GROUND_LIGHT.height + 0.03,
-  glow: 1.2,
-  crest: 2.6,
-  cover: 1.15,
-  band: 0.4,
-  wobble: 0.3,
+  glow: 0.85,
+  crest: 3.2,
+  cover: 1.35,
+  band: 0.1,
+  wobble: 0.12,
   grain: 0.55,
-  shadeWidth: 1.1,
-  shadeGap: 0.9,
+  shadeWidth: 0.45,
+  shadeGap: 0.4,
   shadeStrength: 0.7,
   rise: 0.06,
   settle: 0.18,
   rippleDim: 0.55,
   hush: 0.4,
-  mistSizeMin: 0.35,
-  mistSizeMax: 0.75,
-  mistLifeMin: 0.45,
-  mistLifeMax: 0.9,
-  mistLiftMin: 0.5,
-  mistLiftMax: 1.6,
-  mistHeight: 0.25,
-  mistCap: 8,
+  mistSizeMin: 1.6,
+  mistSizeMax: 3.2,
+  mistTone: 0.05,
+  mistLifeMin: 0.55,
+  mistLifeMax: 1.1,
+  mistLiftMin: 0.15,
+  mistLiftMax: 0.6,
+  mistHeight: 0.2,
+  mistGap: 0.5,
+  mistBehind: 0.7,
+  mistDrift: 0.06,
+  mistCap: 12,
 } as const;
 
 export function riseIn(age: number): number {
@@ -54,6 +58,10 @@ export function rippleLevel(ripple: VfxRipple, age: number, speed: number, reach
 export function hushed(look: VfxWave, age: number): number {
   const t: number = Math.min(1, Math.max(0, (age - (look.quiet - GHOST_WAVE.hush)) / GHOST_WAVE.hush));
   return 1 - t * t * (3 - 2 * t);
+}
+
+export function mistLasts(look: VfxWave, age: number): number {
+  return Math.max(0, Math.min(GHOST_WAVE.mistLifeMax, look.quiet - age));
 }
 
 export function finished(look: VfxWave, age: number, speed: number, reach: number): boolean {
@@ -86,6 +94,7 @@ interface Wave {
   readonly direction: Vec2;
   readonly look: VfxWave;
   readonly color: Color;
+  readonly haze: Color;
   readonly speed: number;
   readonly main: Front;
   readonly ripples: readonly Front[];
@@ -131,16 +140,18 @@ export function createGhostWaves(kit: GhostWaveKit): GhostWaves {
   const waves: Map<number, Wave> = new Map<number, Wave>();
 
   const mist = (wave: Wave, reach: number, strength: number, dt: number): void => {
+    const lasts: number = mistLasts(wave.look, wave.age);
+    if (lasts <= 0) return;
     wave.mistOwed += wave.look.mist * strength * dt;
     let emitted: number = 0;
     while (wave.mistOwed >= 1 && emitted < GHOST_WAVE.mistCap) {
       wave.mistOwed -= 1;
       emitted += 1;
       const across: number = (Math.random() * 2 - 1) * wave.look.halfWidth;
-      const along: number = reach - Math.random() * wave.look.depth;
+      const along: number = Math.max(0, reach - GHOST_WAVE.mistGap - Math.random() * GHOST_WAVE.mistBehind);
       const x: number = wave.from.x + wave.direction.x * along + wave.direction.z * across;
       const z: number = wave.from.z + wave.direction.z * along - wave.direction.x * across;
-      kit.spray(x, GHOST_WAVE.mistHeight, z, wave.color, 1, { dirX: wave.direction.x, dirZ: wave.direction.z, spread: 0.6, speed: { min: wave.speed * 0.1, max: wave.speed * 0.3 }, lift: { min: GHOST_WAVE.mistLiftMin, max: GHOST_WAVE.mistLiftMax }, life: { min: GHOST_WAVE.mistLifeMin, max: GHOST_WAVE.mistLifeMax }, size: { min: GHOST_WAVE.mistSizeMin, max: GHOST_WAVE.mistSizeMax }, gravity: -0.4, drag: 2.4, jitter: 0.3 });
+      kit.spray(x, GHOST_WAVE.mistHeight, z, wave.haze, 1, { dirX: wave.direction.x, dirZ: wave.direction.z, spread: 0.6, speed: { min: 0, max: wave.speed * GHOST_WAVE.mistDrift }, lift: { min: GHOST_WAVE.mistLiftMin, max: GHOST_WAVE.mistLiftMax }, life: { min: Math.min(GHOST_WAVE.mistLifeMin, lasts), max: lasts }, size: { min: GHOST_WAVE.mistSizeMin, max: GHOST_WAVE.mistSizeMax }, gravity: -0.2, drag: 3, jitter: 0.3 });
     }
     wave.mistOwed = Math.min(wave.mistOwed, 1);
   };
@@ -161,7 +172,7 @@ export function createGhostWaves(kit: GhostWaveKit): GhostWaves {
       const ripples: Front[] = look.ripples.map((): Front => frontOf(color, look));
       for (const front of [main, ...ripples]) group.add(front.shade.mesh, front.light.mesh);
       kit.parent.add(group);
-      waves.set(id, { group, from: { x: from.x, z: from.z }, direction: { x: direction.x, z: direction.z }, look, color, speed, main, ripples, range, front: 0, age: 0, ended: null, mistOwed: 0 });
+      waves.set(id, { group, from: { x: from.x, z: from.z }, direction: { x: direction.x, z: direction.z }, look, color, haze: color.clone().multiplyScalar(GHOST_WAVE.mistTone), speed, main, ripples, range, front: 0, age: 0, ended: null, mistOwed: 0 });
     },
     carry(id: number, pos: Vec2): void {
       const wave: Wave | undefined = waves.get(id);
