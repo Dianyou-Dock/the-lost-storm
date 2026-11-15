@@ -136,6 +136,7 @@ export interface RayLike {
 
 export const RAY_MARCH = {
   step: 0.25,
+  inside: 0.05,
   reach: 600,
   refine: 12,
 } as const;
@@ -149,14 +150,17 @@ export function rayToSurface(ray: RayLike, heightOf: (x: number, z: number) => n
     return Number.isNaN(height) ? null : origin.y + direction.y * t > height;
   };
   let low: number = side(0) === true ? 0 : -1;
-  for (let t: number = RAY_MARCH.step; t <= RAY_MARCH.reach; t += RAY_MARCH.step) {
+  let passed: boolean = false;
+  for (let t: number = RAY_MARCH.step; t <= RAY_MARCH.reach; t += passed ? RAY_MARCH.inside : RAY_MARCH.step) {
     const now: boolean | null = side(t);
     if (now === true) {
       low = t;
+      passed = false;
       continue;
     }
     if (now === null) {
       low = -1;
+      passed = false;
       continue;
     }
     if (low < 0) continue;
@@ -173,6 +177,7 @@ export function rayToSurface(ray: RayLike, heightOf: (x: number, z: number) => n
     const y: number = heightOf(x, z);
     if (through !== null && through(x, y, z)) {
       low = -1;
+      passed = true;
       continue;
     }
     return out.set(x, y, z);

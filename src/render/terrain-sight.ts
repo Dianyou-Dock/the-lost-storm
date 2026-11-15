@@ -133,9 +133,33 @@ export function clickHeight(zone: ZoneDef): (x: number, z: number) => number {
   return (x: number, z: number): number => sight.drawnHeight(x, z) ?? Number.NaN;
 }
 
+const CELL_CORNERS: readonly (readonly [number, number])[] = [
+  [0, 0],
+  [1, 0],
+  [0, 1],
+  [1, 1],
+];
+
 export function clickFloor(zone: ZoneDef): FloorTest {
   const drawn: boolean = drawsTerrain(zone);
-  return (x: number, y: number, z: number): boolean => floorAt(zone, x, z) && Math.abs(y - (drawn ? liftAt(zone, x, z) : heightAt(zone, x, z))) <= TERRAIN_SIGHT.floorRise;
+  const floorY = (x: number, z: number): number => (drawn ? liftAt(zone, x, z) : heightAt(zone, x, z));
+  const step: number = GROUND_TERRAIN.step;
+  return (x: number, y: number, z: number): boolean => {
+    if (!floorAt(zone, x, z)) return false;
+    let low: number = floorY(x, z);
+    let high: number = low;
+    const left: number = Math.floor(x / step) * step;
+    const top: number = Math.floor(z / step) * step;
+    for (const [across, down] of CELL_CORNERS) {
+      const cx: number = left + across * step;
+      const cz: number = top + down * step;
+      if (!floorAt(zone, cx, cz)) continue;
+      const height: number = floorY(cx, cz);
+      low = Math.min(low, height);
+      high = Math.max(high, height);
+    }
+    return y >= low - TERRAIN_SIGHT.floorRise && y <= high + TERRAIN_SIGHT.floorRise;
+  };
 }
 
 export type ClickRule = 'surface' | 'floor';
@@ -148,6 +172,7 @@ export interface FloorSpot {
 export interface ClickLanding {
   readonly miss: number;
   readonly windowed: boolean;
+  readonly nearer: boolean;
 }
 
 const clickRay: Ray = new Ray();
@@ -170,8 +195,10 @@ export function clickLanding(sight: TerrainSight, zone: ZoneDef, hero: FloorSpot
   clickRay.origin.copy(eye);
   clickRay.direction.set(target.x - eye.x, floor - eye.y, target.z - eye.z).normalize();
   const heightOf: (x: number, z: number) => number = clickHeight(zone);
-  const hit: Vector3 | null = rule === 'floor' ? rayToFloor(clickRay, heightOf, clickFloor(zone), landed, through) : rayToSurface(clickRay, heightOf, landed, through);
-  return { miss: hit === null ? Number.POSITIVE_INFINITY : Math.hypot(hit.x - target.x, hit.z - target.z), windowed: through !== null };
+  const isFloor: FloorTest = clickFloor(zone);
+  const hit: Vector3 | null = rule === 'floor' ? rayToFloor(clickRay, heightOf, isFloor, landed, through) : rayToSurface(clickRay, heightOf, landed, through);
+  const nearer: boolean = hit !== null && isFloor(hit.x, hit.y, hit.z) && hit.distanceTo(eye) < Math.hypot(target.x - eye.x, floor - eye.y, target.z - eye.z);
+  return { miss: hit === null ? Number.POSITIVE_INFINITY : Math.hypot(hit.x - target.x, hit.z - target.z), windowed: through !== null, nearer };
 }
 
 export function clickMiss(sight: TerrainSight, zone: ZoneDef, x: number, z: number, window: boolean, rule: ClickRule = 'floor'): number {

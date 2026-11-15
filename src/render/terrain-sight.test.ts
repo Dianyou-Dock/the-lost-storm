@@ -3,7 +3,8 @@ import { test } from 'node:test';
 import { loadContent } from '../../sim/content/content.ts';
 import type { Content, ZoneDef } from '../../sim/content/types.ts';
 import type { TerrainSight } from './terrain-sight.ts';
-import { cameraEye, createTerrainSight, drawsTerrain } from './terrain-sight.ts';
+import { cameraEye, clickFloor, createTerrainSight, drawsTerrain } from './terrain-sight.ts';
+import type { FloorTest } from './terrain-lift.ts';
 import { liftAt } from './terrain-lift.ts';
 
 const content: Content = loadContent();
@@ -29,4 +30,17 @@ void test('a sight line over open floor is clear, and one into a rock shelf is b
 
 void test('a zone drawn without a terrain heightfield has no terrain sight', (): void => {
   for (const zone of content.zones.values()) assert.equal(createTerrainSight(zone) === null, !drawsTerrain(zone));
+});
+
+void test('a click on the drawn step between a cave ramp and the terrace above it counts as floor, and the rock over the cave wall does not', (): void => {
+  const zone: ZoneDef = caves();
+  const floor: FloorTest = clickFloor(zone);
+  const sight: TerrainSight | null = createTerrainSight(zone);
+  assert.ok(sight !== null);
+  const stepX: number = 72;
+  const stepZ: number = 133.7;
+  const stepY: number | null = sight.drawnHeight(stepX, stepZ);
+  assert.ok(stepY !== null && stepY - liftAt(zone, stepX, stepZ) > 0.5, `the step is drawn ${stepY} over a floor at ${liftAt(zone, stepX, stepZ)}`);
+  assert.equal(floor(stepX, stepY, stepZ), true);
+  assert.equal(floor(stepX, stepY + 3, stepZ), false);
 });

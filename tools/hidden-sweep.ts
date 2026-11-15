@@ -12,6 +12,7 @@ export const HIDDEN_SWEEP = {
   heroAway: [1.5, 3],
   heroTurns: 8,
   radii: [CUTAWAY.radius, CUTAWAY.widest],
+  offGrid: 0.25,
 } as const;
 
 export interface ClickCount {
@@ -27,6 +28,7 @@ export interface ZoneSweep {
   readonly missedBefore: number;
   readonly missed: readonly string[];
   readonly inWindow: number;
+  readonly covered: number;
   readonly window: ClickCount;
   readonly bare: ClickCount;
 }
@@ -51,17 +53,24 @@ function heroesNear(grid: NavGrid, x: number, z: number): FloorSpot[] {
 interface Reach {
   readonly reached: boolean;
   readonly missed: boolean;
+  readonly covered: boolean;
 }
 
 function missesFrom(sight: TerrainSight, zone: ZoneDef, heroes: readonly FloorSpot[], target: FloorSpot, radius: number | null, rule: ClickRule): Reach {
   let reached: boolean = false;
+  let covered: boolean = false;
   for (const hero of heroes) {
     const landing: ClickLanding = clickLanding(sight, zone, hero, target, radius, rule);
     if (radius !== null && !landing.windowed) continue;
     reached = true;
-    if (landing.miss > HIDDEN_SWEEP.clickNear) return { reached, missed: true };
+    if (landing.miss <= HIDDEN_SWEEP.clickNear) continue;
+    if (landing.nearer) {
+      covered = true;
+      continue;
+    }
+    return { reached, missed: true, covered };
   }
-  return { reached, missed: false };
+  return { reached, missed: false, covered };
 }
 
 export function sweepZone(content: Content, zone: ZoneDef, sight: TerrainSight): ZoneSweep {
@@ -74,6 +83,7 @@ export function sweepZone(content: Content, zone: ZoneDef, sight: TerrainSight):
   let missedBefore: number = 0;
   const missed: string[] = [];
   let inWindow: number = 0;
+  let covered: number = 0;
   const window: Tally = { before: 0, after: [] };
   const bare: Tally = { before: 0, after: [] };
   for (let z: number = HIDDEN_SWEEP.spacing / 2; z < depth; z += HIDDEN_SWEEP.spacing) {
@@ -84,19 +94,30 @@ export function sweepZone(content: Content, zone: ZoneDef, sight: TerrainSight):
       if (clickMiss(sight, zone, x, z, false, 'surface') > HIDDEN_SWEEP.clickNear) missedBefore += 1;
       if (clickMiss(sight, zone, x, z, true) > HIDDEN_SWEEP.clickNear) missed.push(spot);
       const heroes: FloorSpot[] = heroesNear(grid, x, z);
-      const target: FloorSpot = { x, z };
-      if (missesFrom(sight, zone, heroes, target, null, 'surface').missed) bare.before += 1;
-      if (missesFrom(sight, zone, heroes, target, null, 'floor').missed) bare.after.push(spot);
+      const targets: FloorSpot[] = [{ x, z }, { x: x - HIDDEN_SWEEP.offGrid, z: z - HIDDEN_SWEEP.offGrid }].filter((target: FloorSpot): boolean => isWalkable(grid, target.x, target.z));
+      let front: boolean = false;
+      let bareBefore: boolean = false;
+      let bareAfter: boolean = false;
       let reached: boolean = false;
       let before: boolean = false;
       let after: boolean = false;
-      for (const radius of HIDDEN_SWEEP.radii) {
-        const old: Reach = missesFrom(sight, zone, heroes, target, radius, 'surface');
-        const now: Reach = missesFrom(sight, zone, heroes, target, radius, 'floor');
-        reached ||= old.reached;
-        before ||= old.missed;
-        after ||= now.missed;
+      for (const target of targets) {
+        bareBefore ||= missesFrom(sight, zone, heroes, target, null, 'surface').missed;
+        const bareNow: Reach = missesFrom(sight, zone, heroes, target, null, 'floor');
+        bareAfter ||= bareNow.missed;
+        front ||= bareNow.covered;
+        for (const radius of HIDDEN_SWEEP.radii) {
+          const old: Reach = missesFrom(sight, zone, heroes, target, radius, 'surface');
+          const now: Reach = missesFrom(sight, zone, heroes, target, radius, 'floor');
+          reached ||= old.reached;
+          before ||= old.missed;
+          after ||= now.missed;
+          front ||= now.covered;
+        }
       }
+      if (front) covered += 1;
+      if (bareBefore) bare.before += 1;
+      if (bareAfter) bare.after.push(spot);
       if (reached) inWindow += 1;
       if (before) window.before += 1;
       if (after) window.after.push(spot);
@@ -105,7 +126,7 @@ export function sweepZone(content: Content, zone: ZoneDef, sight: TerrainSight):
       if (heroHidden(sight, zone, x, z, true)) cutHidden.push(spot);
     }
   }
-  return { zone: zone.id, walkable, hidden, cutHidden, missedBefore, missed, inWindow, window, bare };
+  return { zone: zone.id, walkable, hidden, cutHidden, missedBefore, missed, inWindow, covered, window, bare };
 }
 
 export function sweepZones(content: Content): ZoneSweep[] {
@@ -123,11 +144,11 @@ export function sweepFailed(swept: readonly ZoneSweep[]): boolean {
 
 export function sweepLines(swept: readonly ZoneSweep[]): string[] {
   const lines: string[] = [
-    'zone | walkable m² | rock hides hero m² (no window) | hidden with window m² | click on hero lands off him m² (old rule, no window) | now, with window | floor inside a nearby hero’s open window m² | click there lands off it m² (old rule) | now | click with no window lands off the floor m² (old rule) | now',
-    '--- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---',
+    'zone | walkable m² | rock hides hero m² (no window) | hidden with window m² | click on hero lands off him m² (old rule, no window) | now, with window | floor inside a nearby hero’s open window m² | floor behind walkable floor nearer the camera m² (the click takes that floor) | click there lands off it m² (old rule) | now | click with no window lands off the floor m² (old rule) | now',
+    '--- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | ---',
   ];
   for (const zone of swept) {
-    lines.push(`${zone.zone} | ${zone.walkable} | ${zone.hidden} | ${zone.cutHidden.length} | ${zone.missedBefore} | ${zone.missed.length} | ${zone.inWindow} | ${zone.window.before} | ${zone.window.after.length} | ${zone.bare.before} | ${zone.bare.after.length}`);
+    lines.push(`${zone.zone} | ${zone.walkable} | ${zone.hidden} | ${zone.cutHidden.length} | ${zone.missedBefore} | ${zone.missed.length} | ${zone.inWindow} | ${zone.covered} | ${zone.window.before} | ${zone.window.after.length} | ${zone.bare.before} | ${zone.bare.after.length}`);
     if (zone.cutHidden.length > 0) lines.push(`  hidden with window at ${zone.cutHidden.slice(0, HIDDEN_SWEEP.listed).join(' ')}`);
     if (zone.missed.length > 0) lines.push(`  click lands off hero at ${zone.missed.slice(0, HIDDEN_SWEEP.listed).join(' ')}`);
     if (zone.window.after.length > 0) lines.push(`  click inside the window lands off the floor at ${zone.window.after.slice(0, HIDDEN_SWEEP.listed).join(' ')}`);

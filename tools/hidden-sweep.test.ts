@@ -28,12 +28,12 @@ void test('a click aimed at any walkable square metre lands on it in every zone,
 void test('the sweep report passes the live zones and fails, listing the floor, when any square metre stays hidden', (): void => {
   assert.equal(sweepFailed(swept), false);
   assert.match(sweepLines(swept).at(-1) ?? '', /^PASS/);
-  const clean: ZoneSweep = { zone: 'test', walkable: 4, hidden: 2, cutHidden: [], missedBefore: 1, missed: [], inWindow: 3, window: { before: 2, after: [] }, bare: { before: 3, after: [] } };
+  const clean: ZoneSweep = { zone: 'test', walkable: 4, hidden: 2, cutHidden: [], missedBefore: 1, missed: [], inWindow: 3, covered: 1, window: { before: 2, after: [] }, bare: { before: 3, after: [] } };
   assert.equal(sweepFailed([clean]), false);
   const broken: ZoneSweep[] = [{ ...clean, cutHidden: ['1.5,2.5'] }];
   assert.equal(sweepFailed(broken), true);
   const lines: string[] = sweepLines(broken);
-  assert.ok(lines.includes('test | 4 | 2 | 1 | 1 | 0 | 3 | 2 | 0 | 3 | 0'));
+  assert.ok(lines.includes('test | 4 | 2 | 1 | 1 | 0 | 3 | 1 | 2 | 0 | 3 | 0'));
   assert.ok(lines.includes('  hidden with window at 1.5,2.5'));
   assert.match(lines.at(-1) ?? '', /^FAIL/);
   assert.equal(sweepFailed([{ ...clean, window: { before: 2, after: ['0.5,0.5'] } }]), true);
