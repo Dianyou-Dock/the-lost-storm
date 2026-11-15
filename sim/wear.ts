@@ -45,6 +45,12 @@ export function baseLayerOf(content: Content, rig: string): readonly string[] {
   return body === undefined ? [] : (content.baseLayers.get(body) ?? []);
 }
 
+function fittedOver(content: Content, id: string, under: ReadonlySet<string>): string {
+  const fits: Readonly<Record<string, string>> = content.wearables.get(id)?.fits ?? {};
+  const fit: string | undefined = Object.keys(fits).find((name: string): boolean => under.has(name));
+  return fit === undefined ? id : (fits[fit] ?? id);
+}
+
 export function wornWearables(content: Content, rig: string, clothes: readonly string[], equipped: WornBases | null): string[] {
   const worn: Map<WearRegion, string> = new Map<WearRegion, string>();
   const put = (id: string): void => {
@@ -61,7 +67,12 @@ export function wornWearables(content: Content, rig: string, clothes: readonly s
     }
   }
   const covered: Set<WearRegion> = new Set<WearRegion>([...worn.values()].flatMap((id: string): readonly WearRegion[] => content.wearables.get(id)?.covers ?? []));
-  return [...worn].filter(([region]: [WearRegion, string]): boolean => !covered.has(region)).map(([, id]: [WearRegion, string]): string => id);
+  const shown: string[] = [...worn].filter(([region]: [WearRegion, string]): boolean => !covered.has(region)).map(([, id]: [WearRegion, string]): string => id);
+  const under: ReadonlySet<string> = new Set<string>(shown.flatMap((id: string): string[] => {
+    const fit: string | null | undefined = content.wearables.get(id)?.fit;
+    return fit === null || fit === undefined ? [] : [fit];
+  }));
+  return shown.map((id: string): string => fittedOver(content, id, under));
 }
 
 export function hiddenBodyParts(content: Content, wearableIds: readonly string[]): string[] {

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { must } from '../../test/support.ts';
 import { loadContent } from '../../sim/content/content.ts';
-import type { Content } from '../../sim/content/types.ts';
+import type { Content, ItemBaseDef } from '../../sim/content/types.ts';
 import { carriedPictures, PICTURE_BATCH } from '../../sim/pictures.ts';
 import type { Picture } from '../../sim/pictures.ts';
 import type { CharacterNeeds } from '../../sim/wear.ts';
@@ -10,7 +11,9 @@ import type { ItemInstance } from '../../sim/world/types.ts';
 import type { ItemPictures, PictureStudio } from './item-pictures.ts';
 import { createItemPictures, pictureCacheKey, pictureNeeds } from './item-pictures.ts';
 
-const content: Content = loadContent();
+const loaded: Content = loadContent();
+const plain: ItemBaseDef = { ...must(loaded.itemBases.get('gale_charm'), 'gale_charm'), id: 'plain_charm', wear: [] };
+const content: Content = { ...loaded, itemBases: new Map<string, ItemBaseDef>([...loaded.itemBases, [plain.id, plain]]) };
 
 interface Rig {
   readonly pictures: ItemPictures;
@@ -117,7 +120,7 @@ void test('an item nobody asked for yet is queued by looking at it, shows no pic
 
 void test('a base with no picture is never queued', async (): Promise<void> => {
   const made: Rig = rig();
-  assert.equal(made.pictures.image(item('gale_charm', 1)), null);
+  assert.equal(made.pictures.image(item('plain_charm', 1)), null);
   await made.pictures.settled();
   assert.deepEqual(made.paints, []);
 });

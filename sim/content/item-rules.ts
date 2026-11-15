@@ -14,7 +14,7 @@ function distinctStats(lines: readonly AffixDef[]): number {
   return new Set<StatId>(lines.map((line: AffixDef): StatId => line.stat)).size;
 }
 
-const WORN_LOOK_SLOTS: ReadonlySet<ItemSlot> = new Set<ItemSlot>(['head', 'chest', 'hands', 'legs', 'feet']);
+const WORN_LOOK_SLOTS: ReadonlySet<ItemSlot> = new Set<ItemSlot>(['head', 'chest', 'hands', 'legs', 'feet', 'charm']);
 
 const SLOT_REGIONS: Readonly<Record<ItemSlot, readonly WearRegion[]>> = {
   weapon: [],
@@ -23,7 +23,7 @@ const SLOT_REGIONS: Readonly<Record<ItemSlot, readonly WearRegion[]>> = {
   hands: ['hands'],
   legs: ['legs'],
   feet: ['feet'],
-  charm: [],
+  charm: ['neck'],
 };
 
 export function slotCovers(slot: ItemSlot | null, region: WearRegion): boolean {

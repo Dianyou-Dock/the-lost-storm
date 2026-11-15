@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { Box3, BufferGeometry } from 'three';
 import { BoxGeometry, BufferAttribute, Group, Mesh, MeshBasicMaterial, Vector3 } from 'three';
 import type { Timers } from '../backend/backend.ts';
-import { beyond, oneAtATime, oneGlove, THUMBNAIL, trunk } from './item-thumbnails.ts';
+import { beyond, hanging, oneAtATime, oneGlove, THUMBNAIL, trunk } from './item-thumbnails.ts';
 
 interface ManualTimers extends Timers {
   readonly due: (() => void)[];
@@ -107,6 +107,20 @@ void test('a pair of gloves is framed on one glove only', (): void => {
   const half: Box3 = oneGlove(merged);
   assert.ok(half.min.x >= 0.85 * THUMBNAIL.gloveFrom - 0.11);
   assert.ok(half.max.x > 0.84);
+});
+
+void test('a charm is framed on what hangs at the bottom of its cord, not the whole loop', (): void => {
+  const charm: Group = new Group();
+  const loop: BoxGeometry = new BoxGeometry(0.3, 0.3, 0.01, 1, 30, 1);
+  loop.translate(0, 0.15, 0);
+  const pendant: BoxGeometry = new BoxGeometry(0.03, 0.03, 0.01);
+  pendant.translate(0.002, -0.015, 0);
+  charm.add(new Mesh(loop, new MeshBasicMaterial()), new Mesh(pendant, new MeshBasicMaterial()));
+  const framed: Box3 = hanging(charm);
+  const size: Vector3 = framed.getSize(new Vector3());
+  assert.ok(Math.abs(framed.min.y + 0.03) < 1e-6);
+  assert.ok(framed.max.y <= -0.03 + 0.33 * THUMBNAIL.charmShare + 1e-6);
+  assert.ok(size.y < 0.33 * 0.5);
 });
 
 function count(geometry: BufferGeometry, name: string): number {

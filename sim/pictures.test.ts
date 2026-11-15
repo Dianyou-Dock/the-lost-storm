@@ -8,7 +8,9 @@ import { carriedPictures, goodsPictures, hasPicture, nextBatch, pictureKey, pict
 import type { Picture } from './pictures.ts';
 import type { ItemInstance } from './world/types.ts';
 
-const content: Content = loadContent();
+const loaded: Content = loadContent();
+const plain: ItemBaseDef = { ...must(loaded.itemBases.get('gale_charm'), 'gale_charm'), id: 'plain_charm', wear: [] };
+const content: Content = { ...loaded, itemBases: new Map<string, ItemBaseDef>([...loaded.itemBases, [plain.id, plain]]) };
 
 function base(id: string): ItemBaseDef {
   return must(content.itemBases.get(id), id);
@@ -25,8 +27,8 @@ void test('a weapon is pictured from its held model, a garment from its first wo
 });
 
 void test('a base with no model and no book has no picture, so its tile may show its symbol at once', (): void => {
-  assert.equal(pictureSource(base('gale_charm')).kind, 'none');
-  assert.equal(hasPicture(base('gale_charm')), false);
+  assert.equal(pictureSource(base('plain_charm')).kind, 'none');
+  assert.equal(hasPicture(base('plain_charm')), false);
   assert.equal(hasPicture(base('worn_journal')), true);
   assert.equal(hasPicture(null), false);
 });
@@ -46,14 +48,14 @@ void test('what the hero wears comes before what the pack holds, each picture on
   const equipped = emptyEquipment();
   equipped.chest = item('warden_jerkin', 1);
   equipped.weapon = item('stormsteel_sword', 2);
-  const inventory: (ItemInstance | null)[] = [item('worn_journal', 3), null, item('warden_jerkin', 4), item('gale_charm', 5), item('hexwood_staff', 6)];
+  const inventory: (ItemInstance | null)[] = [item('worn_journal', 3), null, item('warden_jerkin', 4), item('plain_charm', 5), item('hexwood_staff', 6)];
   const keys: string[] = carriedPictures(content, { equipped, inventory }).map((picture: Picture): string => picture.key);
   assert.deepEqual(keys.slice(0, 2).toSorted(), ['sword_1h', 'worn:warden_jerkin']);
   assert.deepEqual(keys.slice(2), ['book:worn_journal', 'hex_staff']);
 });
 
 void test('items with no picture and empty slots are left out', (): void => {
-  assert.deepEqual(picturesOf(content, [null, item('gale_charm', 1), null]), []);
+  assert.deepEqual(picturesOf(content, [null, item('plain_charm', 1), null]), []);
 });
 
 void test('the pictures wait in batches so each round is small', (): void => {

@@ -35,6 +35,9 @@ export const THUMBNAIL = {
   wornTilt: 0.12,
   headTilt: 0.42,
   headTurn: 0.5,
+  charmTilt: 0.18,
+  charmTurn: -0.25,
+  charmShare: 0.22,
   wideFrom: 2,
   sleeveLift: Math.PI / 2,
   sleeveHang: -Math.PI / 2,
@@ -161,6 +164,7 @@ function dressed(wearable: LoadedWearable, skinTint: string, made: Made): Group 
   const turned: Group = new Group();
   if (glove) turned.rotation.set(0, 0, THUMBNAIL.gloveRaise);
   else if (wearable.def.region === 'head') turned.rotation.set(THUMBNAIL.headTilt, THUMBNAIL.headTurn, 0);
+  else if (wearable.def.region === 'neck') turned.rotation.set(THUMBNAIL.charmTilt, THUMBNAIL.charmTurn, 0);
   else turned.rotation.set(THUMBNAIL.wornTilt, THUMBNAIL.wornTurn, 0);
   let cuff: { readonly from: number; readonly inner: number; readonly outer: number } | null = null;
   for (const piece of wearable.pieces) {
@@ -254,6 +258,17 @@ export function oneGlove(posed: Group): Box3 {
   return box.isEmpty() ? boundsOf(posed) : box;
 }
 
+export function hanging(posed: Group): Box3 {
+  const whole: Box3 = boundsOf(posed);
+  const below: number = whole.min.y + (whole.max.y - whole.min.y) * THUMBNAIL.charmShare;
+  const box: Box3 = new Box3();
+  eachVertex(posed, (local: Vector3, placed: Matrix4): void => {
+    const point: Vector3 = local.clone().applyMatrix4(placed);
+    if (point.y <= below) box.expandByPoint(point);
+  });
+  return box.isEmpty() ? whole : box;
+}
+
 function framing(wearable: LoadedWearable): (posed: Group) => Box3 {
   let frame: (posed: Group) => Box3 = oneSleeve;
   switch (wearable.def.region) {
@@ -266,6 +281,9 @@ function framing(wearable: LoadedWearable): (posed: Group) => Box3 {
     case 'hair':
     case 'head':
       frame = boundsOf;
+      break;
+    case 'neck':
+      frame = hanging;
       break;
     case 'shoulders':
     case 'arms':

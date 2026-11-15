@@ -95,6 +95,7 @@
       "Ranger_Arms"
     ],
     "region": "chest",
+    "fit": "coat",
     "tint": "#9a7452",
     "hides": []
   },
@@ -176,6 +177,7 @@
       "Ranger_Pauldron"
     ],
     "region": "chest",
+    "fit": "coat",
     "tint": "#ffffff",
     "hides": []
   },
@@ -190,6 +192,7 @@
       "Ranger_Pauldron"
     ],
     "region": "chest",
+    "fit": "coat",
     "tint": "#cfe0f2",
     "hides": []
   },
@@ -204,6 +207,7 @@
       "Ranger_Pauldron"
     ],
     "region": "chest",
+    "fit": "coat",
     "tint": "#5d6f86",
     "hides": []
   },
@@ -241,6 +245,7 @@
       "Ranger_Pauldron"
     ],
     "region": "chest",
+    "fit": "coat",
     "tint": "#8a8378",
     "hides": []
   },
@@ -265,6 +270,7 @@
       "Ranger_Arms"
     ],
     "region": "chest",
+    "fit": "coat",
     "tint": "#5b4634",
     "hides": []
   },
@@ -379,6 +385,7 @@
       "Ranger_Arms"
     ],
     "region": "chest",
+    "fit": "coat",
     "tint": "#3a3530",
     "hides": []
   },
@@ -508,6 +515,7 @@
       "Ranger_Arms"
     ],
     "region": "chest",
+    "fit": "coat",
     "tint": "#6e5a40",
     "hides": []
   },
@@ -567,6 +575,7 @@
       "Ranger_Arms"
     ],
     "region": "chest",
+    "fit": "coat",
     "tint": "#d6bc9a",
     "hides": []
   },
@@ -924,6 +933,144 @@
       "tip": "storm_tip",
       "lining": "dark_leather"
     },
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "gale_charm",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Gale_Charm"
+    ],
+    "region": "neck",
+    "fits": {
+      "coat": "gale_charm_coat"
+    },
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "gale_charm_coat",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Gale_Charm_Coat"
+    ],
+    "region": "neck",
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "ember_charm",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Ember_Charm"
+    ],
+    "region": "neck",
+    "fits": {
+      "coat": "ember_charm_coat"
+    },
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "ember_charm_coat",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Ember_Charm_Coat"
+    ],
+    "region": "neck",
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "gilded_token",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Gilded_Token"
+    ],
+    "region": "neck",
+    "fits": {
+      "coat": "gilded_token_coat"
+    },
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "gilded_token_coat",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Gilded_Token_Coat"
+    ],
+    "region": "neck",
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "tidestone_charm",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Tidestone_Charm"
+    ],
+    "region": "neck",
+    "fits": {
+      "coat": "tidestone_charm_coat"
+    },
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "tidestone_charm_coat",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Tidestone_Charm_Coat"
+    ],
+    "region": "neck",
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "storm_idol",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Storm_Idol"
+    ],
+    "region": "neck",
+    "fits": {
+      "coat": "storm_idol_coat"
+    },
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "storm_idol_coat",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Storm_Idol_Coat"
+    ],
+    "region": "neck",
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "lantern_of_second_sounds",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Lantern_Charm"
+    ],
+    "region": "neck",
+    "fits": {
+      "coat": "lantern_of_second_sounds_coat"
+    },
+    "tint": "#ffffff",
+    "hides": []
+  },
+  {
+    "id": "lantern_of_second_sounds_coat",
+    "model": "models/wear/{frame}/charms.glb",
+    "pieces": [
+      "Lantern_Charm_Coat"
+    ],
+    "region": "neck",
     "tint": "#ffffff",
     "hides": []
   }

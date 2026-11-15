@@ -238,3 +238,20 @@ void test('a wearable may only cover a wear region and dress its materials in su
   assert.ok(contentProblems(undressed).some((found: string): boolean => found.includes('wearable test_veil dresses cloth in unknown surface no_such_surface')));
   assert.throws((): Content => parseContent({ ...RAW_CONTENT, wearables: [...shipped, { ...piece, covers: ['tail'] }] }), (error: unknown): boolean => error instanceof ContentError && error.message.includes('covers'));
 });
+
+void test('a charm over a coat is drawn in its coat fit, and over a shirt or bare in its own', (): void => {
+  const charms: string[] = [...content.itemBases.values()].filter((base): boolean => base.slot === 'charm' && base.wear.length > 0).map((base): string => base.id);
+  assert.ok(charms.length > 0);
+  for (const rig of content.player.heroes.map((hero): string => hero.rig)) {
+    for (const charm of charms) {
+      const own: string = must(content.itemBases.get(charm)?.wear[0], charm);
+      const fitted: string = must(content.wearables.get(own)?.fits['coat'], own);
+      const coat: readonly string[] = lookOf(content, rig, heroBase(content, rig), wornBasesOf({ chest: 'traveller_coat', charm })).wearables;
+      const shirt: readonly string[] = lookOf(content, rig, heroBase(content, rig), wornBasesOf({ chest: 'saltworn_shirt', charm })).wearables;
+      const bare: readonly string[] = lookOf(content, rig, heroBase(content, rig), wornBasesOf({ charm })).wearables;
+      assert.ok(coat.includes(fitted) && !coat.includes(own), `${rig} ${charm} over a coat`);
+      assert.ok(shirt.includes(own) && !shirt.includes(fitted), `${rig} ${charm} over a shirt`);
+      assert.ok(bare.includes(own), `${rig} ${charm} bare`);
+    }
+  }
+});
