@@ -17,190 +17,103 @@ body.touch .globe-flask {
 }
 
 .flask-vessel {
+  --fu: 1px;
   position: relative;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
-  width: 44px;
+  gap: 3px;
+  width: calc(var(--fu) * 26);
   pointer-events: none;
-}
-
-.fv-tilt {
-  position: relative;
-  width: 44px;
-  height: 55px;
-  transform-origin: 50% 85%;
-  transition:
-    rotate var(--spring-bouncy-ms) var(--spring-bouncy),
-    scale var(--spring-bouncy-ms) var(--spring-bouncy),
-    translate var(--spring-bouncy-ms) var(--spring-bouncy),
-    opacity var(--spring-smooth-ms) var(--spring-smooth);
-}
-
-.fv-tilt::before {
-  content: '';
-  position: absolute;
-  inset: -10px -12px -6px;
-  opacity: 0;
-  transition: opacity var(--spring-smooth-ms) var(--spring-smooth);
-}
-
-.flask-vessel.life .fv-tilt::before {
-  background: radial-gradient(closest-side at 50% 62%, rgba(220, 70, 70, 0.4), rgba(220, 70, 70, 0));
-}
-
-.flask-vessel.mana .fv-tilt::before {
-  background: radial-gradient(closest-side at 50% 62%, rgba(130, 170, 240, 0.4), rgba(130, 170, 240, 0));
-}
-
-.flask-vessel.fv-pouring .fv-tilt::before,
-.flask-vessel.fv-gained .fv-tilt::before {
-  opacity: 1;
-}
-
-.flask-vessel.life.fv-tipped .fv-tilt {
-  rotate: -18deg;
-}
-
-.flask-vessel.mana.fv-tipped .fv-tilt {
-  rotate: 18deg;
-}
-
-.flask-vessel.fv-refused .fv-tilt {
-  scale: 0.8;
-  translate: -4px 0;
-  opacity: 1;
-}
-
-.flask-vessel.fv-refused .fv-tilt::before {
-  opacity: 1;
-  background: radial-gradient(closest-side at 50% 62%, rgba(150, 140, 130, 0.45), rgba(150, 140, 130, 0));
-}
-
-.flask-vessel.fv-empty .fv-tilt {
-  opacity: 0.62;
 }
 
 .fv-art {
   position: relative;
+  width: 100%;
+  height: calc(var(--fu) * 66);
+  transition:
+    translate var(--spring-snappy-ms) var(--spring-snappy),
+    opacity var(--spring-smooth-ms) var(--spring-smooth);
+}
+
+.fv-art canvas {
+  position: absolute;
+  left: 0;
+  top: 0;
   display: block;
   width: 100%;
+}
+
+.fv-layer {
   height: 100%;
-  overflow: visible;
 }
 
-.fv-glass {
-  fill: rgba(8, 10, 15, 0.8);
-  transition: fill var(--spring-smooth-ms) var(--spring-smooth);
-}
-
-.flask-vessel.fv-empty .fv-glass {
-  fill: rgba(8, 10, 15, 0.5);
-}
-
-.fv-rim {
-  fill: none;
-  stroke: rgba(244, 234, 216, 0.2);
-  stroke-width: 0.7;
-}
-
-.fv-shine {
-  fill: none;
-  stroke: rgba(255, 255, 255, 0.42);
-  stroke-width: 1.1;
-  stroke-linecap: round;
-}
-
-.fv-cork {
-  fill: #6e5843;
+.fv-fluid {
+  position: absolute;
+  inset: 0;
+  mask-size: 100% 100%;
+  -webkit-mask-size: 100% 100%;
 }
 
 .fv-liquid {
+  transition: clip-path var(--spring-smooth-ms) var(--spring-smooth);
+}
+
+.fv-surface {
   transition:
-    transform var(--spring-smooth-ms) var(--spring-smooth),
-    filter var(--spring-smooth-ms) var(--spring-smooth);
+    translate var(--spring-smooth-ms) var(--spring-smooth),
+    opacity var(--spring-smooth-ms) var(--spring-smooth);
 }
 
-.flask-vessel.fv-pouring .fv-liquid {
-  filter: brightness(1.25);
+.flask-vessel.fv-empty .fv-art {
+  opacity: 0.78;
 }
 
-.flask-vessel.fv-gained .fv-liquid {
-  filter: brightness(1.55);
-}
-
-.flask-vessel.life .fv-surface {
-  fill: rgba(255, 190, 190, 0.4);
-}
-
-.flask-vessel.mana .fv-surface {
-  fill: rgba(210, 225, 255, 0.45);
+.flask-vessel.fv-refused .fv-art {
+  translate: 0 2px;
 }
 
 .fv-key {
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: 29px;
-  text-align: center;
   font-family: var(--sans);
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1;
-  color: rgba(244, 234, 216, 0.95);
+  color: rgba(244, 234, 216, 0.85);
   text-shadow:
     0 1px 2px rgba(0, 0, 0, 0.95),
     0 0 4px rgba(0, 0, 0, 0.7);
+  transition: opacity var(--spring-smooth-ms) var(--spring-smooth);
 }
 
-.fv-pips {
-  display: flex;
-  gap: 7px;
-  height: 8px;
-  align-items: center;
+.flask-vessel.fv-empty .fv-key {
+  opacity: 0.45;
 }
 
-.fv-pip {
-  width: 6px;
-  height: 6px;
-  border-radius: 1px;
-  rotate: 45deg;
-  scale: 0.75;
-  background-color: rgba(244, 234, 216, 0.18);
-  transition:
-    background-color var(--spring-smooth-ms) var(--spring-smooth),
-    scale var(--spring-bouncy-ms) var(--spring-bouncy);
+.fv-bar {
+  position: absolute;
+  left: 50%;
+  bottom: -4px;
+  width: calc(var(--fu) * 12);
+  height: 1px;
+  margin-left: calc(var(--fu) * -6);
+  background: rgba(244, 234, 216, 0.55);
+  scale: 0 1;
+  transition: scale var(--spring-smooth-ms) var(--spring-smooth);
 }
 
-.flask-vessel.life .fv-pip.fv-on {
-  scale: 1;
-  background-color: #e0505b;
+.flask-vessel.fv-keyed .fv-bar {
+  bottom: 6px;
+  width: 15px;
+  height: 1px;
+  margin-left: -7.5px;
 }
 
-.flask-vessel.mana .fv-pip.fv-on {
-  scale: 1;
-  background-color: #86a8e0;
+.flask-vessel.fv-empty .fv-bar {
+  scale: 1 1;
 }
 
 .tc-btn.flask .flask-vessel {
-  width: 28px;
-  gap: 3px;
-}
-
-.tc-btn.flask .fv-tilt {
-  width: 26px;
-  height: 32px;
-}
-
-.tc-btn.flask .fv-pips {
-  gap: 4px;
-  height: 5px;
-}
-
-.tc-btn.flask .fv-pip {
-  width: 4px;
-  height: 4px;
+  --fu: 0.62px;
 }
 
 .globe-restore {

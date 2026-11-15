@@ -352,10 +352,11 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
       el('span', 'tc-icon', root);
       return { spec, root, ring: ringEl, vessel: null, turn: -1, dim: null };
     }
-    const resource: FlaskResource | undefined = world.player.flasks[spec.slot]?.def.resource;
+    const flask: FlaskState | undefined = world.player.flasks[spec.slot];
+    const resource: FlaskResource | undefined = flask?.def.resource;
     if (resource !== undefined) tagPart(root, resource);
     root.setAttribute('aria-label', spec.label);
-    return { spec, root, ring: ringEl, vessel: resource === undefined ? null : createVessel(root, resource, false), turn: -1, dim: null };
+    return { spec, root, ring: ringEl, vessel: resource === undefined || flask === undefined ? null : createVessel(root, resource, false, readFlask(flask)), turn: -1, dim: null };
   };
 
   const buildButtons = (specs: readonly TouchButton[]): void => {

@@ -17,8 +17,9 @@ export interface FlaskBelt {
 
 export function createFlaskBelt(hosts: FlaskHosts, flasks: readonly FlaskState[], keyOf: (slot: number) => string, setRestoring: (resource: FlaskResource, on: boolean) => void): FlaskBelt {
   const vessels: FlaskVessel[] = flasks.map((flask: FlaskState): FlaskVessel => {
-    const vessel: FlaskVessel = createVessel(hosts.flask(flask.def.resource), flask.def.resource, true);
-    vessel.paint(readFlask(flask));
+    const reading: FlaskReading = readFlask(flask);
+    const vessel: FlaskVessel = createVessel(hosts.flask(flask.def.resource), flask.def.resource, true, reading);
+    vessel.paint(reading);
     return vessel;
   });
   const showKeys = (animate: boolean): void => {

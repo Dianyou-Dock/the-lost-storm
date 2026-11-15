@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { FlaskReading } from './flask-gauge.ts';
-import { flaskCue, flaskGauge, flaskUses, sameGauge } from './flask-gauge.ts';
+import { flaskCue, flaskGauge, flaskTicks, flaskUses, sameGauge } from './flask-gauge.ts';
 
 void test('a full flask counts every whole use it holds', (): void => {
   assert.equal(flaskUses({ charges: 30, chargesPerUse: 10 }), 3);
@@ -49,4 +49,16 @@ void test('fewer charges than before is a drink, more is a refill, and the first
   assert.equal(flaskCue(FULL, { ...FULL, charges: 20 }), 'drank');
   assert.equal(flaskCue({ ...FULL, charges: 20 }, { ...FULL, charges: 23 }), 'gained');
   assert.equal(flaskCue(FULL, { ...FULL, restoring: true }), null);
+});
+
+void test('a flask has one tick per whole use, each at the level that use ends on', (): void => {
+  assert.deepEqual(flaskTicks(30, 10), [10 / 30, 20 / 30, 1]);
+  const mana: readonly number[] = flaskTicks(30, 8);
+  assert.equal(mana.length, 3);
+  assert.equal(mana[2], 24 / 30);
+});
+
+void test('a flask with no capacity or no cost per use has no ticks', (): void => {
+  assert.deepEqual(flaskTicks(0, 10), []);
+  assert.deepEqual(flaskTicks(30, 0), []);
 });

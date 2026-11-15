@@ -50,3 +50,9 @@ export function flaskCue(before: FlaskReading | null, now: FlaskReading): FlaskC
 export function sameGauge(a: FlaskGauge | null, b: FlaskGauge): boolean {
   return a !== null && a.level === b.level && a.uses === b.uses && a.maxUses === b.maxUses && a.empty === b.empty && a.restoring === b.restoring;
 }
+
+export function flaskTicks(maxCharges: number, chargesPerUse: number): readonly number[] {
+  if (maxCharges <= 0 || chargesPerUse <= 0) return [];
+  const uses: number = flaskUses({ charges: maxCharges, chargesPerUse });
+  return Array.from({ length: uses }, (_unused: unknown, index: number): number => ((index + 1) * chargesPerUse) / maxCharges);
+}
