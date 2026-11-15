@@ -225,7 +225,13 @@
         "pitch": 0,
         "roll": 0,
         "yawJitter": 180
-      }
+      },
+      "variants": [
+        {
+          "skill": "cleave",
+          "becomes": "spell_strike"
+        }
+      ]
     },
     {
       "id": "hand_crossbow",
@@ -1216,7 +1222,13 @@
         "pitch": 0,
         "roll": 0,
         "yawJitter": 180
-      }
+      },
+      "variants": [
+        {
+          "skill": "cleave",
+          "becomes": "spell_strike"
+        }
+      ]
     },
     {
       "id": "woodsman_hatchet",
@@ -1427,7 +1439,13 @@
         "pitch": 0,
         "roll": 0,
         "yawJitter": 180
-      }
+      },
+      "variants": [
+        {
+          "skill": "cleave",
+          "becomes": "spell_strike"
+        }
+      ]
     },
     {
       "id": "iron_maul",
@@ -1699,7 +1717,13 @@
         "pitch": 0,
         "roll": 0,
         "yawJitter": 180
-      }
+      },
+      "variants": [
+        {
+          "skill": "cleave",
+          "becomes": "spell_strike"
+        }
+      ]
     },
     {
       "id": "gale_repeater",
@@ -1986,7 +2010,13 @@
         "pitch": 0,
         "roll": 0,
         "yawJitter": 180
-      }
+      },
+      "variants": [
+        {
+          "skill": "cleave",
+          "becomes": "spell_strike"
+        }
+      ]
     },
     {
       "id": "fordbreaker",
@@ -2186,7 +2216,13 @@
         "pitch": 0,
         "roll": 0,
         "yawJitter": 180
-      }
+      },
+      "variants": [
+        {
+          "skill": "cleave",
+          "becomes": "spell_strike"
+        }
+      ]
     },
     {
       "id": "cairn_maul",
@@ -2340,7 +2376,13 @@
         "pitch": 0,
         "roll": 0,
         "yawJitter": 180
-      }
+      },
+      "variants": [
+        {
+          "skill": "cleave",
+          "becomes": "spell_strike"
+        }
+      ]
     },
     {
       "id": "gullwing_blade",
@@ -3719,7 +3761,13 @@
             }
           }
         ]
-      }
+      },
+      "variants": [
+        {
+          "skill": "cleave",
+          "becomes": "spell_strike"
+        }
+      ]
     },
     {
       "id": "mist_treader_boots",
