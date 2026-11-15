@@ -18,6 +18,24 @@ export interface Organization {
   readonly url: string;
 }
 
+export interface SitePicture {
+  readonly path: string;
+  readonly width: number;
+  readonly height: number;
+  readonly caption: string;
+}
+
+export interface SiteVideo {
+  readonly path: string;
+  readonly poster: string;
+  readonly width: number;
+  readonly height: number;
+  readonly duration: string;
+  readonly uploaded: string;
+  readonly name: string;
+  readonly description: string;
+}
+
 export interface SiteFacts {
   readonly origin: string;
   readonly name: string;
@@ -31,6 +49,8 @@ export interface SiteFacts {
   readonly playPath: string;
   readonly image: ShareImage;
   readonly publisher: Organization;
+  readonly screenshots: readonly SitePicture[];
+  readonly trailer: SiteVideo;
 }
 
 export const SITE: SiteFacts = {
@@ -46,6 +66,20 @@ export const SITE: SiteFacts = {
   playPath: '/play/',
   image: { path: '/og.jpg', width: 1200, height: 630, alt: 'The hero stands with a sword in a shaft of pale light in the mist, beside the words The Lost Storm.' },
   publisher: { name: 'Mergestorm', url: 'https://mergestorm.ai' },
+  screenshots: [
+    { path: '/landing/tree-1200.webp', width: 1200, height: 675, caption: 'The Skill Tree: five paths spiral out from the centre, and a lightning build lights up the Gathering Storm.' },
+    { path: '/landing/hideout-1200.webp', width: 1200, height: 675, caption: 'The Hideout at night: a fire, lamps, and the Wardens who keep the trade, the auction and the waypoint.' },
+  ],
+  trailer: {
+    path: '/landing/fight.mp4',
+    poster: '/landing/fight-poster.webp',
+    width: 1280,
+    height: 720,
+    duration: 'PT6.6S',
+    uploaded: '2026-11-14T23:50:53Z',
+    name: 'The Lost Storm gameplay: a fight in the Hall of Time',
+    description: 'In the rain on the black shore of the Hall of Time, the hero cuts down a pack of pale echoes; damage numbers rise and gear drops where they fall.',
+  },
 };
 
 export type ShareKind = 'website' | 'article';
@@ -110,6 +144,25 @@ function gameRef(): JsonObject {
   return { '@type': 'VideoGame', name: SITE.name, url: absolute('/') };
 }
 
+function picture(entry: SitePicture): JsonObject {
+  return { '@type': 'ImageObject', contentUrl: absolute(entry.path), url: absolute(entry.path), width: entry.width, height: entry.height, caption: entry.caption };
+}
+
+function video(entry: SiteVideo): JsonObject {
+  return {
+    '@type': 'VideoObject',
+    name: entry.name,
+    description: entry.description,
+    thumbnailUrl: [absolute(entry.poster)],
+    uploadDate: entry.uploaded,
+    duration: entry.duration,
+    contentUrl: absolute(entry.path),
+    width: entry.width,
+    height: entry.height,
+    inLanguage: SITE.language,
+  };
+}
+
 export function webSite(): JsonObject {
   return { ...siteRef(), '@id': absolute('/#website'), description: SITE.description, inLanguage: SITE.language, publisher: organization() };
 }
@@ -127,6 +180,8 @@ export function videoGame(): JsonObject {
     inLanguage: SITE.language,
     isAccessibleForFree: true,
     offers: { '@type': 'Offer', price: '0', priceCurrency: SITE.currency, url: absolute(SITE.playPath) },
+    screenshot: SITE.screenshots.map(picture),
+    trailer: video(SITE.trailer),
     publisher: organization(),
   };
 }

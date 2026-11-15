@@ -10,7 +10,6 @@ import type { Pass } from 'three/addons/postprocessing/Pass.js';
 import type { QualityTier } from '../mobile/quality.ts';
 import { pixelRatioFor } from '../mobile/quality.ts';
 import { frameGuardPass } from './frame-guard.ts';
-import { postBufferTarget, scenePass } from './scene-pass.ts';
 import { RIM_LIGHT } from './character-loader.ts';
 import { aimCutaway } from './prop-cutaway.ts';
 import { ditheredOutputPass } from './output-dither.ts';
@@ -186,14 +185,13 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
   let builtSeam: Pass | null = null;
 
   const buildComposer = (): EffectComposer => {
-    const samples: number = Math.min(STAGE.samples, tier.msaaSamples);
-    const made: EffectComposer = new EffectComposer(renderer, postBufferTarget(samples === 0));
-    if (samples > 0) made.addPass(scenePass(scene, camera, samples, builtBloom).pass);
-    else {
-      made.addPass(new RenderPass(scene, camera));
-      if (builtBloom) made.addPass(frameGuardPass());
+    const target: WebGLRenderTarget = new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: Math.min(STAGE.samples, tier.msaaSamples) });
+    const made: EffectComposer = new EffectComposer(renderer, target);
+    made.addPass(new RenderPass(scene, camera));
+    if (builtBloom) {
+      made.addPass(frameGuardPass());
+      made.addPass(new UnrealBloomPass(new Vector2(1, 1), STAGE.bloomStrength, STAGE.bloomRadius, STAGE.bloomThreshold));
     }
-    if (builtBloom) made.addPass(new UnrealBloomPass(new Vector2(1, 1), STAGE.bloomStrength, STAGE.bloomRadius, STAGE.bloomThreshold));
     if (builtFinish !== null) made.addPass(builtFinish);
     made.addPass(ditheredOutputPass());
     if (builtSeam !== null) made.addPass(builtSeam);

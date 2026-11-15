@@ -1,9 +1,10 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import type { GuidePage } from '../guide/site.ts';
 import { fillShell, GUIDE_PAGES, guideCrumbs, shellHtml } from '../guide/site.ts';
 import { HIDDEN_PAGES, indexedPages } from './crawl.ts';
+import type { SitePicture } from './head.ts';
 import { absolute, fillHome, HOME_LD_MARK, SITE } from './head.ts';
 
 interface CrawledPage {
@@ -167,6 +168,25 @@ void test('the home page describes the site and the game in JSON-LD', (): void =
   assert.equal(text(offer, 'price'), '0');
   assert.equal(text(offer, 'priceCurrency'), SITE.currency);
   checkOrganization(child(game, 'publisher'));
+  const shots: readonly unknown[] = list(game, 'screenshot');
+  assert.equal(shots.length, SITE.screenshots.length);
+  for (const shot of shots) {
+    assert.ok(isFields(shot));
+    assert.equal(shot['@type'], 'ImageObject');
+    assert.ok(text(shot, 'contentUrl').startsWith(`${SITE.origin}/`));
+    assert.ok(typeof shot['width'] === 'number' && typeof shot['height'] === 'number');
+  }
+  const trailer: Fields = child(game, 'trailer');
+  assert.equal(trailer['@type'], 'VideoObject');
+  for (const key of ['name', 'description', 'uploadDate', 'contentUrl', 'duration']) text(trailer, key);
+  assert.match(text(trailer, 'uploadDate'), /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
+  assert.match(text(trailer, 'duration'), /^PT(?:\d+M)?\d+(?:\.\d+)?S$/);
+  assert.ok(list(trailer, 'thumbnailUrl').length > 0);
+});
+
+void test('every file named in the home page JSON-LD is shipped in public', (): void => {
+  const named: readonly string[] = [SITE.image.path, SITE.trailer.path, SITE.trailer.poster, ...SITE.screenshots.map((shot: SitePicture): string => shot.path)];
+  for (const path of named) assert.ok(existsSync(`public${path}`), `public${path} does not exist`);
 });
 
 void test('every guide page carries a breadcrumb trail and an article that match the page', (): void => {
