@@ -404,3 +404,22 @@ void test('Ghost Wave rolls through every enemy in its lane once, reaching the f
   assert.equal(struck.has(aside.id), false);
   assert.equal(damageTo(run(world, 1), near.id).length, 0);
 });
+
+void test('Spell Strike lands on the enemy ahead the moment its windup ends, with nothing in flight', (): void => {
+  const strike: SkillDef = shapeSkill('spell_strike');
+  const step: number = 1 / 600;
+  const world: World = shapeArena(['spell_strike']);
+  const target: MonsterState = dummy(world, offset(0, 8));
+  const marks: { struck: number | null } = { struck: null };
+  let clock: number = 0;
+  const watch = (events: readonly WorldEvent[]): void => {
+    for (const event of events) if (event.type === 'damage' && event.targetId === target.id && marks.struck === null) marks.struck = clock;
+  };
+  watch(stepWorld(world, [{ type: 'skill', slot: 0, aim: target.pos, targetId: null }], step));
+  for (let index: number = 0; index < 600 && marks.struck === null; index += 1) {
+    clock += step;
+    watch(stepWorld(world, [], step));
+  }
+  assert.ok(Math.abs(must(marks.struck, 'struck') - strike.windup) < step * 2);
+  assert.equal(world.projectiles.length, 0);
+});

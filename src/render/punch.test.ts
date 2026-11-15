@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Vec2 } from '../../sim/math.ts';
-import { dustHeadings, PUNCH, punchRoll, swungFrom } from './punch.ts';
+import { dustHeadings, PUNCH, punchRoll, reachedFrom, swungFrom } from './punch.ts';
 
 void test('a punch varies its sparks, swing and turn within the tuning and never drops to no sparks', (): void => {
   const low = punchRoll(10, (): number => 0);
@@ -35,4 +35,13 @@ void test('a swing moves the start of the strike sideways and keeps its distance
   assert.ok(Math.abs(Math.abs(swung.x) - 0.3) < 1e-9);
   assert.equal(swung.z, 0);
   assert.deepEqual(swungFrom(from, from, 0.3), from);
+});
+
+void test('a strike starts at the hand reach toward its target, and a close target still gets a strike from the near half', (): void => {
+  const from: Vec2 = { x: 0, z: 0 };
+  const reached: Vec2 = reachedFrom(from, { x: 0, z: 5 }, 0.9);
+  assert.equal(reached.x, 0);
+  assert.ok(Math.abs(reached.z - 0.9) < 1e-9);
+  assert.deepEqual(reachedFrom(from, { x: 0, z: 0.5 }, 0.9), { x: 0, z: 0.5 * PUNCH.closeShare });
+  assert.deepEqual(reachedFrom(from, from, 0.9), from);
 });

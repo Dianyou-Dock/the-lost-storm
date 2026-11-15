@@ -1382,5 +1382,87 @@
         "quiet": 2.2
       }
     }
+  },
+  {
+    "id": "spell_strike",
+    "name": "Spell Strike",
+    "description": "A flick of the hand and a knot of light snaps into the nearest enemy ahead, with a crack of dust off the ground.",
+    "icon": "forkline",
+    "animation": "cast",
+    "manaCost": 2,
+    "cooldown": 0,
+    "windup": 0.27,
+    "recovery": 0.1,
+    "scalesWithAttackSpeed": false,
+    "engageRange": 10,
+    "delivery": {
+      "type": "chain",
+      "range": 10,
+      "jumps": 0,
+      "jumpRange": 1,
+      "falloff": 1
+    },
+    "damage": {
+      "weaponPercent": 0.9,
+      "flatMin": 1,
+      "flatMax": 3
+    },
+    "knockback": 2,
+    "stagger": 0.1,
+    "shake": 0.12,
+    "hitStop": 0.04,
+    "category": "single",
+    "vfx": {
+      "style": "fork",
+      "color": "#bff3ff",
+      "cue": "none",
+      "light": 0.5,
+      "lightning": {
+        "forks": 0,
+        "glow": 0.8,
+        "afterglow": 0.12,
+        "jitter": 0.25,
+        "width": 1.1,
+        "core": 1.4
+      },
+      "impact": {
+        "sparks": 12,
+        "flash": 1.1
+      },
+      "gather": {
+        "radius": 0.14,
+        "lift": 0.1,
+        "size": [
+          0,
+          0.2,
+          0.45,
+          0.8,
+          1,
+          0.95,
+          0.8,
+          0.65,
+          0.55,
+          0.5
+        ],
+        "glow": [
+          0,
+          0.05,
+          0.1,
+          0.35,
+          0.6,
+          0.6,
+          0.45,
+          0.4,
+          0.55,
+          1
+        ],
+        "dust": 60,
+        "light": 2
+      },
+      "punch": {
+        "dust": 14,
+        "kick": 5
+      }
+    }
   }
 ]
