@@ -38,9 +38,9 @@
         {
           "far": {
             "props": [
-              "crag_a",
-              "crag_b",
-              "crag_spire"
+              "crag_a_wide",
+              "crag_b_wide",
+              "crag_spire_wide"
             ],
             "out": -0.9,
             "step": 2.6,
@@ -48,8 +48,8 @@
           },
           "near": {
             "props": [
-              "edge_low_a",
-              "edge_low_b"
+              "edge_low_a_wide",
+              "edge_low_b_wide"
             ],
             "out": -0.6,
             "step": 1.1,
@@ -61,8 +61,8 @@
         {
           "far": {
             "props": [
-              "ridge_a",
-              "ridge_b"
+              "ridge_a_wide",
+              "ridge_b_wide"
             ],
             "out": 4,
             "step": 5,
@@ -70,7 +70,7 @@
           },
           "near": {
             "props": [
-              "crag_low"
+              "crag_low_wide"
             ],
             "out": 2.2,
             "step": 2.6,
@@ -82,7 +82,7 @@
         {
           "far": {
             "props": [
-              "ridge_far"
+              "ridge_far_wide"
             ],
             "out": 10,
             "step": 9,
@@ -90,8 +90,8 @@
           },
           "near": {
             "props": [
-              "crag_a",
-              "crag_b"
+              "crag_a_wide",
+              "crag_b_wide"
             ],
             "out": 3.6,
             "step": 4,
@@ -116,7 +116,7 @@
         "castle_column_broken",
         "castle_rubble_large",
         "castle_rubble_small",
-        "castle_loose_blocks",
+        "castle_loose_blocks_wide",
         "castle_statue_base",
         "mossy_wall_low",
         "castle_pillar",
@@ -206,7 +206,7 @@
       "rotationDegrees": 70
     },
     {
-      "prop": "castle_loose_blocks",
+      "prop": "castle_loose_blocks_wide",
       "x": 35,
       "z": 30,
       "y": 0,

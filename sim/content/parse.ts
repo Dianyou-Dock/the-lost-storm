@@ -332,9 +332,11 @@ function prop(value: unknown, where: string): PropDef {
   const blockLength: number = source['blockLength'] === undefined ? 0 : numeric(source, 'blockLength', where);
   if (blockRadius < 0 || blockLength < 0) throw new ContentError(`${where}.blockRadius`, 'a collider cannot be negative');
   if (blockLength > 0 && blockRadius === 0) throw new ContentError(`${where}.blockRadius`, 'a collider with a length needs a radius above zero to block anything');
+  const model: string = text(source, 'model', where);
   return {
     id: text(source, 'id', where),
-    model: text(source, 'model', where),
+    model,
+    footprint: source['footprint'] === undefined ? model : text(source, 'footprint', where),
     scale: numeric(source, 'scale', where),
     blockRadius,
     blockLength,

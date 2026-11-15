@@ -58,7 +58,8 @@ export function solidByShape(scale: number, model: ModelFootprint): boolean {
 export function withFootprints(props: ReadonlyMap<string, PropDef>, footprints: ReadonlyMap<string, ModelFootprint>): Map<string, PropDef> {
   const made: Map<string, PropDef> = new Map<string, PropDef>();
   for (const [id, prop] of props) {
-    const model: ModelFootprint | undefined = footprints.get(prop.model);
+    const model: ModelFootprint | undefined = footprints.get(prop.footprint);
+    if (model === undefined && prop.footprint !== prop.model) throw new ContentError(`props.${id}.footprint`, `no footprint is measured under ${prop.footprint}`);
     const solid: boolean = model !== undefined && (prop.solid ?? solidByShape(prop.scale, model));
     const outlines: readonly Outline[] = model === undefined || !solid ? [] : model.outlines.map((outline: Outline): Outline => outline.map((point: ReadonlyVec2): ReadonlyVec2 => ({ x: point.x * prop.scale, z: point.z * prop.scale })));
     made.set(id, { ...prop, footprints: outlines, height: model === undefined ? 0 : model.height * prop.scale });

@@ -38,3 +38,12 @@ void test('every prop model the zones place has a measured footprint, and the bi
   assert.ok(Math.abs(must(content.props.get('crag_b'), 'crag').height - 3.44) < 0.05);
   assert.ok(must(content.props.get('fire_pit'), 'fire').height < 1);
 });
+
+void test('a prop that names another footprint takes its outline from there, and naming one that was never measured is refused', (): void => {
+  const base: PropDef = must(content.props.get('dead_log'), 'dead_log');
+  const wide: ModelFootprint = { height: 1, outlines: [[{ x: -3, z: -3 }, { x: 3, z: -3 }, { x: 3, z: 3 }, { x: -3, z: 3 }]] };
+  const footprints: ReadonlyMap<string, ModelFootprint> = new Map<string, ModelFootprint>([[base.model, square], [`wide/${base.model}`, wide]]);
+  const kept: PropDef = must(withFootprints(new Map<string, PropDef>([['log', { ...base, footprint: `wide/${base.model}`, scale: 1, solid: null }]]), footprints).get('log'), 'log');
+  assert.deepEqual(kept.footprints[0]?.[2], { x: 3, z: 3 });
+  assert.throws((): unknown => withFootprints(new Map<string, PropDef>([['log', { ...base, footprint: 'wide/nothing.glb' }]]), footprints), /no footprint is measured under wide\/nothing\.glb/);
+});

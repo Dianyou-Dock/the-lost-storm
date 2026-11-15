@@ -228,7 +228,7 @@ function measure(document: Document, scale: number, reachScale: number): Measure
   const ground: number = Math.max(0, floor);
   const ceiling: number = ground + FOOTPRINT_TOOL.bodyHeight / scale;
   const skirt: number = ground + FOOTPRINT_TOOL.skirt / scale;
-  const size: number = FOOTPRINT_TOOL.cell / scale;
+  const size: number = FOOTPRINT_TOOL.cell / reachScale;
   const occupancy: Occupancy = new Occupancy(size);
   for (const [a, b, c] of found) {
     if (a === undefined || b === undefined || c === undefined) continue;
@@ -255,10 +255,12 @@ async function main(): Promise<void> {
   const props: readonly unknown[] = items(JSON.parse(readFileSync('data/props.json', 'utf8')), 'props');
   const smallest: Map<string, number> = new Map<string, number>();
   const largest: Map<string, number> = new Map<string, number>();
+  const kept: Set<string> = new Set<string>();
   props.forEach((prop: unknown, index: number): void => {
     const source: Record<string, unknown> = fields(prop, `props[${index}]`);
     const model: string = text(source, 'model', `props[${index}]`);
     const scale: number = numeric(source, 'scale', `props[${index}]`);
+    if (source['footprint'] !== undefined) kept.add(text(source, 'footprint', `props[${index}]`));
     smallest.set(model, Math.min(smallest.get(model) ?? scale, scale));
     largest.set(model, Math.max(largest.get(model) ?? scale, scale));
   });
@@ -270,7 +272,9 @@ async function main(): Promise<void> {
     if (entry === null || entry === undefined || entry.outlines.length === 0) return;
     result[model] = { height: entry.height, outlines: entry.outlines.map((outline: readonly ReadonlyVec2[]): number[][] => outline.map((point: ReadonlyVec2): number[] => [point.x, point.z])) };
   });
-  const lines: string[] = Object.entries(result).map(([model, entry]): string => `  ${JSON.stringify(model)}: ${JSON.stringify(entry)}`);
+  const previous: Record<string, unknown> = fields(JSON.parse(readFileSync(FOOTPRINT_TOOL.out, 'utf8')), FOOTPRINT_TOOL.out);
+  const carried: string[] = [...kept].filter((key: string): boolean => !smallest.has(key)).toSorted();
+  const lines: string[] = [...Object.entries(result).map(([model, entry]): string => `  ${JSON.stringify(model)}: ${JSON.stringify(entry)}`), ...carried.map((key: string): string => `  ${JSON.stringify(key)}: ${JSON.stringify(fields(previous[key], `${FOOTPRINT_TOOL.out}.${key}`))}`)];
   writeFileSync(FOOTPRINT_TOOL.out, `{\n${lines.join(',\n')}\n}\n`);
 }
 

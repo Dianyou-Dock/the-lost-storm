@@ -32,6 +32,7 @@ export interface PropCache {
 export interface PropDef {
   readonly id: string;
   readonly model: string;
+  readonly footprint: string;
   readonly scale: number;
   readonly blockRadius: number;
   readonly blockLength: number;

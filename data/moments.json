@@ -33,7 +33,7 @@
       "turnChance": 0.55,
       "props": [
         {
-          "prop": "fire_pit",
+          "prop": "fire_pit_wide",
           "x": 0,
           "z": 0,
           "rotationDegrees": 0,
@@ -152,7 +152,7 @@
       "turnChance": 1,
       "props": [
         {
-          "prop": "fire_pit",
+          "prop": "fire_pit_wide",
           "x": 0,
           "z": 0,
           "rotationDegrees": 0,
@@ -438,7 +438,7 @@
       "turnChance": 0.85,
       "props": [
         {
-          "prop": "rock_2",
+          "prop": "rock_2_wide",
           "x": 3.2,
           "z": 2.6,
           "rotationDegrees": 0
