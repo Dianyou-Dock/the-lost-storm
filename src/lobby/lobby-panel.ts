@@ -1,9 +1,9 @@
 import type { Leaderboard, LevelUpNote } from '../backend/api.ts';
-import { el, label, setText } from '../hud/dom.ts';
+import { el, label, setClass, setData, setText } from '../hud/dom.ts';
 import { createBoardView } from './board-view.ts';
 import type { BoardView } from './board-view.ts';
 import { ensureLobbyStyles } from './styles.ts';
-import { agoText, levelUpText, onlineText } from './lobby-model.ts';
+import { agoText, levelUpText, onlineText, shownKey } from './lobby-model.ts';
 
 export type PanelState = 'loading' | 'ready' | 'unreachable';
 
@@ -45,14 +45,14 @@ function createTicker(parent: HTMLElement): Ticker {
 
   const paint = (): void => {
     const note: LevelUpNote | undefined = notes[index % Math.max(1, notes.length)];
-    what.textContent = note === undefined ? '' : levelUpText(note);
-    when.textContent = note === undefined ? '' : agoText(note.minutesAgo);
-    box.classList.toggle('shown', note !== undefined);
-    line.classList.remove('out');
+    setText(what, note === undefined ? '' : levelUpText(note), false);
+    setText(when, note === undefined ? '' : agoText(note.minutesAgo), false);
+    setClass(box, 'shown', note !== undefined);
+    setClass(line, 'out', false);
   };
 
   const swap = (): void => {
-    line.classList.add('out');
+    setClass(line, 'out', true);
     window.setTimeout(paint, LOBBY_PANEL.swapMs);
   };
 
@@ -72,7 +72,7 @@ function createTicker(parent: HTMLElement): Ticker {
       painted = true;
       if (!changed) {
         const note: LevelUpNote | undefined = notes[index % Math.max(1, notes.length)];
-        if (note !== undefined) when.textContent = agoText(note.minutesAgo);
+        if (note !== undefined) setText(when, agoText(note.minutesAgo), false);
         return;
       }
       index = 0;
@@ -90,6 +90,7 @@ export function createLobbyPanel(parent: HTMLElement, options: LobbyPanelOptions
   ensureLobbyStyles();
   const root: HTMLElement = el('section', 'lobby-panel', parent);
   root.dataset['state'] = 'loading';
+  let drawn: string | null = null;
   const head: HTMLDivElement = el('div', 'lobby-head', root);
   label('lobby-title', options.title, head);
   const online: HTMLSpanElement = el('span', 'lobby-online', head);
@@ -106,15 +107,18 @@ export function createLobbyPanel(parent: HTMLElement, options: LobbyPanelOptions
     show(next: Leaderboard | null): void {
       if (next === null) {
         if (root.dataset['state'] !== 'ready') {
-          root.dataset['state'] = 'unreachable';
+          setData(root, 'state', 'unreachable');
           setText(note, LOBBY_PANEL.unreachable, false);
         }
         return;
       }
-      root.dataset['state'] = 'ready';
-      root.classList.toggle('empty', next.top.length === 0);
+      const key: string = shownKey(next, options.rows);
+      if (key === drawn && root.dataset['state'] === 'ready') return;
+      drawn = key;
+      setData(root, 'state', 'ready');
+      setClass(root, 'empty', next.top.length === 0);
       setText(note, LOBBY_PANEL.empty, false);
-      online.classList.toggle('shown', next.online > 0);
+      setClass(online, 'shown', next.online > 0);
       setText(onlineCount, onlineText(next.online), true);
       board.render(next.top, next.you === null ? null : next.you.name, next.by);
       ticker?.show(next.levelUps);

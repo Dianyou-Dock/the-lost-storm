@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { firstSlot } from '../backend/roster.ts';
 import type { Roster, Slot } from '../backend/roster.ts';
-import { canCreate, createRefusalText, deleteWording, EMPTY_KEY, removeRefusalText, STRIP_TEXT, stripCards } from './character-strip-model.ts';
+import { canCreate, createRefusalText, deleteWording, EMPTY_KEY, removeRefusalText, sameCards, STRIP_TEXT, stripCards } from './character-strip-model.ts';
 import type { CardView, HeroNames, LiveCharacter, StripFacts } from './character-strip-model.ts';
 import { NAME_MESSAGES } from './lobby-model.ts';
 
@@ -66,4 +66,22 @@ void test('refusals read as the same words the name step uses, and deleting the 
   assert.equal(removeRefusalText('removed', 'Grey Heron'), null);
   assert.equal(removeRefusalText('listed', 'Grey Heron'), `Grey Heron ${STRIP_TEXT.listed}`);
   assert.equal(removeRefusalText('offline', 'Grey Heron'), STRIP_TEXT.offline);
+});
+
+void test('the same cards in the same order are the same, and nothing is the same as no render yet', (): void => {
+  const roster: Roster = { active: 'b', account: null, slots: [{ ...firstSlot(), name: 'Grey Heron', level: 4, hero: 'man' }, slot('b', 'Bright Reed', null, 'woman')] };
+  const cards: readonly CardView[] = stripCards(facts(roster));
+  assert.equal(sameCards(cards, stripCards(facts(roster))), true);
+  assert.equal(sameCards(null, cards), false);
+  assert.equal(sameCards([], []), true);
+});
+
+void test('a card that shows something different is a different set of cards', (): void => {
+  const roster: Roster = { active: 'b', account: null, slots: [{ ...firstSlot(), name: 'Grey Heron', level: 4, hero: 'man' }, slot('b', 'Bright Reed', null, 'woman')] };
+  const cards: readonly CardView[] = stripCards(facts(roster));
+  assert.equal(sameCards(cards, stripCards(facts({ ...roster, active: 'first' }))), false);
+  assert.equal(sameCards(cards, stripCards(facts(roster, { live: { name: 'Bright Reed', hero: 'woman', level: 2 } }))), false);
+  assert.equal(sameCards(cards, stripCards(facts(roster, { firstOnServer: false }))), false);
+  assert.equal(sameCards(cards, cards.slice(0, 2)), false);
+  assert.equal(sameCards(cards, [...cards.slice(0, 2).toReversed(), ...cards.slice(2)]), false);
 });

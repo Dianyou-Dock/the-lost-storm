@@ -7,7 +7,7 @@ import { emptyEquipment, generateItem } from '../../sim/items.ts';
 import { createRng } from '../../sim/rng.ts';
 import type { KeyValueStore } from '../backend/backend.ts';
 import type { HeroStanding } from '../../sim/hero.ts';
-import { canEnter, HERO_KEY, HERO_TEXT, heroChoice, heroLocked, heroNote, keepHero, nameBodyOf, readHero, shownHero, startingHero } from './hero-choice.ts';
+import { canEnter, HERO_KEY, HERO_TEXT, heroChoice, heroLocked, heroNote, keepHero, nameBodyOf, readHero, sameHeroChoice, shownHero, startingHero } from './hero-choice.ts';
 import type { HeroChoice, HeroOption } from './hero-choice.ts';
 
 const content: Content = loadContent();
@@ -96,4 +96,22 @@ void test('names suit the hero once one is picked, and are drawn for either unti
   assert.equal(nameBodyOf(content, null), null);
   assert.equal(nameBodyOf(content, 'woman'), 'woman');
   assert.equal(nameBodyOf(content, 'man'), 'man');
+});
+
+void test('the same hero choice is the same, and a different pick, option or kind is not', (): void => {
+  const options: readonly HeroOption[] = [
+    { id: 'man', name: 'Man', finds: 'Rusted Blade' },
+    { id: 'woman', name: 'Woman', finds: null },
+  ];
+  const open: HeroChoice = { kind: 'choose', options, chosen: null };
+  assert.equal(sameHeroChoice(null, null), true);
+  assert.equal(sameHeroChoice(open, { kind: 'choose', options: options.map((option: HeroOption): HeroOption => ({ ...option })), chosen: null }), true);
+  assert.equal(sameHeroChoice(null, open), false);
+  assert.equal(sameHeroChoice(open, null), false);
+  assert.equal(sameHeroChoice(open, { ...open, chosen: 'man' }), false);
+  assert.equal(sameHeroChoice(open, { ...open, options: options.slice(0, 1) }), false);
+  assert.equal(sameHeroChoice(open, { ...open, options: [{ id: 'man', name: 'Man', finds: 'Other' }, ...options.slice(1)] }), false);
+  assert.equal(sameHeroChoice(open, { kind: 'fixed', id: 'man', name: 'Man' }), false);
+  assert.equal(sameHeroChoice({ kind: 'fixed', id: 'man', name: 'Man' }, { kind: 'fixed', id: 'man', name: 'Man' }), true);
+  assert.equal(sameHeroChoice({ kind: 'fixed', id: 'man', name: 'Man' }, { kind: 'fixed', id: 'woman', name: 'Woman' }), false);
 });

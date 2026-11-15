@@ -112,6 +112,13 @@ export function passedNames(previous: Leaderboard | null, next: Leaderboard): re
     .map((row: BoardRow): string => row.name);
 }
 
+export function shownKey(board: Leaderboard, slots: number): string {
+  const rows: readonly (string | number | boolean | null)[][] = board.top.slice(0, slots).map((row: BoardRow): (string | number | boolean | null)[] => [row.rank, row.name, row.furthest, rankValueText(row, board.by), row.online, row.account]);
+  const you: readonly (string | number | boolean)[] | null = board.you === null ? null : [board.you.rank, board.you.name, board.you.furthest, rankValueText(board.you, board.by), board.you.chosen];
+  const notes: readonly string[] = board.levelUps.map((note: LevelUpNote): string => `${levelUpText(note)} ${agoText(note.minutesAgo)}`);
+  return JSON.stringify([board.by, rows, you, onlineText(board.online), notes]);
+}
+
 export function asksForName(board: Leaderboard): boolean {
   return board.you === null || !board.you.chosen;
 }

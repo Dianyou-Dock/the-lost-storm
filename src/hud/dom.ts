@@ -1,3 +1,6 @@
+import { moves } from './order.ts';
+import type { Move } from './order.ts';
+
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, parent: HTMLElement | null): HTMLElementTagNameMap[K] {
   const node: HTMLElementTagNameMap[K] = document.createElement(tag);
   if (className !== '') node.className = className;
@@ -17,11 +20,63 @@ export function label(className: string, content: string, parent: HTMLElement | 
   return node;
 }
 
+const TICK_CLASS: string = 'tick';
+const ticking: WeakSet<HTMLElement> = new WeakSet<HTMLElement>();
+
+function settleTick(node: HTMLElement): void {
+  if (ticking.has(node)) return;
+  ticking.add(node);
+  node.addEventListener('animationend', (event: AnimationEvent): void => {
+    if (event.target === node) node.classList.remove(TICK_CLASS);
+  });
+}
+
 export function setText(node: HTMLElement, value: string, animate: boolean): boolean {
   if (node.textContent === value) return false;
   node.textContent = value;
-  if (animate) retrigger(node, 'tick');
+  if (animate) {
+    settleTick(node);
+    retrigger(node, TICK_CLASS);
+  }
   return true;
+}
+
+export function setClass(node: HTMLElement, className: string, on: boolean): boolean {
+  if (node.classList.contains(className) === on) return false;
+  node.classList.toggle(className, on);
+  return true;
+}
+
+export function setAttr(node: HTMLElement, name: string, value: string): boolean {
+  if (node.getAttribute(name) === value) return false;
+  node.setAttribute(name, value);
+  return true;
+}
+
+export function setFlag(node: HTMLElement, name: string, on: boolean): boolean {
+  if (node.hasAttribute(name) === on) return false;
+  node.toggleAttribute(name, on);
+  return true;
+}
+
+export function setData(node: HTMLElement, key: string, value: string): boolean {
+  if (node.dataset[key] === value) return false;
+  node.dataset[key] = value;
+  return true;
+}
+
+export function setVar(node: HTMLElement, property: string, value: string): boolean {
+  if (node.style.getPropertyValue(property) === value) return false;
+  node.style.setProperty(property, value);
+  return true;
+}
+
+export function arrange(parent: HTMLElement, desired: readonly HTMLElement[]): boolean {
+  const wanted: Set<Node> = new Set<Node>(desired);
+  const current: Node[] = [...parent.childNodes].filter((node: ChildNode): boolean => wanted.has(node));
+  const planned: readonly Move<Node>[] = moves<Node>(current, desired);
+  for (const step of planned) parent.insertBefore(step.item, step.before);
+  return planned.length > 0;
 }
 
 export function pulseClass(node: HTMLElement, className: string, ms: number): void {

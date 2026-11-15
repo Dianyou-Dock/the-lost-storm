@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { BoardRow, Leaderboard } from '../backend/api.ts';
 import { RANKINGS } from '../backend/api.ts';
 import { DAMAGE_EXPLAINED } from '../../sim/ladder.ts';
-import { agoText, asksForName, charactersText, levelUpText, nameProblem, passedNames, RANKING_TABS, rankValueText, spokenName, tabOf, tidyName, wholeText } from './lobby-model.ts';
+import { agoText, asksForName, charactersText, levelUpText, nameProblem, passedNames, RANKING_TABS, rankValueText, shownKey, spokenName, tabOf, tidyName, wholeText } from './lobby-model.ts';
 
 function row(rank: number, name: string, level: number): BoardRow {
   return { rank, name, level, damage: 0, life: 0, furthest: 'The Waystation', online: false, account: null };
@@ -81,4 +81,45 @@ void test('every ranked value is a whole number with thousands grouped', (): voi
   assert.equal(wholeText(1_000_000_000), '1,000,000,000');
   assert.equal(wholeText(-4), '0');
   assert.equal(wholeText(Number.NaN), '0');
+});
+
+void test('the same answer has the same shown key', (): void => {
+  const rows: readonly BoardRow[] = [row(1, 'Ash', 6), row(2, 'Me', 5)];
+  assert.equal(shownKey(board(rows, 'Me'), 10), shownKey(board([...rows], 'Me'), 10));
+});
+
+void test('facts the ladder does not draw do not change the shown key', (): void => {
+  const rows: readonly BoardRow[] = [row(1, 'Ash', 6), row(2, 'Me', 5)];
+  const base: Leaderboard = board(rows, 'Me');
+  const key: string = shownKey(base, 10);
+  assert.equal(shownKey({ ...base, characters: 99 }, 10), key);
+  assert.equal(shownKey({ ...base, top: rows.map((entry: BoardRow): BoardRow => ({ ...entry, damage: 777, life: 55 })) }, 10), key);
+  assert.equal(shownKey(board([...rows, row(3, 'Deep', 1)], 'Me'), 2), key);
+});
+
+void test('anything the ladder draws changes the shown key', (): void => {
+  const rows: readonly BoardRow[] = [row(1, 'Ash', 6), row(2, 'Me', 5)];
+  const base: Leaderboard = board(rows, 'Me');
+  const key: string = shownKey(base, 10);
+  assert.notEqual(shownKey(board([row(1, 'Ash', 7), row(2, 'Me', 5)], 'Me'), 10), key);
+  assert.notEqual(shownKey(board([row(1, 'Me', 6), row(2, 'Ash', 5)], 'Me'), 10), key);
+  assert.notEqual(shownKey({ ...base, online: 2 }, 10), key);
+  assert.notEqual(shownKey({ ...base, by: 'damage' }, 10), key);
+  assert.notEqual(shownKey({ ...base, levelUps: [{ name: 'Ash', level: 6, minutesAgo: 3 }] }, 10), key);
+  assert.notEqual(shownKey(board(rows, 'Ash'), 10), key);
+  assert.notEqual(shownKey(board(rows, null), 10), key);
+});
+
+void test('the value shown follows the ranking, so a change to another figure is not a change', (): void => {
+  const rows: readonly BoardRow[] = [{ ...row(1, 'Ash', 6), damage: 100 }];
+  const byDamage: Leaderboard = { ...board(rows, null), by: 'damage' };
+  const moved: Leaderboard = { ...byDamage, top: [{ ...row(1, 'Ash', 9), damage: 100 }] };
+  assert.equal(shownKey(moved, 10), shownKey(byDamage, 10));
+  assert.notEqual(shownKey({ ...byDamage, top: [{ ...row(1, 'Ash', 6), damage: 101 }] }, 10), shownKey(byDamage, 10));
+});
+
+void test('a minute passing on a level-up note changes the shown key', (): void => {
+  const base: Leaderboard = { ...board([row(1, 'Ash', 6)], null), levelUps: [{ name: 'Ash', level: 6, minutesAgo: 3 }] };
+  const later: Leaderboard = { ...base, levelUps: [{ name: 'Ash', level: 6, minutesAgo: 4 }] };
+  assert.notEqual(shownKey(later, 10), shownKey(base, 10));
 });

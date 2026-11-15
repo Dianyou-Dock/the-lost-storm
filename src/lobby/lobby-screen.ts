@@ -1,11 +1,11 @@
 import { mountThresholdBloom } from '../dither/mount.ts';
-import { el, label, setText } from '../hud/dom.ts';
+import { el, label, setAttr, setClass, setData, setText, setVar } from '../hud/dom.ts';
 import { createCharacterStrip } from './character-strip.ts';
 import type { CharacterStrip } from './character-strip.ts';
 import { deleteWording, STRIP_TEXT } from './character-strip-model.ts';
 import type { CardView, DeleteWording } from './character-strip-model.ts';
 import type { Lobby } from './compact.ts';
-import { canEnter, HERO_TEXT, heroNote } from './hero-choice.ts';
+import { canEnter, HERO_TEXT, heroNote, sameHeroChoice } from './hero-choice.ts';
 import type { HeroChoice, HeroOption } from './hero-choice.ts';
 import type { LobbyHero, LobbyStat } from './lobby-sheet.ts';
 import heroCss from './hero-choice.css?inline';
@@ -118,7 +118,7 @@ export function createLobbyScreen(root: HTMLElement, lobby: Lobby | null, action
   const account: HTMLDivElement = label('lobby-account', '', sheet);
   const setUsername = (username: string | null): void => {
     if (username !== null) setText(account, username, false);
-    account.classList.toggle(LOBBY_SCREEN.shownClass, username !== null);
+    setClass(account, LOBBY_SCREEN.shownClass, username !== null);
   };
   const level: HTMLDivElement = el('div', 'lobby-level', sheet);
   const levelText: HTMLSpanElement = el('span', 'lobby-level-text', level);
@@ -138,6 +138,8 @@ export function createLobbyScreen(root: HTMLElement, lobby: Lobby | null, action
   const heroButtons: Map<string, HTMLButtonElement> = new Map<string, HTMLButtonElement>();
   let enterable: boolean = true;
   let busyNow: boolean = false;
+  let heroesShown: HeroChoice | null = null;
+  let heroesDrawn: boolean = false;
   const heroButton = (option: HeroOption): HTMLButtonElement => {
     const made: HTMLButtonElement = button(heroes, 'lobby-hero', '', (): void => actions.chooseHero(option.id));
     made.setAttribute('role', 'radio');
@@ -151,14 +153,22 @@ export function createLobbyScreen(root: HTMLElement, lobby: Lobby | null, action
   };
   const setEnterable = (next: boolean): void => {
     enterable = next;
-    primary.disabled = busyNow || !enterable;
-    if (next) primary.removeAttribute('aria-describedby');
-    else primary.setAttribute('aria-describedby', HERO_NOTE_ID);
+    const disabled: boolean = busyNow || !enterable;
+    if (primary.disabled !== disabled) primary.disabled = disabled;
+    if (next) {
+      if (primary.hasAttribute('aria-describedby')) primary.removeAttribute('aria-describedby');
+    } else {
+      setAttr(primary, 'aria-describedby', HERO_NOTE_ID);
+    }
   };
   heroNoteLine.id = HERO_NOTE_ID;
   const setHeroes = (choice: HeroChoice | null): void => {
-    heroBox.dataset['kind'] = choice === null ? 'none' : choice.kind;
-    root.dataset['hero'] = heroBox.dataset['kind'];
+    if (heroesDrawn && sameHeroChoice(heroesShown, choice)) return;
+    heroesDrawn = true;
+    heroesShown = choice;
+    const kind: string = choice === null ? 'none' : choice.kind;
+    setData(heroBox, 'kind', kind);
+    setData(root, 'hero', kind);
     const note: string | null = heroNote(choice);
     if (note !== null) setText(heroNoteLine, note, heroNoteLine.textContent !== '');
     setEnterable(canEnter(choice));
@@ -178,11 +188,17 @@ export function createLobbyScreen(root: HTMLElement, lobby: Lobby | null, action
       for (const option of choice.options) heroButtons.set(option.id, heroButton(option));
     }
     const at: number = choice.options.findIndex((option: HeroOption): boolean => option.id === choice.chosen);
-    heroes.style.setProperty(LOBBY_SCREEN.countProperty, String(choice.options.length));
-    if (at >= 0) heroes.style.setProperty(LOBBY_SCREEN.chosenProperty, String(at));
+    setVar(heroes, LOBBY_SCREEN.countProperty, String(choice.options.length));
+    if (at >= 0) setVar(heroes, LOBBY_SCREEN.chosenProperty, String(at));
     if (at >= 0 && heroes.dataset['chosen'] !== 'true') heroes.getBoundingClientRect();
-    heroes.dataset['chosen'] = String(at >= 0);
-    for (const [id, made] of heroButtons) made.setAttribute('aria-checked', String(id === choice.chosen));
+    setData(heroes, 'chosen', String(at >= 0));
+    for (const [id, made] of heroButtons) setAttr(made, 'aria-checked', String(id === choice.chosen));
+  };
+  let fillScale: string = '';
+  const setFillScale = (value: string): void => {
+    if (fillScale === value) return;
+    fillScale = value;
+    fill.style.transform = value;
   };
   const stats: HTMLDivElement = el('div', 'lobby-stats', sheet);
   const facts: HTMLDivElement = el('div', 'lobby-facts', sheet);
@@ -257,32 +273,34 @@ export function createLobbyScreen(root: HTMLElement, lobby: Lobby | null, action
       strip.render(view.cards);
       wording = deleteWording(view.name ?? LOBBY_SCREEN.unnamed, view.only);
       setText(ask, wording.ask, false);
-      yes.textContent = wording.yes;
-      primary.textContent = view.known ? LOBBY_SCREEN.enterKnown : LOBBY_SCREEN.enterNew;
-      reset.hidden = !view.known && view.only;
+      setText(yes, wording.yes, false);
+      setText(primary, view.known ? LOBBY_SCREEN.enterKnown : LOBBY_SCREEN.enterNew, false);
+      const hideReset: boolean = !view.known && view.only;
+      if (reset.hidden !== hideReset) reset.hidden = hideReset;
       const hero: LobbyHero = view.hero;
-      sheet.dataset['state'] = hero.kind;
+      setData(sheet, 'state', hero.kind);
       switch (hero.kind) {
         case 'fresh':
           fillStats(stats, []);
           break;
         case 'known':
           setText(levelText, `${LOBBY_SCREEN.levelLabel} ${hero.level}`, true);
-          fill.style.transform = `scaleX(${hero.progress.toFixed(3)})`;
+          setFillScale(`scaleX(${hero.progress.toFixed(3)})`);
           fillStats(stats, hero.stats);
           setText(played, hero.played === null ? '' : `${LOBBY_SCREEN.playedLabel} ${hero.played}`, false);
           setText(seen, `${LOBBY_SCREEN.seenLabel} in ${hero.seen}`, false);
-          played.hidden = hero.played === null;
+          if (played.hidden !== (hero.played === null)) played.hidden = hero.played === null;
           break;
       }
-      empty.hidden = hero.kind !== 'fresh' || view.known;
+      const hideEmpty: boolean = hero.kind !== 'fresh' || view.known;
+      if (empty.hidden !== hideEmpty) empty.hidden = hideEmpty;
       setHeroes(view.heroes);
-      dock.classList.remove(LOBBY_SCREEN.confirmClass);
-      confirm.inert = true;
+      setClass(dock, LOBBY_SCREEN.confirmClass, false);
+      if (!confirm.inert) confirm.inert = true;
       shown = true;
-      root.inert = false;
-      root.classList.add(LOBBY_SCREEN.shownClass);
-      if (enterable) primary.focus({ preventScroll: true });
+      if (root.inert) root.inert = false;
+      setClass(root, LOBBY_SCREEN.shownClass, true);
+      if (enterable && document.activeElement !== primary) primary.focus({ preventScroll: true });
     },
     hide(): void {
       shown = false;

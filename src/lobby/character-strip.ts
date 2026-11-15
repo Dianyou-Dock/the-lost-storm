@@ -1,5 +1,5 @@
-import { el, label, retrigger, setText } from '../hud/dom.ts';
-import { EMPTY_KEY, STRIP_TEXT } from './character-strip-model.ts';
+import { arrange, el, label, retrigger, setAttr, setClass, setText } from '../hud/dom.ts';
+import { EMPTY_KEY, sameCards, STRIP_TEXT } from './character-strip-model.ts';
 import type { CardView } from './character-strip-model.ts';
 import { NAME_RULES } from './lobby-model.ts';
 
@@ -55,6 +55,7 @@ export function createCharacterStrip(parent: HTMLElement, actions: StripActions)
   const cards: Map<string, CardParts> = new Map<string, CardParts>();
   let busy: boolean = false;
   let creating: boolean = false;
+  let drawn: readonly CardView[] | null = null;
 
   const fresh: HTMLDivElement = el('div', 'strip-new', null);
   const freshCard: CardParts = cardParts(button(fresh, 'strip-card strip-empty', '', (): void => {
@@ -91,7 +92,7 @@ export function createCharacterStrip(parent: HTMLElement, actions: StripActions)
 
   const showError = (text: string | null): void => {
     if (text !== null) setText(error, text, false);
-    error.classList.toggle(STRIP.shownClass, text !== null);
+    setClass(error, STRIP.shownClass, text !== null);
   };
 
   function open(): void {
@@ -135,18 +136,22 @@ export function createCharacterStrip(parent: HTMLElement, actions: StripActions)
     setText(parts.name, card.name, false);
     setText(parts.detail, card.detail, true);
     setText(parts.note, card.note ?? '', false);
-    parts.note.classList.toggle(STRIP.shownClass, card.note !== null);
+    setClass(parts.note, STRIP.shownClass, card.note !== null);
   };
 
   return {
     root,
     render(next: readonly CardView[]): void {
+      if (sameCards(drawn, next)) return;
+      drawn = next;
       const keep: Set<string> = new Set<string>(next.filter((card: CardView): boolean => card.kind === 'character').map((card: CardView): string => card.key));
       for (const [key, parts] of cards) {
         if (keep.has(key)) continue;
         cards.delete(key);
         parts.button.remove();
       }
+      const order: HTMLElement[] = [];
+      const arrived: CardParts[] = [];
       for (const card of next) {
         switch (card.kind) {
           case 'character': {
@@ -158,28 +163,31 @@ export function createCharacterStrip(parent: HTMLElement, actions: StripActions)
                   if (!busy && !parts.button.classList.contains(STRIP.litClass)) actions.pick(card.key);
                 }),
               );
+            if (known === undefined) arrived.push(parts);
             cards.set(card.key, parts);
             fill(parts, card);
-            parts.button.classList.toggle(STRIP.litClass, card.active);
-            parts.button.setAttribute('aria-current', String(card.active));
-            list.append(parts.button);
+            setClass(parts.button, STRIP.litClass, card.active);
+            setAttr(parts.button, 'aria-current', String(card.active));
+            order.push(parts.button);
             break;
           }
           case 'empty':
             fill(freshCard, card);
-            fresh.classList.toggle(STRIP.heldClass, !card.open);
-            freshCard.button.setAttribute('aria-disabled', String(!card.open));
+            setClass(fresh, STRIP.heldClass, !card.open);
+            setAttr(freshCard.button, 'aria-disabled', String(!card.open));
             if (!card.open) close();
-            list.append(fresh);
+            order.push(fresh);
             break;
         }
       }
       if (!next.some((card: CardView): boolean => card.key === EMPTY_KEY)) {
         close();
-        fresh.remove();
+        if (fresh.parentElement !== null) fresh.remove();
       }
+      arrange(list, order);
+      if (arrived.length === 0) return;
       list.getBoundingClientRect();
-      for (const parts of cards.values()) parts.button.classList.remove(STRIP.enteringClass);
+      for (const parts of arrived) parts.button.classList.remove(STRIP.enteringClass);
     },
     setBusy(next: boolean): void {
       busy = next;

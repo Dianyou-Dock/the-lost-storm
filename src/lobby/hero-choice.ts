@@ -62,6 +62,19 @@ export function heroChoice(content: Content, situation: HeroSituation): HeroChoi
   return { kind: 'choose', options, chosen };
 }
 
+export function sameHeroChoice(left: HeroChoice | null, right: HeroChoice | null): boolean {
+  if (left === null || right === null) return left === right;
+  if (left.kind === 'fixed' && right.kind === 'fixed') return left.id === right.id && left.name === right.name;
+  if (left.kind === 'choose' && right.kind === 'choose') {
+    if (left.chosen !== right.chosen || left.options.length !== right.options.length) return false;
+    return left.options.every((option: HeroOption, index: number): boolean => {
+      const other: HeroOption | undefined = right.options[index];
+      return other !== undefined && option.id === other.id && option.name === other.name && option.finds === other.finds;
+    });
+  }
+  return false;
+}
+
 export function canEnter(choice: HeroChoice | null): boolean {
   return choice === null || choice.kind === 'fixed' || choice.chosen !== null;
 }

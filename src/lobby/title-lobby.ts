@@ -1,6 +1,6 @@
 import type { Leaderboard, Ranking, YourRow } from '../backend/api.ts';
 import { RANKINGS } from '../backend/api.ts';
-import { el, label, setText } from '../hud/dom.ts';
+import { el, label, setAttr, setData, setText, setVar } from '../hud/dom.ts';
 import { COMPACT, watchFocus } from './compact.ts';
 import type { Lobby } from './compact.ts';
 import type { LobbyFeed } from './lobby-feed.ts';
@@ -39,7 +39,7 @@ export function mountTitleLobby(root: HTMLElement, lobby: Lobby): TitleLobby {
   let active: Ranking = 'level';
 
   const setMode = (mode: YouMode): void => {
-    if (you.dataset['mode'] !== mode) you.dataset['mode'] = mode;
+    setData(you, 'mode', mode);
   };
 
   const showYou = (board: Leaderboard): void => {
@@ -63,10 +63,11 @@ export function mountTitleLobby(root: HTMLElement, lobby: Lobby): TitleLobby {
   const select = (by: Ranking, fetch: boolean): void => {
     active = by;
     const tab: RankingTab = tabOf(by);
-    tabs.style.setProperty(TITLE_LOBBY.tabProperty, String(RANKING_TABS.indexOf(tab)));
+    setVar(tabs, TITLE_LOBBY.tabProperty, String(RANKING_TABS.indexOf(tab)));
     for (const [ranking, made] of buttons) {
-      made.setAttribute('aria-selected', String(ranking === by));
-      made.tabIndex = ranking === by ? 0 : -1;
+      setAttr(made, 'aria-selected', String(ranking === by));
+      const tabIndex: number = ranking === by ? 0 : -1;
+      if (made.tabIndex !== tabIndex) made.tabIndex = tabIndex;
     }
     setText(caption, tab.caption, true);
     for (const ranking of RANKINGS) if (ranking !== 'level') lobby.boards[ranking].every(ranking === by ? COMPACT.refreshMs : 0);

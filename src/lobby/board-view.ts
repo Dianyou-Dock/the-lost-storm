@@ -1,5 +1,5 @@
 import type { BoardRow, Ranking } from '../backend/api.ts';
-import { el, setText } from '../hud/dom.ts';
+import { arrange, el, setClass, setFlag, setText } from '../hud/dom.ts';
 import { rankText, rankValueText } from './lobby-model.ts';
 
 export interface BoardView {
@@ -35,10 +35,11 @@ function fill(parts: RowParts, row: BoardRow, you: string | null, by: Ranking, a
   setText(parts.place, row.furthest, animate);
   setText(parts.level, rankValueText(row, by), animate);
   setText(parts.account, row.account ?? '', false);
-  parts.item.toggleAttribute('data-account', row.account !== null);
-  parts.item.tabIndex = row.account === null ? -1 : 0;
-  parts.dot.classList.toggle('on', row.online);
-  parts.item.classList.toggle('you', row.name === you);
+  setFlag(parts.item, 'data-account', row.account !== null);
+  const tabIndex: number = row.account === null ? -1 : 0;
+  if (parts.item.tabIndex !== tabIndex) parts.item.tabIndex = tabIndex;
+  setClass(parts.dot, 'on', row.online);
+  setClass(parts.item, 'you', row.name === you);
 }
 
 export function createBoardView(list: HTMLOListElement, slots: number): BoardView {
@@ -66,29 +67,36 @@ export function createBoardView(list: HTMLOListElement, slots: number): BoardVie
         rows.delete(name);
         leave(parts, before.get(parts.item) ?? 0);
       }
+      const arrived: RowParts[] = [];
+      const order: HTMLLIElement[] = [];
       for (const row of shown) {
         const existing: RowParts | undefined = rows.get(row.name);
         const parts: RowParts = existing ?? makeRow(list);
+        if (existing === undefined) arrived.push(parts);
         rows.set(row.name, parts);
         fill(parts, row, you, by, existing !== undefined);
-        list.appendChild(parts.item);
+        order.push(parts.item);
       }
       blanks.forEach((blank: HTMLLIElement, index: number): void => {
-        blank.classList.toggle('filled', index < shown.length);
-        list.appendChild(blank);
+        setClass(blank, 'filled', index < shown.length);
       });
+      arrange(list, [...order, ...blanks]);
+      const slid: RowParts[] = [];
       for (const parts of rows.values()) {
         const from: number | undefined = before.get(parts.item);
         const delta: number = from === undefined ? 0 : from - parts.item.offsetTop;
         if (delta === 0) continue;
         parts.item.classList.add('flip');
         parts.item.style.transform = `translateY(${delta}px)`;
+        slid.push(parts);
       }
+      if (slid.length === 0 && arrived.length === 0) return;
       list.getBoundingClientRect();
-      for (const parts of rows.values()) {
-        parts.item.classList.remove('flip', 'entering');
+      for (const parts of slid) {
+        parts.item.classList.remove('flip');
         parts.item.style.transform = '';
       }
+      for (const parts of arrived) parts.item.classList.remove('entering');
     },
   };
 }

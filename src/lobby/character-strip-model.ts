@@ -85,6 +85,18 @@ export function stripCards(facts: StripFacts): readonly CardView[] {
   return cards;
 }
 
+export function sameCards(left: readonly CardView[] | null, right: readonly CardView[]): boolean {
+  if (left === null || left.length !== right.length) return false;
+  return left.every((card: CardView, index: number): boolean => {
+    const other: CardView | undefined = right[index];
+    if (other === undefined || card.kind !== other.kind) return false;
+    if (card.key !== other.key || card.name !== other.name || card.detail !== other.detail || card.note !== other.note) return false;
+    if (card.kind === 'character' && other.kind === 'character') return card.active === other.active;
+    if (card.kind === 'empty' && other.kind === 'empty') return card.open === other.open;
+    return false;
+  });
+}
+
 export function createRefusalText(reason: CreateRefusal): string {
   return reason === 'character_limit' ? STRIP_TEXT.full : NAME_MESSAGES[reason];
 }
