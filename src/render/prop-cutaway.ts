@@ -1,5 +1,6 @@
 import type { IUniform, Material, PerspectiveCamera, WebGLProgramParametersWithUniforms, WebGLRenderer } from 'three';
 import type { Object3D } from 'three';
+import type { PassThrough } from './terrain-lift.ts';
 import type { Point3, TerrainSight } from './terrain-sight.ts';
 import { Matrix4, MeshStandardMaterial, Raycaster, Vector2, Vector3 } from 'three';
 
@@ -16,6 +17,7 @@ export const CUTAWAY = {
   heroHeight: 1,
   far: -1e5,
   tallFrom: 1.5,
+  feet: 0,
   chest: 1.3,
   head: 1.75,
   stiffness: 90,
@@ -26,6 +28,7 @@ export const CUTAWAY = {
   ghostCap: 0.22,
   ghostShade: 0.8,
   cleared: 0.9,
+  clickThrough: 0.5,
 } as const;
 
 export interface CutawayUniforms {
@@ -171,7 +174,27 @@ export function ringWeight(across: number, up: number): number {
 }
 
 export function terrainHides(sight: TerrainSight, hero: CutHero, eye: Point3): boolean {
-  return [CUTAWAY.chest, CUTAWAY.head].some((lift: number): boolean => sight.blocks(eye, { x: hero.x, y: hero.floor + lift, z: hero.z }, null));
+  return [CUTAWAY.feet, CUTAWAY.chest, CUTAWAY.head].some((lift: number): boolean => sight.blocks(eye, { x: hero.x, y: hero.floor + lift, z: hero.z }, null));
+}
+
+export interface CutView {
+  readonly level: number;
+  readonly depth: number;
+  readonly floor: number;
+  readonly across: number;
+  readonly up: number;
+  readonly inverse: Matrix4;
+}
+
+const viewPoint3: Vector3 = new Vector3();
+
+export function throughWindow(view: CutView): PassThrough | null {
+  const ring: number = ringWeight(view.across, view.up) * view.level;
+  if (ring < CUTAWAY.clickThrough) return null;
+  return (x: number, y: number, z: number): boolean => {
+    const depth: number = -viewPoint3.set(x, y, z).applyMatrix4(view.inverse).z;
+    return ring * frontWeight(view.depth, depth) * highWeight(y - view.floor) >= CUTAWAY.clickThrough;
+  };
 }
 
 export function isTall(height: number): boolean {
@@ -184,6 +207,9 @@ const eye: Vector3 = new Vector3();
 let occluders: readonly Object3D[] = [];
 let terrain: TerrainSight | null = null;
 let owner: symbol | null = null;
+const windowCentre: Vector2 = new Vector2(CUTAWAY.far, CUTAWAY.far);
+const lastInverse: Matrix4 = new Matrix4();
+let lastAspect: number = 1;
 let spring: CutSpring = { level: 0, velocity: 0 };
 
 export function setOccluders(list: readonly Object3D[]): void {
@@ -220,9 +246,23 @@ export function aimCutaway(camera: PerspectiveCamera, hero: CutHero, width: numb
   heroPoint.set(hero.x, hero.floor + CUTAWAY.heroHeight, hero.z);
   viewPoint.copy(heroPoint).applyMatrix4(camera.matrixWorldInverse);
   heroPoint.project(camera);
+  windowCentre.set(heroPoint.x, heroPoint.y);
+  lastInverse.copy(camera.matrixWorldInverse);
+  lastAspect = height > 0 ? width / height : 1;
   CUTAWAY_UNIFORMS.uCutCentre.value.set((heroPoint.x * 0.5 + 0.5) * width, (heroPoint.y * 0.5 + 0.5) * height);
   CUTAWAY_UNIFORMS.uCutRadius.value = CUTAWAY.radius * height;
   CUTAWAY_UNIFORMS.uCutDepth.value = -viewPoint.z;
   const across: number = windowMetres(camera, -viewPoint.z);
   for (const ghost of ghosts) ghost.keep.value = ghostKeep(ghost.width, across);
+}
+
+export function clickThrough(pointer: Vector2): PassThrough | null {
+  return throughWindow({
+    level: CUTAWAY_UNIFORMS.uCutLevel.value,
+    depth: CUTAWAY_UNIFORMS.uCutDepth.value,
+    floor: CUTAWAY_UNIFORMS.uCutFloor.value,
+    across: ((pointer.x - windowCentre.x) / 2) * lastAspect,
+    up: (pointer.y - windowCentre.y) / 2,
+    inverse: lastInverse,
+  });
 }

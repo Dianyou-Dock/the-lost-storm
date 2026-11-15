@@ -140,28 +140,42 @@ export const RAY_MARCH = {
   refine: 12,
 } as const;
 
-export function rayToSurface(ray: RayLike, heightOf: (x: number, z: number) => number, out: Vector3): Vector3 | null {
+export type PassThrough = (x: number, y: number, z: number) => boolean;
+
+export function rayToSurface(ray: RayLike, heightOf: (x: number, z: number) => number, out: Vector3, through: PassThrough | null = null): Vector3 | null {
   const { origin, direction } = ray;
-  const above = (t: number): boolean => origin.y + direction.y * t > heightOf(origin.x + direction.x * t, origin.z + direction.z * t);
-  let low: number = above(0) ? 0 : -1;
-  let high: number = -1;
+  const side = (t: number): boolean | null => {
+    const height: number = heightOf(origin.x + direction.x * t, origin.z + direction.z * t);
+    return Number.isNaN(height) ? null : origin.y + direction.y * t > height;
+  };
+  let low: number = side(0) === true ? 0 : -1;
   for (let t: number = RAY_MARCH.step; t <= RAY_MARCH.reach; t += RAY_MARCH.step) {
-    if (above(t)) {
+    const now: boolean | null = side(t);
+    if (now === true) {
       low = t;
       continue;
     }
+    if (now === null) {
+      low = -1;
+      continue;
+    }
     if (low < 0) continue;
-    high = t;
-    break;
+    let near: number = low;
+    let far: number = t;
+    for (let pass: number = 0; pass < RAY_MARCH.refine; pass += 1) {
+      const middle: number = (near + far) / 2;
+      if (side(middle) !== false) near = middle;
+      else far = middle;
+    }
+    const at: number = (near + far) / 2;
+    const x: number = origin.x + direction.x * at;
+    const z: number = origin.z + direction.z * at;
+    const y: number = heightOf(x, z);
+    if (through !== null && through(x, y, z)) {
+      low = -1;
+      continue;
+    }
+    return out.set(x, y, z);
   }
-  if (high < 0) return null;
-  for (let pass: number = 0; pass < RAY_MARCH.refine; pass += 1) {
-    const middle: number = (low + high) / 2;
-    if (above(middle)) low = middle;
-    else high = middle;
-  }
-  const t: number = (low + high) / 2;
-  const x: number = origin.x + direction.x * t;
-  const z: number = origin.z + direction.z * t;
-  return out.set(x, heightOf(x, z), z);
+  return null;
 }

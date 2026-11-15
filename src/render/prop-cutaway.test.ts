@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { BoxGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, ShaderLib, Vector3 } from 'three';
+import { BoxGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, ShaderLib, Vector2, Vector3 } from 'three';
 import type { CutHero, CutSpring } from './prop-cutaway.ts';
-import { aimCutaway, claimCutaway, CUTAWAY, CUTAWAY_UNIFORMS, cutawayChunk, frontWeight, ghostKeep, heroBehind, highWeight, isTall, patchCutawayShader, resetCutaway, ringWeight, setOccluders, setTerrainSight, springCut, windowMetres, withCutaway } from './prop-cutaway.ts';
+import { aimCutaway, claimCutaway, clickThrough, CUTAWAY, CUTAWAY_UNIFORMS, cutawayChunk, frontWeight, ghostKeep, heroBehind, highWeight, isTall, patchCutawayShader, resetCutaway, ringWeight, setOccluders, setTerrainSight, springCut, throughWindow, windowMetres, withCutaway } from './prop-cutaway.ts';
 import type { TerrainSight } from './terrain-sight.ts';
 
 function rock(x: number, z: number, height: number, floor: number = 0): Mesh {
@@ -179,4 +179,29 @@ void test('a zone rebuilt before the old view is disposed keeps its own cutaway,
   resetCutaway();
   for (let frame: number = 0; frame < 120; frame += 1) aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
   assert.equal(cutLevel(), 0);
+});
+
+void test('a click passes the rock only inside an open window, in front of the hero and above his waist', (): void => {
+  const camera: PerspectiveCamera = new PerspectiveCamera(30, 2, 1, 220);
+  camera.position.set(20, 21, 20);
+  camera.lookAt(0, 1, 0);
+  camera.updateMatrixWorld(true);
+  const depth: number = -new Vector3(0, CUTAWAY.heroHeight, 0).applyMatrix4(camera.matrixWorldInverse).z;
+  const view = { level: 1, depth, floor: 0, across: 0, up: 0, inverse: camera.matrixWorldInverse };
+  const pass = throughWindow(view);
+  assert.ok(pass !== null);
+  assert.equal(pass(8, 8, 8), true);
+  assert.equal(pass(8, 0.5, 8), false);
+  assert.equal(pass(-3, 3, -3), false);
+  assert.equal(throughWindow({ ...view, level: 0.2 }), null);
+  assert.equal(throughWindow({ ...view, across: CUTAWAY.radius * 2 }), null);
+  resetCutaway();
+  for (let frame: number = 0; frame < 120; frame += 1) aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
+  assert.equal(clickThrough(new Vector2(0, 0)), null);
+  claimCutaway([], sightBlocking(true));
+  for (let frame: number = 0; frame < 60; frame += 1) aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
+  const centre: Vector3 = new Vector3(0, CUTAWAY.heroHeight, 0).project(camera);
+  assert.ok(clickThrough(new Vector2(centre.x, centre.y)) !== null);
+  assert.equal(clickThrough(new Vector2(centre.x + 0.9, centre.y)), null);
+  resetCutaway();
 });

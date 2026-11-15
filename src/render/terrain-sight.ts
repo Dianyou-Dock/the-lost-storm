@@ -1,13 +1,15 @@
-import { PerspectiveCamera, Vector3 } from 'three';
+import { PerspectiveCamera, Ray, Vector3 } from 'three';
+import { heightAt } from '../../sim/nav/terrain.ts';
 import type { ZoneDef } from '../../sim/content/types.ts';
 import type { Field } from './ground-terrain.ts';
 import { GROUND_TERRAIN, sampleField, shownTiles } from './ground-terrain.ts';
 import { CAMERA } from './iso-camera.ts';
-import { CUTAWAY, frontWeight, highWeight, ringWeight } from './prop-cutaway.ts';
-import { liftAt } from './terrain-lift.ts';
+import { CUTAWAY, frontWeight, highWeight, ringWeight, terrainHides, throughWindow } from './prop-cutaway.ts';
+import type { PassThrough } from './terrain-lift.ts';
+import { liftAt, rayToSurface } from './terrain-lift.ts';
 
 export const TERRAIN_SIGHT = {
-  march: 0.2,
+  march: 0.1,
   nearTarget: 0.4,
   reach: 2,
   heights: [0.15, 0.95, 1.75],
@@ -122,4 +124,31 @@ export function heroHidden(sight: TerrainSight, zone: ZoneDef, x: number, z: num
     const cut: CrossingCut | null = cutaway ? (px: number, py: number, pz: number): boolean => ring * frontWeight(heroDepth, depthOf(px, py, pz)) * highWeight(py - floor) >= CUTAWAY.cleared : null;
     return sight.blocks(eye, { x, y: floor + height, z }, cut);
   });
+}
+
+export function clickHeight(zone: ZoneDef): (x: number, z: number) => number {
+  const sight: TerrainSight | null = createTerrainSight(zone);
+  if (sight === null) return (x: number, z: number): number => heightAt(zone, x, z);
+  return (x: number, z: number): number => sight.drawnHeight(x, z) ?? Number.NaN;
+}
+
+const clickRay: Ray = new Ray();
+const landed: Vector3 = new Vector3();
+
+export function clickMiss(sight: TerrainSight, zone: ZoneDef, x: number, z: number, window: boolean): number {
+  const floor: number = liftAt(zone, x, z);
+  const eye: Vector3 = cameraEye(zone, x, z);
+  view.position.copy(eye);
+  view.lookAt(x, floor + CAMERA.lookHeight, z);
+  view.updateMatrixWorld(true);
+  const opened: boolean = window && terrainHides(sight, { x, z, floor }, eye);
+  centre.set(x, floor + CUTAWAY.heroHeight, z).project(view);
+  projected.set(x, floor, z).project(view);
+  const through: PassThrough | null = opened
+    ? throughWindow({ level: 1, depth: depthOf(x, floor + CUTAWAY.heroHeight, z), floor, across: ((projected.x - centre.x) / 2) * TERRAIN_SIGHT.aspect, up: (projected.y - centre.y) / 2, inverse: view.matrixWorldInverse })
+    : null;
+  clickRay.origin.copy(eye);
+  clickRay.direction.set(x - eye.x, floor - eye.y, z - eye.z).normalize();
+  const hit: Vector3 | null = rayToSurface(clickRay, clickHeight(zone), landed, through);
+  return hit === null ? Number.POSITIVE_INFINITY : Math.hypot(hit.x - x, hit.z - z);
 }

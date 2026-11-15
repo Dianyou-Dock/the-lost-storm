@@ -125,3 +125,25 @@ void test('a bolt flying off a terrace glides down to the lower floor instead of
   assert.ok(flight < 0.01, `after two seconds ${flight}`);
   useTerrain(FLAT);
 });
+
+function shelfBeforeFloor(x: number): number {
+  return x > 6 && x < 10 ? 22 : 0;
+}
+
+function drawnOnlyNearFloor(x: number): number {
+  return x < 12 ? Number.NaN : 0;
+}
+
+void test('a click ray passes a crossing the cutaway has opened and lands on the floor behind it', (): void => {
+  const ray = { origin: { x: 0, y: 30, z: 0 }, direction: { x: Math.SQRT1_2, y: -Math.SQRT1_2, z: 0 } };
+  const shelf: Vector3 | null = rayToSurface(ray, shelfBeforeFloor, new Vector3());
+  assert.ok(shelf !== null && Math.abs(shelf.y - 22) < 0.01 && Math.abs(shelf.x - 8) < 0.05, `hit at ${shelf?.x},${shelf?.y}`);
+  const floor: Vector3 | null = rayToSurface(ray, shelfBeforeFloor, new Vector3(), (_x: number, y: number): boolean => y > 4);
+  assert.ok(floor !== null && Math.abs(floor.y) < 0.01 && Math.abs(floor.x - 30) < 0.05, `hit at ${floor?.x},${floor?.y}`);
+});
+
+void test('ground that is not drawn is neither above nor below, so a ray entering the drawn ground from under its edge does not stop there', (): void => {
+  const ray = { origin: { x: 0, y: 4, z: 0 }, direction: { x: 1, y: -0.2, z: 0 } };
+  const hit: Vector3 | null = rayToSurface(ray, drawnOnlyNearFloor, new Vector3());
+  assert.ok(hit !== null && Math.abs(hit.x - 20) < 0.05, `hit at ${hit?.x}`);
+});

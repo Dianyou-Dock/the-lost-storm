@@ -1,4 +1,4 @@
-import { heightAt, terrainMap } from '../sim/nav/terrain.ts';
+import { terrainMap } from '../sim/nav/terrain.ts';
 import type { Box3 as Box3Type } from 'three';
 import { Box3, Vector2, Vector3 } from 'three';
 import type { ZoneExit } from '../sim/content/types.ts';
@@ -20,6 +20,8 @@ import { exitPress } from './exit-press.ts';
 import type { ItemPress } from './item-press.ts';
 import { itemPress } from './item-press.ts';
 import type { IsoCamera } from './render/iso-camera.ts';
+import { clickThrough } from './render/prop-cutaway.ts';
+import { clickHeight } from './render/terrain-sight.ts';
 import type { ActionId } from './settings/bindings.ts';
 import { flaskAction, slotAction } from './settings/bindings.ts';
 import type { SettingsStore } from './settings/store.ts';
@@ -292,7 +294,7 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
       hoveredId = target?.id ?? person?.id ?? null;
       const other: string | null = target === null && person === null ? playerAt() : null;
       hooks.hoverPlayer(other);
-      const groundHit: Vector3 | null = camera.groundPoint(pointer, terrainMap(world.zone) === null ? undefined : (x: number, z: number): number => heightAt(world.zone, x, z));
+      const groundHit: Vector3 | null = camera.groundPoint(pointer, terrainMap(world.zone) === null ? undefined : clickHeight(world.zone), clickThrough(pointer));
       const ground: Vec2 | null = groundHit === null ? null : { x: groundHit.x, z: groundHit.z };
       look = mouse && pointerInside ? ground : null;
       const item: GroundItem | null = target === null && person === null && other === null ? itemAt(ground) : null;
