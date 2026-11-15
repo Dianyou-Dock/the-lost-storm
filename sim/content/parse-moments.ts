@@ -127,7 +127,8 @@ function area(value: unknown, where: string): StrikeArea {
 
 function clearance(value: unknown, where: string): StrikeClearance {
   const source: Fields = fields(value, where);
-  return { hero: nonNegative(source, 'hero', where), exits: nonNegative(source, 'exits', where), between: nonNegative(source, 'between', where), safe: source['safe'] === undefined ? 0 : nonNegative(source, 'safe', where), packs: source['packs'] === undefined ? 0 : nonNegative(source, 'packs', where) };
+  const safe: number = source['safe'] === undefined ? 0 : nonNegative(source, 'safe', where);
+  return { hero: nonNegative(source, 'hero', where), exits: nonNegative(source, 'exits', where), between: nonNegative(source, 'between', where), safe, waypoint: source['waypoint'] === undefined ? safe : nonNegative(source, 'waypoint', where), packs: source['packs'] === undefined ? 0 : nonNegative(source, 'packs', where) };
 }
 
 function interval(value: unknown, where: string): StrikeInterval {

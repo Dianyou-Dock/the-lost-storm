@@ -153,7 +153,7 @@
       "radius": 2.5
     }
   ],
-  "waypoint": null,
+  "waypoint": {"x": 14, "z": 30, "radius": 1.8},
   "npcs": [],
   "scenes": [
     {
@@ -210,7 +210,7 @@
     "combat": true,
     "areas": [{"x": 40, "z": 47, "radius": 9}, {"x": 40, "z": 13, "radius": 9}, {"x": 24, "z": 47, "radius": 7}, {"x": 24, "z": 13, "radius": 7}],
     "avoid": [{"x": 8, "z": 30, "radius": 16}, {"x": 26, "z": 30, "radius": 7}, {"x": 42, "z": 30, "radius": 7}, {"x": 58, "z": 30, "radius": 7}, {"x": 70, "z": 31, "radius": 10}],
-    "clearance": {"hero": 8, "exits": 6, "between": 6, "safe": 18, "packs": 4},
+    "clearance": {"hero": 8, "exits": 6, "between": 6, "safe": 18, "waypoint": 0, "packs": 4},
     "interval": {"min": 9, "max": 18},
     "grace": 3,
     "near": {"min": 7, "max": 9, "bearing": {"x": -0.26, "z": -0.97, "spreadDegrees": 60}},

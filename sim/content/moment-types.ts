@@ -104,6 +104,7 @@ export interface StrikeClearance {
   readonly exits: number;
   readonly between: number;
   readonly safe: number;
+  readonly waypoint: number;
   readonly packs: number;
 }
 

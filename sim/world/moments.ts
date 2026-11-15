@@ -1,4 +1,4 @@
-import type { MomentDef, MomentEcho, MomentField, MomentLibrary, StrikeArea, StrikeNear, WeightedMoment } from '../content/moment-types.ts';
+import type { MomentDef, MomentEcho, MomentField, MomentLibrary, StrikeArea, StrikeClearance, StrikeNear, WeightedMoment } from '../content/moment-types.ts';
 import type { Content, MonsterDef, PropDef, ZoneDef } from '../content/types.ts';
 import { rollDrop } from './loot.ts';
 import type { Vec2 } from '../math.ts';
@@ -93,12 +93,17 @@ function serves(world: World, prop: string): boolean {
   return def !== undefined && def.service !== null;
 }
 
-export function safeSpots(world: World): Vec2[] {
+export interface SafeSpot {
+  readonly at: Vec2;
+  readonly clear: number;
+}
+
+export function safeSpots(world: World, clearance: StrikeClearance): SafeSpot[] {
   const zone: ZoneDef = world.zone;
-  const spots: Vec2[] = world.npcs.map((npc: NpcState): Vec2 => npc.pos);
-  if (zone.waypoint !== null) spots.push(zone.waypoint);
-  for (const placed of zone.props) if (serves(world, placed.prop)) spots.push(placed);
-  return spots.map((spot: Vec2): Vec2 => ({ x: spot.x + world.shift.x, z: spot.z + world.shift.z }));
+  const spots: SafeSpot[] = world.npcs.map((npc: NpcState): SafeSpot => ({ at: npc.pos, clear: clearance.safe }));
+  if (zone.waypoint !== null) spots.push({ at: zone.waypoint, clear: clearance.waypoint });
+  for (const placed of zone.props) if (serves(world, placed.prop)) spots.push({ at: placed, clear: clearance.safe });
+  return spots.map((spot: SafeSpot): SafeSpot => ({ at: { x: spot.at.x + world.shift.x, z: spot.at.z + world.shift.z }, clear: spot.clear }));
 }
 
 function nearAngle(world: World, near: StrikeNear, aimed: boolean): number {
@@ -115,7 +120,7 @@ function pointNear(world: World, near: StrikeNear, aimed: boolean): Vec2 {
 
 function roomFor(world: World, field: MomentField, def: MomentDef, pos: Vec2): boolean {
   if (!isWalkable(world.grid, pos.x, pos.z)) return false;
-  if (safeSpots(world).some((spot: Vec2): boolean => distance(spot, pos) < def.radius + field.clearance.safe)) return false;
+  if (safeSpots(world, field.clearance).some((spot: SafeSpot): boolean => distance(spot.at, pos) < def.radius + spot.clear)) return false;
   const bubble: number = sureHolds(world, field) ? def.radius : 0;
   if (world.monsters.some((monster: MonsterState): boolean => monster.alive && monster.def.faction !== world.content.moments.faction && distance(monster.pos, pos) < monster.def.aggroRadius + bubble + field.clearance.packs)) return false;
   if (world.zone.exits.some((exit): boolean => distance(exit, pos) < def.radius + field.clearance.exits)) return false;

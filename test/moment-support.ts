@@ -51,7 +51,7 @@ export const RAID: MomentDef = {
 export const FIELD: MomentField = {
   combat: true,
   areas: [{ x: 80, z: 80, radius: 70 }],
-  clearance: { hero: 6, exits: 4, between: 3, safe: 0, packs: 0 },
+  clearance: { hero: 6, exits: 4, between: 3, safe: 0, waypoint: 0, packs: 0 },
   interval: { min: 4, max: 8 },
   start: 2,
   max: 4,

@@ -80,6 +80,12 @@ void test('a field reads its areas, clearance, cadence and table', (): void => {
   assert.equal(field.table[0]?.moment, 'fire');
 });
 
+void test('a waypoint keeps strikes off as far as the safe ground unless the field gives it its own clearance', (): void => {
+  assert.equal(momentField({ ...FIELD, clearance: { ...FIELD.clearance, safe: 18 } }, 'zone.moments')?.clearance.waypoint, 18);
+  assert.equal(momentField({ ...FIELD, clearance: { ...FIELD.clearance, safe: 18, waypoint: 4 } }, 'zone.moments')?.clearance.waypoint, 4);
+  assert.throws((): unknown => momentField({ ...FIELD, clearance: { ...FIELD.clearance, waypoint: -1 } }, 'zone.moments'), ContentError);
+});
+
 void test('a field that starts above its max, has no area or no table is refused', (): void => {
   assert.throws((): void => {
     momentField({ ...FIELD, start: 4 }, 'zone.moments');

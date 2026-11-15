@@ -521,8 +521,8 @@ void test('no strike ever lands near the safe ground or close enough to a living
     const world: World = createWorld(shipped, { seed, save: null });
     world.flags['first_moment'] = 'cleared';
     enterZone(world, guarded, { type: 'start' });
-    const spots = safeSpots(world);
-    assert.ok(spots.some((spot: Vec2): boolean => distance(spot, SAFE_PROBE) < 1e-6));
+    const spots = safeSpots(world, field.clearance);
+    assert.ok(spots.some((spot): boolean => distance(spot.at, SAFE_PROBE) < 1e-6 && spot.clear === field.clearance.safe));
     const seen: MomentState[] = [];
     const packAt: number[] = [];
     for (let elapsed: number = 0; elapsed < 240; elapsed += 1) {
@@ -536,7 +536,7 @@ void test('no strike ever lands near the safe ground or close enough to a living
       for (const moment of world.moments) if (moment.phase === 'dormant') moment.timeLeft = 0;
     }
     assert.ok(seen.length >= 4, `seed ${seed}`);
-    for (const moment of seen) for (const spot of spots) assert.ok(distance(moment.pos, spot) >= moment.def.radius + field.clearance.safe, `seed ${seed}: ${moment.def.id} ${distance(moment.pos, spot).toFixed(1)} from ${spot.x.toFixed(1)},${spot.z.toFixed(1)} npc now ${world.npcs.map((npc) => `${npc.pos.x.toFixed(1)},${npc.pos.z.toFixed(1)}`).join(" ")}`);
+    for (const moment of seen) for (const spot of spots) assert.ok(distance(moment.pos, spot.at) >= moment.def.radius + spot.clear, `seed ${seed}: ${moment.def.id} ${distance(moment.pos, spot.at).toFixed(1)} from ${spot.at.x.toFixed(1)},${spot.at.z.toFixed(1)} npc now ${world.npcs.map((npc) => `${npc.pos.x.toFixed(1)},${npc.pos.z.toFixed(1)}`).join(" ")}`);
     assert.ok(packAt.length > 0);
     for (const gap of packAt) assert.ok(gap >= field.clearance.packs - 1e-6, `seed ${seed}: a strike ${gap.toFixed(1)} m past a pack's reach`);
   }
@@ -651,20 +651,21 @@ void test('a hero who falls in the first fight and rises at the checkpoint comes
   assert.ok(world.moments.includes(moment) && moment.phase !== 'fading');
 });
 
-void test('safe ground is every NPC, the waypoint and every service prop such as the stash, wherever the zone puts them', (): void => {
+void test('safe ground is every NPC, the waypoint and every service prop such as the stash, wherever the zone puts them, and the waypoint keeps strikes off by its own clearance', (): void => {
   const shipped: Content = loadContent();
   const hideout: ZoneDef = must(shipped.zones.get('hideout'), 'hideout');
   const world: World = createWorld(shipped, { seed: 3, save: null });
   enterZone(world, hideout, { type: 'start' });
-  const spots = safeSpots(world);
-  const has = (x: number, z: number): boolean => spots.some((spot): boolean => Math.abs(spot.x - x) < 1e-6 && Math.abs(spot.z - z) < 1e-6);
+  const clearance = { hero: 0, exits: 0, between: 0, safe: 18, waypoint: 4, packs: 0 } as const;
+  const spots = safeSpots(world, clearance);
+  const has = (x: number, z: number, clear: number): boolean => spots.some((spot): boolean => Math.abs(spot.at.x - x) < 1e-6 && Math.abs(spot.at.z - z) < 1e-6 && spot.clear === clear);
   assert.ok(world.npcs.length > 0);
-  for (const npc of world.npcs) assert.ok(has(npc.pos.x, npc.pos.z), npc.def.id);
+  for (const npc of world.npcs) assert.ok(has(npc.pos.x, npc.pos.z, clearance.safe), npc.def.id);
   const waypoint = must(hideout.waypoint, 'hideout waypoint');
-  assert.ok(has(waypoint.x, waypoint.z));
+  assert.ok(has(waypoint.x, waypoint.z, clearance.waypoint));
   const services = hideout.props.filter((placed): boolean => (shipped.props.get(placed.prop)?.service ?? null) !== null);
   assert.ok(services.length > 0);
-  for (const placed of services) assert.ok(has(placed.x, placed.z), placed.prop);
+  for (const placed of services) assert.ok(has(placed.x, placed.z, clearance.safe), placed.prop);
 });
 
 void test('the bubble sound and the muffled bed follow the hero into a woken bubble', (): void => {
