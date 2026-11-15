@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readWalk, slowLine, UNSLOWED, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
+import { PROFILE, profileFor, readWalk, slowLine, UNSLOWED, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
 
 void test('the walk takes a build address, a Chrome and a port, and falls back to a local dev server and the usual Chrome', (): void => {
   assert.deepEqual(walkArgs([], {}), { url: null, chrome: WALK_DEFAULTS.chrome, port: WALK_DEFAULTS.port, hero: WALK_DEFAULTS.hero, slow: UNSLOWED });
@@ -45,4 +45,11 @@ void test('the slow mode throttles the CPU and the network, holds a file once an
   assert.throws((): unknown => walkArgs(['--cpu'], {}));
   assert.throws((): unknown => walkArgs(['--hold', '--cpu', '4'], {}));
   assert.throws((): unknown => walkArgs(['--kbps', '--hold', 'Throw.glb=1'], {}));
+});
+
+void test('each checkout walks with its own fixed Chrome profile, so two walks never share one and runs never add folders', (): void => {
+  const here: string = profileFor('/work/the-lost-storm/');
+  assert.equal(profileFor('/work/the-lost-storm/'), here);
+  assert.notEqual(profileFor('/work/the-lost-storm/.claude/worktrees/other/'), here);
+  assert.match(here, new RegExp(`^${PROFILE.base}-[0-9a-f]{${PROFILE.hashLength}}$`));
 });

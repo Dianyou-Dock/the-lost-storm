@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { fields, flag, items, numeric, text } from '../sim/content/read.ts';
 import type { Fields } from '../sim/content/read.ts';
 
@@ -8,6 +9,15 @@ export const WALK_DEFAULTS = {
   height: 800,
   hero: 'woman',
 } as const;
+
+export const PROFILE = {
+  base: 'walk-bodies-profile',
+  hashLength: 10,
+} as const;
+
+export function profileFor(checkout: string): string {
+  return `${PROFILE.base}-${createHash('sha256').update(checkout).digest('hex').slice(0, PROFILE.hashLength)}`;
+}
 
 export interface WalkHold {
   readonly pattern: string;

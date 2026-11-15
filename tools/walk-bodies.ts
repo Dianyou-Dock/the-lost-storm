@@ -3,10 +3,11 @@ import type { ChildProcess } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fields, items, text } from '../sim/content/read.ts';
 import type { Fields } from '../sim/content/read.ts';
 import type { WalkArgs, WalkFail, WalkHold, WalkSlow, WalkSummary } from './walk-report.ts';
-import { readWalk, slowLine, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
+import { profileFor, readWalk, slowLine, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
 
 const WALK = {
   serverWaitMs: 60000,
@@ -16,7 +17,6 @@ const WALK = {
   settleMs: 1500,
   walkWaitMs: 240000,
   audioKey: 'the-lost-storm.audio.v1',
-  profile: 'walk-bodies-profile',
   portFile: 'DevToolsActivePort',
   steps: ['^enter$', '^(choose for me|take .+)$', '^enter$'],
   begin: '^(enter the storm|continue)$',
@@ -54,7 +54,7 @@ async function startServer(port: number): Promise<{ readonly url: string; readon
 }
 
 function startChrome(chrome: string): { readonly process: ChildProcess; readonly profile: string } {
-  const profile: string = join(tmpdir(), WALK.profile);
+  const profile: string = join(tmpdir(), profileFor(fileURLToPath(new URL('..', import.meta.url))));
   mkdirSync(profile, { recursive: true });
   rmSync(join(profile, WALK.portFile), { force: true });
   const process: ChildProcess = spawn(chrome, ['--headless=new', '--mute-audio', '--no-first-run', '--no-default-browser-check', '--enable-unsafe-swiftshader', `--window-size=${WALK_DEFAULTS.width},${WALK_DEFAULTS.height}`, '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore' });
