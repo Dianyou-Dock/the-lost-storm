@@ -5,9 +5,11 @@ import { glow, scorchMesh } from './effect-shapes.ts';
 import type { GroundLight, GroundLightLook } from './ground-light.ts';
 import { createGroundLight, flare, GROUND_LIGHT, spread } from './ground-light.ts';
 import type { BurstOptions } from './particles.ts';
+import { floorUp } from './terrain-lift.ts';
 
 export const SHOCKWAVE = {
   waveTime: 0.42,
+  scorchHeight: 0.1,
   waveStrength: 1.1,
   waveFill: 0.3,
   waveWidth: 0.2,
@@ -61,7 +63,7 @@ export function createShockwave(deps: ShockwaveKit): Shockwave {
     const ring: boolean = skill.vfx.lightning !== null;
     const look: GroundLightLook = ring ? { fill: SHOCKWAVE.waveFill, band: 1, width: radius * SHOCKWAVE.waveWidth, wobble: radius * SHOCKWAVE.waveWobble } : { fill: 1, band: 0, width: radius * SHOCKWAVE.patchWidth, wobble: radius * SHOCKWAVE.patchWobble, hollow: SHOCKWAVE.patchHollow, grain: SHOCKWAVE.patchGrain };
     const wave: GroundLight = createGroundLight(glow(color, SHOCKWAVE.waveGlow), { kind: 'round', radius, inner: 0, arc: Math.PI * 2 }, look);
-    wave.mesh.position.set(x, GROUND_LIGHT.height + 0.05, z);
+    wave.mesh.position.set(x, floorUp(x, GROUND_LIGHT.height + 0.05, z), z);
     deps.add(
       wave.mesh,
       SHOCKWAVE.waveTime,
@@ -72,7 +74,7 @@ export function createShockwave(deps: ShockwaveKit): Shockwave {
       null,
     );
     const scorch = scorchMesh(color);
-    scorch.mesh.position.set(x, 0.1, z);
+    scorch.mesh.position.set(x, floorUp(x, SHOCKWAVE.scorchHeight, z), z);
     scorch.mesh.scale.setScalar(radius * SHOCKWAVE.scorchSize);
     deps.add(
       scorch.mesh,

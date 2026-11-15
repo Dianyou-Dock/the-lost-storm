@@ -4,6 +4,7 @@ import type { Vec2 } from '../../sim/math.ts';
 import { isDashing } from '../../sim/world/dash.ts';
 import type { Actor, MonsterState, World } from '../../sim/world/types.ts';
 import type { BurstOptions, ParticleSystem } from './particles.ts';
+import { floorUp } from './terrain-lift.ts';
 
 export const DASH_TRAIL = {
   samples: 24,
@@ -118,7 +119,7 @@ function writeTrail(trail: Trail): void {
     const z: number = sample?.z ?? 0;
     const fade: number = sample === undefined || index >= trail.samples.length ? 0 : Math.max(0, 1 - sample.age / DASH_TRAIL.fade);
     const base: number = index * 6;
-    trail.positions.set([x, DASH_TRAIL.low, z, x, DASH_TRAIL.high, z], base);
+    trail.positions.set([x, floorUp(x, DASH_TRAIL.low, z), z, x, floorUp(x, DASH_TRAIL.high, z), z], base);
     trail.alphas[index * 2] = fade * DASH_TRAIL.footFade;
     trail.alphas[index * 2 + 1] = fade;
   }

@@ -303,3 +303,66 @@ void test('the game shows no native control or pop-up from the browser or the sy
   }
   assert.deepEqual(found, [], 'draw it with the HUD components (src/hud/dropdown.ts for a choice list, the HUD tooltip for a hint)');
 });
+
+const FLOOR_PLACED: readonly string[] = [
+  'src/render/effects.ts',
+  'src/render/storm-effects.ts',
+  'src/render/effect-kit.ts',
+  'src/render/ability-cues.ts',
+  'src/render/spin-view.ts',
+  'src/render/shockwave.ts',
+  'src/render/telegraphs.ts',
+  'src/render/ward-view.ts',
+  'src/render/dash-trail.ts',
+  'src/render/overlays.ts',
+  'src/render/health-bars.ts',
+];
+const PLACING: RegExp = /(\.position\.set|camera\.project|new Vector3)\(/g;
+const PASSED_HEIGHT: RegExp = /^[\w.]+\.y$/;
+
+function callArguments(text: string, open: number): readonly string[] {
+  const found: string[] = [];
+  let depth: number = 0;
+  let start: number = open;
+  for (let index: number = open; index < text.length; index += 1) {
+    const char: string = text.charAt(index);
+    if (char === '(' || char === '[' || char === '{') depth += 1;
+    else if (char === ')' || char === ']' || char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        found.push(text.slice(start, index).trim());
+        return found;
+      }
+    } else if (char === ',' && depth === 1) {
+      found.push(text.slice(start, index).trim());
+      start = index + 1;
+    }
+    if (depth === 1 && index === open) start = index + 1;
+  }
+  return found;
+}
+
+function floorSkipsIn(text: string): readonly string[] {
+  const found: string[] = [];
+  for (const match of text.matchAll(PLACING)) {
+    const args: readonly string[] = callArguments(text, match.index + match[0].length - 1);
+    const [x, y] = args;
+    if (x === undefined || y === undefined || args.length < 3 || x === '0') continue;
+    if (y.includes('floorUp(') || PASSED_HEIGHT.test(y)) continue;
+    found.push(`${match[0]}${args.join(', ')})`);
+  }
+  return found;
+}
+
+void test('the floor guard catches an effect placed at a fixed height and passes one placed on the floor', (): void => {
+  const caught: readonly string[] = ['mesh.position.set(x, 0, z);', 'light.mesh.position.set(at.x, GROUND_LIGHT.height + 0.02, at.z);', 'camera.project(monster.pos.x, heightOf(monster.id) + LIFT, monster.pos.z, point);', 'const to = new Vector3(next.x, STORM.bodyHeight, next.z);'];
+  const allowed: readonly string[] = ['mesh.position.set(x, floorUp(x, 0, z), z);', 'camera.project(label.x, label.y, label.z, point);', 'keeper.position.set(0, DEPTH, 0);', 'const at = new Vector3();', 'chargeGlow.position.set(at.x, floorUp(at.x, at.y, at.z), at.z);'];
+  for (const text of caught) assert.equal(floorSkipsIn(text).length, 1, text);
+  for (const text of allowed) assert.deepEqual(floorSkipsIn(text), [], text);
+});
+
+void test('effects, numbers and bars stand on the floor under them, through floorUp', (): void => {
+  const found: string[] = [];
+  for (const path of FLOOR_PLACED) for (const skip of floorSkipsIn(readFileSync(path, 'utf8'))) found.push(`${path}: ${skip}`);
+  assert.deepEqual(found, [], 'place it with floorUp from src/render/terrain-lift.ts so it stands on the terrace it is on');
+});

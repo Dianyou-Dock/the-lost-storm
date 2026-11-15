@@ -5,6 +5,7 @@ import type { Vec2 } from '../../sim/math.ts';
 import type { GroundLight, GroundLightForm } from './ground-light.ts';
 import { createGroundLight } from './ground-light.ts';
 import type { BurstOptions } from './particles.ts';
+import { floorUp } from './terrain-lift.ts';
 
 export const CUES = {
   handHeight: 1.45,
@@ -102,7 +103,7 @@ const MIST: Color = new Color(0xdfe8f0);
 export function createAbilityCues(kit: CueKit): AbilityCues {
   const shade = (x: number, z: number, radius: number): void => {
     const pool: GroundLight = createGroundLight(SHADE, round(radius), { fill: 1, band: 0, width: radius * CUES.shadeSoft, wobble: radius * CUES.shadeWobble }, 'shade');
-    pool.mesh.position.set(x, CUES.shadeHeight, z);
+    pool.mesh.position.set(x, floorUp(x, CUES.shadeHeight, z), z);
     kit.add(
       pool.mesh,
       CUES.shadeTime,
@@ -129,9 +130,9 @@ export function createAbilityCues(kit: CueKit): AbilityCues {
 
   const ground = (owner: number, pos: Vec2, duration: number, color: Color): void => {
     const band: GroundLight = createGroundLight(color, round(CUES.groundFrom), { fill: 0, band: 1, width: CUES.groundBand, wobble: CUES.groundBand * 0.5 });
-    band.mesh.position.set(pos.x, CUES.shadeHeight + 0.02, pos.z);
+    band.mesh.position.set(pos.x, floorUp(pos.x, CUES.shadeHeight + 0.02, pos.z), pos.z);
     const under: GroundLight = createGroundLight(SHADE, round(CUES.groundFrom * CUES.groundUnder), { fill: 1, band: 0, width: CUES.groundFrom * CUES.shadeSoft, wobble: CUES.groundBand }, 'shade');
-    under.mesh.position.set(pos.x, CUES.shadeHeight, pos.z);
+    under.mesh.position.set(pos.x, floorUp(pos.x, CUES.shadeHeight, pos.z), pos.z);
     kit.add(
       band.mesh,
       duration,
@@ -176,7 +177,7 @@ export function createAbilityCues(kit: CueKit): AbilityCues {
     whirl(x: number, z: number, radius: number, color: Color): void {
       shade(x, z, radius * 1.05);
       const band: GroundLight = createGroundLight(color, round(radius), { fill: CUES.whirlFill, band: 1, width: radius * CUES.whirlWidth, wobble: radius * CUES.whirlWobble });
-      band.mesh.position.set(x, CUES.shadeHeight + 0.03, z);
+      band.mesh.position.set(x, floorUp(x, CUES.shadeHeight + 0.03, z), z);
       kit.add(
         band.mesh,
         CUES.whirlTime,

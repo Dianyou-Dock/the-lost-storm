@@ -12,6 +12,7 @@ import type { TargetBar } from '../hud/target-bar.ts';
 import { createHealthBars } from './health-bars.ts';
 import type { HealthBars } from './health-bars.ts';
 import type { IsoCamera } from './iso-camera.ts';
+import { floorUp } from './terrain-lift.ts';
 import { createLootTip } from './loot-tip.ts';
 import type { LootTip, TipCheck } from './loot-tip.ts';
 import { anchorInView, heldReach, keepApart, keepTagInView, LABEL_EDGE, placeTag, stackAtEdges } from './label-edge.ts';
@@ -366,7 +367,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
         continue;
       }
       label.element.classList.add('leaving');
-      leaving.push({ element: label.element, x: label.npc.pos.x, y: hooks.heightOf(label.npc.id) + OVERLAYS.npcLift, z: label.npc.pos.z, left: OVERLAYS.npcLeave, glide: label.glide });
+      leaving.push({ element: label.element, x: label.npc.pos.x, y: floorUp(label.npc.pos.x, hooks.heightOf(label.npc.id) + OVERLAYS.npcLift, label.npc.pos.z), z: label.npc.pos.z, left: OVERLAYS.npcLeave, glide: label.glide });
     }
     const staying: NpcLabel[] = people.filter((label: NpcLabel): boolean => world.npcs.includes(label.npc));
     peopleOf = world.npcs;
@@ -418,7 +419,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
         switch (event.type) {
           case 'damage': {
             if (event.targetTeam !== 'player') targetBar.hit(event.targetId);
-            const y: number = hooks.heightOf(event.targetId) * OVERLAYS.numberHeight;
+            const y: number = floorUp(event.pos.x, hooks.heightOf(event.targetId) * OVERLAYS.numberHeight, event.pos.z);
             const kind: string = event.targetTeam === 'player' ? 'hurt' : event.crit ? 'crit' : '';
             float(event.crit ? `${event.amount}!` : `${event.amount}`, kind, event.pos.x, y, event.pos.z);
             break;
@@ -531,7 +532,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
         const open: boolean = label.open(world);
         label.element.classList.toggle('locked', !open);
         label.element.classList.toggle('secret', !open && label.secret);
-        camera.project(label.x, OVERLAYS.exitLift, label.z, point);
+        camera.project(label.x, floorUp(label.x, OVERLAYS.exitLift, label.z), label.z, point);
         anchor.copy(point);
         const edge: boolean = !anchorInView(point.x, point.y, view);
         label.element.classList.toggle('edge', edge);
@@ -545,7 +546,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           label.element.classList.toggle('pinned', pinned);
         }
         label.element.classList.toggle('aimed', label.npc.id === hoveredId);
-        camera.project(label.npc.pos.x, hooks.heightOf(label.npc.id) + OVERLAYS.npcLift, label.npc.pos.z, point);
+        camera.project(label.npc.pos.x, floorUp(label.npc.pos.x, hooks.heightOf(label.npc.id) + OVERLAYS.npcLift, label.npc.pos.z), label.npc.pos.z, point);
         anchor.copy(point);
         settleTag(label.element, label.glide, label.stack, dt, true);
       }
@@ -609,7 +610,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           label.element.classList.add('taken');
         }
         const near: boolean = Math.hypot(label.ground.pos.x - world.player.pos.x, label.ground.pos.z - world.player.pos.z) <= OVERLAYS.labelNear;
-        camera.project(label.ground.pos.x, label.ground.find === null ? OVERLAYS.labelLift : OVERLAYS.findLift, label.ground.pos.z, point);
+        camera.project(label.ground.pos.x, floorUp(label.ground.pos.x, label.ground.find === null ? OVERLAYS.labelLift : OVERLAYS.findLift, label.ground.pos.z), label.ground.pos.z, point);
         const shown: boolean = lootShown({ all, near, find: label.ground.find !== null, rank: label.rank, shownRank: OVERLAYS.labelShownRank, inView: anchorInView(point.x, point.y, view) });
         if (shown !== label.shown) {
           label.shown = shown;

@@ -1,4 +1,4 @@
-import { liftHere } from './terrain-lift.ts';
+import { floorUp, glideFloor, liftHere } from './terrain-lift.ts';
 import type { Group, Object3D, Scene, Vector3 } from 'three';
 import { Color, Mesh, MeshBasicMaterial, SphereGeometry } from 'three';
 import type { FlaskResource } from '../../sim/content/flasks.ts';
@@ -150,6 +150,7 @@ function easeOut(t: number): number {
 export function createEffects(scene: Scene, particles: ParticleSystem, camera: IsoCamera, onFlash: (power: number) => void): Effects {
   const transients: Transient[] = [];
   const projectiles: Map<number, ProjectileView> = new Map<number, ProjectileView>();
+  const flights: Map<number, number> = new Map<number, number>();
   const colors: Map<string, Color> = new Map<string, Color>();
   let hitStop: number = 0;
   let wash: HurtWash = CALM_WASH;
@@ -204,7 +205,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
 
   const slash = (x: number, z: number, direction: { readonly x: number; readonly z: number }, reach: number, arcDegrees: number, color: Color, mirrored: boolean): void => {
     const { mesh, material } = slashMesh(arcDegrees * DEGREES_TO_RADIANS, reach, glow(color, EFFECTS.slashGlow));
-    mesh.position.set(x, EFFECTS.slashHeight, z);
+    mesh.position.set(x, floorUp(x, EFFECTS.slashHeight, z), z);
     mesh.rotation.set(0, facingOf(direction), mirrored ? -EFFECTS.slashTilt : EFFECTS.slashTilt, 'YXZ');
     mesh.scale.x = mirrored ? -1 : 1;
     add(
@@ -220,7 +221,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
 
   const ring = (x: number, z: number, radius: number, color: Color, duration: number): void => {
     const wave: GroundLight = createGroundLight(color, { kind: 'round', radius, inner: 0, arc: Math.PI * 2 }, { fill: EFFECTS.ringFill, band: 1, width: Math.max(EFFECTS.ringMinWidth, radius * EFFECTS.ringWidth), wobble: radius * EFFECTS.ringWobble });
-    wave.mesh.position.set(x, GROUND_LIGHT.height + 0.04, z);
+    wave.mesh.position.set(x, floorUp(x, GROUND_LIGHT.height + 0.04, z), z);
     add(
       wave.mesh,
       duration,
@@ -234,7 +235,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
 
   const mark = (x: number, z: number, radius: number, color: Color, duration: number): void => {
     const spot: GroundLight = createGroundLight(color, { kind: 'round', radius, inner: 0, arc: Math.PI * 2 }, { fill: EFFECTS.markFill, band: 1, width: radius * EFFECTS.markWidth, wobble: radius * EFFECTS.ringWobble });
-    spot.mesh.position.set(x, GROUND_LIGHT.height + 0.03, z);
+    spot.mesh.position.set(x, floorUp(x, GROUND_LIGHT.height + 0.03, z), z);
     add(
       spot.mesh,
       duration,
@@ -366,6 +367,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
       disposeObject(view.mesh);
       projectiles.delete(event.id);
     }
+    flights.delete(event.id);
     kit.drop(event.id);
     const color: Color = colorOf(event.skill.vfx.color);
     const impact = event.skill.vfx.impact;
@@ -435,7 +437,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     },
     clickMarker(x: number, z: number, hostile: boolean): void {
       const marker: GroundLight = createGroundLight(hostile ? ATTACK_MARK : MOVE_MARK, { kind: 'round', radius: EFFECTS.markerSize, inner: 0, arc: Math.PI * 2 }, { fill: EFFECTS.markerFill, band: 1, width: EFFECTS.markerSize * EFFECTS.markerWidth, wobble: EFFECTS.markerSize * EFFECTS.ringWobble });
-      marker.mesh.position.set(x, GROUND_LIGHT.height + 0.05, z);
+      marker.mesh.position.set(x, floorUp(x, GROUND_LIGHT.height + 0.05, z), z);
       add(
         marker.mesh,
         EFFECTS.markerTime,
@@ -596,6 +598,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
       transients.length = 0;
       for (const view of projectiles.values()) disposeObject(view.mesh);
       projectiles.clear();
+      flights.clear();
       flashes.clear();
       kit.clear();
       dashTrails.clear();
@@ -618,16 +621,19 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
       kit.update(dt);
       for (const projectile of world.projectiles) {
         const lightning = projectile.skill.vfx.lightning;
+        const flight: number = glideFloor(flights.get(projectile.id), projectile.pos.x, projectile.pos.z, dt);
+        flights.set(projectile.id, flight);
+        const flying: number = EFFECTS.projectileHeight + flight - liftHere(projectile.pos.x, projectile.pos.z);
         if (lightning !== null) {
-          kit.carry(projectile.id, projectile.pos.x, EFFECTS.projectileHeight, projectile.pos.z, projectile.direction.x, projectile.direction.z, colorOf(projectile.skill.vfx.color), lightning, projectile.skill.vfx.trail, dt);
+          kit.carry(projectile.id, projectile.pos.x, flying, projectile.pos.z, projectile.direction.x, projectile.direction.z, colorOf(projectile.skill.vfx.color), lightning, projectile.skill.vfx.trail, dt);
           continue;
         }
         const view: ProjectileView | null = projectileView(projectile);
         if (view === null) continue;
-        view.mesh.position.set(projectile.pos.x, EFFECTS.projectileHeight + liftHere(projectile.pos.x, projectile.pos.z), projectile.pos.z);
+        view.mesh.position.set(projectile.pos.x, floorUp(projectile.pos.x, flying, projectile.pos.z), projectile.pos.z);
         view.mesh.rotation.z += dt * 14;
-        if (projectile.skill.vfx.trail > 0) kit.carry(projectile.id, projectile.pos.x, EFFECTS.projectileHeight, projectile.pos.z, projectile.direction.x, projectile.direction.z, view.color, null, projectile.skill.vfx.trail, dt);
-        else spray(projectile.pos.x, EFFECTS.projectileHeight, projectile.pos.z, view.color, 2, { speed: { min: 0, max: 1.2 }, lift: { min: -0.6, max: 0.8 }, life: { min: 0.12, max: 0.32 }, size: { min: 0.3, max: 0.7 }, gravity: 0, jitter: 0.25 });
+        if (projectile.skill.vfx.trail > 0) kit.carry(projectile.id, projectile.pos.x, flying, projectile.pos.z, projectile.direction.x, projectile.direction.z, view.color, null, projectile.skill.vfx.trail, dt);
+        else spray(projectile.pos.x, flying, projectile.pos.z, view.color, 2, { speed: { min: 0, max: 1.2 }, lift: { min: -0.6, max: 0.8 }, life: { min: 0.12, max: 0.32 }, size: { min: 0.3, max: 0.7 }, gravity: 0, jitter: 0.25 });
       }
       if (warmFrames > 0) {
         warmFrames -= 1;
@@ -639,7 +645,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
       if (emberTimer <= 0 && torches.length > 0) {
         emberTimer = EFFECTS.emberEvery;
         const torch: Vector3 | undefined = torches[Math.floor(Math.random() * torches.length)];
-        if (torch !== undefined) spray(torch.x, torch.y + 0.1, torch.z, EMBER, 1, { speed: { min: 0, max: 0.5 }, lift: { min: 0.8, max: 2.4 }, life: { min: 0.6, max: 1.5 }, size: { min: 0.2, max: 0.45 }, gravity: -0.6, drag: 0.5, jitter: 0.15 });
+        if (torch !== undefined) spray(torch.x, torch.y + 0.1 - liftHere(torch.x, torch.z), torch.z, EMBER, 1, { speed: { min: 0, max: 0.5 }, lift: { min: 0.8, max: 2.4 }, life: { min: 0.6, max: 1.5 }, size: { min: 0.2, max: 0.45 }, gravity: -0.6, drag: 0.5, jitter: 0.15 });
       }
       flames.forEach((flame: Mesh, index: number): void => {
         flame.scale.setScalar(0.85 + 0.25 * Math.sin(world.time * 17 + index * 2.1) + 0.12 * Math.sin(world.time * 41 + index));

@@ -3,6 +3,7 @@ import type { MonsterState, World } from '../../sim/world/types.ts';
 import type { IsoCamera } from './iso-camera.ts';
 import type { TagSize, TagSizes } from './tag-sizes.ts';
 import { browserTagMeasure, clientBox, createTagSizes } from './tag-sizes.ts';
+import { floorUp } from './terrain-lift.ts';
 
 export const HEALTH_BARS = {
   width: 38,
@@ -126,7 +127,7 @@ export function createHealthBars(root: HTMLElement, camera: IsoCamera): HealthBa
           states.delete(monster.id);
           continue;
         }
-        camera.project(monster.pos.x, heightOf(monster.id) + HEALTH_BARS.lift, monster.pos.z, point);
+        camera.project(monster.pos.x, floorUp(monster.pos.x, heightOf(monster.id) + HEALTH_BARS.lift, monster.pos.z), monster.pos.z, point);
         const big: boolean = monster.def.boss !== null;
         const barWidth: number = big ? HEALTH_BARS.bossWidth : HEALTH_BARS.width;
         const barHeight: number = big ? HEALTH_BARS.bossHeight : HEALTH_BARS.height;

@@ -7,6 +7,7 @@ import type { Telegraph } from './effect-shapes.ts';
 import { disposeObject, telegraphFor } from './effect-shapes.ts';
 import type { GroundLight } from './ground-light.ts';
 import { createGroundLight, GROUND_LIGHT } from './ground-light.ts';
+import { floorUp } from './terrain-lift.ts';
 
 export const TELEGRAPHS = {
   height: 0.09,
@@ -112,7 +113,7 @@ function actionProgress(monster: MonsterState, skillId: string): number | null {
 }
 
 function place(object: Object3D, at: Vec2, direction: Vec2, parent: Object3D): void {
-  object.position.set(at.x, TELEGRAPHS.height, at.z);
+  object.position.set(at.x, floorUp(at.x, TELEGRAPHS.height, at.z), at.z);
   object.rotation.y = facingOf(direction);
   parent.add(object);
 }
@@ -154,7 +155,7 @@ export function createTelegraphs(parent: Object3D): Telegraphs {
     },
     field(owner: number, at: Vec2, radius: number, color: Color): void {
       const light: GroundLight = createGroundLight(color, { kind: 'round', radius, inner: 0, arc: Math.PI * 2 }, { fill: 1, band: 0, width: radius * TELEGRAPHS.fieldWidth, wobble: radius * TELEGRAPHS.fieldWobble, hollow: TELEGRAPHS.fieldHollow, grain: TELEGRAPHS.fieldGrain });
-      light.mesh.position.set(at.x, GROUND_LIGHT.height + 0.02, at.z);
+      light.mesh.position.set(at.x, floorUp(at.x, GROUND_LIGHT.height + 0.02, at.z), at.z);
       parent.add(light.mesh);
       fields.push({ owner, light, settling: -1, age: 0 });
     },

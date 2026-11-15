@@ -6,6 +6,7 @@ import { createGroundLight, GROUND_LIGHT, held } from './ground-light.ts';
 import type { ParticleSystem } from './particles.ts';
 import type { SpinMotion, WakeDrop } from './spin-motion.ts';
 import { createSpinMotion, readSpin, SPIN_MOTION, spinShown, stepSpinMotion } from './spin-motion.ts';
+import { floorUp } from './terrain-lift.ts';
 
 export const SPIN_VIEW = {
   arc: 2.3,
@@ -84,7 +85,7 @@ export function createSpinView(scene: Scene, particles: ParticleSystem | null): 
     if (length <= 0) return;
     wake.age = 0;
     wake.light.mesh.visible = true;
-    wake.light.mesh.position.set(drop.from.x, GROUND_LIGHT.height + SPIN_VIEW.liftOrder, drop.from.z);
+    wake.light.mesh.position.set(drop.from.x, floorUp(drop.from.x, GROUND_LIGHT.height + SPIN_VIEW.liftOrder, drop.from.z), drop.from.z);
     wake.light.mesh.rotation.z = Math.atan2(drop.from.x - drop.to.x, drop.from.z - drop.to.z);
     wake.light.pose(0, 0);
     if (particles === null) return;
@@ -104,7 +105,7 @@ export function createSpinView(scene: Scene, particles: ParticleSystem | null): 
       trail.mesh.visible = shown > 0;
       if (shown > 0) {
         const strength: number = shown * (SPIN_VIEW.arcRest + SPIN_VIEW.arcGain * share);
-        arc.mesh.position.set(player.pos.x, GROUND_LIGHT.height + SPIN_VIEW.liftOrder * 2, player.pos.z);
+        arc.mesh.position.set(player.pos.x, floorUp(player.pos.x, GROUND_LIGHT.height + SPIN_VIEW.liftOrder * 2, player.pos.z), player.pos.z);
         arc.mesh.scale.setScalar(base * reach);
         const lead: number = player.facing + motion.angle + Math.PI + SPIN_VIEW.bladeOffset;
         arc.mesh.rotation.z = lead;
@@ -117,7 +118,7 @@ export function createSpinView(scene: Scene, particles: ParticleSystem | null): 
       const glow: number = share * SPIN_VIEW.footGlow + steady * SPIN_VIEW.footSteady;
       foot.mesh.visible = glow > 0.002;
       if (foot.mesh.visible) {
-        foot.mesh.position.set(player.pos.x, GROUND_LIGHT.height + SPIN_VIEW.liftOrder, player.pos.z);
+        foot.mesh.position.set(player.pos.x, floorUp(player.pos.x, GROUND_LIGHT.height + SPIN_VIEW.liftOrder, player.pos.z), player.pos.z);
         foot.pose(glow, time);
       }
       if (drop !== null && player.moving) dropWake(drop, shown * (SPIN_VIEW.wakeShare + (1 - SPIN_VIEW.wakeShare) * share));

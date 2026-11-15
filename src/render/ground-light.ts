@@ -3,7 +3,7 @@ import { CustomBlending, DoubleSide, Mesh, NormalBlending, OneFactor, OneMinusSr
 import type { Spring } from '../hud/character-spring.ts';
 import { springTo, stepSpring } from '../hud/character-spring.ts';
 import type { LiftUniforms } from './terrain-lift.ts';
-import { LIFT_UNIFORMS, LIFT_VERTEX } from './terrain-lift.ts';
+import { LIFT_FRAGMENT, LIFT_UNIFORMS, LIFT_VERTEX, TERRAIN_LIFT } from './terrain-lift.ts';
 
 export const GROUND_LIGHT = {
   reachWidths: 3.2,
@@ -129,6 +129,7 @@ export const GROUND_LIGHT_FRAGMENT: string = [
   'uniform float uHollow;',
   'uniform float uGrain;',
   'varying vec2 vSpot;',
+  ...LIFT_FRAGMENT,
   'float groundHash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
   'float groundNoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);',
   '  return mix(mix(groundHash(i), groundHash(i + vec2(1.0, 0.0)), u.x), mix(groundHash(i + vec2(0.0, 1.0)), groundHash(i + vec2(1.0, 1.0)), u.x), u.y); }',
@@ -163,7 +164,8 @@ export const GROUND_LIGHT_FRAGMENT: string = [
   `  float broken = smoothstep(0.2, 0.8, groundFbm(breakAt + vec2(uSeed * 0.3, uTime * ${glsl(GROUND_LIGHT.bandBreakSpeed)})));`,
   `  float band = mix(roundBand * sector, laneBand, uLane) * mix(1.0, broken * 1.5, ${glsl(GROUND_LIGHT.bandBreakDepth)});`,
   '  float life = 1.0 - uGrain * inside;',
-  '  float glow = max((fill * uFill + band * uBand) * life * uStrength, 0.0);',
+  `  float floorShare = liftFade(groundNoise(vLiftWorld.xz * ${glsl(TERRAIN_LIFT.breakScale)}));`,
+  '  float glow = max((fill * uFill + band * uBand) * life * uStrength * floorShare, 0.0);',
   '  vec3 lit = uColor * glow;',
   `  lit /= max(1.0, max(lit.r, max(lit.g, lit.b)) / ${glsl(GROUND_LIGHT.peak)});`,
   `  gl_FragColor = uShade > 0.5 ? vec4(uColor, clamp(glow, 0.0, 1.0)) : vec4(lit, clamp(glow * ${glsl(GROUND_LIGHT.cover)}, 0.0, 1.0));`,

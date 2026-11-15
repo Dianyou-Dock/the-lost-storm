@@ -1,4 +1,4 @@
-import { liftHere } from './terrain-lift.ts';
+import { floorUp } from './terrain-lift.ts';
 import type { Object3D } from 'three';
 import { Color } from 'three';
 import type { VfxImpact, VfxLightning } from '../../sim/content/types.ts';
@@ -38,6 +38,7 @@ export const KIT = {
   groundWidth: 0.35,
   groundWobble: 0.14,
   groundFrom: 0.55,
+  groundHeight: GROUND_LIGHT.height + 0.045,
   bodyLength: 2.2,
   bodyStart: 0.35,
   bodyLead: 0.06,
@@ -235,7 +236,7 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
   for (let index: number = 0; index < start.groundFlashes; index += 1) {
     const light: GroundLight = createGroundLight(new Color(), { kind: 'round', radius: 1, inner: 0, arc: Math.PI * 2 }, { fill: KIT.groundFill, band: 1, width: KIT.groundWidth, wobble: KIT.groundWobble });
     light.mesh.visible = false;
-    light.mesh.position.y = GROUND_LIGHT.height + 0.045;
+    light.mesh.position.y = KIT.groundHeight;
     parent.add(light.mesh);
     ground.push({ light, scale: light.mesh.scale.x, age: 0, duration: KIT.groundTime, live: false });
   }
@@ -245,6 +246,8 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
   const channels: Map<number, Channel> = new Map<number, Channel>();
   const tail: Point = { x: 0, y: 0, z: 0 };
   const head: Point = { x: 0, y: 0, z: 0 };
+  const strikeFrom: Point = { x: 0, y: 0, z: 0 };
+  const strikeTo: Point = { x: 0, y: 0, z: 0 };
   let clock: number = 0;
 
   const groundFlash = (x: number, z: number, radius: number, color: Color): void => {
@@ -261,8 +264,7 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
     chosen.live = true;
     chosen.age = 0;
     chosen.light.mesh.visible = true;
-    chosen.light.mesh.position.x = x;
-    chosen.light.mesh.position.z = z;
+    chosen.light.mesh.position.set(x, floorUp(x, KIT.groundHeight, z), z);
     chosen.light.mesh.scale.setScalar(chosen.scale * radius);
     const tint: unknown = chosen.light.mesh.material.uniforms['uColor']?.value;
     if (tint instanceof Color) tint.copy(color);
@@ -277,10 +279,11 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
     groundFlash(x, z, radius, color);
   };
 
-  const place = (target: Point, from: StrandEnds): void => {
+  const place = (target: Point, from: StrandEnds): Point => {
     target.x = from.x;
-    target.y = from.y;
+    target.y = floorUp(from.x, from.y, from.z);
     target.z = from.z;
+    return target;
   };
 
   const shapeChannel = (channel: Channel): void => {
@@ -326,15 +329,15 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
       later(x, z, color, impact.sparks, impact.flash, light, delay);
     },
     strike(from: StrandEnds, to: StrandEnds, color: Color, look: VfxLightning, delay: number): void {
-      strands.strike(from, to, color, look, delay, budget().restrike);
+      strands.strike(place(strikeFrom, from), place(strikeTo, to), color, look, delay, budget().restrike);
     },
     skyStrike(x: number, z: number, color: Color, look: VfxLightning, radius: number, impact: VfxImpact | null, light: number, delay: number): void {
       const allowed: KitBudget = budget();
       head.x = x + (random() - 0.5) * KIT.skyLean;
-      head.y = KIT.skyHeight;
+      head.y = floorUp(x, KIT.skyHeight, z);
       head.z = z + (random() - 0.5) * KIT.skyLean;
       tail.x = x;
-      tail.y = KIT.skyFoot;
+      tail.y = floorUp(x, KIT.skyFoot, z);
       tail.z = z;
       strands.strike(head, tail, color, look, delay, allowed.restrike);
       const arcs: number = Math.min(allowed.arcs, look.forks + 1);
@@ -343,11 +346,11 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
         const angle: number = turn + ((arc + random() * 0.5) / arcs) * Math.PI * 2;
         const reach: number = radius * (KIT.arcReachMin + KIT.arcReachSpan * random());
         head.x = x;
-        head.y = KIT.arcHeight;
+        head.y = floorUp(x, KIT.arcHeight, z);
         head.z = z;
         tail.x = x + Math.sin(angle) * reach;
-        tail.y = KIT.arcHeight;
         tail.z = z + Math.cos(angle) * reach;
+        tail.y = floorUp(tail.x, KIT.arcHeight, tail.z);
         strands.strike(head, tail, color, look, delay + STRAND.lead + arc * KIT.arcGap, false);
       }
       if (impact !== null) later(x, z, color, impact.sparks, impact.flash, light, delay + STRAND.lead);
@@ -386,10 +389,10 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
       const travelled: number = Math.hypot(x - body.startX, z - body.startZ);
       const length: number = Math.min(KIT.bodyLength, travelled + KIT.bodyStart);
       tail.x = x - dirX * length;
-      tail.y = y + liftHere(x, z);
       tail.z = z - dirZ * length;
+      tail.y = floorUp(tail.x, y, tail.z);
       head.x = x;
-      head.y = y + liftHere(x, z);
+      head.y = floorUp(x, y, z);
       head.z = z;
       if (body.handle !== null) {
         body.dice.reset(body.seed);

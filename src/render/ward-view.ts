@@ -9,6 +9,7 @@ import { createGroundLight } from './ground-light.ts';
 import type { Press } from './membrane.ts';
 import { MEMBRANE, pressAngle, SLACK, stepPress } from './membrane.ts';
 import { DOME_FRAGMENT, DOME_VERTEX } from './moment-shaders.ts';
+import { floorUp } from './terrain-lift.ts';
 
 export const WARD_VIEW = {
   tint: 0xf2c879,
@@ -92,7 +93,7 @@ export function createWardView(scene: Scene, phone: boolean): WardView {
     edge.mesh.position.y = WARD_VIEW.groundLift;
     floor.mesh.position.y = WARD_VIEW.groundLift;
     const group: Group = new Group();
-    group.position.set(ward.pos.x, 0, ward.pos.z);
+    group.position.set(ward.pos.x, floorUp(ward.pos.x, 0, ward.pos.z), ward.pos.z);
     group.add(dome, edge.mesh, floor.mesh);
     scene.add(group);
     return { group, dome, uniforms, edge, floor, press: SLACK };

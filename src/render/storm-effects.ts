@@ -13,10 +13,12 @@ import { createGroundLight, GROUND_LIGHT } from './ground-light.ts';
 import { STRAND } from './strand-shape.ts';
 import type { BurstOptions } from './particles.ts';
 import type { EffectKit } from './effect-kit.ts';
+import { floorUp } from './terrain-lift.ts';
 
 export const STORM_EFFECTS = {
   handHeight: 1.35,
   bodyHeight: 1.1,
+  arcsHeight: 0.15,
   linkTime: 0.24,
   linkJitter: 0.55,
   linkWidth: 0.13,
@@ -152,8 +154,8 @@ export function createStormEffects(kit: StormKit): StormEffects {
     event.points.forEach((point: Vec2, index: number): void => {
       const next: Vec2 | undefined = event.points[index + 1];
       if (next === undefined) return;
-      const from: Vector3 = new Vector3(point.x, index === 0 ? STORM_EFFECTS.handHeight : STORM_EFFECTS.bodyHeight, point.z);
-      const to: Vector3 = new Vector3(next.x, STORM_EFFECTS.bodyHeight, next.z);
+      const from: Vector3 = new Vector3(point.x, floorUp(point.x, index === 0 ? STORM_EFFECTS.handHeight : STORM_EFFECTS.bodyHeight, point.z), point.z);
+      const to: Vector3 = new Vector3(next.x, floorUp(next.x, STORM_EFFECTS.bodyHeight, next.z), next.z);
       flicker(lightningLine(from, to, color, STORM_EFFECTS.linkJitter, STORM_EFFECTS.linkWidth), STORM_EFFECTS.linkTime + index * 0.03);
       kit.spray(next.x, STORM_EFFECTS.bodyHeight, next.z, color, 12, { speed: { min: 2, max: 8 }, lift: { min: 0.5, max: 4 }, life: { min: 0.12, max: 0.32 }, size: { min: 0.2, max: 0.45 } });
       if (index < 3) kit.flashLight(next.x, 1.6, next.z, color, 45);
@@ -172,8 +174,8 @@ export function createStormEffects(kit: StormKit): StormEffects {
       if (impact !== null) kit.kit.impact(event.to.x, event.to.z, color, missed(impact, event.hits), event.skill.vfx.light, 0);
       return;
     }
-    const from: Vector3 = new Vector3(event.from.x, STORM_EFFECTS.handHeight, event.from.z);
-    const to: Vector3 = new Vector3(event.to.x, STORM_EFFECTS.bodyHeight, event.to.z);
+    const from: Vector3 = new Vector3(event.from.x, floorUp(event.from.x, STORM_EFFECTS.handHeight, event.from.z), event.from.z);
+    const to: Vector3 = new Vector3(event.to.x, floorUp(event.to.x, STORM_EFFECTS.bodyHeight, event.to.z), event.to.z);
     flicker(lightningLine(from, to, color, STORM_EFFECTS.beamJitter, STORM_EFFECTS.beamWidth), STORM_EFFECTS.beamHold);
     flicker(lightningLine(from, to, glow(color, 0.6), STORM_EFFECTS.beamJitter * 2, STORM_EFFECTS.beamWidth * 0.5), STORM_EFFECTS.beamHold * 0.7);
     kit.spray(event.to.x, STORM_EFFECTS.bodyHeight, event.to.z, color, event.hits > 0 ? 8 : 4, { speed: { min: 1, max: 6 }, lift: { min: 0.3, max: 3 }, life: { min: 0.1, max: 0.25 }, size: { min: 0.2, max: 0.4 } });
@@ -188,7 +190,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
     const lightning = event.skill.vfx.lightning;
     if (lightning !== null) kit.kit.strike(placed(START, event.from, STORM_EFFECTS.blinkHeight), placed(END, event.to, STORM_EFFECTS.blinkHeight), color, lightning, 0);
     else {
-      const streak = lightningLine(new Vector3(event.from.x, 1, event.from.z), new Vector3(event.to.x, 1, event.to.z), glow(color, 0.5), 0.15, 0.5);
+      const streak = lightningLine(new Vector3(event.from.x, floorUp(event.from.x, STORM_EFFECTS.blinkHeight, event.from.z), event.from.z), new Vector3(event.to.x, floorUp(event.to.x, STORM_EFFECTS.blinkHeight, event.to.z), event.to.z), glow(color, 0.5), 0.15, 0.5);
       kit.add(
         streak,
         STORM_EFFECTS.blinkTime,
@@ -210,7 +212,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
     const color: Color = areaColor(area);
     const gap: boolean = delivery.pulse === 0 && delivery.pull === 0;
     const light: GroundLight = createGroundLight(color, { kind: 'round', radius: delivery.radius, inner: 0, arc: Math.PI * 2 }, { fill: gap ? STORM_EFFECTS.gapFill : STORM_EFFECTS.areaFill, band: 1, width: delivery.radius * STORM_EFFECTS.areaBandWidth, wobble: delivery.radius * STORM_EFFECTS.areaWobble });
-    light.mesh.position.set(area.pos.x, GROUND_LIGHT.height, area.pos.z);
+    light.mesh.position.set(area.pos.x, floorUp(area.pos.x, GROUND_LIGHT.height, area.pos.z), area.pos.z);
     const shine: number = gap ? STORM_EFFECTS.gapGlow : STORM_EFFECTS.areaGlow;
     light.show(shine);
     kit.addObject(light.mesh);
@@ -240,10 +242,10 @@ export function createStormEffects(kit: StormKit): StormEffects {
       return;
     }
     const bolt = skyBolt(color);
-    bolt.position.set(x, 0, z);
+    bolt.position.set(x, floorUp(x, 0, z), z);
     flicker(bolt, STORM_EFFECTS.arcTime);
     const arcs = groundArcs(color, delivery.radius * 0.8);
-    arcs.position.set(area.pos.x, 0.15, area.pos.z);
+    arcs.position.set(area.pos.x, floorUp(area.pos.x, STORM_EFFECTS.arcsHeight, area.pos.z), area.pos.z);
     flicker(arcs, STORM_EFFECTS.arcTime);
     kit.flashLight(x, 3, z, color, hits > 0 ? 70 : 40);
     kit.spray(x, 0.3, z, color, 10, { speed: { min: 1, max: 5 }, lift: { min: 1, max: 6 }, life: { min: 0.2, max: 0.5 } });
@@ -327,7 +329,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
       if (view === undefined) continue;
       view.age += dt;
       view.light.show(area.timeLeft > STORM_EFFECTS.areaFadeOut ? view.glow : 0);
-      view.light.mesh.position.set(area.pos.x, GROUND_LIGHT.height, area.pos.z);
+      view.light.mesh.position.set(area.pos.x, floorUp(area.pos.x, GROUND_LIGHT.height, area.pos.z), area.pos.z);
       view.light.step(dt, world.time);
       motes(view, area, dt);
     }
@@ -356,7 +358,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
         kit.addObject(shown.mark.mesh);
         brands.set(monster.id, shown);
       }
-      shown.mark.mesh.position.set(monster.pos.x, STORM_EFFECTS.brandHeight, monster.pos.z);
+      shown.mark.mesh.position.set(monster.pos.x, floorUp(monster.pos.x, STORM_EFFECTS.brandHeight, monster.pos.z), monster.pos.z);
       shown.mark.show(brand.timeLeft < 1 ? STORM_EFFECTS.brandGlow * brand.timeLeft : STORM_EFFECTS.brandGlow * (1 + STORM_EFFECTS.brandPulse * Math.sin(world.time * STORM_EFFECTS.brandRate)));
       shown.mark.step(dt, world.time);
     }
@@ -384,7 +386,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
       kit.spray(at.x + Math.sin(angle) * reach, at.y + (Math.random() - 0.3) * reach, at.z + Math.cos(angle) * reach, color, 1, { dirX: -Math.sin(angle), dirZ: -Math.cos(angle), spread: 0.2, speed: { min: reach * 3, max: reach * 4 }, lift: { min: -0.5, max: 0.5 }, life: { min: 0.18, max: 0.26 }, size: { min: 0.15 + charge * 0.2, max: 0.3 + charge * 0.35 }, gravity: 0, drag: 0 });
     }
     chargeGlow.color.copy(color);
-    chargeGlow.position.copy(at);
+    chargeGlow.position.set(at.x, floorUp(at.x, at.y, at.z), at.z);
     chargeGlow.intensity = STORM_EFFECTS.chargeLight * charge;
   };
 

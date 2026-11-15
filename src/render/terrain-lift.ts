@@ -1,10 +1,19 @@
 import type { IUniform, Texture, Vector3 } from 'three';
 import { ClampToEdgeWrapping, DataTexture, DataUtils, HalfFloatType, LinearFilter, RedFormat, Vector4 } from 'three';
 import type { ZoneDef } from '../../sim/content/types.ts';
-import { heightAt, terrainMap, tileHeight } from '../../sim/nav/terrain.ts';
+import { heightAt, TERRAIN, terrainMap, tileHeight } from '../../sim/nav/terrain.ts';
 
 export const TERRAIN_LIFT = {
   texel: 0.5,
+  hold: 1.7,
+  stepFrom: 1.05,
+  stepTo: 1.6,
+  slopeFrom: TERRAIN.slope,
+  slopeTo: TERRAIN.slope * 2,
+  feel: 0.6,
+  breakScale: 0.9,
+  breakDepth: 0.3,
+  flightGlide: 7,
 } as const;
 
 export interface LiftUniforms {
@@ -19,14 +28,47 @@ export const LIFT_UNIFORMS: LiftUniforms = {
   uLiftOn: { value: 0 },
 };
 
-export const LIFT_VERTEX: readonly string[] = [
+const liftGlsl = (value: number): string => value.toFixed(4);
+
+export const LIFT_COMMON: readonly string[] = [
   'uniform sampler2D uLiftMap;',
   'uniform vec4 uLiftArea;',
   'uniform float uLiftOn;',
+  'varying vec3 vLiftWorld;',
+  'varying float vLiftBase;',
+  'float liftOf(vec2 xz) { return texture2D(uLiftMap, (xz - uLiftArea.xy) / uLiftArea.zw).r; }',
+];
+
+export const LIFT_VERTEX: readonly string[] = [
+  ...LIFT_COMMON,
   'vec4 liftedWorld(vec3 local) {',
   '  vec4 world = modelMatrix * vec4(local, 1.0);',
-  '  if (uLiftOn > 0.5) world.y += texture2D(uLiftMap, (world.xz - uLiftArea.xy) / uLiftArea.zw).r;',
+  '  vLiftBase = 0.0;',
+  '  if (uLiftOn > 0.5) {',
+  '    vLiftBase = liftOf((modelMatrix * vec4(0.0, 0.0, 0.0, 1.0)).xz);',
+  '    float rise = liftOf(world.xz) - vLiftBase;',
+  `    world.y += abs(rise) < ${liftGlsl(TERRAIN_LIFT.hold)} ? rise : 0.0;`,
+  '  }',
+  '  vLiftWorld = world.xyz;',
   '  return world;',
+  '}',
+];
+
+export const LIFT_FRAGMENT: readonly string[] = [
+  ...LIFT_COMMON,
+  'float liftFade(float grain) {',
+  '  if (uLiftOn < 0.5) return 1.0;',
+  '  vec2 p = vLiftWorld.xz;',
+  `  float s = ${liftGlsl(TERRAIN_LIFT.feel)};`,
+  '  float c = liftOf(p);',
+  '  float e = liftOf(p + vec2(s, 0.0));',
+  '  float w = liftOf(p - vec2(s, 0.0));',
+  '  float n = liftOf(p + vec2(0.0, s));',
+  '  float b = liftOf(p - vec2(0.0, s));',
+  '  float step = (abs(c - vLiftBase) * 2.0 + abs(e - vLiftBase) + abs(w - vLiftBase) + abs(n - vLiftBase) + abs(b - vLiftBase)) / 6.0;',
+  '  float slope = length(vec2(e - w, n - b)) / (2.0 * s);',
+  `  float broken = 1.0 + (grain - 0.5) * ${liftGlsl(TERRAIN_LIFT.breakDepth * 2)};`,
+  `  return (1.0 - smoothstep(${liftGlsl(TERRAIN_LIFT.stepFrom)}, ${liftGlsl(TERRAIN_LIFT.stepTo)}, step * broken)) * (1.0 - smoothstep(${liftGlsl(TERRAIN_LIFT.slopeFrom)}, ${liftGlsl(TERRAIN_LIFT.slopeTo)}, slope * broken));`,
   '}',
 ];
 
@@ -34,6 +76,16 @@ let shownZone: ZoneDef | null = null;
 
 export function liftHere(x: number, z: number): number {
   return shownZone === null ? 0 : liftAt(shownZone, x, z);
+}
+
+export function floorUp(x: number, up: number, z: number): number {
+  return up + liftHere(x, z);
+}
+
+export function glideFloor(current: number | undefined, x: number, z: number, dt: number): number {
+  const below: number = liftHere(x, z);
+  if (current === undefined) return below;
+  return current + (below - current) * (1 - Math.exp(-TERRAIN_LIFT.flightGlide * dt));
 }
 
 export function liftAt(zone: ZoneDef, x: number, z: number): number {

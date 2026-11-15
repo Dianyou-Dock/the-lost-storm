@@ -72,7 +72,7 @@ export function createZoneMarkers(scene: Scene, zone: ZoneDef): ZoneMarkers {
     glow.group.visible = shape.flats;
     group.add(glow.group);
     const light: PointLight = new PointLight(color, lightPower, MARKERS.lightDistance, 1.8);
-    light.position.set(x, MARKERS.lightHeight, z);
+    light.position.set(x, heightAt(zone, x, z) + MARKERS.lightHeight, z);
     if (renderBudget().markerLights) group.add(light);
     markers.push({ glow, light, lightPower, phase: x * 0.37 + z * 0.61, lit, level: null });
   };
