@@ -3,7 +3,7 @@ import type { Group, Object3D, Scene, Vector3 } from 'three';
 import { Color, Mesh, MeshBasicMaterial, SphereGeometry } from 'three';
 import type { FlaskResource } from '../../sim/content/flasks.ts';
 import type { Delivery, SkillDef } from '../../sim/content/types.ts';
-import type { VfxGather } from '../../sim/content/vfx-types.ts';
+import type { VfxGather, VfxWave } from '../../sim/content/vfx-types.ts';
 import type { Vec2 } from '../../sim/math.ts';
 import { DEGREES_TO_RADIANS, facingOf } from '../../sim/math.ts';
 import { SKILLS } from '../../sim/world/skills.ts';
@@ -24,6 +24,8 @@ import type { AbilityCues } from './ability-cues.ts';
 import { createAbilityCues, novaLook } from './ability-cues.ts';
 import type { GatherOrbs } from './gather-orb.ts';
 import { createGatherOrbs } from './gather-orb.ts';
+import type { GhostWaves } from './ghost-wave.ts';
+import { createGhostWaves } from './ghost-wave.ts';
 import type { HurtWash } from './hurt-wash.ts';
 import { CALM_WASH, stepWash, washHit } from './hurt-wash.ts';
 import type { NovaLook } from './ability-cues.ts';
@@ -255,6 +257,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
 
   const cues: AbilityCues = createAbilityCues({ add, spray, flashLight, gather: riseLight, ring });
   const orbs: GatherOrbs = createGatherOrbs({ add, spray, gather: riseLight, flashLight });
+  const waves: GhostWaves = createGhostWaves({ parent: scene, spray });
   const shockwave: Shockwave = createShockwave({ add, spray, flashLight, shade: (x: number, z: number, radius: number): void => cues.shade(x, z, radius), kit, dust: DUST });
 
   const burst = (x: number, z: number, radius: number, skill: SkillDef): void => {
@@ -383,6 +386,10 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     }
     flights.delete(event.id);
     kit.drop(event.id);
+    if (event.skill.vfx.wave !== null) {
+      waves.end(event.id, event.pos);
+      return;
+    }
     const color: Color = colorOf(event.skill.vfx.color);
     const impact = event.skill.vfx.impact;
     if (impact !== null) {
@@ -421,8 +428,15 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     if (event.broken) ring(event.pos.x, event.pos.z, EFFECTS.breakRing, SPARK, EFFECTS.ringTime);
   };
 
+  const launchWave = (projectile: ProjectileState): void => {
+    const look: VfxWave | null = projectile.skill.vfx.wave;
+    const delivery = projectile.skill.delivery;
+    if (look === null || delivery.type !== 'projectile') return;
+    waves.launch(projectile.id, projectile.from, projectile.direction, look, colorOf(projectile.skill.vfx.color), delivery.speed, delivery.range + SKILLS.projectileOrigin);
+  };
+
   const projectileView = (projectile: ProjectileState): ProjectileView | null => {
-    if (projectile.skill.vfx.lightning !== null) return null;
+    if (projectile.skill.vfx.lightning !== null || projectile.skill.vfx.wave !== null) return null;
     const existing: ProjectileView | undefined = projectiles.get(projectile.id);
     if (existing !== undefined) return existing;
     const color: Color = colorOf(projectile.skill.vfx.color);
@@ -492,6 +506,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
             break;
           case 'projectile_spawn':
             projectileView(event.projectile);
+            launchWave(event.projectile);
             break;
           case 'projectile_end':
             onProjectileEnd(event);
@@ -618,10 +633,12 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
       kit.clear();
       dashTrails.clear();
       storm.clear();
+      waves.clear();
       telegraphs.clear();
     },
     update(dt: number, world: World): void {
       dashTrails.update(dt, world);
+      waves.update(dt);
       storm.update(dt, world);
       telegraphs.update(dt, world);
       for (const transient of transients) {
@@ -635,6 +652,10 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
       }
       kit.update(dt);
       for (const projectile of world.projectiles) {
+        if (projectile.skill.vfx.wave !== null) {
+          waves.carry(projectile.id, projectile.pos);
+          continue;
+        }
         const lightning = projectile.skill.vfx.lightning;
         const flight: number = glideFloor(flights.get(projectile.id), projectile.pos.x, projectile.pos.z, dt);
         flights.set(projectile.id, flight);

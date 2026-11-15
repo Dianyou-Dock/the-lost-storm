@@ -1,6 +1,6 @@
 import type { Fields } from './read.ts';
 import { choice, ContentError, each, fields, nonNegative, positive, share, text } from './read.ts';
-import type { SkillVfx, VfxGather, VfxImpact, VfxLightning } from './vfx-types.ts';
+import type { SkillVfx, VfxGather, VfxImpact, VfxLightning, VfxPunch, VfxRipple, VfxWave } from './vfx-types.ts';
 import { VFX_CUES, VFX_MAX_FORKS, VFX_STYLES } from './vfx-types.ts';
 
 function vfxLightning(value: unknown, where: string): VfxLightning | null {
@@ -50,6 +50,40 @@ function vfxGather(value: unknown, where: string): VfxGather | null {
   };
 }
 
+function vfxRipple(value: unknown, where: string): VfxRipple {
+  const source: Fields = fields(value, where);
+  return { delay: positive(source, 'delay', where), strength: share(source, 'strength', where) };
+}
+
+function vfxWave(value: unknown, where: string): VfxWave | null {
+  if (value === undefined) return null;
+  const source: Fields = fields(value, where);
+  const ripples: VfxRipple[] = each(source['ripples'], `${where}.ripples`, vfxRipple);
+  ripples.forEach((ripple: VfxRipple, index: number): void => {
+    const before: VfxRipple | undefined = ripples[index - 1];
+    if (before !== undefined && ripple.delay <= before.delay) throw new ContentError(`${where}.ripples[${index}].delay`, 'expected each after-wave to leave later than the one before');
+  });
+  const quiet: number = positive(source, 'quiet', where);
+  const last: VfxRipple | undefined = ripples.at(-1);
+  if (last !== undefined && quiet <= last.delay) throw new ContentError(`${where}.quiet`, 'expected the wave to go quiet after its last after-wave leaves');
+  return {
+    halfWidth: positive(source, 'halfWidth', where),
+    depth: positive(source, 'depth', where),
+    mist: nonNegative(source, 'mist', where),
+    swell: gatherCurve(source['swell'], `${where}.swell`),
+    ripples,
+    quiet,
+  };
+}
+
+function vfxPunch(value: unknown, where: string): VfxPunch | null {
+  if (value === undefined) return null;
+  const source: Fields = fields(value, where);
+  const dust: number = nonNegative(source, 'dust', where);
+  if (!Number.isInteger(dust)) throw new ContentError(`${where}.dust`, 'expected a whole number');
+  return { dust, kick: positive(source, 'kick', where) };
+}
+
 export function skillVfx(value: unknown, where: string): SkillVfx {
   const source: Fields = fields(value, where);
   return {
@@ -62,5 +96,7 @@ export function skillVfx(value: unknown, where: string): SkillVfx {
     trail: source['trail'] === undefined ? 0 : nonNegative(source, 'trail', where),
     linger: source['linger'] === undefined ? 0 : nonNegative(source, 'linger', where),
     gather: vfxGather(source['gather'], `${where}.gather`),
+    wave: vfxWave(source['wave'], `${where}.wave`),
+    punch: vfxPunch(source['punch'], `${where}.punch`),
   };
 }
