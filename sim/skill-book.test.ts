@@ -177,14 +177,15 @@ void test('a newly learned skill never fills an emptied mouse slot unless that s
 });
 
 function firstSlot(world: World): string | null {
-  return world.player.skills[0]?.id ?? null;
+  return world.player.skills[0]?.name ?? null;
 }
 
 void test('a slot emptied under a staff stays empty: the staff does not put Spell Strike back, and the empty slot survives a save and a reload', (): void => {
+  const strike: string = must(content.skills.get('spell_strike'), 'spell strike').name;
   const world: World = worldIn(content, 'hall_of_time', 4);
   world.player.equipped.weapon = must(generateItem(content, createRng(1), 1, 1, 'driftwood_staff', 'common'), 'staff');
   refreshPlayer(world);
-  assert.equal(firstSlot(world), 'spell_strike');
+  assert.equal(firstSlot(world), strike);
   stepWorld(world, [{ type: 'slot', slot: 0, skill: null }], 1 / 60);
   assert.equal(world.player.bar[0], null);
   assert.equal(firstSlot(world), null);
@@ -195,5 +196,5 @@ void test('a slot emptied under a staff stays empty: the staff does not put Spel
   assert.equal(firstSlot(reloaded), null);
   assert.ok(reloaded.player.learned.includes('cleave'));
   stepWorld(reloaded, [{ type: 'slot', slot: 0, skill: 'cleave' }], 1 / 60);
-  assert.equal(firstSlot(reloaded), 'spell_strike');
+  assert.equal(firstSlot(reloaded), strike);
 });
