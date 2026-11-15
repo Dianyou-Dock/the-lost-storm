@@ -376,7 +376,7 @@ void test('the first Gatekeeper kill pays once: a share of a level, a purse of g
   const opening: MonsterState = bossOf(world);
   opening.spawnTime = 0;
   const won: WorldEvent[] = hurt(world, opening, 0);
-  assert.deepEqual(ofType(won, 'boss_defeated'), [{ type: 'boss_defeated', monsterId: opening.id, monster: opening.def.id, first: true }]);
+  assert.deepEqual(ofType(won, 'boss_defeated'), [{ type: 'boss_defeated', monsterId: opening.id, monster: opening.def.id, first: true, yielded: false }]);
   assert.equal(world.flags[first.flag], 'defeated');
   assert.ok(ofType(won, 'xp').some((event): boolean => event.amount === bonus), `no first-kill experience of ${bonus}`);
   const firstDrops = bossDrops(won);
