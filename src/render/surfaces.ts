@@ -7,7 +7,7 @@ import type { BitmapTextures } from './bitmap-texture.ts';
 import { browserBitmaps, browserImageLoad, createBitmapTextures } from './bitmap-texture.ts';
 import { assetUrl } from './asset-url.ts';
 import { PROP_SURFACE, withPropLook } from './prop-surface.ts';
-import { wetGround } from './wet-ground.ts';
+import { glowingGround } from './surface-glow.ts';
 
 export const SURFACES = {
   anisotropy: 4,
@@ -98,7 +98,7 @@ export function surfaceMaterial(def: SurfaceDef, use: SurfaceUse, wet: number = 
     metalness: metal ? def.metalness : 0,
     vertexColors: use !== 'solid',
   });
-  if (use !== 'solid') wetGround(made, wet);
+  if (use !== 'solid') glowingGround(made, wet, def.glow);
   if (use === 'overlay') {
     made.transparent = true;
     made.depthWrite = false;

@@ -8,6 +8,21 @@ export interface PropLight {
   readonly height: number;
 }
 
+export interface SurfaceGlow {
+  readonly color: string;
+  readonly strength: number;
+  readonly cover: number;
+  readonly cracks: number;
+  readonly scale: number;
+  readonly flow: number;
+  readonly pulse: number;
+}
+
+export interface SurfaceHeat {
+  readonly skill: string;
+  readonly lifeShare: number;
+}
+
 export interface SurfaceDef {
   readonly id: string;
   readonly color: string;
@@ -20,6 +35,9 @@ export interface SurfaceDef {
   readonly normalScale: number;
   readonly spill: number;
   readonly pace: number;
+  readonly glow: SurfaceGlow | null;
+  readonly heat: SurfaceHeat | null;
+  readonly blocks: boolean;
 }
 
 export interface PropCache {

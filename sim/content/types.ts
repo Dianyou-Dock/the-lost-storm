@@ -221,6 +221,7 @@ export interface MonsterDef {
   readonly barks: readonly string[];
   readonly regen: number;
   readonly rank: MonsterRank | null;
+  readonly heatproof: boolean;
 }
 
 export const ITEM_SLOTS = ['weapon', 'head', 'chest', 'hands', 'legs', 'feet', 'charm'] as const;
@@ -268,7 +269,7 @@ export interface SkillTreeNodeDef {
 
 export type { ChartDef, ChartGroup, ChartPath, ChartRespec, PointGrant, SkillTarget, SkillVariant, WeaponGroup } from './chart-types.ts';
 
-export type { PropCache, PropDef, PropLight, SurfaceDef } from './prop-types.ts';
+export type { PropCache, PropDef, PropLight, SurfaceDef, SurfaceGlow, SurfaceHeat } from './prop-types.ts';
 
 export type { AttachmentDef, RigActionClip, RigClips, RigContact, RigDef, RigGait, RigSocket, RigStanceClips, Triple } from './rig-types.ts';
 

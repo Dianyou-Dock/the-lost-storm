@@ -19,6 +19,7 @@ import { chartDef, chartProblems, treeNode } from './parse-chart.ts';
 import { statMod } from './parse-mods.ts';
 import { bookProblems, shapeDelivery, shapeProblems, SHAPE_TYPES, skillPress, skillUnlock } from './parse-shapes.ts';
 import type { Fields } from './read.ts';
+import { surface } from './parse-surface.ts';
 import { line, npcs, quest, worldDef, zone } from './parse-world.ts';
 import { skillVfx } from './parse-vfx.ts';
 import { service, trade, tradeProblems } from './parse-trade.ts';
@@ -51,7 +52,6 @@ import type {
   SkillCombo,
   SkillDef,
   StatBlock,
-  SurfaceDef,
   TalkDef,
   WearableDef,
   WearRegion,
@@ -250,23 +250,6 @@ function propLight(value: unknown, where: string): PropLight | null {
   if (value === null || value === undefined) return null;
   const source: Fields = fields(value, where);
   return { color: text(source, 'color', where), intensity: numeric(source, 'intensity', where), distance: numeric(source, 'distance', where), height: numeric(source, 'height', where) };
-}
-
-function surface(value: unknown, where: string): SurfaceDef {
-  const source: Fields = fields(value, where);
-  return {
-    id: text(source, 'id', where),
-    color: text(source, 'color', where),
-    normal: nullableText(source, 'normal', where),
-    orm: nullableText(source, 'orm', where),
-    metres: positive(source, 'metres', where),
-    tint: text(source, 'tint', where),
-    roughness: numeric(source, 'roughness', where),
-    metalness: numeric(source, 'metalness', where),
-    normalScale: numeric(source, 'normalScale', where),
-    spill: numeric(source, 'spill', where),
-    pace: source['pace'] === undefined ? 1 : positive(source, 'pace', where),
-  };
 }
 
 function dressing(value: unknown, where: string): Record<string, string> {

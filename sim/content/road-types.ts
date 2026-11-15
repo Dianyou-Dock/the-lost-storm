@@ -73,4 +73,5 @@ export interface ZoneWeather {
   readonly rain: number;
   readonly wet: number;
   readonly mistWall: ZoneMistWall | null;
+  readonly embers: number;
 }

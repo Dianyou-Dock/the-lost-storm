@@ -10,7 +10,9 @@ void test('a zone with no weather keeps the default storm overhead and no rain',
 void test('weather reads lightning timing, rain, wet ground and a mist wall', (): void => {
   const read = zoneWeather({ lightning: { first: 1.2, min: 5, max: 11 }, rain: 0.8, wet: 0.6, mistWall: { from: { x: 0, z: 4 }, to: { x: 0, z: 40 }, height: 9 } }, 'zone.weather');
   assert.deepEqual(read, { lightning: { first: 1.2, min: 5, max: 11, cluster: LIGHTNING_CLUSTER, kinds: LIGHTNING_KINDS }, rain: 0.8, wet: 0.6, mistWall: { from: { x: 0, z: 4 }, to: { x: 0, z: 40 }, height: 9 } });
-  assert.deepEqual(zoneWeather({ lightning: null, rain: 0, wet: 0, mistWall: null }, 'zone.weather'), { lightning: null, rain: 0, wet: 0, mistWall: null });
+  assert.deepEqual(zoneWeather({ lightning: null, rain: 0, wet: 0, mistWall: null }, 'zone.weather'), { lightning: null, rain: 0, wet: 0, mistWall: null, embers: 0 });
+  assert.equal(zoneWeather({ lightning: null, rain: 0, wet: 0, mistWall: null, embers: 0.6 }, 'zone.weather').embers, 0.6);
+  assert.throws((): unknown => zoneWeather({ lightning: null, rain: 0, wet: 0, mistWall: null, embers: 2 }, 'zone.weather'), ContentError);
 });
 
 void test('weather rejects rain past full and strikes that wait less at most than at least', (): void => {

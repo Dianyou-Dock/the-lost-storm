@@ -119,6 +119,7 @@ export interface MonsterTraits {
   readonly barks: readonly string[];
   readonly regen: number;
   readonly rank: MonsterRank | null;
+  readonly heatproof: boolean;
 }
 
 export function monsterTraits(source: Fields, where: string): MonsterTraits {
@@ -135,6 +136,7 @@ export function monsterTraits(source: Fields, where: string): MonsterTraits {
     barks: source['barks'] === undefined ? [] : textList(source, 'barks', where),
     regen: zeroOrMore(source, 'regen', where),
     rank: null,
+    heatproof: source['heatproof'] === undefined ? false : flag(source, 'heatproof', where),
   };
 }
 
@@ -195,6 +197,12 @@ export function combatProblems(content: Content): string[] {
     if (used !== undefined) need(used.delivery.type !== 'revive', `monster ${def.id} attacks with ${def.skill}, which only raises the fallen`);
     if (def.behaviour.type === 'stalker' && used !== undefined) need(used.engageRange > def.behaviour.orbitRange, `monster ${def.id} circles at ${def.behaviour.orbitRange}, outside the reach of its skill ${def.skill}`);
     if (def.behaviour.type === 'ambush' && used !== undefined) need(used.engageRange >= def.behaviour.spring, `monster ${def.id} springs from ${def.behaviour.spring}, beyond the reach of its skill ${def.skill}`);
+  }
+  for (const ground of content.surfaces.values()) {
+    if (ground.heat === null) continue;
+    const scorch: SkillDef | undefined = content.skills.get(ground.heat.skill);
+    need(scorch !== undefined, `surface ${ground.id} burns with unknown skill ${ground.heat.skill}`);
+    if (scorch !== undefined) need(scorch.burn !== null, `surface ${ground.id} burns with skill ${ground.heat.skill}, which sets nothing alight`);
   }
   for (const mod of content.monsterMods.values()) {
     blasts(content, `monster mod ${mod.id}`, mod.deathSkill, need);

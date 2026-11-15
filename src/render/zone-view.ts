@@ -39,6 +39,9 @@ import { LIFE } from './life-data.ts';
 import { placesFor } from './life-kinds.ts';
 import type { TunnelRoofs } from './tunnel-roofs.ts';
 import { createTunnelRoofs } from './tunnel-roofs.ts';
+import { tickGlow } from './surface-glow.ts';
+import type { Embers } from './embers.ts';
+import { createEmbers } from './embers.ts';
 import type { Hero } from './life-motion.ts';
 
 export const ZONE_VIEW = {
@@ -376,6 +379,8 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
   group.add(abyss);
   const mistWall: MistWallView | null = zone.weather.mistWall === null ? null : buildMistWall(zone.weather.mistWall);
   if (mistWall !== null) group.add(mistWall.group);
+  const embers: Embers = createEmbers(zone.weather.embers);
+  if (embers.points !== null) group.add(embers.points);
   scene.add(group);
 
   const cutaway: symbol = claimCutaway(occluders, terrainSight);
@@ -414,9 +419,12 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
       abyss.geometry.dispose();
       if (abyss.material instanceof MeshStandardMaterial) abyss.material.dispose();
       mistWall?.dispose();
+      embers.dispose();
     },
     update(time: number, dt: number, world: World, focus: ViewFocus): void {
       ground.update(world.time);
+      tickGlow(time);
+      embers.update(time, world.player.pos.x, groundAt(world.player.pos.x, world.player.pos.z), world.player.pos.z);
       mistWall?.update(time, focus.flash);
       life.update(time, dt, world.player.pos, groundAt, fightsIn(world));
       roofs.update(world.player.pos.x, world.player.pos.z, dt);

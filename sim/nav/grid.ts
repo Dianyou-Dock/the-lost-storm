@@ -162,6 +162,24 @@ function fill(zone: ZoneDef, obstacles: readonly Blocker[], columns: number, row
   return cells;
 }
 
+function blockedTile(zone: ZoneDef, surfaces: ReadonlyMap<string, SurfaceDef>, x: number, z: number): boolean {
+  const surfaceId: string | undefined = zone.floors[tileAtCell(zone, Math.floor(x / zone.cellSize), Math.floor(z / zone.cellSize))];
+  return surfaceId !== undefined && surfaces.get(surfaceId)?.blocks === true;
+}
+
+function sealBlocked(zone: ZoneDef, surfaces: ReadonlyMap<string, SurfaceDef>, cells: Uint8Array, columns: number, rows: number, agentRadius: number): Uint8Array {
+  if (![...surfaces.values()].some((surface: SurfaceDef): boolean => surface.blocks)) return cells;
+  for (let row: number = 0; row < rows; row += 1) {
+    for (let column: number = 0; column < columns; column += 1) {
+      const x: number = (column + 0.5) * NAV.cellSize;
+      const z: number = (row + 0.5) * NAV.cellSize;
+      const near: boolean = blockedTile(zone, surfaces, x, z) || blockedTile(zone, surfaces, x - agentRadius, z) || blockedTile(zone, surfaces, x + agentRadius, z) || blockedTile(zone, surfaces, x, z - agentRadius) || blockedTile(zone, surfaces, x, z + agentRadius);
+      if (near) cells[row * columns + column] = 0;
+    }
+  }
+  return cells;
+}
+
 function paceOf(zone: ZoneDef, surfaces: ReadonlyMap<string, SurfaceDef>, columns: number, rows: number): Float32Array {
   const pace: Float32Array = new Float32Array(columns * rows).fill(1);
   for (let row: number = 0; row < rows; row += 1) {
@@ -218,8 +236,8 @@ function freshNavGrid(zone: ZoneDef, props: ReadonlyMap<string, PropDef>, surfac
   const obstacles: Blocker[] = blockers(zone, props);
   const open: Uint8Array = fill(zone, obstacles, columns, rows, 0);
   const solid: Uint8Array = open.map((value: number): number => 1 - value);
-  const walkable: Uint8Array = fill(zone, obstacles, columns, rows, agentRadius);
-  const ground: Uint8Array = fill(zone, [], columns, rows, agentRadius);
+  const walkable: Uint8Array = sealBlocked(zone, surfaces, fill(zone, obstacles, columns, rows, agentRadius), columns, rows, agentRadius);
+  const ground: Uint8Array = sealBlocked(zone, surfaces, fill(zone, [], columns, rows, agentRadius), columns, rows, agentRadius);
   const drifts: DriftCells[] = zone.drifts.map((drift: ZoneDrift): DriftCells => driftCells(zone, drift, walkable, ground, columns, rows));
   return { cellSize: NAV.cellSize, columns, rows, walkable, solid, pace: paceOf(zone, surfaces, columns, rows), drifts, ground, bodies: obstacles, near: nearBodies(obstacles, agentRadius, columns, rows), radius: agentRadius, routed: false };
 }

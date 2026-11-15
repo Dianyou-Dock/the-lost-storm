@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadContent } from '../content/content.ts';
-import type { Content, PropDef, ZoneDef } from '../content/types.ts';
+import type { Content, PropDef, SurfaceDef, ZoneDef } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { blockerGap, buildNavGrid, cellCenter, cellIndex, isSolid, isWalkable, liftStamp, lineOfSight, linePace, lineWalkable, moveWithCollision, nearestWalkable, paceAt, propBlocker, propBlockers, propOutlines, setDriftOpen, stampBlockers } from './grid.ts';
 import type { Blocker, DriftCells, GridStamp, NavGrid } from './grid.ts';
@@ -174,6 +174,20 @@ void test('the ground sets each cell\'s pace, and a zone without walls has no co
   assert.equal(paceAt(local, 14, 2), 0.5);
   assert.equal(isWalkable(local, 8, 4), true);
   assert.equal(linePace(local, { x: 2, z: 2 }, { x: 14, z: 2 }), 0.5);
+});
+
+void test('a tile whose surface blocks keeps walkers out with a margin but lets bolts fly over it', (): void => {
+  const zone: ZoneDef = roadZone({ tiles: ['wwwwbbwwww', 'wwwwbbwwww', 'wwwwbbwwww'], floors: { w: 'road_firm', b: 'road_molten' } });
+  const firm: SurfaceDef = must(roadContent(zone).surfaces.get('road_firm'), 'road_firm');
+  const surfaces: Map<string, SurfaceDef> = new Map<string, SurfaceDef>([...roadContent(zone).surfaces, ['road_molten', { ...firm, id: 'road_molten', blocks: true }]]);
+  const local: NavGrid = buildNavGrid(zone, ROAD_CONTENT.props, surfaces, ROAD_CONTENT.player.radius);
+  const middle: number = zone.cellSize * 5;
+  assert.equal(isWalkable(local, middle, 3), false);
+  assert.equal(isWalkable(local, zone.cellSize * 4 - 0.05, 3), false);
+  assert.equal(isWalkable(local, zone.cellSize * 2, 3), true);
+  assert.equal(isSolid(local, middle, 3), false);
+  const route: readonly Vec2[] = findPath(local, { x: zone.cellSize, z: 3 }, { x: zone.cellSize * 9, z: 3 });
+  assert.ok(route.every((point: Vec2): boolean => point.x < zone.cellSize * 4 || point.x > zone.cellSize * 6));
 });
 
 void test('a closed drift takes its cells out of the walkable grid and puts them back when it opens', (): void => {

@@ -15,6 +15,7 @@ export const DEFAULT_WEATHER: ZoneWeather = {
   rain: 0,
   wet: 0,
   mistWall: null,
+  embers: 0,
 };
 
 function cluster(value: unknown, where: string): LightningCluster {
@@ -63,6 +64,7 @@ export function zoneWeather(value: unknown, where: string): ZoneWeather {
     rain: share(source, 'rain', where),
     wet: share(source, 'wet', where),
     mistWall: mistWall(source['mistWall'], `${where}.mistWall`),
+    embers: source['embers'] === undefined ? 0 : share(source, 'embers', where),
   };
 }
 

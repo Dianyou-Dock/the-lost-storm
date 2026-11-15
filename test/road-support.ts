@@ -43,7 +43,7 @@ export function roadZone(patch: Partial<ZoneDef>): ZoneDef {
 }
 
 function surfaceOf(id: string, pace: number): SurfaceDef {
-  return { id, color: 'textures/dirt_color.webp', normal: null, orm: null, metres: 4, tint: '#ffffff', roughness: 1, metalness: 0, normalScale: 1, spill: 0, pace };
+  return { id, color: 'textures/dirt_color.webp', normal: null, orm: null, metres: 4, tint: '#ffffff', roughness: 1, metalness: 0, normalScale: 1, spill: 0, pace, glow: null, heat: null, blocks: false };
 }
 
 export function roadContent(zone: ZoneDef, extra: Partial<Content> = {}): Content {
