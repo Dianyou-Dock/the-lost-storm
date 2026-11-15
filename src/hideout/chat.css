@@ -150,16 +150,32 @@
   }
 }
 
+.chat-scroll {
+  display: flex;
+  flex-direction: column-reverse;
+  height: 168px;
+  overflow: hidden;
+  scrollbar-width: none;
+  overscroll-behavior: contain;
+  mask-image: linear-gradient(to bottom, transparent 0, #000 36px);
+}
+
+.chat-scroll::-webkit-scrollbar {
+  display: none;
+}
+
+.hideout-chat.typing .chat-scroll {
+  overflow-y: auto;
+  pointer-events: auto;
+}
+
 .chat-lines {
+  flex: none;
   list-style: none;
   margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  justify-content: flex-end;
-  height: 168px;
-  overflow: hidden;
-  mask-image: linear-gradient(to bottom, transparent 0, #000 36px);
 }
 
 .chat-row {
@@ -182,6 +198,15 @@
     grid-template-rows: 0fr;
     opacity: 0;
   }
+}
+
+.chat-day .chat-row-inner {
+  padding-top: 4px;
+  text-align: center;
+  font-size: 0.78em;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
 }
 
 .chat-row-inner {

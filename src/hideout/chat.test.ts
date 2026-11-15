@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { ChatLine } from '../backend/live-protocol.ts';
 import type { ChatEntry, ChatState, ChatStep } from './chat.ts';
-import { addNote, CHAT, CHAT_WORDS, command, destination, EMPTY_CHAT, friendText, GENERAL, readers, receive, renameText, reportText, speaker, target, unsentText } from './chat.ts';
+import { addNote, CHAT, CHAT_WORDS, command, dayDivider, dayLabel, destination, EMPTY_CHAT, friendText, GENERAL, readers, receive, renameText, reportText, speaker, target, unsentText } from './chat.ts';
 import { parseChat } from './chat-command.ts';
 
 function line(id: number, from: string | null, name: string, text: string, own: boolean | null = null): ChatLine {
@@ -81,6 +81,46 @@ void test('only the last lines are kept', (): void => {
   state = addNote(state, 'a note');
   assert.equal(state.entries.length, CHAT.keep);
   assert.deepEqual(texts(state).slice(-2), [`Ash: line ${CHAT.keep + 10}`, '(a note)']);
+});
+
+function local(month: number, date: number, hour: number, year: number = 2026): number {
+  return new Date(year, month - 1, date, hour).getTime();
+}
+
+function stamp(month: number, date: number, hour: number, year: number = 2026): string {
+  return new Date(local(month, date, hour, year)).toISOString();
+}
+
+void test('a day is named Today, Yesterday, or by its date, with the year only when it is another year', (): void => {
+  const now: number = local(11, 15, 12);
+  assert.equal(dayLabel(local(11, 15, 0), now), 'Today');
+  assert.equal(dayLabel(local(11, 14, 23), now), 'Yesterday');
+  assert.equal(dayLabel(local(11, 13, 12), now), '13 Nov');
+  assert.equal(dayLabel(local(12, 31, 12, 2025), now), '31 Dec 2025');
+  assert.equal(dayLabel(local(2, 28, 12), local(3, 1, 12)), 'Yesterday');
+  assert.equal(dayLabel(local(12, 31, 12, 2025), local(1, 1, 12)), 'Yesterday');
+});
+
+void test('a divider is drawn where the day changes, and before the first line unless it is from today', (): void => {
+  const now: number = local(11, 15, 12);
+  assert.equal(dayDivider(null, stamp(11, 15, 9), now), null);
+  assert.equal(dayDivider(null, stamp(11, 14, 9), now), 'Yesterday');
+  assert.equal(dayDivider(stamp(11, 14, 9), stamp(11, 14, 23), now), null);
+  assert.equal(dayDivider(stamp(11, 14, 23), stamp(11, 15, 1), now), 'Today');
+  assert.equal(dayDivider(stamp(11, 10, 9), stamp(11, 11, 9), now), '11 Nov');
+  assert.equal(dayDivider(stamp(11, 14, 9), null, now), null);
+  assert.equal(dayDivider('not a time', stamp(11, 14, 9), now), 'Yesterday');
+});
+
+void test('a welcome older than the panel keeps every line, then lines on a reconnect and in the Hideout are added once', (): void => {
+  const old: readonly ChatLine[] = Array.from({ length: 50 }, (_: unknown, index: number): ChatLine => ({ ...line(index + 1, 'a', 'Ash', `old ${String(index)}`), at: stamp(11, 14, 9) }));
+  let state: ChatState = receive(EMPTY_CHAT, { type: 'welcome', you: 'p1', chat: old });
+  assert.equal(state.entries.length, 50);
+  state = receive(state, { type: 'said', line: line(51, 'a', 'Ash', 'new') });
+  state = receive(state, { type: 'welcome', you: 'p1', chat: [...old, line(51, 'a', 'Ash', 'new'), line(52, 'a', 'Ash', 'while away')] });
+  state = receive(state, { type: 'present', you: 'h1', players: [], chat: [...old, line(51, 'a', 'Ash', 'new'), line(52, 'a', 'Ash', 'while away')] });
+  assert.equal(state.entries.length, 52);
+  assert.deepEqual(texts(state).slice(-2), ['Ash: new', 'Ash: while away']);
 });
 
 void test('every report and friend answer has words for the player', (): void => {

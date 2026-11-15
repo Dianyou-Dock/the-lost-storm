@@ -5,7 +5,13 @@ import type { ChatLine, ChatRefusal, WhisperDirection, WhisperRefusal } from '..
 import type { ChatCommand } from './chat-command.ts';
 import { nameKey } from './chat-command.ts';
 
-export const CHAT = { keep: 60, names: 200 } as const;
+export const CHAT = { keep: 120, names: 200 } as const;
+
+export const CHAT_DAYS = {
+  today: 'Today',
+  yesterday: 'Yesterday',
+  months: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'],
+} as const;
 
 export const CHAT_WORDS = {
   general: 'General',
@@ -137,6 +143,45 @@ export function renameText(result: NameResult): string {
       return NAME_MESSAGES.unavailable;
   }
   return NAME_MESSAGES.unavailable;
+}
+
+interface Day {
+  readonly year: number;
+  readonly month: number;
+  readonly date: number;
+}
+
+function dayOf(ms: number): Day {
+  const moment: Date = new Date(ms);
+  return { year: moment.getFullYear(), month: moment.getMonth(), date: moment.getDate() };
+}
+
+function sameDay(left: Day, right: Day): boolean {
+  return left.year === right.year && left.month === right.month && left.date === right.date;
+}
+
+function stampOf(at: string | null): number | null {
+  if (at === null) return null;
+  const parsed: number = Date.parse(at);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function dayLabel(at: number, now: number): string {
+  const day: Day = dayOf(at);
+  const today: Day = dayOf(now);
+  if (sameDay(day, today)) return CHAT_DAYS.today;
+  const before: Date = new Date(today.year, today.month, today.date - 1);
+  if (sameDay(day, dayOf(before.getTime()))) return CHAT_DAYS.yesterday;
+  const named: string = `${String(day.date)} ${CHAT_DAYS.months[day.month] ?? ''}`;
+  return day.year === today.year ? named : `${named} ${String(day.year)}`;
+}
+
+export function dayDivider(previous: string | null, at: string | null, now: number): string | null {
+  const stamp: number | null = stampOf(at);
+  if (stamp === null) return null;
+  const earlier: number | null = stampOf(previous);
+  if (earlier === null ? sameDay(dayOf(stamp), dayOf(now)) : sameDay(dayOf(stamp), dayOf(earlier))) return null;
+  return dayLabel(stamp, now);
 }
 
 export function readers(state: ChatState): string {

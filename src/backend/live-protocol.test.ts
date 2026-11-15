@@ -114,6 +114,23 @@ void test('a line from an older server has no own flag, and a replayed line has 
   assert.equal(readLine({ ...LINE, from: 7 }), null);
 });
 
+void test('a line keeps the time it was said, and a missing or unreadable time is allowed and read as none', (): void => {
+  assert.equal(readLine({ ...LINE, at: '2026-11-14T08:28:00.000Z' })?.at, '2026-11-14T08:28:00.000Z');
+  const { at: _dropped, ...undated } = LINE;
+  assert.deepEqual(readLine(undated), { ...undated, at: null });
+  assert.equal(readLine({ ...LINE, at: 'yesterday' })?.at, null);
+  assert.equal(readLine({ ...LINE, at: 5 })?.at, null);
+});
+
+void test('a welcome and a present frame keep every history line, whether or not it has a time', (): void => {
+  const { at: _dropped, ...undated } = LINE;
+  const history: readonly unknown[] = [LINE, undated, { ...LINE, id: 99, at: '2026-11-14T08:28:00.000Z' }];
+  const welcome = readServerFrame(JSON.stringify({ type: 'welcome', you: 'p1', chat: history }));
+  assert.equal(welcome?.type === 'welcome' ? welcome.roaming?.chat.length : null, 3);
+  const present = readServerFrame(JSON.stringify({ type: 'present', zone: 'hideout', you: 'p1', players: [], chat: history }));
+  assert.equal(present?.type === 'present' ? present.chat?.length : null, 3);
+});
+
 void test('the mute list keeps the newest names that fit in one frame', (): void => {
   assert.deepEqual(JSON.parse(mutesFrame(['ash', '', 'bo reed'])), { type: 'mutes', names: ['ash', 'bo reed'] });
   const many: readonly string[] = Array.from({ length: 500 }, (_: unknown, index: number): string => `name number ${String(index)}`);

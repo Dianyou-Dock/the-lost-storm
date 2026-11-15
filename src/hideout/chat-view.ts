@@ -1,7 +1,7 @@
 import type { ChatLine } from '../backend/live-protocol.ts';
 import { LIVE_LIMITS } from '../backend/live-protocol.ts';
 import type { ChatEntry, ChatState } from './chat.ts';
-import { CHAT_WORDS, destination, readers } from './chat.ts';
+import { CHAT_WORDS, dayDivider, destination, readers } from './chat.ts';
 import { CHAT_KEYS, takesEnter } from './chat-keys.ts';
 import type { Mutes } from './mute.ts';
 
@@ -65,6 +65,7 @@ export function swapText(holder: HTMLElement, text: string): void {
 interface Row {
   readonly entry: ChatEntry;
   readonly element: HTMLLIElement;
+  readonly divider: HTMLLIElement | null;
 }
 
 export function createChatView(options: ChatViewOptions): ChatView {
@@ -79,7 +80,8 @@ export function createChatView(options: ChatViewOptions): ChatView {
   const whisperName: HTMLSpanElement = make('span', 'chat-channel chat-whisper-tab', whisperTab);
   const friendsSlot: HTMLDivElement = make('div', 'chat-slot', head);
   const readerLine: HTMLDivElement = make('div', 'chat-readers', panel);
-  const list: HTMLOListElement = make('ol', 'chat-lines', panel);
+  const scroller: HTMLDivElement = make('div', 'chat-scroll', panel);
+  const list: HTMLOListElement = make('ol', 'chat-lines', scroller);
   const inputRow: HTMLDivElement = make('div', 'chat-input', panel);
   const to: HTMLSpanElement = make('span', 'chat-to', inputRow);
   const field: HTMLInputElement = make('input', 'chat-field', inputRow);
@@ -90,6 +92,7 @@ export function createChatView(options: ChatViewOptions): ChatView {
   field.spellcheck = false;
   const rows: Map<string, Row> = new Map<string, Row>();
   let open: boolean = false;
+  let lastSaid: string | null = null;
   swapText(to, destination({ kind: 'general' }));
   swapText(readerLine, 'Everyone online reads this.');
 
@@ -168,6 +171,16 @@ export function createChatView(options: ChatViewOptions): ChatView {
     return make('li', 'chat-row');
   };
 
+  const dividerFor = (entry: ChatEntry): HTMLLIElement | null => {
+    if (entry.kind !== 'line') return null;
+    const label: string | null = dayDivider(lastSaid, entry.line.at, Date.now());
+    if (entry.line.at !== null) lastSaid = entry.line.at;
+    if (label === null) return null;
+    const element: HTMLLIElement = make('li', 'chat-row chat-day');
+    make('span', 'chat-day-label', make('div', 'chat-row-inner', element)).textContent = label;
+    return element;
+  };
+
   const send = (): void => {
     const result: Submitted = options.submit(field.value);
     if (result.clear) field.value = '';
@@ -195,6 +208,7 @@ export function createChatView(options: ChatViewOptions): ChatView {
   field.addEventListener('blur', (): void => {
     panel.classList.remove('typing');
     field.placeholder = CHAT_VIEW.placeholder;
+    scroller.scrollTo({ top: 0, behavior: 'smooth' });
   });
 
   options.events.addEventListener(
@@ -220,13 +234,16 @@ export function createChatView(options: ChatViewOptions): ChatView {
       const keys: ReadonlySet<string> = new Set<string>(state.entries.map((entry: ChatEntry): string => entry.key));
       for (const [key, row] of rows) {
         if (keys.has(key)) continue;
+        row.divider?.remove();
         row.element.remove();
         rows.delete(key);
       }
       for (const entry of state.entries) {
         if (rows.has(entry.key)) continue;
         const element: HTMLLIElement = rowFor(entry);
-        rows.set(entry.key, { entry, element });
+        const divider: HTMLLIElement | null = dividerFor(entry);
+        rows.set(entry.key, { entry, element, divider });
+        if (divider !== null) list.append(divider);
         list.append(element);
       }
       applyMutes();

@@ -72,7 +72,7 @@ export interface ChatLine {
   readonly from: string | null;
   readonly name: string;
   readonly text: string;
-  readonly at: string;
+  readonly at: string | null;
   readonly own: boolean | null;
 }
 
@@ -156,9 +156,10 @@ export function readLine(value: unknown): ChatLine | null {
   const from: string | null = shortText(rawFrom, LIVE_LIMITS.idChars);
   const name: string | null = shortText(value['name'], LIVE_LIMITS.nameChars);
   const text: string | null = shortText(value['text'], LIVE_LIMITS.lineChars);
-  const at: string | null = shortText(value['at'], LIVE_LIMITS.idChars);
+  const stamp: string | null = shortText(value['at'], LIVE_LIMITS.idChars);
+  const at: string | null = stamp !== null && Number.isFinite(Date.parse(stamp)) ? stamp : null;
   const own: unknown = value['own'];
-  if (typeof id !== 'number' || !Number.isSafeInteger(id) || (from === null && rawFrom !== null) || name === null || text === null || at === null) return null;
+  if (typeof id !== 'number' || !Number.isSafeInteger(id) || (from === null && rawFrom !== null) || name === null || text === null) return null;
   return { id, from, name, text, at, own: typeof own === 'boolean' ? own : null };
 }
 
