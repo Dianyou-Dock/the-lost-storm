@@ -21,6 +21,13 @@ function triggerProblems(content: Content, owner: string, trigger: PowerTriggerD
     case 'buff':
       if (!Number.isInteger(effect.stacks)) problems.push(`${owner} stacks ${effect.stacks} times, which is not a whole count`);
       break;
+    case 'empower':
+      if (effect.skillMods.length === 0) problems.push(`${owner} empowers nothing`);
+      for (const mod of effect.skillMods) {
+        const problem: string | null = targetProblem(content, owner, mod.target);
+        if (problem !== null) problems.push(problem);
+      }
+      break;
   }
   return problems;
 }
@@ -49,6 +56,9 @@ export function powerRuleProblems(content: Content): string[] {
     if (!named) problems.push(`item ${base.id} has a power but no rarity carries powers`);
     if (base.slot === null) problems.push(`item ${base.id} has a power but no slot to wear it in`);
     problems.push(...powerProblems(content, base, base.power));
+  }
+  for (const node of content.skillTree) {
+    for (const trigger of node.triggers) problems.push(...triggerProblems(content, `tree node ${node.id}`, trigger));
   }
   for (const family of content.families.values()) {
     if (![...content.itemBases.values()].some((base: ItemBaseDef): boolean => base.power?.family === family.id)) problems.push(`family ${family.id} has no pieces`);

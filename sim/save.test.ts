@@ -96,7 +96,7 @@ void test('a save from before the ability places gives back the points of places
 
 void test('a save holding every centre from before the one-start rule keeps them all, gives back nothing, and grows only from its largest part', (): void => {
   const old: World = played();
-  const centres: readonly string[] = ['storm_storm_bolt', 'blade_thunderhead', 'heavy_hands', 'wind_mist_step', 'stone_thunderclap', 'echo_forkline'];
+  const centres: readonly string[] = ['storm_storm_bolt', 'blade_thunderhead', 'heavy_hands', 'wind_ghost_wave', 'stone_thunderclap', 'echo_forkline'];
   old.player.allocated = [...centres];
   const save: SaveData = roundTrip(old);
   assert.deepEqual(save.allocated, centres);
@@ -608,4 +608,21 @@ void test('an Echo holding that ran through Squall before it moved to the storm 
   assert.equal(save.skillPoints, 2);
   assert.ok(!save.learned.includes('squall'));
   assert.equal(save.freeReset, true);
+});
+
+void test('a windrunner saved before the Long Shadow loads with a free start over, Mist Step gone and every point back to spend', (): void => {
+  const world: World = played();
+  world.player.level = 6;
+  world.player.skillPoints = 0;
+  world.player.allocated = ['wind_mist_step', 'windborne', 'wind_1', 'drag_of_the_deep', 'wind_downdraught', 'wind_2', 'wind_4', 'slip_through', 'wind_7', 'through_the_mist'];
+  world.player.learned = ['cleave', 'mist_step', 'downdraught', 'dodge_roll'];
+  world.player.bar = ['cleave', 'mist_step', 'downdraught', null, null, 'dodge_roll'];
+  world.player.freeReset = false;
+  const save: SaveData = must(parseSaveText(content, JSON.stringify({ ...toSave(world), treeRevision: content.chart.revision - 1 })), 'save');
+  assert.equal(save.freeReset, true);
+  assert.deepEqual(save.allocated, []);
+  assert.equal(save.skillPoints, 10);
+  assert.ok(!save.learned.includes('mist_step') && !save.bar.includes('mist_step'));
+  assert.ok(!save.learned.includes('downdraught'));
+  assert.ok(canAllocate(content, save.allocated, save.skillPoints, 'wind_ghost_wave'));
 });

@@ -1,6 +1,6 @@
 import { conditions } from './parse-conditions.ts';
 import type { Fields } from './read.ts';
-import { choice, ContentError, each, fields, flag, fraction, nonNegative, positive, text } from './read.ts';
+import { choice, ContentError, each, fields, flag, fraction, nonNegative, positive, share, text } from './read.ts';
 import type { BeamDelivery, BlinkDelivery, BrandDef, BurnDef, ChainDelivery, AreaDelivery, MomentumDef, MomentumTier, PressDef, SkillUnlock } from './shape-types.ts';
 import { AREA_ANCHORS } from './shape-types.ts';
 import type { Content, SkillBinding, SkillDef, SkillTreeNodeDef } from './types.ts';
@@ -33,6 +33,7 @@ function area(source: Fields, where: string): AreaDelivery {
     pulse,
     pull: nonNegative(source, 'pull', where),
     slow: fraction(source, 'slow', where),
+    weaken: source['weaken'] === undefined ? 0 : share(source, 'weaken', where),
     anchor: choice(source, 'anchor', AREA_ANCHORS, where),
     opening: source['opening'] === undefined ? false : flag(source, 'opening', where),
   };

@@ -2,9 +2,10 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ARENA_CENTRE, ARENA_CONTENT, arena, place } from '../test/arena-support.ts';
 import { must } from '../test/support.ts';
-import type { Content, MonsterDef, SkillDef } from './content/types.ts';
+import type { Content, MonsterDef, SkillDef, SkillTreeNodeDef } from './content/types.ts';
 import { generateItem, slotOf } from './items.ts';
-import { buffMods, emptyPowerState, familyReading, firePowers, stepPowerState, wornPowers, wouldPassLimit } from './powers.ts';
+import { buffMods, emptyPowerState, familyReading, firePowers, heldPowers, stepPowerState, wornPowers, wouldPassLimit } from './powers.ts';
+import { resolveSkill } from './stats.ts';
 import { createRng } from './rng.ts';
 import { applyHit, offenceOf } from './world/combat.ts';
 import type { EchoState, ItemInstance, MonsterState, PowerState, World } from './world/types.ts';
@@ -195,4 +196,58 @@ void test('an item power does not cast a skill that needs another weapon than th
   const again: MonsterState = place(world, 'test_echo', { x: ARENA_CENTRE.x - 2, z: ARENA_CENTRE.z });
   firePowers(world, { on: 'kill', skill: skill('cleave'), target: again, at: again.pos });
   assert.deepEqual(casts(world), ['forkline']);
+});
+
+const VEIL: SkillTreeNodeDef = {
+  id: 'test_veil',
+  name: 'Veil',
+  description: 'After a roll, Storm Bolt hits harder and pierces one more.',
+  icon: 'focus',
+  kind: 'notable',
+  path: 'storm',
+  column: 0,
+  row: 0,
+  requires: [],
+  statMods: [],
+  skillMods: [],
+  variants: [],
+  unlock: null,
+  weapon: 'staff',
+  triggers: [{ on: 'use', skill: { type: 'group', group: 'motion' }, target: 'any', every: 1, cooldown: 0, effect: { type: 'empower', skillMods: [{ target: { type: 'skill', skill: 'storm_bolt' }, field: 'damagePercent', value: 0.5 }, { target: { type: 'skill', skill: 'storm_bolt' }, field: 'pierce', value: 1 }], duration: 2 } }],
+};
+
+function veiled(wielding: string): World {
+  const world: World = arena(1, { ...content, skillTree: [...content.skillTree, VEIL] });
+  world.player.allocated = ['test_veil'];
+  world.player.wielding = wielding;
+  return world;
+}
+
+function veiledBolt(world: World): SkillDef {
+  return resolveSkill(world.content, skill('storm_bolt'), world.player.allocated, heldPowers(world.content, world.player.equipped, world.player.powers), [], world.player.wielding, world.player.changes);
+}
+
+function pierceOf(found: SkillDef): number {
+  return found.delivery.type === 'projectile' ? found.delivery.pierce : -1;
+}
+
+void test('a tree place with a trigger empowers a skill for a while after a roll, and only a motion skill sets it off', (): void => {
+  const world: World = veiled('staff');
+  const plain: SkillDef = veiledBolt(world);
+  assert.ok(!firePowers(world, { on: 'use', skill: skill('cleave'), target: null, at: world.player.pos }));
+  assert.ok(firePowers(world, { on: 'use', skill: skill('dodge_roll'), target: null, at: world.player.pos }));
+  const empowered: SkillDef = veiledBolt(world);
+  assert.ok(Math.abs(empowered.damage.weaponPercent - plain.damage.weaponPercent * 1.5) < 1e-9);
+  assert.equal(pierceOf(empowered), pierceOf(plain) + 1);
+  assert.ok(firePowers(world, { on: 'use', skill: skill('dodge_roll'), target: null, at: world.player.pos }));
+  assert.equal(world.player.powers.empowers.length, 1);
+  assert.ok(!stepPowerState(world.player.powers, 1.9));
+  assert.ok(stepPowerState(world.player.powers, 0.2));
+  assert.deepEqual(veiledBolt(world).damage, plain.damage);
+});
+
+void test('a tree place off its weapon sets off no trigger', (): void => {
+  const world: World = veiled('blade');
+  assert.ok(!firePowers(world, { on: 'use', skill: skill('dodge_roll'), target: null, at: world.player.pos }));
+  assert.deepEqual(world.player.powers.empowers, []);
 });

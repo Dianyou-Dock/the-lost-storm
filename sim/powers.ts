@@ -1,11 +1,11 @@
-import type { BuffEffect, CastEffect, Content, FamilyDef, ItemBaseDef, ItemSlot, PowerDef, PowerTrigger, PowerTriggerDef, RarityDef, SkillDef, SkillTarget, SkillVariant, StatMod } from './content/types.ts';
+import type { BuffEffect, CastEffect, Content, EmpowerEffect, FamilyDef, ItemBaseDef, ItemSlot, PowerDef, PowerTrigger, PowerTriggerDef, RarityDef, SkillDef, SkillMod, SkillTarget, SkillTreeNodeDef, SkillVariant, StatMod } from './content/types.ts';
 import { ITEM_SLOTS } from './content/types.ts';
 import { familyPieces } from './content/power-rules.ts';
 import { baseOf, rarityOf } from './items.ts';
 import type { ReadonlyVec2 } from './math.ts';
 import { directionOf } from './math.ts';
-import { inGroup, resolveSkill } from './stats.ts';
-import type { Actor, BuffState, Equipment, ItemInstance, PlayerState, PowerState, World } from './world/types.ts';
+import { allocatedNodes, inGroup, resolveSkill } from './stats.ts';
+import type { Actor, BuffState, EmpowerState, Equipment, ItemInstance, PlayerState, PowerState, World } from './world/types.ts';
 import { skillAllowed } from './weapons.ts';
 
 export interface WornPower {
@@ -21,7 +21,7 @@ export interface PowerEvent {
 }
 
 export function emptyPowerState(): PowerState {
-  return { buffs: [], cooldowns: {}, counts: {} };
+  return { buffs: [], empowers: [], cooldowns: {}, counts: {} };
 }
 
 export function wornPowerList(content: Content, equipped: Equipment): WornPower[] {
@@ -36,6 +36,12 @@ export function wornPowerList(content: Content, equipped: Equipment): WornPower[
 
 export function wornPowers(content: Content, equipped: Equipment): PowerDef[] {
   return wornPowerList(content, equipped).map((worn: WornPower): PowerDef => worn.power);
+}
+
+export function heldPowers(content: Content, equipped: Equipment, state: PowerState): PowerDef[] {
+  const worn: PowerDef[] = wornPowers(content, equipped);
+  if (state.empowers.length === 0) return worn;
+  return [...worn, { family: '', text: '', skillMods: state.empowers.flatMap((held: EmpowerState): readonly SkillMod[] => held.skillMods), variants: [], triggers: [] }];
 }
 
 export function wornVariants(content: Content, equipped: Equipment): SkillVariant[] {
@@ -80,7 +86,7 @@ function cast(world: World, effect: CastEffect, at: ReadonlyVec2): void {
   const player: PlayerState = world.player;
   const def: SkillDef | undefined = world.content.skills.get(effect.skill);
   if (def === undefined) return;
-  const skill: SkillDef = resolveSkill(world.content, def, player.allocated, wornPowers(world.content, player.equipped), wornVariants(world.content, player.equipped), player.wielding, player.changes);
+  const skill: SkillDef = resolveSkill(world.content, def, player.allocated, heldPowers(world.content, player.equipped, player.powers), wornVariants(world.content, player.equipped), player.wielding, player.changes);
   if (!skillAllowed(skill, player.wielding)) return;
   const origin: ReadonlyVec2 = effect.at === 'caster' ? player.pos : at;
   const facing: ReadonlyVec2 = directionOf(player.facing);
@@ -111,6 +117,21 @@ function buff(state: PowerState, key: string, effect: BuffEffect): void {
   state.buffs.push({ key, mod: { stat: effect.stat, op: effect.op, value: effect.value }, stacks: 1, timeLeft: effect.duration });
 }
 
+function empower(state: PowerState, key: string, effect: EmpowerEffect): void {
+  state.empowers = [...state.empowers.filter((held: EmpowerState): boolean => held.key !== key), { key, skillMods: effect.skillMods, timeLeft: effect.duration }];
+}
+
+interface TriggerSource {
+  readonly key: string;
+  readonly triggers: readonly PowerTriggerDef[];
+}
+
+function triggerSources(content: Content, player: PlayerState): TriggerSource[] {
+  const worn: TriggerSource[] = wornPowerList(content, player.equipped).map((held: WornPower): TriggerSource => ({ key: held.key, triggers: held.power.triggers }));
+  const placed: TriggerSource[] = allocatedNodes(content, player.allocated, player.wielding).map((node: SkillTreeNodeDef): TriggerSource => ({ key: `place:${node.id}`, triggers: node.triggers }));
+  return [...worn, ...placed].filter((source: TriggerSource): boolean => source.triggers.length > 0);
+}
+
 function ready(state: PowerState, key: string, trigger: PowerTriggerDef): boolean {
   if ((state.cooldowns[key] ?? 0) > 0) return false;
   const count: number = (state.counts[key] ?? 0) + 1;
@@ -123,10 +144,10 @@ function ready(state: PowerState, key: string, trigger: PowerTriggerDef): boolea
 export function firePowers(world: World, event: PowerEvent): boolean {
   const player: PlayerState = world.player;
   let buffed: boolean = false;
-  for (const worn of wornPowerList(world.content, player.equipped)) {
-    worn.power.triggers.forEach((trigger: PowerTriggerDef, index: number): void => {
+  for (const source of triggerSources(world.content, player)) {
+    source.triggers.forEach((trigger: PowerTriggerDef, index: number): void => {
       if (trigger.on !== event.on || !skillMatches(world.content, trigger.skill, event.skill.id) || !targetMatches(world.content, trigger, event.target)) return;
-      const key: string = `${worn.key}:${index}`;
+      const key: string = `${source.key}:${index}`;
       if (!ready(player.powers, key, trigger)) return;
       const effect = trigger.effect;
       switch (effect.type) {
@@ -135,6 +156,10 @@ export function firePowers(world: World, event: PowerEvent): boolean {
           return;
         case 'buff':
           buff(player.powers, key, effect);
+          buffed = true;
+          return;
+        case 'empower':
+          empower(player.powers, key, effect);
           buffed = true;
           return;
       }
@@ -149,10 +174,12 @@ export function stepPowerState(state: PowerState, dt: number): boolean {
     if (left > 0) state.cooldowns[key] = left;
     else Reflect.deleteProperty(state.cooldowns, key);
   }
-  const before: number = state.buffs.length;
+  const before: number = state.buffs.length + state.empowers.length;
   for (const held of state.buffs) held.timeLeft -= dt;
+  for (const held of state.empowers) held.timeLeft -= dt;
   state.buffs = state.buffs.filter((held: BuffState): boolean => held.timeLeft > 0);
-  return state.buffs.length !== before;
+  state.empowers = state.empowers.filter((held: EmpowerState): boolean => held.timeLeft > 0);
+  return state.buffs.length + state.empowers.length !== before;
 }
 
 export interface FamilyPiece {

@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import { must } from '../../test/support.ts';
 import { loadContent } from './content.ts';
 import { familyPieces, powerRuleProblems } from './power-rules.ts';
-import type { Content, ItemBaseDef, PowerDef } from './types.ts';
+import type { Content, ItemBaseDef, PowerDef, SkillTreeNodeDef } from './types.ts';
 
 const content: Content = loadContent();
 
@@ -37,4 +37,16 @@ void test('a power naming things that do not exist is reported', (): void => {
   assert.ok(powerRuleProblems(lonely).some((problem: string): boolean => problem.includes('family empty has no pieces')));
   const unnamed: Content = { ...content, rarities: content.rarities.filter((rarity): boolean => !rarity.powers) };
   assert.ok(powerRuleProblems(unnamed).some((problem: string): boolean => problem.includes('no rarity carries powers')));
+});
+
+void test('a tree place whose trigger names a skill that does not exist, or empowers nothing, is reported', (): void => {
+  const first = must(content.skillTree[0], 'place');
+  const odd: SkillTreeNodeDef = { ...first, id: 'odd_place', triggers: [
+    { on: 'use', skill: { type: 'skill', skill: 'no_such_roll' }, target: 'any', every: 1, cooldown: 0, effect: { type: 'empower', skillMods: [], duration: 2 } },
+    { on: 'use', skill: null, target: 'any', every: 1, cooldown: 0, effect: { type: 'empower', skillMods: [{ target: { type: 'group', group: 'no_such_group' }, field: 'pierce', value: 1 }], duration: 2 } },
+  ] };
+  const problems: string[] = powerRuleProblems({ ...content, skillTree: [...content.skillTree, odd] });
+  for (const expected of ['tree node odd_place names unknown skill no_such_roll', 'tree node odd_place empowers nothing', 'tree node odd_place names unknown skill group no_such_group']) {
+    assert.ok(problems.some((problem: string): boolean => problem.includes(expected)), expected);
+  }
 });

@@ -1,7 +1,9 @@
 import type { FlaskDef, FlaskResource } from '../content/flasks.ts';
 import type { GlitchKind } from '../content/glitches.ts';
 import type { GlitchEvent, GlitchState, PathAct, PathLog } from './glitch-types.ts';
-import type { Content, ItemSlot, LineDef, MonsterDef, NpcDef, SkillDef, StatBlock, StatMod, TalkDef, XpReduction, ZoneDef, ZonePack } from '../content/types.ts';
+import type { Content, ItemSlot, LineDef, MonsterDef, NpcDef, SkillDef, StatBlock, TalkDef, XpReduction, ZoneDef, ZonePack } from '../content/types.ts';
+import type { PowerState } from './power-types.ts';
+export type { BuffState, EmpowerState, PowerState } from './power-types.ts';
 import type { OpenService } from './service-types.ts';
 import type { ReplayCommand } from './dialogue-types.ts';
 import type { UnisonEvent, UnisonState } from './unison-types.ts';
@@ -267,19 +269,6 @@ export interface EchoState {
   readonly critChance: number;
   readonly critMultiplier: number;
   timeLeft: number;
-}
-
-export interface BuffState {
-  readonly key: string;
-  readonly mod: StatMod;
-  stacks: number;
-  timeLeft: number;
-}
-
-export interface PowerState {
-  buffs: BuffState[];
-  cooldowns: Record<string, number>;
-  counts: Record<string, number>;
 }
 
 export interface AreaState {

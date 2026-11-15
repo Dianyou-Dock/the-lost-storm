@@ -20,6 +20,7 @@ export interface AreaDelivery {
   readonly pulse: number;
   readonly pull: number;
   readonly slow: number;
+  readonly weaken: number;
   readonly anchor: AreaAnchor;
   readonly opening: boolean;
 }

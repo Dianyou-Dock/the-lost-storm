@@ -20,6 +20,7 @@ import { dropOnGround } from './ground.ts';
 import { steadiness } from './poise.ts';
 import { steadied } from './momentum.ts';
 import { flinchTogether } from './unison.ts';
+import { dealtScale } from './weaken.ts';
 import type { ActionState, Actor, BrandState, BurnState, GuardOutcome, ItemInstance, MonsterState, Offence, Team, World } from './types.ts';
 
 export const COMBAT = {
@@ -170,7 +171,9 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
   const flat: number = world.rng.range(skill.damage.flatMin, skill.damage.flatMax);
   const crit: boolean = world.rng.chance(offence.critChance);
   const mitigation: number = target.kind === 'player' ? damageTakenScale(target.stats, skill.damage.type, world.content.player.resistance, world.zone.stormTier) : 1;
-  const amount: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded));
+  const striker: Actor | null = findActor(world, offence.sourceId);
+  const weakened: number = striker === null ? 1 : dealtScale(world, striker);
+  const amount: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded * weakened));
   target.life -= amount;
   const poise: number = steadiness(target) * (guard === 'blocked' ? COMBAT.guardedKnockback : 1);
   const steady: boolean = steadied(target) || rollsSteady(target);

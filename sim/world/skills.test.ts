@@ -291,11 +291,11 @@ void test('a held skill repeats only when the hero is free, it is off cooldown, 
   assert.equal(readyToRepeat(world.player, bolt), false);
 });
 
-void test('a hero in the Mist-Treader Boots leaves a Downdraught where the Mist Step began, and only on a Mist Step', (): void => {
+void test('a hero in the Mist-Treader Boots leaves a Downdraught where a roll lands, and not once the boots are off', (): void => {
   const world: World = arena(7);
   const boots = must(generateItem(world.content, createRng(7), 900, 8, 'mist_treader_boots', null), 'boots');
   world.player.equipped.feet = boots;
-  const step: SkillDef = must(world.content.skills.get('mist_step'), 'mist step');
+  const step: SkillDef = must(world.content.skills.get('dodge_roll'), 'dodge roll');
   const from: Vec2 = { ...world.player.pos };
   startSkill(world, world.player, step, { x: 3, z: 0 });
   const fell: AreaState[] = [];
@@ -304,8 +304,8 @@ void test('a hero in the Mist-Treader Boots leaves a Downdraught where the Mist 
     fell.push(...world.areas.filter((area: AreaState): boolean => area.skill.id === 'downdraught'));
   }
   const area: AreaState = must(fell[0], 'a Downdraught fell');
-  assert.ok(distance(area.pos, from) < 0.05, `it fell where the hero stood (${distance(area.pos, from).toFixed(2)} away)`);
-  assert.ok(distance(world.player.pos, from) > 1, 'the hero is gone from there');
+  assert.ok(distance(area.pos, world.player.pos) < 0.05, `it fell where the hero landed (${distance(area.pos, world.player.pos).toFixed(2)} away)`);
+  assert.ok(distance(world.player.pos, from) > 1, 'the hero rolled away from the start');
   world.areas = [];
   world.player.equipped.feet = null;
   world.player.cooldowns = {};

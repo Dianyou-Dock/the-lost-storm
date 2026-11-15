@@ -1,7 +1,7 @@
 {
   "title": "The Skill Tree",
   "pointsPerLevel": 2,
-  "revision": 2,
+  "revision": 3,
   "twist": 0.08,
   "respec": {
     "goldPerPoint": 10,
@@ -22,9 +22,9 @@
     },
     {
       "id": "wind",
-      "name": "The Open Wind",
-      "tint": "#9fd6c2",
-      "description": "Never where the blow lands: speed, rolls and steps through the mist."
+      "name": "The Long Shadow",
+      "tint": "#8a6fd1",
+      "description": "Step through the dark and shoot out of it: the Veil, the Umbra and the long shot."
     },
     {
       "id": "stone",
@@ -79,7 +79,8 @@
         "squall",
         "downdraught",
         "held_breath",
-        "forkline"
+        "forkline",
+        "umbra"
       ]
     },
     {
@@ -90,6 +91,14 @@
         "static_brand",
         "forkline",
         "quarrel"
+      ]
+    },
+    {
+      "id": "roll",
+      "name": "rolls",
+      "skills": [
+        "dodge_roll",
+        "dodge_roll_slip"
       ]
     }
   ],

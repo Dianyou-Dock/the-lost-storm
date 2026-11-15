@@ -1,7 +1,7 @@
 import type { ZoneTerrain } from './terrain-types.ts';
 import type { MonsterRank, PackRanks } from './rank-types.ts';
 import type { ZoneBarrier } from './barrier-types.ts';
-import type { AffixDef, FamilyDef, ItemBaseDef, ItemScaling, RarityDef } from './item-types.ts';
+import type { AffixDef, FamilyDef, ItemBaseDef, ItemScaling, PowerTriggerDef, RarityDef } from './item-types.ts';
 export type { WeaponKind } from './item-types.ts';
 import type { FlaskDef } from './flasks.ts';
 import type { AttachmentDef, RigDef } from './rig-types.ts';
@@ -236,7 +236,7 @@ export interface WearableDef {
 }
 
 export { ARMOUR_MATERIALS, CAST_ORIGINS, GROUND_KEEPS, GROUND_MODELS, ITEM_STATS, POWER_TARGETS, POWER_TRIGGERS, RARITY_MARKERS, WEAPON_KINDS } from './item-types.ts';
-export type { AffixDef, ArmourMaterial, BuffEffect, CastEffect, CastOrigin, FamilyDef, GroundKeep, GroundLook, GroundModel, ItemBaseDef, ItemScaling, ItemStat, PowerDef, PowerEffect, PowerTarget, PowerTrigger, PowerTriggerDef, RarityDef, RarityMarker, ItemUse, PortalUse } from './item-types.ts';
+export type { AffixDef, ArmourMaterial, BuffEffect, CastEffect, EmpowerEffect, CastOrigin, FamilyDef, GroundKeep, GroundLook, GroundModel, ItemBaseDef, ItemScaling, ItemStat, PowerDef, PowerEffect, PowerTarget, PowerTrigger, PowerTriggerDef, RarityDef, RarityMarker, ItemUse, PortalUse } from './item-types.ts';
 
 export const TREE_NODE_KINDS = ['minor', 'notable', 'keystone'] as const;
 export type TreeNodeKind = (typeof TREE_NODE_KINDS)[number];
@@ -256,6 +256,7 @@ export interface SkillTreeNodeDef {
   readonly variants: readonly SkillVariant[];
   readonly unlock: string | null;
   readonly weapon: string | null;
+  readonly triggers: readonly PowerTriggerDef[];
 }
 
 export type { ChartDef, ChartGroup, ChartPath, ChartRespec, PointGrant, SkillTarget, SkillVariant, WeaponGroup } from './chart-types.ts';

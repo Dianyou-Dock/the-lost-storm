@@ -89,7 +89,13 @@ export interface BuffEffect {
   readonly stacks: number;
 }
 
-export type PowerEffect = CastEffect | BuffEffect;
+export interface EmpowerEffect {
+  readonly type: 'empower';
+  readonly skillMods: readonly SkillMod[];
+  readonly duration: number;
+}
+
+export type PowerEffect = CastEffect | BuffEffect | EmpowerEffect;
 
 export interface PowerTriggerDef {
   readonly on: PowerTrigger;

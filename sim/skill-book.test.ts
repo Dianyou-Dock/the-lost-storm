@@ -29,16 +29,23 @@ function finish(world: World, quest: string): WorldEvent[] {
   return stepWorld(world, [], 1 / 60);
 }
 
-void test('the chart unlocks eight to ten active skills beyond the basic attack and the roll, one place each, each a different shape', (): void => {
+const SKILL_BOOK: { readonly fewestSkills: number; readonly mostPerPath: number } = { fewestSkills: 8, mostPerPath: 4 };
+
+function shapeOf(id: string): string {
+  const skill = must(content.skills.get(id), id);
+  const area: string = skill.delivery.type === 'area' ? `${skill.delivery.anchor}:${skill.delivery.pull > 0 ? 'pull' : ''}:${skill.delivery.pulse > 0 ? 'pulse' : ''}:${skill.delivery.slow < 1 ? 'slow' : ''}` : '';
+  return `${skill.delivery.type}:${area}:${skill.press?.type ?? ''}:${skill.brand === null ? '' : 'brand'}`;
+}
+
+void test('the chart unlocks at least eight active skills beyond the basic attack and the roll, one place each, and each path at most four, each a different shape', (): void => {
   const offered: readonly string[] = chartSkills(content, content.skillTree.map((node): string => node.id));
-  assert.ok(offered.length >= 8 && offered.length <= 10);
+  assert.ok(offered.length >= SKILL_BOOK.fewestSkills);
   assert.equal(new Set<string>(offered).size, offered.length);
-  const shapes: Set<string> = new Set<string>(offered.map((id: string): string => {
-    const skill = must(content.skills.get(id), id);
-    const area: string = skill.delivery.type === 'area' ? `${skill.delivery.anchor}:${skill.delivery.pull > 0 ? 'pull' : ''}:${skill.delivery.pulse > 0 ? 'pulse' : ''}:${skill.delivery.slow < 1 ? 'slow' : ''}` : '';
-    return `${skill.delivery.type}:${area}:${skill.press?.type ?? ''}:${skill.brand === null ? '' : 'brand'}`;
-  }));
-  assert.equal(shapes.size, offered.length);
+  for (const path of content.chart.paths) {
+    const unlocks: readonly string[] = content.skillTree.filter((node): boolean => node.path === path.id && node.unlock !== null && offered.includes(node.unlock)).map((node): string => node.unlock ?? '');
+    assert.ok(unlocks.length <= SKILL_BOOK.mostPerPath, path.id);
+    assert.equal(new Set<string>(unlocks.map(shapeOf)).size, unlocks.length, path.id);
+  }
 });
 
 void test('each path opens on an ability place, so a new character sees five abilities around the eye', (): void => {

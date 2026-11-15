@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { must } from '../../test/support.ts';
 import { loadContent } from './content.ts';
-import { chartDef, chartProblems, skillMod } from './parse-chart.ts';
+import { chartDef, chartProblems } from './parse-chart.ts';
+import { skillMod } from './parse-mods.ts';
 import type { Content, SkillTreeNodeDef } from './types.ts';
 
 const content: Content = loadContent();

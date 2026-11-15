@@ -56,5 +56,5 @@ export function liveSkillMod(content: Content, mod: SkillMod): boolean {
 
 export function heldPlace(content: Content, node: SkillTreeNodeDef, held: string | null): SkillTreeNodeDef {
   if (placeLive(node, held)) return node;
-  return { ...node, statMods: node.statMods.filter(liveStatMod), skillMods: node.skillMods.filter((mod: SkillMod): boolean => liveSkillMod(content, mod)), variants: [] };
+  return { ...node, statMods: node.statMods.filter(liveStatMod), skillMods: node.skillMods.filter((mod: SkillMod): boolean => liveSkillMod(content, mod)), variants: [], triggers: [] };
 }

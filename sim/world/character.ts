@@ -6,7 +6,7 @@ import type { XpResult } from '../progression.ts';
 import { assignSlot, chartSkills } from '../skill-book.ts';
 import { computeStats, resolveSkillBar } from '../stats.ts';
 import { heldGroup } from '../weapons.ts';
-import { buffMods, wornPowers, wornVariants, wouldPassLimit } from '../powers.ts';
+import { buffMods, heldPowers, wornVariants, wouldPassLimit } from '../powers.ts';
 import { dropOnGround } from './ground.ts';
 import { forget, learn } from './learn.ts';
 import type { ItemInstance, PlayerState, World } from './types.ts';
@@ -15,7 +15,7 @@ export function refreshPlayer(world: World): void {
   const player: PlayerState = world.player;
   player.wielding = heldGroup(world.content, player.equipped);
   player.stats = computeStats(world.content, player.level, player.equipped, player.allocated, buffMods(player.powers), player.wielding);
-  player.skills = resolveSkillBar(world.content, player.bar, player.allocated, wornPowers(world.content, player.equipped), wornVariants(world.content, player.equipped), player.wielding, player.changes);
+  player.skills = resolveSkillBar(world.content, player.bar, player.allocated, heldPowers(world.content, player.equipped, player.powers), wornVariants(world.content, player.equipped), player.wielding, player.changes);
   player.maxLife = player.stats.maxLife;
   player.life = Math.min(player.life, player.maxLife);
   player.mana = Math.min(player.mana, player.stats.maxMana);

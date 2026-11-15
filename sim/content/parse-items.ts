@@ -1,10 +1,11 @@
 import type { Fields } from './read.ts';
 import { ContentError, choice, choiceList, each, fields, flag, nonNegative, nullableText, numeric, positive, text, textList } from './read.ts';
-import { skillMod, skillTarget, statMod } from './parse-chart.ts';
-import type { SkillTarget, SkillVariant } from './chart-types.ts';
+import { skillMod, statMod } from './parse-mods.ts';
+import { powerTrigger } from './parse-powers.ts';
+import type { SkillVariant } from './chart-types.ts';
 import type { ItemUse } from './item-types.ts';
-import type { AffixDef, FamilyDef, GroundLook, ItemBaseDef, ItemSlot, PowerDef, PowerEffect, PowerTriggerDef, RarityDef, WeaponKind } from './types.ts';
-import { ARMOUR_MATERIALS, CAST_ORIGINS, GROUND_KEEPS, GROUND_MODELS, ITEM_SLOTS, ITEM_STATS, MOD_OPS, POWER_TARGETS, POWER_TRIGGERS, RARITY_MARKERS, STAT_IDS, WEAPON_KINDS } from './types.ts';
+import type { AffixDef, FamilyDef, GroundLook, ItemBaseDef, ItemSlot, PowerDef, RarityDef, WeaponKind } from './types.ts';
+import { ARMOUR_MATERIALS, GROUND_KEEPS, GROUND_MODELS, ITEM_SLOTS, ITEM_STATS, MOD_OPS, RARITY_MARKERS, WEAPON_KINDS } from './types.ts';
 
 function genericLook(slot: ItemSlot | null): GroundLook {
   return { model: slot === 'charm' ? 'pouch' : 'bundle', keep: 'all', scale: 1, flatten: 1, pitch: 0, roll: 0, yawJitter: 180 };
@@ -28,34 +29,6 @@ export function rarity(value: unknown, where: string): RarityDef {
 export function family(value: unknown, where: string): FamilyDef {
   const source: Fields = fields(value, where);
   return { id: text(source, 'id', where), name: text(source, 'name', where) };
-}
-
-function powerEffect(value: unknown, where: string): PowerEffect {
-  const source: Fields = fields(value, where);
-  const type: 'cast' | 'buff' = choice(source, 'type', ['cast', 'buff'] as const, where);
-  switch (type) {
-    case 'cast':
-      return { type, skill: text(source, 'skill', where), at: choice(source, 'at', CAST_ORIGINS, where) };
-    case 'buff':
-      return { type, stat: choice(source, 'stat', STAT_IDS, where), op: choice(source, 'op', MOD_OPS, where), value: numeric(source, 'value', where), duration: positive(source, 'duration', where), stacks: positive(source, 'stacks', where) };
-  }
-  return { type: 'cast', skill: text(source, 'skill', where), at: 'target' };
-}
-
-function triggerSkill(value: unknown, where: string): SkillTarget | null {
-  return value === undefined || value === null ? null : skillTarget(fields(value, where), where);
-}
-
-function powerTrigger(value: unknown, where: string): PowerTriggerDef {
-  const source: Fields = fields(value, where);
-  return {
-    on: choice(source, 'on', POWER_TRIGGERS, where),
-    skill: triggerSkill(source['skill'], `${where}.skill`),
-    target: source['target'] === undefined ? 'any' : choice(source, 'target', POWER_TARGETS, where),
-    every: source['every'] === undefined ? 1 : positive(source, 'every', where),
-    cooldown: source['cooldown'] === undefined ? 0 : nonNegative(source, 'cooldown', where),
-    effect: powerEffect(source['effect'], `${where}.effect`),
-  };
 }
 
 function skillVariant(value: unknown, where: string): SkillVariant {

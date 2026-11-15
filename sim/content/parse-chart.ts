@@ -1,29 +1,13 @@
 import type { ChartDef, ChartGroup, ChartPath, PointGrant, SkillTarget, SkillVariant, WeaponGroup } from './chart-types.ts';
+import { skillMod, statMod } from './parse-mods.ts';
+import { powerTrigger } from './parse-powers.ts';
 import { conditions } from './parse-conditions.ts';
 import type { Fields } from './read.ts';
 import { choice, choiceList, ContentError, each, fields, isFields, nonNegative, numeric, positive, text, textList } from './read.ts';
-import type { Content, SkillDef, SkillMod, SkillTreeNodeDef, StatMod, WeaponKind } from './types.ts';
-import { MOD_OPS, SKILL_MOD_FIELDS, STAT_IDS, TREE_NODE_KINDS, WEAPON_KINDS } from './types.ts';
+import type { Content, SkillDef, SkillMod, SkillTreeNodeDef, WeaponKind } from './types.ts';
+import { TREE_NODE_KINDS, WEAPON_KINDS } from './types.ts';
 
 const TINT: RegExp = /^#[0-9a-f]{6}$/i;
-
-export function statMod(value: unknown, where: string): StatMod {
-  const source: Fields = fields(value, where);
-  return { stat: choice(source, 'stat', STAT_IDS, where), op: choice(source, 'op', MOD_OPS, where), value: numeric(source, 'value', where) };
-}
-
-export function skillTarget(source: Fields, where: string): SkillTarget {
-  const skill: unknown = source['skill'];
-  const group: unknown = source['group'];
-  if (typeof skill === 'string' && group === undefined) return { type: 'skill', skill };
-  if (typeof group === 'string' && skill === undefined) return { type: 'group', group };
-  throw new ContentError(where, 'expected exactly one of skill or group');
-}
-
-export function skillMod(value: unknown, where: string): SkillMod {
-  const source: Fields = fields(value, where);
-  return { target: skillTarget(source, where), field: choice(source, 'field', SKILL_MOD_FIELDS, where), value: numeric(source, 'value', where) };
-}
 
 function variant(value: unknown, where: string): SkillVariant {
   const source: Fields = fields(value, where);
@@ -47,6 +31,7 @@ export function treeNode(value: unknown, where: string): SkillTreeNodeDef {
     variants: source['variants'] === undefined ? [] : each(source['variants'], `${where}.variants`, variant),
     unlock: source['unlock'] === undefined ? null : text(source, 'unlock', where),
     weapon: source['weapon'] === undefined ? null : text(source, 'weapon', where),
+    triggers: source['triggers'] === undefined ? [] : each(source['triggers'], `${where}.triggers`, powerTrigger),
   };
 }
 

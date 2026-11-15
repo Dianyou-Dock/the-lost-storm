@@ -48,7 +48,7 @@ void test('findNode finds shipped nodes and nothing else', (): void => {
   assert.equal(findNode(content, 'nope'), null);
 });
 
-const STARTS: readonly string[] = ['storm_storm_bolt', 'blade_thunderhead', 'wind_mist_step', 'stone_thunderclap', 'echo_forkline'];
+const STARTS: readonly string[] = ['storm_storm_bolt', 'blade_thunderhead', 'wind_ghost_wave', 'stone_thunderclap', 'echo_forkline'];
 
 function takeAll(order: readonly string[]): string[] {
   const taken: string[] = [];
@@ -135,7 +135,7 @@ void test('giving a place back or starting over is ready, not allowed, or short 
 });
 
 void test('a holding made before the rule keeps every place, grows only from its largest part, and gives back from the leaves', (): void => {
-  const legacy: readonly string[] = ['storm_storm_bolt', 'blade_thunderhead', 'heavy_hands', 'wind_mist_step', 'stone_thunderclap', 'echo_forkline'];
+  const legacy: readonly string[] = ['storm_storm_bolt', 'blade_thunderhead', 'heavy_hands', 'wind_ghost_wave', 'stone_thunderclap', 'echo_forkline'];
   assert.deepEqual(reachablePlaces(content, legacy), legacy);
   assert.equal(holdingParts(content, legacy).length, 5);
   assert.deepEqual(holdingTrunk(content, legacy).toSorted(), ['blade_thunderhead', 'heavy_hands']);

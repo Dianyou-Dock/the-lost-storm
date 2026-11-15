@@ -22,7 +22,7 @@ export const BUILD_NAMES: Readonly<Record<string, BuildName>> = {
   whirlwind: { name: 'Whirlwind', kind: 'Spinning blade' },
   'stormcaller': { name: 'Stormcaller', kind: 'Lightning caster' },
   'echo-weaver': { name: 'Echo Weaver', kind: 'Area caster' },
-  windrunner: { name: 'Windrunner', kind: 'Skirmisher' },
+  windrunner: { name: 'Nightshot', kind: 'Marksman' },
 };
 
 export function buildName(id: string): BuildName {
