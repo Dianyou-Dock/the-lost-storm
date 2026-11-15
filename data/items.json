@@ -3340,8 +3340,9 @@
       "dropWeight": 1,
       "minLevel": 1,
       "visual": null,
-      "wear": [],
-      "wornModel": false,
+      "wear": [
+        "crown_tines"
+      ],
       "implicit": [
         {
           "stat": "armour",

@@ -1,5 +1,5 @@
 import type { Envelope, ShellLevel, ShellPlan, Triangle } from './headgear-shapes.ts';
-import { buildLathe, buildShell, buildTube, direction, shellPoint, smoothstep, surfaceFrame, wrapDegrees } from './headgear-shapes.ts';
+import { addTriangle, buildLathe, buildShell, buildTube, direction, shellPoint, smoothstep, surfaceFrame, wrapDegrees } from './headgear-shapes.ts';
 import { Vector3 } from 'three';
 
 export interface Landmarks {
@@ -14,6 +14,7 @@ export interface HeadFit {
   readonly marks: Landmarks;
   readonly skin: Envelope;
   readonly withHair: Envelope;
+  readonly snug: Envelope;
   readonly face: Envelope;
 }
 
@@ -147,6 +148,57 @@ const LOUPE = {
   reachBack: 9,
   smooth: 38,
 } as const;
+
+const CROWN = {
+  half: 7,
+  overBrowFront: 14,
+  overBrowBack: 6,
+  sink: 0.005,
+  flare: 0.16,
+  plate: 0.0075,
+  tipFrom: 0.62,
+  smooth: 40,
+} as const;
+
+interface Point {
+  readonly x: number;
+  readonly y: number;
+  readonly half: number;
+}
+
+interface Spike {
+  readonly theta: number;
+  readonly outline: readonly (readonly Point[])[];
+}
+
+function tine(theta: number, height: number, width: number): Spike {
+  const mid: number = CROWN.tipFrom;
+  return {
+    theta,
+    outline: [
+      [
+        { x: 0, y: 0, half: width },
+        { x: width * 0.34, y: height * mid, half: width * (1 - mid) },
+        { x: width * 0.55, y: height, half: 0 },
+      ],
+      [
+        { x: width * 1.2, y: 0, half: width * 0.64 },
+        { x: width * 1.8, y: height * 0.36, half: width * 0.64 * 0.45 },
+        { x: width * 2.4, y: height * 0.62, half: 0 },
+      ],
+    ],
+  };
+}
+
+const TINES: readonly Spike[] = [
+  tine(0, 0.15, 0.025),
+  tine(48, 0.123, 0.023),
+  tine(-48, 0.123, 0.023),
+  tine(100, 0.102, 0.021),
+  tine(-100, 0.102, 0.021),
+  tine(150, 0.087, 0.02),
+  tine(-150, 0.087, 0.02),
+];
 
 const SAME: (theta: number) => number = (): number => 0;
 
@@ -366,9 +418,9 @@ function bandMiddle(fit: HeadFit, front: number, back: number): (theta: number) 
   return (theta: number): number => fit.marks.brow + back + (front - back) * (0.5 + 0.5 * Math.cos((wrapDegrees(theta) * Math.PI) / 180));
 }
 
-function band(soup: Triangle[], fit: HeadFit, middle: (theta: number) => number, half: number): ShellPlan {
+function band(soup: Triangle[], fit: HeadFit, middle: (theta: number) => number, half: number, envelope: Envelope = fit.withHair): ShellPlan {
   const plan: ShellPlan = {
-    envelope: fit.withHair,
+    envelope,
     clearance: CIRCLET.clearance,
     thickness: CIRCLET.thickness,
     thetaFrom: -180,
@@ -392,6 +444,50 @@ function circlet(fit: HeadFit): DesignResult {
   const at = surfaceFrame(plan, 0, middle(0), plan.thickness);
   buildLathe(soup, { origin: at.point, normal: at.normal, up: at.up, segments: CIRCLET.segments, turn: 0, profile: [{ radius: CIRCLET.stone, height: -0.001 }, { radius: CIRCLET.stone, height: CIRCLET.settingTop }, { radius: CIRCLET.setting, height: CIRCLET.settingTop * 0.7 }, { radius: CIRCLET.setting * 1.08, height: -0.001 }], materials: ['trim'] });
   buildLathe(soup, { origin: at.point, normal: at.normal, up: at.up, segments: CIRCLET.segments, turn: 0, profile: [{ radius: 0, height: CIRCLET.stoneDome }, { radius: CIRCLET.stone * 0.6, height: CIRCLET.stoneDome * 0.75 }, { radius: CIRCLET.stone, height: CIRCLET.settingTop * 0.6 }], materials: ['stone'] });
+  return { soup, shells: [plan] };
+}
+
+function stand(soup: Triangle[], plan: ShellPlan, base: number, spike: Spike): void {
+  const centre: Vector3 = plan.envelope.centre;
+  const root: Vector3 = shellPoint(plan, spike.theta, base, plan.thickness / 2);
+  const across: Vector3 = shellPoint(plan, spike.theta + 0.5, base, 0).sub(shellPoint(plan, spike.theta - 0.5, base, 0)).setY(0).normalize();
+  const out: Vector3 = root.clone().sub(centre).setY(0).normalize();
+  const up: Vector3 = new Vector3(0, 1, 0).add(out.clone().multiplyScalar(CROWN.flare)).normalize();
+  const face: Vector3 = across.clone().cross(up).normalize();
+  if (face.dot(out) < 0) face.negate();
+  const half: number = CROWN.plate / 2;
+  const corner = (point: Point, side: number, depth: number): Vector3 => root.clone().add(across.clone().multiplyScalar(point.x + side * point.half)).add(up.clone().multiplyScalar(point.y - CROWN.sink)).add(face.clone().multiplyScalar(depth));
+  for (const line of spike.outline) {
+    for (let index: number = 0; index + 1 < line.length; index += 1) {
+      const material: string = index + 2 === line.length ? 'tip' : 'trim';
+      const here: Point | undefined = line[index];
+      const next: Point | undefined = line[index + 1];
+      if (here === undefined || next === undefined) continue;
+      const frontA: Vector3 = corner(here, -1, half);
+      const frontB: Vector3 = corner(here, 1, half);
+      const frontC: Vector3 = corner(next, 1, half);
+      const frontD: Vector3 = corner(next, -1, half);
+      const backA: Vector3 = corner(here, -1, -half);
+      const backB: Vector3 = corner(here, 1, -half);
+      const backC: Vector3 = corner(next, 1, -half);
+      const backD: Vector3 = corner(next, -1, -half);
+      addTriangle(soup, frontA, frontB, frontC, material, face);
+      addTriangle(soup, frontA, frontC, frontD, material, face);
+      addTriangle(soup, backA, backB, backC, material, face.clone().negate());
+      addTriangle(soup, backA, backC, backD, material, face.clone().negate());
+      addTriangle(soup, frontA, backA, backD, material, across.clone().negate());
+      addTriangle(soup, frontA, backD, frontD, material, across.clone().negate());
+      addTriangle(soup, frontB, backB, backC, material, across);
+      addTriangle(soup, frontB, backC, frontC, material, across);
+    }
+  }
+}
+
+function crown(fit: HeadFit): DesignResult {
+  const soup: Triangle[] = [];
+  const middle = bandMiddle(fit, CROWN.overBrowFront, CROWN.overBrowBack);
+  const plan: ShellPlan = band(soup, fit, middle, CROWN.half, fit.snug);
+  for (const spike of TINES) stand(soup, plan, middle(spike.theta) + CROWN.half, spike);
   return { soup, shells: [plan] };
 }
 
@@ -428,4 +524,5 @@ export const DESIGNS: readonly Design[] = [
   { piece: 'Iron_Helm', smoothDegrees: HELM.smooth, build: helm },
   { piece: 'Circlet', smoothDegrees: CIRCLET.smooth, build: circlet },
   { piece: 'Keeper_Loupe', smoothDegrees: LOUPE.smooth, build: loupe },
+  { piece: 'Crown_Tines', smoothDegrees: CROWN.smooth, build: crown },
 ];

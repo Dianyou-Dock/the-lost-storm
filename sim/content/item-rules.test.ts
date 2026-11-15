@@ -79,10 +79,11 @@ void test('no base that can reach the hero wears a hood, and a hood that could i
   const back: Content = { ...content, itemBases: new Map<string, ItemBaseDef>([...content.itemBases, [hood.id, { ...hood, dropWeight: 6 }]]) };
   assert.ok(itemProblems(back).includes('item wayfarer_hood reaches the hero but wears something he never wears'));
   const crown: ItemBaseDef = must(content.itemBases.get('crown_of_the_struck_hour'), 'crown');
-  assert.equal(crown.wornModel, false);
+  assert.equal(crown.wornModel, true);
+  assert.deepEqual(crown.wear, ['crown_tines']);
   assert.ok(crown.dropWeight > 0);
   assert.ok(!basesWithoutLook(content).includes(crown.id));
-  const hooded: Content = { ...content, itemBases: new Map<string, ItemBaseDef>([...content.itemBases, [crown.id, { ...crown, wear: ['keeper_hood'] }]]) };
+  const hooded: Content = { ...content, itemBases: new Map<string, ItemBaseDef>([...content.itemBases, [crown.id, { ...crown, wornModel: false, wear: ['keeper_hood'] }]]) };
   assert.ok(itemProblems(hooded).includes('item crown_of_the_struck_hour has no worn model but wears keeper_hood'));
 });
 

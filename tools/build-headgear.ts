@@ -41,6 +41,7 @@ const BUILD = {
 
 const LOOSE: EnvelopeFit = { cone: 7, spread: 2, blur: 7 };
 const MASK_FIT: EnvelopeFit = { cone: 4, spread: 3, blur: 18 };
+const SNUG: EnvelopeFit = { cone: 3, spread: 1, blur: 3 };
 
 interface MaterialLook {
   readonly color: readonly [number, number, number, number];
@@ -57,6 +58,7 @@ const LOOKS: Readonly<Record<string, MaterialLook>> = {
   slit: { color: [0.006, 0.006, 0.008, 1], metal: 0, rough: 1, glow: [0, 0, 0] },
   lens: { color: [0.05, 0.075, 0.085, 1], metal: 0.7, rough: 0.14, glow: [0.035, 0.07, 0.08] },
   glass: { color: [0.3, 0.22, 0.1, 1], metal: 0.6, rough: 0.12, glow: [0.05, 0.032, 0.008] },
+  tip: { color: [0.62, 0.58, 0.8, 1], metal: 0.9, rough: 0.3, glow: [0, 0, 0] },
   stone: { color: [0.22, 0.03, 0.04, 1], metal: 0.5, rough: 0.2, glow: [0.03, 0.002, 0.004] },
 };
 
@@ -215,7 +217,7 @@ function fitOf(head: Head): Measured {
   const right: Vector3[] = head.face.filter((point: Vector3): boolean => point.x < 0 && point.y < head.brows.min.y);
   const side: Vector3 = new Box3().setFromPoints(right).getCenter(new Vector3());
   const marks: Landmarks = { eyeSide: Math.abs(anglesOf(side.clone().sub(centre)).theta), eye: phi(eye), brow: phi(new Vector3(0, head.brows.max.y, head.brows.max.z)), chin: phi(chin), hairline: phi(line) };
-  return { fit: { marks, skin: envelopeOf(skin, centre, LOOSE), withHair: envelopeOf(all, centre, LOOSE), face: faceOf(skin, hair, centre, marks) }, centre, skin, hair, all };
+  return { fit: { marks, skin: envelopeOf(skin, centre, LOOSE), withHair: envelopeOf(all, centre, LOOSE), snug: envelopeOf(all, centre, SNUG), face: faceOf(skin, hair, centre, marks) }, centre, skin, hair, all };
 }
 
 function crossing(shells: readonly ShellPlan[], measured: Measured): number {
@@ -235,7 +237,7 @@ function crossing(shells: readonly ShellPlan[], measured: Measured): number {
 function clearance(shells: readonly ShellPlan[], measured: Measured): number {
   let least: number = Infinity;
   for (const shell of shells) {
-    const points: readonly Vector3[] = shell.envelope === measured.fit.withHair ? measured.all : measured.skin;
+    const points: readonly Vector3[] = shell.envelope === measured.fit.withHair || shell.envelope === measured.fit.snug ? measured.all : measured.skin;
     for (const point of points) {
       const offset: Vector3 = point.clone().sub(measured.centre);
       const at = anglesOf(offset);

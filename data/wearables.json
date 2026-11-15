@@ -888,5 +888,21 @@
     },
     "tint": "#ffffff",
     "hides": []
+  },
+  {
+    "id": "crown_tines",
+    "model": "models/wear/{frame}/headgear.glb",
+    "pieces": [
+      "Crown_Tines"
+    ],
+    "region": "head",
+    "covers": [],
+    "surfaces": {
+      "trim": "storm_gold",
+      "tip": "storm_tip",
+      "lining": "dark_leather"
+    },
+    "tint": "#ffffff",
+    "hides": []
   }
 ]
