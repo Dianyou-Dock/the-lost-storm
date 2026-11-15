@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { PerspectiveCamera } from 'three';
 import { unsafeGlsl } from '../../test/glsl-support.ts';
+import { groundContact, LOBBY_CONTACT } from './lobby-contact.ts';
 import { createLobbyShaft, LOBBY_SHAFT, SHAFT_FRAGMENT, shaftPlace } from './lobby-shaft.ts';
 
 void test('the shaft of light stands on one spot of the floor, just behind the hero from wherever the view is, and faces the view', (): void => {
@@ -17,7 +18,7 @@ void test('the shaft of light stands on one spot of the floor, just behind the h
 });
 
 void test('the shaft does not follow the hero\'s head or anything else that moves: only the view turning moves it, and only around its spot', (): void => {
-  const shaft = createLobbyShaft();
+  const shaft = createLobbyShaft(groundContact([]));
   const camera: PerspectiveCamera = new PerspectiveCamera();
   camera.position.set(3, 1.4, 9);
   shaft.step(0.016, camera);
@@ -29,13 +30,13 @@ void test('the shaft does not follow the hero\'s head or anything else that move
   assert.equal(shaft.mesh.material.depthTest, true);
 });
 
-void test('the shaft fades out at its foot, its top and both sides, so the sheet it is drawn on never shows an edge', (): void => {
-  assert.ok(SHAFT_FRAGMENT.includes('smoothstep(-0.4, 0.35, high)'));
+void test('the shaft fades out where it meets the ground, at its top and both sides, so the sheet it is drawn on never shows an edge', (): void => {
+  assert.ok(SHAFT_FRAGMENT.includes(`groundContact(${LOBBY_CONTACT.shaftFeather.toFixed(3)})`));
   assert.ok(SHAFT_FRAGMENT.includes('(1.0 - smoothstep(6.4, 8.3, high))'));
   assert.ok(SHAFT_FRAGMENT.includes('(1.0 - smoothstep(0.0, 1.0, abs(angle)))'));
   const sheet: { readonly tall: number; readonly below: number; readonly across: number } = LOBBY_SHAFT;
   assert.ok(sheet.tall - sheet.below > 8.3, 'the sheet ends before the shaft has faded at its top');
-  assert.ok(sheet.below >= 0.4, 'the sheet ends before the shaft has faded at its foot');
+  assert.ok(sheet.below > 0, 'the sheet stops above the ground, so its foot would show as an edge');
   assert.ok(sheet.across / 2 > 1.3, 'the sheet is narrower than the shaft');
 });
 

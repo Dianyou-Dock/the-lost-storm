@@ -16,6 +16,8 @@ import type { LobbyPipeline } from './lobby-render.ts';
 import { groundGeometry, valueNoise } from './lobby-ground.ts';
 import { LOBBY_SCENERY, placeRocks } from './lobby-scenery.ts';
 import { createLobbyShaft } from './lobby-shaft.ts';
+import { groundContact, LOBBY_CONTACT, softenOnGround } from './lobby-contact.ts';
+import type { GroundContact } from './lobby-contact.ts';
 import type { LobbyShaft } from './lobby-shaft.ts';
 import { createLobbyLights } from './lobby-lights.ts';
 import type { LobbyLights } from './lobby-lights.ts';
@@ -235,7 +237,8 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
   camera.lookAt(0, LOBBY_STAGE.lookHeight, 0);
 
   const lights: LobbyLights = createLobbyLights(scene);
-  const shaft: LobbyShaft = createLobbyShaft();
+  const contact: GroundContact = groundContact(LOBBY_SCENERY.rocks);
+  const shaft: LobbyShaft = createLobbyShaft(contact);
   scene.add(shaft.mesh);
 
   scene.add(groundMesh(content.surfaces.get(LOBBY_STAGE.groundSurface)));
@@ -243,6 +246,7 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
   const mistAlpha: DataTexture = mistTexture();
   const mists: Mesh<PlaneGeometry, MeshBasicMaterial>[] = LOBBY_STAGE.mistDepths.map((depth: number, layer: number): Mesh<PlaneGeometry, MeshBasicMaterial> => {
     const material: MeshBasicMaterial = new MeshBasicMaterial({ color: LOBBY_STAGE.mistColor, alphaMap: mistAlpha, transparent: true, opacity: depth > 0 ? LOBBY_STAGE.mistNearOpacity : LOBBY_STAGE.mistOpacity, depthWrite: false, blending: AdditiveBlending, fog: false });
+    softenOnGround(material, contact, LOBBY_CONTACT.mistFeather);
     const mist: Mesh<PlaneGeometry, MeshBasicMaterial> = new Mesh(new PlaneGeometry(LOBBY_STAGE.mistWidth, LOBBY_STAGE.mistHeight), material);
     mist.position.set((random() - 0.5) * LOBBY_STAGE.mistWidth * 0.5, LOBBY_STAGE.mistHeight * 0.5 - LOBBY_STAGE.mistLift, depth);
     mist.scale.x = layer % 2 === 0 ? 1 : -1;

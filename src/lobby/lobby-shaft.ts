@@ -1,5 +1,7 @@
 import type { Camera } from 'three';
 import { AdditiveBlending, DoubleSide, Mesh, PlaneGeometry, ShaderMaterial } from 'three';
+import { CONTACT_HEAD, CONTACT_VERTEX, CONTACT_VERTEX_HEAD, LOBBY_CONTACT } from './lobby-contact.ts';
+import type { GroundContact } from './lobby-contact.ts';
 
 export const LOBBY_SHAFT = {
   foot: [0, 0, 0],
@@ -12,9 +14,11 @@ export const LOBBY_SHAFT = {
 
 export const SHAFT_VERTEX: string = `
 varying vec2 vAt;
+${CONTACT_VERTEX_HEAD}
 
 void main() {
   vAt = position.xy;
+  ${CONTACT_VERTEX}
   gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
 }
 `;
@@ -22,6 +26,7 @@ void main() {
 export const SHAFT_FRAGMENT: string = `
 uniform float uTime;
 varying vec2 vAt;
+${CONTACT_HEAD}
 
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -64,7 +69,7 @@ void main() {
   float high = vAt.y;
   float wide = mix(1.3, 0.85, clamp(high / 6.0, 0.0, 1.0));
   float angle = vAt.x / wide;
-  float cone = (1.0 - smoothstep(0.0, 1.0, abs(angle))) * smoothstep(-0.4, 0.35, high) * (1.0 - smoothstep(6.4, 8.3, high));
+  float cone = (1.0 - smoothstep(0.0, 1.0, abs(angle))) * groundContact(${LOBBY_CONTACT.shaftFeather.toFixed(3)}) * (1.0 - smoothstep(6.4, 8.3, high));
   float streak = 0.62 + 0.38 * noise(vec2(angle * 9.0 + t * 0.05, t * 0.06));
   streak *= 0.8 + 0.2 * noise(vec2(angle * 23.0 - t * 0.04, 3.0));
   float veil = fbm(vec2(angle * 2.2, high * 0.9 - t * 0.05));
@@ -101,14 +106,14 @@ export interface LobbyShaft {
   step(dt: number, camera: Camera): void;
 }
 
-export function createLobbyShaft(): LobbyShaft {
+export function createLobbyShaft(contact: GroundContact): LobbyShaft {
   const geometry: PlaneGeometry = new PlaneGeometry(LOBBY_SHAFT.across, LOBBY_SHAFT.tall);
   geometry.translate(0, LOBBY_SHAFT.tall / 2 - LOBBY_SHAFT.below, 0);
   const time: { value: number } = { value: 0 };
   const material: ShaderMaterial = new ShaderMaterial({
     vertexShader: SHAFT_VERTEX,
     fragmentShader: SHAFT_FRAGMENT,
-    uniforms: { uTime: time },
+    uniforms: { uTime: time, ...contact.uniforms },
     transparent: true,
     blending: AdditiveBlending,
     depthWrite: false,
