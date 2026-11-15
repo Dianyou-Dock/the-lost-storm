@@ -54,6 +54,10 @@ export interface BatKind {
   readonly id: string;
   readonly size: number;
   readonly colour: string;
+  readonly membrane: string;
+  readonly glow: number;
+  readonly beat: number;
+  readonly bob: number;
   readonly wake: number;
   readonly stir: number;
   readonly speed: number;
@@ -108,7 +112,7 @@ function readKind(value: unknown, where: string): LifeKind {
     case 'crawler':
       return { form, id, size, colour: shade, flee: positive(source, 'flee', where), speed: positive(source, 'speed', where), amble: positive(source, 'amble', where), roam: positive(source, 'roam', where), pause: nonNegative(source, 'pause', where), legs: positive(source, 'legs', where), stride: positive(source, 'stride', where) };
     case 'bat':
-      return { form, id, size, colour: shade, wake: positive(source, 'wake', where), stir: positive(source, 'stir', where), speed: positive(source, 'speed', where), flapRate: positive(source, 'flapRate', where), jitter: nonNegative(source, 'jitter', where), jitterRate: positive(source, 'jitterRate', where), arc: nonNegative(source, 'arc', where), hop: positive(source, 'hop', where), most: positive(source, 'most', where), cross: positive(source, 'cross', where), reach: positive(source, 'reach', where), shuffle: positive(source, 'shuffle', where), rest: nonNegative(source, 'rest', where) };
+      return { form, id, size, colour: shade, membrane: colour(source, 'membrane', where), glow: nonNegative(source, 'glow', where), beat: positive(source, 'beat', where), bob: nonNegative(source, 'bob', where), wake: positive(source, 'wake', where), stir: positive(source, 'stir', where), speed: positive(source, 'speed', where), flapRate: positive(source, 'flapRate', where), jitter: nonNegative(source, 'jitter', where), jitterRate: positive(source, 'jitterRate', where), arc: nonNegative(source, 'arc', where), hop: positive(source, 'hop', where), most: positive(source, 'most', where), cross: positive(source, 'cross', where), reach: positive(source, 'reach', where), shuffle: positive(source, 'shuffle', where), rest: nonNegative(source, 'rest', where) };
     case 'moth':
       break;
   }

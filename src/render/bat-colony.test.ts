@@ -8,7 +8,7 @@ import type { Hero } from './life-motion.ts';
 
 const DT: number = 1 / 60;
 const FAR: Hero = { x: 500, z: 500 };
-const BAT: BatKind = { form: 'bat', id: 'bat', size: 0.38, colour: '#1d1714', wake: 7, stir: 9, speed: 5.5, flapRate: 9, jitter: 1.1, jitterRate: 3.2, arc: 1.2, hop: 0.6, most: 4, cross: 20, reach: 45, shuffle: 6, rest: 12 };
+const BAT: BatKind = { form: 'bat', id: 'bat', size: 0.38, colour: '#1d1714', membrane: '#5a3f33', glow: 0.4, beat: 0.5, bob: 0.06, wake: 7, stir: 9, speed: 5.5, flapRate: 9, jitter: 1.1, jitterRate: 3.2, arc: 1.2, hop: 0.6, most: 4, cross: 20, reach: 45, shuffle: 6, rest: 12 };
 
 function roost(x: number, z: number, count: number): LifeGroup {
   return { kind: 'bat', x, y: 3, z, count, spread: 0.9, habit: 'perch' };
