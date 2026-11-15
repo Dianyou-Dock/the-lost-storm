@@ -97,6 +97,8 @@ export interface DashDelivery {
   readonly distance: number;
   readonly duration: number;
   readonly invulnerable: number;
+  readonly passThrough: boolean;
+  readonly steady: boolean;
 }
 
 export type Delivery = ArcDelivery | NovaDelivery | ProjectileDelivery | DashDelivery | MarkDelivery | ReviveDelivery | FieldDelivery | ChainDelivery | AreaDelivery | BlinkDelivery | BeamDelivery;

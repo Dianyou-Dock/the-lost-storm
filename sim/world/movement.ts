@@ -2,7 +2,7 @@ import type { Vec2 } from '../math.ts';
 import { distance, facingOf } from '../math.ts';
 import type { NavGrid } from '../nav/grid.ts';
 import { isWalkable, lineWalkable, moveWithCollision, paceAt, routedGrid, slideAlong, slideOnBody, stepClear } from '../nav/grid.ts';
-import { isDashing } from './dash.ts';
+import { isDashing, passesThrough } from './dash.ts';
 import { heroShare, pushShare, steadiness } from './poise.ts';
 import type { Actor, ActorState, MonsterState, World } from './types.ts';
 
@@ -307,9 +307,9 @@ export function separateActors(world: World, dt: number, strides: Strides): void
       if (a === undefined) continue;
       for (let second: number = first + 1; second < living.length; second += 1) {
         const b: MonsterState | undefined = living[second];
-        if (b !== undefined) pushApart(world.grid, a, b, pushShare(a, b), budget);
+        if (b !== undefined && !passesThrough(a) && !passesThrough(b)) pushApart(world.grid, a, b, pushShare(a, b), budget);
       }
-      if (world.player.alive) pushApart(world.grid, world.player, a, heroShare(a), budget);
+      if (world.player.alive && !passesThrough(world.player) && !passesThrough(a)) pushApart(world.grid, world.player, a, heroShare(a), budget);
     }
   }
 }

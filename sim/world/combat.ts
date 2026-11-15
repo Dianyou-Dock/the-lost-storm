@@ -10,7 +10,7 @@ import { DEGREES_TO_RADIANS, directionOf, dot } from '../math.ts';
 import { damageTakenScale, resolveSkill } from '../stats.ts';
 import { grantXp, killReduction, killXp, refreshPlayer } from './character.ts';
 import { firePowers } from '../powers.ts';
-import { isDashing, isInvulnerable } from './dash.ts';
+import { isDashing, isInvulnerable, rollsSteady } from './dash.ts';
 import { knockTime, readablePush } from './movement.ts';
 import { closeDialogue } from './dialogue.ts';
 import type { Side } from './factions.ts';
@@ -166,7 +166,7 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
   const amount: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded));
   target.life -= amount;
   const poise: number = steadiness(target) * (guard === 'blocked' ? COMBAT.guardedKnockback : 1);
-  const steady: boolean = steadied(target);
+  const steady: boolean = steadied(target) || rollsSteady(target);
   if (skill.root > 0 && target.kind === 'player' && target.rootGrace <= 0 && !steady) {
     target.root = Math.max(target.root, skill.root);
     target.rootGrace = target.root + world.content.player.rootGrace;

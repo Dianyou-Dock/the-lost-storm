@@ -287,7 +287,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     }
     if (event.skill.vfx.style === 'roll') {
       const roller: { readonly pos: { readonly x: number; readonly z: number } } | undefined = event.actorId === world.player.id ? world.player : world.monsters.find((candidate: MonsterState): boolean => candidate.id === event.actorId);
-      if (roller !== undefined) dashTrails.start(event.actorId, roller.pos, event.direction, colorOf(event.skill.vfx.color));
+      if (roller !== undefined) dashTrails.start(event.actorId, roller.pos, event.direction, colorOf(event.skill.vfx.shadow?.color ?? event.skill.vfx.color));
     }
     if (event.actorId === world.player.id) {
       if (event.skill.press?.type !== 'charge') cues.windup(event.actorId, world.player.pos, event.direction, event.skill, event.windup, colorOf(event.skill.vfx.color));

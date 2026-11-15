@@ -5,7 +5,7 @@ import { moveWithCollision } from '../nav/grid.ts';
 import { launchPoint } from './wards.ts';
 import { gridFor } from './movement.ts';
 import { applyHit, findActor, targetsOf } from './combat.ts';
-import { isDashing } from './dash.ts';
+import { isDashing, rollsSteady } from './dash.ts';
 import { steadiness } from './poise.ts';
 import type { Actor, AreaState, Offence, Team, World } from './types.ts';
 
@@ -50,7 +50,7 @@ export function timeScaleOf(world: World, actor: Actor): number {
 function pull(world: World, area: AreaState, delivery: AreaDelivery, dt: number): void {
   if (delivery.pull <= 0) return;
   for (const target of targetsOf(world, { sourceId: area.offence.sourceId, faction: area.offence.faction, from: area.from })) {
-    if (!covers(area, delivery, target.pos, target.radius) || (target.action !== null && !isDashing(target))) continue;
+    if (!covers(area, delivery, target.pos, target.radius) || (target.action !== null && !isDashing(target)) || rollsSteady(target)) continue;
     const offset: Vec2 = { x: area.pos.x - target.pos.x, z: area.pos.z - target.pos.z };
     const gap: number = Math.hypot(offset.x, offset.z);
     const step: number = Math.min(delivery.pull * steadiness(target) * dt, gap - AREAS.pullStop);

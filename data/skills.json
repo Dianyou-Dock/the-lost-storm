@@ -131,7 +131,9 @@
       "type": "dash",
       "distance": 5.5,
       "duration": 0.36,
-      "invulnerable": 0.24
+      "invulnerable": 0.24,
+      "passThrough": true,
+      "steady": true
     },
     "damage": {
       "weaponPercent": 0,
@@ -142,7 +144,7 @@
     "stagger": 0,
     "shake": 0,
     "hitStop": 0,
-    "vfx": { "style": "roll", "color": "#8a7a62", "cue": "none" }
+    "vfx": { "style": "roll", "color": "#8a7a62", "cue": "none", "shadow": { "color": "#5a2fc0", "strength": 0.9 } }
   },
   {
     "id": "volatile_burst",

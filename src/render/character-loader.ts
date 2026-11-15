@@ -22,6 +22,7 @@ import { fitClip } from './clip-fit.ts';
 import { dressPiece } from './dress-piece.ts';
 import type { KeepLoadingDeps, NamedLoad } from './keep-loading.ts';
 import { loadAllKeepTrying } from './keep-loading.ts';
+import { seeThrough, SHADOW_BODY, SHADOW_LIGHT, SHADOW_UNIFORMS, shadowRim } from './shadow-shade.ts';
 
 export interface ActionClip {
   readonly clip: AnimationClip;
@@ -99,6 +100,7 @@ export interface RigInstance {
   setHover(color: Color, amount: number): void;
   setOpacity(opacity: number): void;
   setFade(amount: number): void;
+  setShade(color: Color, amount: number): void;
   dispose(): void;
 }
 
@@ -117,7 +119,8 @@ export const CHARACTER = {
 export const CHARACTER_SHADE: string = [
   '#include <emissivemap_fragment>',
   'float edgeFacing = clamp( 1.0 - dot( normal, normalize( vViewPosition ) ), 0.0, 1.0 );',
-  `totalEmissiveRadiance += ${flashEdge('edgeFacing', 'diffuseColor.rgb')} + uRim * pow( edgeFacing, ${CHARACTER.rimPower.toFixed(2)} ) + uHover * pow( edgeFacing, ${CHARACTER.hoverPower.toFixed(2)} );`,
+  ...SHADOW_BODY,
+  `totalEmissiveRadiance += ${flashEdge('edgeFacing', 'diffuseColor.rgb')} + uRim * pow( edgeFacing, ${CHARACTER.rimPower.toFixed(2)} ) + uHover * pow( edgeFacing, ${CHARACTER.hoverPower.toFixed(2)} ) + ${shadowRim('edgeFacing')};`,
 ].join('\n');
 
 export const CHARACTER_FEATHER: string = `diffuseColor.a = smoothstep( ${CHARACTER.featherFrom.toFixed(2)}, ${CHARACTER.featherTo.toFixed(2)}, diffuseColor.a );\nif ( diffuseColor.a <= 0.0 ) discard;`;
@@ -435,13 +438,15 @@ function flashing(source: unknown, look: RigLook, glow: RigGlow, wakeLamps: numb
         shader.uniforms['uFlash'] = glow.flash;
         shader.uniforms['uFlashLift'] = glow.lift;
         shader.uniforms['uHover'] = glow.hover;
+        shader.uniforms['uShade'] = glow.shade;
+        shader.uniforms['uShadeMix'] = glow.shadeMix;
         shader.uniforms['uRim'] = RIM_LIGHT;
         shader.uniforms['uWakeLamps'] = WAKE_LAMPS;
         shader.uniforms['uLampShare'] = { value: wakeLamps };
         shader.fragmentShader = shader.fragmentShader
-          .replace('void main() {', 'uniform vec3 uFlash;\nuniform float uFlashLift;\nuniform vec3 uHover;\nuniform vec3 uRim;\nuniform float uWakeLamps;\nuniform float uLampShare;\nvoid main() {')
+          .replace('void main() {', `uniform vec3 uFlash;\nuniform float uFlashLift;\nuniform vec3 uHover;\n${SHADOW_UNIFORMS}\nuniform vec3 uRim;\nuniform float uWakeLamps;\nuniform float uLampShare;\nvoid main() {`)
           .replace(LAMP_HOLD, `outgoingLight *= mix( 1.0, uLampShare, uWakeLamps );\n${LAMP_HOLD}`)
-          .replace('#include <lights_fragment_end>', CHARACTER_INSIDE)
+          .replace('#include <lights_fragment_end>', `${CHARACTER_INSIDE}\n${SHADOW_LIGHT}`)
           .replace('#include <emissivemap_fragment>', CHARACTER_SHADE)
           .replace('#include <alphatest_fragment>', material.alphaToCoverage ? CHARACTER_FEATHER : '#include <alphatest_fragment>');
       };
@@ -492,6 +497,7 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
   const root: Group = new Group();
   root.add(model);
   const glow: RigGlow = createRigGlow();
+  let faded: number = 1;
   const materials: MeshStandardMaterial[] = [];
   model.traverse((object: Object3D): void => dress(object, look, glow, materials));
   for (const name of def.hiddenNodes) {
@@ -520,14 +526,8 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
   };
   const fade = (piece: WornPiece, value: number): void => {
     piece.value = value;
-    for (const material of piece.materials) {
-      const see: boolean = value < 1 || look.ghost !== null;
-      if (material.transparent !== see) {
-        material.transparent = see;
-        material.needsUpdate = true;
-      }
-      if (look.ghost === null) material.opacity = value;
-    }
+    seeThrough(piece.materials, value < 1 || look.ghost !== null || glow.shadeMix.value > 0);
+    if (look.ghost === null) for (const material of piece.materials) material.opacity = value;
   };
   const drop = (piece: WornPiece): void => {
     for (const mesh of piece.meshes) mesh.removeFromParent();
@@ -675,14 +675,15 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
     },
     setFade(amount: number): void {
       if (look.ghost !== null) return;
-      const see: boolean = amount < 1;
-      for (const material of [...materials, ...wornMaterials(), ...heldMaterials()]) {
-        if (material.transparent !== see) {
-          material.transparent = see;
-          material.needsUpdate = true;
-        }
-        material.opacity = Math.min(1, Math.max(0, amount));
-      }
+      faded = amount;
+      seeThrough([...materials, ...wornMaterials(), ...heldMaterials()], faded < 1 || glow.shadeMix.value > 0);
+      for (const material of [...materials, ...wornMaterials(), ...heldMaterials()]) material.opacity = Math.min(1, Math.max(0, amount));
+    },
+    setShade(color: Color, amount: number): void {
+      if (look.ghost !== null) return;
+      glow.shade.value.copy(color);
+      glow.shadeMix.value = amount;
+      seeThrough([...materials, ...wornMaterials(), ...heldMaterials()], faded < 1 || amount > 0);
     },
     dispose(): void {
       mixer.stopAllAction();

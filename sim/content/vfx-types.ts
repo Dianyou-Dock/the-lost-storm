@@ -59,6 +59,11 @@ export interface VfxBurn {
   readonly light: number;
 }
 
+export interface VfxShadow {
+  readonly color: string;
+  readonly strength: number;
+}
+
 export interface SkillVfx {
   readonly style: VfxStyle;
   readonly color: string;
@@ -72,4 +77,5 @@ export interface SkillVfx {
   readonly wave: VfxWave | null;
   readonly punch: VfxPunch | null;
   readonly burn: VfxBurn | null;
+  readonly shadow: VfxShadow | null;
 }

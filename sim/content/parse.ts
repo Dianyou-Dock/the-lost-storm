@@ -96,7 +96,7 @@ function delivery(value: unknown, where: string): Delivery {
     const duration: number = positive(source, 'duration', where);
     const invulnerable: number = numeric(source, 'invulnerable', where);
     if (invulnerable < 0 || invulnerable > duration) throw new ContentError(`${where}.invulnerable`, `expected a window from 0 to the duration ${duration}`);
-    return { type, distance: positive(source, 'distance', where), duration, invulnerable };
+    return { type, distance: positive(source, 'distance', where), duration, invulnerable, passThrough: source['passThrough'] === undefined ? false : flag(source, 'passThrough', where), steady: source['steady'] === undefined ? false : flag(source, 'steady', where) };
   }
   if (type === 'mark') return markDelivery(source, where);
   if (type === 'revive') return reviveDelivery(source, where);

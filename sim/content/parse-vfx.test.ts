@@ -6,7 +6,12 @@ import { ContentError } from './read.ts';
 import type { SkillVfx } from './vfx-types.ts';
 
 void test('an effect with no lightning, impact or trail keeps the plain look', (): void => {
-  assert.deepEqual(skillVfx({ style: 'bolt', color: '#9be1ff' }, 'vfx'), { style: 'bolt', color: '#9be1ff', cue: 'none', light: 1, lightning: null, impact: null, trail: 0, linger: 0, gather: null, wave: null, punch: null, burn: null });
+  assert.deepEqual(skillVfx({ style: 'bolt', color: '#9be1ff' }, 'vfx'), { style: 'bolt', color: '#9be1ff', cue: 'none', light: 1, lightning: null, impact: null, trail: 0, linger: 0, gather: null, wave: null, punch: null, burn: null, shadow: null });
+});
+
+void test('an effect reads its shadow and refuses a shadow with no strength', (): void => {
+  assert.deepEqual(skillVfx({ style: 'roll', color: '#8a7a62', shadow: { color: '#6a3fd0', strength: 0.9 } }, 'vfx').shadow, { color: '#6a3fd0', strength: 0.9 });
+  assert.throws((): SkillVfx => skillVfx({ style: 'roll', color: '#8a7a62', shadow: { color: '#6a3fd0', strength: 0 } }, 'vfx'));
 });
 
 void test('an effect reads its lightning, impact and trail', (): void => {

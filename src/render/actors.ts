@@ -28,6 +28,9 @@ import { createActorGuard } from './actor-guard.ts';
 import { warnInConsole } from '../backend/console-log.ts';
 import type { BodyChoice } from './body-choice.ts';
 import { bodyArrived, chooseBody } from './body-choice.ts';
+import type { ShadeMotion } from './shadow-shade.ts';
+import { shadowOf, stepShade } from './shadow-shade.ts';
+import type { VfxShadow } from '../../sim/content/vfx-types.ts';
 
 export const ACTORS = {
   monsterFlash: 1,
@@ -141,6 +144,8 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   const playerRig: LoadedRig | undefined = library.rigs.get(heroRig(content, world.player.hero));
   if (playerRig === undefined) throw new Error(`Player rig "${heroRig(content, world.player.hero)}" was not loaded`);
   let playerView: ActorView = heroView(playerRig, world);
+  const shade: ShadeMotion = { value: 0, speed: 0 };
+  const shadeColor: Color = new Color();
   const standChosen = (current: World): void => {
     const wanted: string = heroRig(content, current.player.hero);
     if (playerView.rig.def.id === wanted) return;
@@ -324,6 +329,10 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       const spun: SpinPose = spin.step(dt, current.time, current.player);
       playerView.spin(spun.animation, spun.turn);
       playerView.setEdge(current.zone.heroLight.rim);
+      const shadow: VfxShadow | null = shadowOf(current.player);
+      if (shadow !== null) shadeColor.set(shadow.color);
+      stepShade(shade, shadow?.strength ?? 0, dt);
+      playerView.rig.setShade(shadeColor, shade.value);
       playerView.sync(dt, poseOf(current.player, null), { rise: 1, floor: floorAt(current.player.pos.x, current.player.pos.z), turnRate: ACTOR.turnRate, seen: true });
       for (const monster of current.monsters) {
         const found: MonsterEntry | null = entryFor(current, monster);

@@ -65,10 +65,12 @@ export interface RigGlow {
   readonly flash: IUniform<Color>;
   readonly lift: IUniform<number>;
   readonly hover: IUniform<Color>;
+  readonly shade: IUniform<Color>;
+  readonly shadeMix: IUniform<number>;
 }
 
 export function createRigGlow(): RigGlow {
-  return { flash: { value: new Color(0, 0, 0) }, lift: { value: 0 }, hover: { value: new Color(0, 0, 0) } };
+  return { flash: { value: new Color(0, 0, 0) }, lift: { value: 0 }, hover: { value: new Color(0, 0, 0) }, shade: { value: new Color(0, 0, 0) }, shadeMix: { value: 0 } };
 }
 
 export function createGhostUniforms(tint: Color, mix: number): GhostUniforms {

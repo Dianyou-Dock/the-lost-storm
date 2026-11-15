@@ -7,7 +7,7 @@ import { isSolid, isWalkable, lineOfSight, moveWithCollision } from '../nav/grid
 import { gridFor } from './movement.ts';
 import type { Offence } from './combat.ts';
 import { applyHit, offenceOf, targetsOf, teamOf } from './combat.ts';
-import { stepDash } from './dash.ts';
+import { clearSpot, passesThrough, stepDash } from './dash.ts';
 import { refreshPlayer } from './character.ts';
 import { firePowers } from '../powers.ts';
 import { effectiveAttackSpeed } from '../stats.ts';
@@ -365,6 +365,7 @@ function finishWindup(world: World, actor: Actor, action: ActionState): void {
 export function stepAction(world: World, actor: Actor, dt: number): void {
   const action = actor.action;
   if (action === null) return;
+  const passing: boolean = passesThrough(actor);
   stepDash(gridFor(world, actor), actor, action, dt);
   action.timeLeft -= dt;
   action.elapsed += dt;
@@ -380,6 +381,15 @@ export function stepAction(world: World, actor: Actor, dt: number): void {
   }
   if (actor.action === action && action.phase === 'channel') stepChannel(world, actor, action);
   if (actor.action === action && action.phase === 'recovery' && action.timeLeft <= 0) actor.action = null;
+  if (passing && !passesThrough(actor)) settleClear(world, actor, action.direction);
+}
+
+function settleClear(world: World, actor: Actor, heading: ReadonlyVec2): void {
+  const crowd: Actor[] = [world.player, ...world.monsters].filter((other: Actor): boolean => other !== actor && other.alive);
+  const spot: Vec2 | null = clearSpot(gridFor(world, actor), actor.pos, heading, actor.radius, crowd);
+  if (spot === null) return;
+  actor.pos.x = spot.x;
+  actor.pos.z = spot.z;
 }
 
 export function steerAction(world: World, actor: Actor, aim: ReadonlyVec2): void {

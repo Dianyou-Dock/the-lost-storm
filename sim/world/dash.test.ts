@@ -7,11 +7,13 @@ import { loadContent } from '../content/content.ts';
 import type { Content, DashDelivery, SkillDef, ZoneDef } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { isWalkable, lineWalkable } from '../nav/grid.ts';
-import { targetsOf } from './combat.ts';
-import { DASH, dashAim, isDashing, isInvulnerable } from './dash.ts';
+import { applyHit, offenceOf, targetsOf } from './combat.ts';
+import { clearSpot, DASH, dashAim, isDashing, isInvulnerable, passesThrough, rollsSteady } from './dash.ts';
+import { separateActors } from './movement.ts';
+import { startSkill } from './skills.ts';
 import { spawnPacks } from './monsters.ts';
 import { stepWorld } from './step.ts';
-import type { Command, MonsterState, World, WorldEvent } from './types.ts';
+import type { ActionState, Command, MonsterState, World, WorldEvent } from './types.ts';
 import { enterZone } from './zones.ts';
 import { roadWorld, roadZone, SCENE_BASE } from '../../test/road-support.ts';
 
@@ -38,6 +40,10 @@ function scene(name: string, layout: TestScene): World {
   world.events = [];
   world.monsters = [];
   return world;
+}
+
+function rootOf(world: World): number {
+  return world.player.root;
 }
 
 function rollToward(aim: Vec2): Command {
@@ -179,6 +185,81 @@ void test('a roll passes through a monster standing in its way', (): void => {
   finish(world);
   assert.ok(world.player.pos.x > monster.pos.x, `${world.player.pos.x} vs ${monster.pos.x}`);
   assert.ok(Math.abs(world.player.pos.x - from.x - dash.distance) < LIMITS.tolerance);
+});
+
+void test('the roll passes through and stays steady by its data, and a dash without those fields does neither', (): void => {
+  assert.equal(dash.passThrough, true);
+  assert.equal(dash.steady, true);
+  const world: World = scene('fields', { tiles: OPEN, props: [], start: { x: 10, z: 14 } });
+  startSkill(world, world.player, roll, { x: 1, z: 0 });
+  assert.equal(passesThrough(world.player), true);
+  assert.equal(rollsSteady(world.player), true);
+  const action: ActionState = must(world.player.action, 'rolling');
+  world.player.action = { ...action, skill: { ...roll, delivery: { ...dash, passThrough: false, steady: false } } };
+  assert.equal(isDashing(world.player), true);
+  assert.equal(passesThrough(world.player), false);
+  assert.equal(rollsSteady(world.player), false);
+});
+
+void test('a rolling hero passes through a monster walking into him without shoving it, where a plain dash would', (): void => {
+  const world: World = scene('crowd', { tiles: OPEN, props: [], start: { x: 10, z: 14 } });
+  const monster: MonsterState = spawnAt(world, 'mended', { x: 10.4, z: 14 });
+  const into: ReadonlyMap<MonsterState, Vec2> = new Map<MonsterState, Vec2>([[monster, { x: -0.1, z: 0 }]]);
+  startSkill(world, world.player, roll, { x: 1, z: 0 });
+  monster.motion = 'stride';
+  const stood: Vec2 = { ...monster.pos };
+  separateActors(world, MOTION_DT, into);
+  assert.deepEqual(monster.pos, stood);
+  const action: ActionState = must(world.player.action, 'rolling');
+  world.player.action = { ...action, skill: { ...roll, delivery: { ...dash, passThrough: false } } };
+  separateActors(world, MOTION_DT, into);
+  assert.ok(Math.hypot(monster.pos.x - stood.x, monster.pos.z - stood.z) > LIMITS.tolerance / 10, 'a plain dash still shoves');
+});
+
+void test('a roll that ends inside a monster settles the hero on clear ground, leaving the monster where it stood', (): void => {
+  const world: World = scene('landing', { tiles: OPEN, props: [], start: { x: 8, z: 14 } });
+  const from: Vec2 = { ...world.player.pos };
+  const placed: MonsterState = spawnAt(world, 'mended', { x: from.x + dash.distance, z: from.z });
+  world.monsters = [{ ...placed, def: { ...placed.def, moveSpeed: 0, aggroRadius: 0 } }];
+  const monster: MonsterState = must(world.monsters[0], 'standing monster');
+  const stood: Vec2 = { ...monster.pos };
+  stepWorld(world, [rollToward({ x: from.x + 20, z: from.z })], MOTION_DT);
+  while (isDashing(world.player)) stepWorld(world, [], MOTION_DT);
+  const gap: number = Math.hypot(world.player.pos.x - monster.pos.x, world.player.pos.z - monster.pos.z);
+  assert.ok(gap >= world.player.radius + monster.radius, `hero ${gap.toFixed(2)} m from the monster`);
+  assert.ok(isWalkable(world.grid, world.player.pos.x, world.player.pos.z));
+  assert.ok(Math.hypot(monster.pos.x - stood.x, monster.pos.z - stood.z) < LIMITS.shove);
+});
+
+void test('the nearest clear spot lies ahead of the roll first, and nowhere when the ground is walled in', (): void => {
+  const world: World = scene('spot', { tiles: OPEN, props: [], start: { x: 14, z: 14 } });
+  const crowd = [{ pos: { x: 14, z: 14 }, radius: 0.5 }];
+  const spot: Vec2 = must(clearSpot(world.grid, { x: 14, z: 14 }, { x: 1, z: 0 }, 0.4, crowd), 'a clear spot');
+  assert.ok(spot.x > 14.9 && Math.abs(spot.z - 14) < 1e-9, `${spot.x}, ${spot.z}`);
+  assert.deepEqual(clearSpot(world.grid, { x: 10, z: 10 }, { x: 1, z: 0 }, 0.4, crowd), { x: 10, z: 10 });
+  const walled: World = scene('spot_walled', { tiles: WALLED, props: [], start: { x: 13, z: 14 } });
+  assert.equal(clearSpot(walled.grid, { x: 40, z: 40 }, { x: 1, z: 0 }, 0.4, []), null);
+});
+
+void test('a hit after the immune start of the roll hurts but neither knocks, roots nor holds the hero, and does once the roll is over', (): void => {
+  const world: World = scene('steady', { tiles: OPEN, props: [], start: { x: 8, z: 14 } });
+  const blow: SkillDef = { ...must(content.skills.get('taker_snatch'), 'taker_snatch'), knockback: 6, root: 0.9, hold: 0.5 };
+  const foe: MonsterState = spawnAt(world, 'mended', { x: 4, z: 14 });
+  world.player.knock = { x: 3, z: 0 };
+  stepWorld(world, [rollToward({ x: 20, z: 14 })], MOTION_DT);
+  assert.deepEqual(world.player.knock, { x: 0, z: 0 });
+  while (isInvulnerable(world.player)) stepWorld(world, [], MOTION_DT);
+  assert.equal(isDashing(world.player), true);
+  const life: number = world.player.life;
+  assert.equal(applyHit(world, offenceOf(foe), world.player, blow, { x: 1, z: 0 }), true);
+  assert.ok(world.player.life < life);
+  assert.deepEqual(world.player.knock, { x: 0, z: 0 });
+  assert.equal(rootOf(world), 0);
+  finish(world);
+  world.player.rootGrace = 0;
+  applyHit(world, offenceOf(foe), world.player, blow, { x: 1, z: 0 });
+  assert.ok(Math.hypot(world.player.knock.x, world.player.knock.z) > 0);
+  assert.ok(rootOf(world) > 0);
 });
 
 void test('with the cursor on the hero, the roll follows the path the hero is walking', (): void => {
