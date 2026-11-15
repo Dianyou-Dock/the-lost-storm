@@ -320,6 +320,7 @@ async function start(): Promise<void> {
     onTitle: (): void => void leavePlay()?.open(),
   });
 
+  const qualityTier = (): string => (mobile.quality.tier.name === 'desktop' ? gameSettings.get().graphics.quality : `${gameSettings.get().graphics.quality} ${mobile.quality.tier.name}`);
   const hud: Hud = createHud(element('hud', HTMLDivElement), {
     world,
     send,
@@ -333,7 +334,7 @@ async function start(): Promise<void> {
     voice,
     readBook: (item: ItemInstance): void => void opening.readBook(item),
     touch: mobile.touch,
-    qualityTier: (): string => (mobile.quality.tier.name === 'desktop' ? gameSettings.get().graphics.quality : `${gameSettings.get().graphics.quality} ${mobile.quality.tier.name}`),
+    qualityTier,
     overlays: overlayManager,
     auction: startAuction({ content, serverUrl: import.meta.env.VITE_SERVER_URL, backend, world, send, save: (): void => saveNow(), unverified: (item: ItemInstance): boolean => minter?.unverified(world, item) ?? true }),
   });
@@ -679,7 +680,7 @@ async function start(): Promise<void> {
   reset.addEventListener('click', (): void => {
     void startOver();
   });
-  const flow: LobbyFlow = createLobbyFlow({ tier: (): QualityName => mobile.quality.tier.name, restore: (): void => stage.resize(), root: element('lobby', HTMLDivElement), veil: element('lobby-veil', HTMLDivElement), title, hud: element('hud', HTMLDivElement), renderer: stage.renderer, content, library, loader, lobby, look: (): LobbyLook => pick.look(), view: (): SheetView => ({ name: heroName ?? readHeroName(createBrowserStore()), hero: lobbyHero(content, world.player, world.zone.name, readPlayed(createBrowserStore().read(PLAYED_KEY))), known: entered, heroes: pick.choice() }), enterColour: (): string => world.zone.ambience.background, begin: (): void => {
+  const flow: LobbyFlow = createLobbyFlow({ tier: (): QualityName => mobile.quality.tier.name, restore: (): void => stage.resize(), showFps: (): boolean => gameSettings.get().graphics.showFps, qualityTier, root: element('lobby', HTMLDivElement), veil: element('lobby-veil', HTMLDivElement), title, hud: element('hud', HTMLDivElement), renderer: stage.renderer, content, library, loader, lobby, look: (): LobbyLook => pick.look(), view: (): SheetView => ({ name: heroName ?? readHeroName(createBrowserStore()), hero: lobbyHero(content, world.player, world.zone.name, readPlayed(createBrowserStore().read(PLAYED_KEY))), known: entered, heroes: pick.choice() }), enterColour: (): string => world.zone.ambience.background, begin: (): void => {
     entered = true;
     begin();
   }, ready: (): Promise<void> => effects.ready, startOver: (): void => void startOver(), characters: { serverUrl: import.meta.env.VITE_SERVER_URL, persist, hold: (held: boolean): void => void (saveHeld = held), flush: (): void => backend.flush(), level: (): number | null => (entered ? world.player.level : null), hero: (): string | null => pick.chosen }, chooseHero: (id: string): void => void pick.choose(id), previewHero: (id: string | null): void => void pick.preview(id), openSettings: (): void => pauseMenu.open('graphics'), openFeedback: launch.feedback });

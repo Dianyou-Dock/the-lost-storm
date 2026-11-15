@@ -12,6 +12,8 @@ import type { CreateCheck } from './character-desk.ts';
 import { createCharacterControls } from './character-controls.ts';
 import type { CharacterControls, CharacterHooks } from './character-controls.ts';
 import type { Lobby } from './compact.ts';
+import { createLobbyFps } from './lobby-fps.ts';
+import type { LobbyFps } from './lobby-fps.ts';
 import { createLobbyScreen, LOBBY_SCREEN } from './lobby-screen.ts';
 import type { LobbyScreen, LobbyView, SheetView } from './lobby-screen.ts';
 import { createLobbyStage } from './lobby-stage.ts';
@@ -48,6 +50,8 @@ export interface LobbyFlowParts {
   readonly openFeedback: (() => void) | null;
   readonly tier: () => QualityName;
   readonly restore: () => void;
+  readonly showFps: () => boolean;
+  readonly qualityTier: () => string;
 }
 
 export interface LobbyFlow {
@@ -228,12 +232,14 @@ export function createLobbyFlow(parts: LobbyFlowParts): LobbyFlow {
   };
 
   if (characters.resuming) void resume();
+  const fps: LobbyFps = createLobbyFps(parts.root, parts.showFps, parts.qualityTier);
 
   return {
     get active(): boolean {
       return active;
     },
     render(dt: number): boolean {
+      fps.frame(performance.now(), active, busy);
       if (!active) return false;
       stage.render(parts.renderer, dt, parts.tier(), window.devicePixelRatio);
       return true;
