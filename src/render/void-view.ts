@@ -1,5 +1,5 @@
-import type { IUniform } from 'three';
-import { BufferAttribute, BufferGeometry, Color, DataTexture, DirectionalLight, Group, LinearFilter, Mesh, PlaneGeometry, Points, RedFormat, RepeatWrapping, ShaderMaterial, UniformsLib, UniformsUtils, Vector2, Vector3, Vector4 } from 'three';
+import type { Camera, IUniform, Scene, WebGLRenderer, WebGLRenderTarget } from 'three';
+import { BufferAttribute, BufferGeometry, Color, DataTexture, DirectionalLight, Group, LinearFilter, Mesh, NoBlending, PlaneGeometry, Points, RedFormat, RepeatWrapping, ShaderMaterial, UniformsLib, UniformsUtils, Vector2, Vector3, Vector4 } from 'three';
 import type { SurfaceDef, ZoneDef, ZoneExit } from '../../sim/content/types.ts';
 import { allHold } from '../../sim/world/conditions.ts';
 import type { Vec2 } from '../../sim/math.ts';
@@ -15,7 +15,9 @@ import type { VoidLight } from './void-light.ts';
 import { createVoidLight, VOID_LIGHT } from './void-light.ts';
 import type { ShoreRock } from './shore-rock.ts';
 import { createShoreRock } from './shore-rock.ts';
-import { GROUND_FRAGMENT, GROUND_VERTEX, MIST_FRAGMENT, MIST_SKIP, MIST_VERTEX, MOTE_FRAGMENT, MOTE_VERTEX } from './void-shaders.ts';
+import { GROUND_FRAGMENT, GROUND_VERTEX, MIST_FRAGMENT, MIST_LAYER_FRAGMENT, MIST_SKIP, MIST_VERTEX, MOTE_FRAGMENT, MOTE_VERTEX } from './void-shaders.ts';
+import { postBufferTarget } from './scene-pass.ts';
+import { beforeScene, sceneOf } from './scene-hooks.ts';
 import type { ViewFocus, ZoneView } from './zone-view.ts';
 import { FIGURE_GAUGE } from './figure-gauge.ts';
 import type { BodySpan } from './figure-gauge.ts';
@@ -110,7 +112,22 @@ export const VOID_VIEW = {
   landFlash: { intensity: 18, height: 14, lean: 1 },
   bank: { length: 220, height: 10, back: 2.5, color: 0xeef0f2, lit: 0xffffff, opacity: 0.8 },
   thinMist: 0.6,
+  shadeScale: 0.5,
 } as const;
+
+interface MistLayer {
+  readonly mesh: Mesh;
+  readonly shade: Mesh;
+  readonly shadeMaterial: ShaderMaterial;
+  readonly material: ShaderMaterial;
+  readonly target: WebGLRenderTarget;
+}
+
+function unhooked(): void {}
+
+export function shadeSize(full: number): number {
+  return Math.max(1, Math.round(full * VOID_VIEW.shadeScale));
+}
 
 interface Lightning {
   wait: number;
@@ -240,13 +257,26 @@ export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: 
   group.add(ground);
 
   const mistGeometry: PlaneGeometry = new PlaneGeometry(VOID_VIEW.mistSize, VOID_VIEW.mistSize);
-  const layers: Mesh[] = tier.layers.map((which: number, index: number): Mesh => {
+  const screen: IUniform<Vector2> = { value: new Vector2(1, 1) };
+  const landGone: IUniform<Vector2> = { value: new Vector2(MIST_SKIP.shown, VOID_VIEW.shoreFray / 2 + MIST_SKIP.body) };
+  const layers: MistLayer[] = tier.layers.map((which: number, index: number): MistLayer => {
     const layer = VOID_VIEW.layers[which] ?? VOID_VIEW.layers[0];
-    const material: ShaderMaterial = new ShaderMaterial({
-      uniforms: { uMist: color(VOID_VIEW.mistColor), uStorm: color(VOID_VIEW.stormColor), uDeep: color(VOID_VIEW.deepColor), uHero: hero, uNear: { value: new Vector2(VOID_VIEW.nearClear, VOID_VIEW.farStorm) }, uFlashColor: flashColor, uShift: shift, uEyeFade: eyeFade, uRim: rim, uBodyClear: { value: new Vector4(VOID_VIEW.bodyClear.inner, VOID_VIEW.bodyClear.outer, VOID_VIEW.bodyClear.low, VOID_VIEW.bodyClear.high) }, uThick: thick, uThickness: { value: new Vector4(VOID_VIEW.thick.floor, VOID_VIEW.thick.boost, VOID_VIEW.thick.near, VOID_VIEW.thick.far) }, uBody: body, uGraze: { value: new Vector2(VOID_VIEW.graze.flat, VOID_VIEW.graze.full) }, uFlashPos: flashPos, uFlash: flash, uFlashReach: flashReach, uTime: time, uHeight: { value: layer.height }, uOpacity: { value: layer.opacity }, uSeed: { value: which * VOID_VIEW.seedStep }, uScale: { value: layer.scale }, uDrift: { value: layer.drift }, uDir: dir, uSpan: { value: MIST.span }, uNeed: { value: layer.need }, uTear: { value: layer.tear }, uWarp: { value: layer.warp }, uFeather: { value: VOID_VIEW.edgeFeather }, uFray: { value: VOID_VIEW.fray }, uFigure: figure, uRest: { value: new Vector4(VOID_VIEW.rest.tear, VOID_VIEW.rest.feather, VOID_VIEW.rest.breathe, VOID_VIEW.rest.curl) }, uMotion: motion, uRestWall: { value: VOID_VIEW.restWall }, uFieldReach: { value: (MIST.span / 2) * MIST.edgeEnd }, uStreak: { value: layer.streak }, uWall: { value: VOID_VIEW.wallLight }, uEddyRadius: { value: MIST.eddyRadius }, uEddies: eddies, uField: fieldUniform, uFieldSize: fieldSize, uDither: dither, uLight: light.uniform, uLightColor: color(VOID_VIEW.lightColor), uShore: shoreLine, uShoreLook: shoreLook, uLand: land, uBankSolid: bankSolid, uPoolClear: { value: new Vector2(VOID_VIEW.poolClear.inner, VOID_VIEW.poolClear.outer) }, uThinMist: { value: VOID_VIEW.thinMist }, uHalo: { value: new Vector3(VOID_VIEW.lightHalo.spare, VOID_VIEW.lightHalo.glow, VOID_VIEW.lightHalo.amount) }, uScatter: scatter, uScatterHalo: { value: VOID_VIEW.scatter.halo }, uScatterColor: color(VOID_VIEW.scatter.color), uLandGone: { value: new Vector2(MIST_SKIP.shown, VOID_VIEW.shoreFray / 2 + MIST_SKIP.body) }, uNoise: noise },
+    const height: IUniform<number> = { value: layer.height };
+    const seed: IUniform<number> = { value: which * VOID_VIEW.seedStep };
+    const shadeMaterial: ShaderMaterial = new ShaderMaterial({
+      uniforms: { uMist: color(VOID_VIEW.mistColor), uStorm: color(VOID_VIEW.stormColor), uDeep: color(VOID_VIEW.deepColor), uHero: hero, uNear: { value: new Vector2(VOID_VIEW.nearClear, VOID_VIEW.farStorm) }, uFlashColor: flashColor, uShift: shift, uEyeFade: eyeFade, uRim: rim, uBodyClear: { value: new Vector4(VOID_VIEW.bodyClear.inner, VOID_VIEW.bodyClear.outer, VOID_VIEW.bodyClear.low, VOID_VIEW.bodyClear.high) }, uThick: thick, uThickness: { value: new Vector4(VOID_VIEW.thick.floor, VOID_VIEW.thick.boost, VOID_VIEW.thick.near, VOID_VIEW.thick.far) }, uBody: body, uGraze: { value: new Vector2(VOID_VIEW.graze.flat, VOID_VIEW.graze.full) }, uFlashPos: flashPos, uFlash: flash, uFlashReach: flashReach, uTime: time, uHeight: height, uOpacity: { value: layer.opacity }, uSeed: seed, uScale: { value: layer.scale }, uDrift: { value: layer.drift }, uDir: dir, uSpan: { value: MIST.span }, uNeed: { value: layer.need }, uTear: { value: layer.tear }, uWarp: { value: layer.warp }, uFeather: { value: VOID_VIEW.edgeFeather }, uFray: { value: VOID_VIEW.fray }, uFigure: figure, uRest: { value: new Vector4(VOID_VIEW.rest.tear, VOID_VIEW.rest.feather, VOID_VIEW.rest.breathe, VOID_VIEW.rest.curl) }, uMotion: motion, uRestWall: { value: VOID_VIEW.restWall }, uFieldReach: { value: (MIST.span / 2) * MIST.edgeEnd }, uStreak: { value: layer.streak }, uWall: { value: VOID_VIEW.wallLight }, uEddyRadius: { value: MIST.eddyRadius }, uEddies: eddies, uField: fieldUniform, uFieldSize: fieldSize, uLight: light.uniform, uLightColor: color(VOID_VIEW.lightColor), uShore: shoreLine, uShoreLook: shoreLook, uLand: land, uBankSolid: bankSolid, uPoolClear: { value: new Vector2(VOID_VIEW.poolClear.inner, VOID_VIEW.poolClear.outer) }, uThinMist: { value: VOID_VIEW.thinMist }, uHalo: { value: new Vector3(VOID_VIEW.lightHalo.spare, VOID_VIEW.lightHalo.glow, VOID_VIEW.lightHalo.amount) }, uScatter: scatter, uScatterHalo: { value: VOID_VIEW.scatter.halo }, uScatterColor: color(VOID_VIEW.scatter.color), uLandGone: landGone, uNoise: noise },
       defines,
       vertexShader: MIST_VERTEX,
       fragmentShader: MIST_FRAGMENT,
+      blending: NoBlending,
+      depthTest: false,
+      depthWrite: false,
+    });
+    const target: WebGLRenderTarget = postBufferTarget(false);
+    const material: ShaderMaterial = new ShaderMaterial({
+      uniforms: { uShade: { value: target.texture }, uScreen: screen, uShift: shift, uEyeFade: eyeFade, uShore: shoreLine, uShoreLook: shoreLook, uLand: land, uLandGone: landGone, uHeight: height, uSeed: seed, uDither: dither },
+      vertexShader: MIST_VERTEX,
+      fragmentShader: MIST_LAYER_FRAGMENT,
       transparent: true,
       depthWrite: false,
     });
@@ -256,8 +286,48 @@ export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: 
     mesh.renderOrder = 10 + index;
     mesh.frustumCulled = false;
     group.add(mesh);
-    return mesh;
+    const shade: Mesh = new Mesh(mistGeometry, shadeMaterial);
+    shade.rotation.x = -Math.PI / 2;
+    shade.frustumCulled = false;
+    return { mesh, shade, shadeMaterial, material, target };
   });
+
+  const clearColor: Color = new Color();
+  const shadeLayers = (renderer: WebGLRenderer, camera: Camera): void => {
+    if (!group.visible || layers.length === 0) return;
+    const outer: WebGLRenderTarget | null = renderer.getRenderTarget();
+    if (outer === null) renderer.getDrawingBufferSize(screen.value);
+    else screen.value.set(outer.width, outer.height);
+    const width: number = shadeSize(screen.value.x);
+    const height: number = shadeSize(screen.value.y);
+    const autoClear: boolean = renderer.autoClear;
+    renderer.getClearColor(clearColor);
+    const clearAlpha: number = renderer.getClearAlpha();
+    renderer.autoClear = false;
+    renderer.setClearColor(0x000000, 0);
+    for (const layer of layers) {
+      if (layer.target.width !== width || layer.target.height !== height) layer.target.setSize(width, height);
+      layer.shade.position.copy(layer.mesh.position);
+      layer.shade.updateMatrixWorld();
+      renderer.setRenderTarget(layer.target);
+      renderer.clear(true, false, false);
+      renderer.render(layer.shade, camera);
+    }
+    renderer.setClearColor(clearColor, clearAlpha);
+    renderer.autoClear = autoClear;
+    renderer.setRenderTarget(outer);
+  };
+  let hookedScene: Scene | null = null;
+  let unhook: () => void = unhooked;
+  const hookScene = (): void => {
+    const scene: Scene | null = sceneOf(group);
+    if (scene === hookedScene) return;
+    unhook();
+    hookedScene = scene;
+    unhook = scene === null ? unhooked : beforeScene(scene, shadeLayers);
+  };
+  group.addEventListener('added', hookScene);
+  group.addEventListener('removed', hookScene);
 
   const moteOpacity: IUniform<number> = { value: VOID_VIEW.moteOpacity };
   const moteMaterial: ShaderMaterial = new ShaderMaterial({
@@ -403,14 +473,20 @@ export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: 
       if (glimpse !== null) stepGlimpse(glimpse, world, dt);
       light.update(world, now, dt);
       ground.position.set(world.player.pos.x, zone.floorHeight, world.player.pos.z);
-      for (const layer of layers) layer.position.set(world.player.pos.x, layer.position.y, world.player.pos.z);
+      for (const layer of layers) layer.mesh.position.set(world.player.pos.x, layer.mesh.position.y, world.player.pos.z);
+      hookScene();
     },
     dispose(): void {
       group.removeFromParent();
       groundGeometry.dispose();
       groundMaterial.dispose();
       mistGeometry.dispose();
-      for (const layer of layers) if (layer.material instanceof ShaderMaterial) layer.material.dispose();
+      unhook();
+      for (const layer of layers) {
+        layer.material.dispose();
+        layer.shadeMaterial.dispose();
+        layer.target.dispose();
+      }
       moteGeometryBuilt.dispose();
       moteMaterial.dispose();
       fieldTexture.dispose();

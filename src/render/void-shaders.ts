@@ -5,6 +5,20 @@ export const MIST_SKIP = {
   body: 2,
 } as const;
 
+const DITHER: string = `
+float voidDither(vec2 at) {
+  return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715)))) - 0.5;
+}
+`;
+
+const TO_GROUND: string = `
+vec2 toGround(vec2 at, float height) {
+  return at + (at - cameraPosition.xz) * height / max(cameraPosition.y - height, uEyeFade.z);
+}
+`;
+
+const LAND_GONE: string = 'if (uShoreLook.y >= uLandGone.x && dot(q - uShore.xy, uShore.zw) - uLandGone.y >= uLand.y) discard;';
+
 const NOISE: string = `
 #ifdef VOID_NOISE_SIZE
 uniform sampler2D uNoise;
@@ -44,9 +58,7 @@ float voidFbm(vec2 p) {
   return total;
 }
 
-float voidDither(vec2 at) {
-  return fract(52.9829189 * fract(dot(at, vec2(0.06711056, 0.00583715)))) - 0.5;
-}
+${DITHER}
 `;
 
 const LIGHT_SCATTER: string = `
@@ -211,7 +223,6 @@ uniform float uEddyRadius;
 uniform vec4 uEddies[VOID_EDDIES];
 uniform sampler2D uField;
 uniform float uFieldSize;
-uniform float uDither;
 uniform vec3 uLight;
 uniform vec3 uLightColor;
 uniform vec3 uLand;
@@ -233,9 +244,7 @@ float figureDistance(vec2 p, vec2 feet, vec2 head) {
   float t = clamp(dot(p - feet, span) / max(dot(span, span), 0.0001), 0.0, 1.0);
   return distance(p, feet + span * t);
 }
-vec2 toGround(vec2 at, float height) {
-  return at + (at - cameraPosition.xz) * height / max(cameraPosition.y - height, uEyeFade.z);
-}
+${TO_GROUND}
 vec2 toBody(vec2 at, float height) {
   return at + (at - cameraPosition.xz) * max(uHeight - height, 0.0) / max(cameraPosition.y - uHeight, uEyeFade.z);
 }
@@ -269,7 +278,7 @@ vec2 voidSwirl(vec2 q) {
 void main() {
   vec2 p = toGround(vWorld.xz, uHeight);
   vec2 q = p - uShift;
-  if (uShoreLook.y >= uLandGone.x && dot(q - uShore.xy, uShore.zw) - uLandGone.y >= uLand.y) discard;
+  ${LAND_GONE}
   vec2 swirled = voidSwirl(q);
   vec2 roll = vec2(uTime * uDrift, uTime * uDrift * 0.63);
   vec2 side = vec2(-uDir.y, uDir.x);
@@ -340,8 +349,31 @@ void main() {
   color = mix(color, uScatterColor, scatter * uScatter.z);
   color = mix(color, uLightColor, uLight.z * uHalo.z * exp(-dot(nearLight, nearLight) / (uHalo.y * uHalo.y)));
   float eye = smoothstep(uEyeFade.x, uEyeFade.y, distance(vWorld, cameraPosition)) * smoothstep(0.0, uEyeFade.z, cameraPosition.y - vWorld.y) * smoothstep(uGraze.x, uGraze.y, abs(normalize(vWorld - cameraPosition).y));
+  gl_FragColor = vec4(color, density * uOpacity * (1.0 + veil * uThickness.y) * eye);
+}
+`;
+
+export const MIST_LAYER_FRAGMENT: string = `
+uniform sampler2D uShade;
+uniform vec2 uScreen;
+uniform vec2 uShift;
+uniform vec3 uEyeFade;
+uniform vec4 uShore;
+uniform vec3 uShoreLook;
+uniform vec3 uLand;
+uniform vec2 uLandGone;
+uniform float uHeight;
+uniform float uSeed;
+uniform float uDither;
+varying vec3 vWorld;
+${DITHER}
+${TO_GROUND}
+void main() {
+  vec2 q = toGround(vWorld.xz, uHeight) - uShift;
+  ${LAND_GONE}
+  vec4 shade = texture2D(uShade, gl_FragCoord.xy / uScreen);
   float grain = voidDither(gl_FragCoord.xy + uSeed * 7.0) * uDither;
-  gl_FragColor = vec4(color + grain, clamp(density * uOpacity * (1.0 + veil * uThickness.y) * eye + grain, 0.0, 1.0));
+  gl_FragColor = vec4(shade.rgb + grain, clamp(shade.a + grain, 0.0, 1.0));
 }
 `;
 
