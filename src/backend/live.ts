@@ -2,6 +2,7 @@ import type { Clock, Timers } from './backend.ts';
 import { chatRefusal, enterFrame, helloFrame, leaveFrame, LIVE_ZONE, liveUrl, moveFrame, mutesFrame, readServerFrame, sayable, sayFrame, whisperFrame } from './live-protocol.ts';
 import type { ChatLine, ChatRefusal, LiveMove, LivePlayer, Place, ServerFrame, WhisperDirection, WhisperRefusal, Worn } from './live-protocol.ts';
 import type { TradeFrame } from '../player-trade/trade-protocol.ts';
+import type { Play } from './play.ts';
 
 export const LIVE = {
   moveEveryMs: 100,
@@ -67,6 +68,7 @@ export interface LiveOptions {
   readonly clock: Clock;
   readonly timers: Timers;
   readonly random: () => number;
+  readonly play?: Play;
 }
 
 export function retryDelayMs(failures: number, random: number): number {
@@ -105,6 +107,7 @@ export function createLive(options: LiveOptions): Live {
   let roaming: boolean | null = null;
   let muted: readonly string[] = [];
   let trading: boolean = false;
+  let elsewhere: boolean = false;
 
   const emit = (event: LiveEvent): void => {
     if (event.type === 'gone') {
@@ -192,6 +195,10 @@ export function createLive(options: LiveOptions): Live {
       case 'moves':
         emit({ type: 'moves', moves: frame.moves, at: clock() });
         return;
+      case 'elsewhere':
+        options.play?.replace();
+        stopForGood();
+        return;
       case 'full':
       case 'replaced':
         standDown = true;
@@ -223,7 +230,7 @@ export function createLive(options: LiveOptions): Live {
     let opened: LiveSocket | null = null;
     const handlers: SocketHandlers = {
       open(): void {
-        if (socket === opened) send(helloFrame(token));
+        if (socket === opened) send(helloFrame(token, options.play?.id ?? null));
       },
       message(data: unknown): void {
         if (socket !== opened) return;
@@ -243,6 +250,13 @@ export function createLive(options: LiveOptions): Live {
       socket = null;
       backOff();
     }
+  };
+
+  const stopForGood = (): void => {
+    elsewhere = true;
+    retry?.();
+    retry = null;
+    drop();
   };
 
   const stepOut = (): void => {
@@ -265,6 +279,7 @@ export function createLive(options: LiveOptions): Live {
   };
 
   const stay = (inside: boolean): void => {
+    if (elsewhere) return;
     if (standDown && !(roaming === true && !inside)) return;
     if (socket === null) {
       if (retry === null) connect();
@@ -291,8 +306,11 @@ export function createLive(options: LiveOptions): Live {
     sentAt = now;
   };
 
+  options.play?.onReplaced(stopForGood);
+
   return {
     update(stand: Stand): void {
+      if (elsewhere) return;
       here = { x: stand.x, z: stand.z, facing: stand.facing };
       const inside: boolean = stand.zone === LIVE_ZONE;
       if (!inside && standDown && roaming === true) standDown = false;

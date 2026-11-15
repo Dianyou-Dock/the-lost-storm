@@ -4,6 +4,10 @@ import { createFakeClock, createFakeTimers } from '../../test/backend-support.ts
 import type { FakeClock, FakeTimers } from '../../test/backend-support.ts';
 import { createLive, LIVE, retryDelayMs } from './live.ts';
 import type { Live, LiveEvent, SocketHandlers, Stand } from './live.ts';
+import { createPlay } from './play.ts';
+import { isFields } from '../../sim/content/read.ts';
+import { helloFrame } from './live-protocol.ts';
+import type { Play } from './play.ts';
 
 interface FakeSocket {
   readonly url: string;
@@ -26,7 +30,7 @@ const HIDEOUT: Stand = { zone: 'hideout', x: 20, z: 18, facing: 0 };
 const ROAD: Stand = { zone: 'road', x: 20, z: 18, facing: 0 };
 const PLAYER: Readonly<Record<string, unknown>> = { id: 'h1', name: 'Wren', hero: null, worn: {}, x: 21, z: 18, facing: 0 };
 
-function harness(): Harness {
+function harness(play: Play | null = null): Harness {
   const clock: FakeClock = createFakeClock();
   const timers: FakeTimers = createFakeTimers(clock);
   const sockets: FakeSocket[] = [];
@@ -57,6 +61,7 @@ function harness(): Harness {
       clock: clock.read,
       timers: timers.timers,
       random: (): number => 1,
+      ...(play === null ? {} : { play }),
     }),
   };
   state.live.subscribe((event: LiveEvent): void => {
@@ -413,4 +418,41 @@ void test('an older server that does not welcome trading is never sent a trade f
   assert.equal(h.live.canTrade(), false);
   assert.equal(h.live.trade('{"type":"trade_cancel"}'), false);
   assert.equal(socket.sent.length, before);
+});
+
+void test('the hello names the page only when the page has a play id', (): void => {
+  const named: Harness = harness(createPlay('page-a'));
+  welcomed(named);
+  const hello: unknown = last(named).sent[0];
+  assert.deepEqual(hello, JSON.parse(helloFrame('secret-token', 'page-a')));
+  assert.ok(isFields(hello) && hello['play'] === 'page-a');
+  const plain: Harness = harness();
+  welcomed(plain);
+  const bare: unknown = last(plain).sent[0];
+  assert.ok(isFields(bare) && !('play' in bare));
+});
+
+void test('played elsewhere replaces the page, closes the socket and never opens another', (): void => {
+  const play: Play = createPlay('page-a');
+  const h: Harness = harness(play);
+  const socket: FakeSocket = roaming(h);
+  say(socket, { type: 'elsewhere' });
+  assert.equal(play.replaced(), true);
+  assert.equal(socket.closed, true);
+  socket.handlers.closed(1000);
+  h.live.update(ROAD);
+  h.live.update(HIDEOUT);
+  assert.equal(h.sockets.length, 1);
+  assert.equal(h.timers.pending(), 0);
+  assert.equal(h.live.say('hello'), false);
+});
+
+void test('a page refused a save drops its live socket too, with no reconnect', (): void => {
+  const play: Play = createPlay('page-a');
+  const h: Harness = harness(play);
+  const socket: FakeSocket = welcomed(h);
+  play.replace();
+  assert.equal(socket.closed, true);
+  h.live.update(HIDEOUT);
+  assert.equal(h.sockets.length, 1);
 });

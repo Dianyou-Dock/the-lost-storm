@@ -99,6 +99,7 @@ export type ServerFrame =
   | { readonly type: 'moves'; readonly moves: readonly LiveMove[] }
   | { readonly type: 'full' }
   | { readonly type: 'replaced' }
+  | { readonly type: 'elsewhere' }
   | { readonly type: 'friends' }
   | { readonly type: 'refused'; readonly reason: Refusal }
   | { readonly type: 'trade'; readonly frame: TradeFrame };
@@ -196,6 +197,8 @@ function readFields(source: Fields): ServerFrame | null {
       return { type: 'full' };
     case 'replaced':
       return { type: 'replaced' };
+    case 'elsewhere':
+      return { type: 'elsewhere' };
     case 'friends':
       return { type: 'friends' };
     case 'present': {
@@ -262,8 +265,8 @@ export function readServerFrame(data: unknown): ServerFrame | null {
   return isFields(parsed) ? readFields(parsed) : null;
 }
 
-export function helloFrame(token: string): string {
-  return JSON.stringify({ type: 'hello', token, chat: LIVE_CHAT_VERSION, trade: LIVE_TRADE_VERSION });
+export function helloFrame(token: string, play: string | null = null): string {
+  return JSON.stringify(play === null ? { type: 'hello', token, chat: LIVE_CHAT_VERSION, trade: LIVE_TRADE_VERSION } : { type: 'hello', token, chat: LIVE_CHAT_VERSION, trade: LIVE_TRADE_VERSION, play });
 }
 
 function rounded(value: number): number {

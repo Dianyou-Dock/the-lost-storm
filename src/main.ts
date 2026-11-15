@@ -39,7 +39,9 @@ import type { AccountService } from './backend/account.ts';
 import type { ZoneAmbience as ZoneLight } from '../sim/content/types.ts';
 import { createSettingsStore as createGameSettings } from './settings/store.ts';
 import type { Backend, BackendState } from './backend/backend.ts';
-import { createBrowserAccount, createBrowserBackend, createBrowserMinter } from './backend/browser.ts';
+import { createBrowserAccount, createBrowserBackend, createBrowserMinter, pagePlay } from './backend/browser.ts';
+import { watchElsewhere } from './hud/elsewhere-card.ts';
+import type { Elsewhere } from './hud/elsewhere-card.ts';
 import { playerHooks, startHideout } from './hideout/hideout.ts';
 import { startAuction } from './auction/auction-start.ts';
 import type { Minter } from './backend/minter.ts';
@@ -536,7 +538,7 @@ async function start(): Promise<void> {
     if (last > 0) transition.frame(now - last);
     last = now;
     let events: WorldEvent[] = [];
-    const gate: FrameGate = frameGate({ playing, blocking: transition.blocking, lost: touch.lost, menuOpen: pauseMenu.isOpen });
+    const gate: FrameGate = frameGate({ playing, blocking: transition.blocking, lost: touch.lost || elsewhere.replaced, menuOpen: pauseMenu.isOpen });
     const collected: Command[] = gate.collect ? [...input.collect(dt), ...touch.collect(dt)] : [];
     if (gate.queue) queue.push(...collected);
     if (gate.step) {
@@ -595,14 +597,12 @@ async function start(): Promise<void> {
     vignette.style.setProperty('--hurt', effects.hurt.toFixed(3));
     if (transition.presenting) glitches.update(now / 1000, dt, gate.queue && hitStop <= 0 && !transition.blocking ? dt : 0);
     if (lobbyFlow?.render(dt) !== true && !hud.coversScene()) stage.render();
-
     sinceSave += dt;
     if (sinceSave > GAME.saveEvery) persist();
   };
-
   window.addEventListener('resize', (): void => stage.resize());
   window.addEventListener('beforeunload', saveNow);
-
+  const elsewhere: Elsewhere = watchElsewhere(element('hud', HTMLDivElement), pagePlay(), reloadPage);
   camera.snap(world.player.pos.x, world.player.pos.z, liftAt(world.zone, world.player.pos.x, world.player.pos.z));
   const keeper: FrameKeeper = keepFrames({
     hud: element('hud', HTMLDivElement),
@@ -611,7 +611,7 @@ async function start(): Promise<void> {
       warnInConsole(`A frame failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
       touch.fault();
     },
-    inPlay: (): boolean => playing && !transition.blocking && !touch.lost && lobbyFlow?.active !== true,
+    inPlay: (): boolean => playing && !elsewhere.replaced && !transition.blocking && !touch.lost && lobbyFlow?.active !== true,
     hidden: saveNow,
     resumed: (): void => void (last = performance.now()),
   });

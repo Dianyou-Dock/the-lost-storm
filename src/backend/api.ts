@@ -6,6 +6,9 @@ import { readSave } from '../../sim/save.ts';
 import { epochOf, isEpoch } from './epoch.ts';
 import { readFold } from './purse-read.ts';
 import type { SaveFold } from './purse-read.ts';
+import type { PlayStamp } from './play.ts';
+
+export const PLAYED_ELSEWHERE: string = 'played_elsewhere';
 
 export type FetchFn = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -76,7 +79,7 @@ export type SignOutResult = { readonly kind: 'ok' } | Failure;
 
 export type GuestResult = { readonly kind: 'ok'; readonly account: GuestAccount } | Failure;
 export type ReadResult = { readonly kind: 'ok'; readonly state: CloudState } | { readonly kind: 'unreadable' } | Failure;
-export type WriteResult = { readonly kind: 'ok'; readonly copy: CloudCopy; readonly fold: SaveFold } | { readonly kind: 'conflict'; readonly current: CloudState } | { readonly kind: 'stale'; readonly epoch: number } | { readonly kind: 'behind' } | Failure;
+export type WriteResult = { readonly kind: 'ok'; readonly copy: CloudCopy; readonly fold: SaveFold } | { readonly kind: 'conflict'; readonly current: CloudState } | { readonly kind: 'stale'; readonly epoch: number } | { readonly kind: 'behind' } | { readonly kind: 'elsewhere' } | Failure;
 
 export const RANKINGS = ['level', 'damage', 'life'] as const;
 
@@ -150,7 +153,7 @@ export type NameResult = { readonly kind: 'ok'; readonly name: string } | { read
 export interface Api {
   createGuest(signal: AbortSignal): Promise<GuestResult>;
   readSave(token: string, signal: AbortSignal): Promise<ReadResult>;
-  writeSave(token: string, save: SaveData, baseRevision: number, epoch: number, signal: AbortSignal): Promise<WriteResult>;
+  writeSave(token: string, save: SaveData, baseRevision: number, epoch: number, signal: AbortSignal, play?: PlayStamp | null): Promise<WriteResult>;
   providers(signal: AbortSignal): Promise<ProvidersResult>;
   profile(token: string, signal: AbortSignal): Promise<ProfileResult>;
   googleSignIn(token: string, accessToken: string, signal: AbortSignal): Promise<SessionResult>;
@@ -317,14 +320,15 @@ export function createApi(baseUrl: string, fetchFn: FetchFn, content: Content): 
       if (state !== null) return { kind: 'ok', state };
       return cloudSaveUnreadable(content, answer.body) ? { kind: 'unreadable' } : { kind: 'refused', status: answer.status };
     },
-    async writeSave(token: string, save: SaveData, baseRevision: number, epoch: number, signal: AbortSignal): Promise<WriteResult> {
-      const body: string = JSON.stringify({ save, baseRevision, epoch });
+    async writeSave(token: string, save: SaveData, baseRevision: number, epoch: number, signal: AbortSignal, play: PlayStamp | null = null): Promise<WriteResult> {
+      const body: string = JSON.stringify(play === null ? { save, baseRevision, epoch } : { save, baseRevision, epoch, play: play.id, claim: play.claim });
       const answer: Answer | null = await exchange(fetchFn, `${baseUrl}/v1/save`, { method: 'PUT', headers: headers(token), body, signal, keepalive: body.length < KEEPALIVE_LIMIT_CHARS });
       if (answer !== null && answer.status === 409 && errorCodeOf(answer.body) === 'stale_epoch') {
         const current: unknown = isFields(answer.body) ? answer.body['epoch'] : null;
         return isEpoch(current) && current > epoch ? { kind: 'stale', epoch: current } : { kind: 'refused', status: 409 };
       }
       if (answer !== null && answer.status === 409 && errorCodeOf(answer.body) === 'server_behind') return { kind: 'behind' };
+      if (answer !== null && answer.status === 409 && errorCodeOf(answer.body) === PLAYED_ELSEWHERE) return { kind: 'elsewhere' };
       if (answer !== null && answer.status === 409) {
         const current: CloudState | null = isFields(answer.body) ? readCloudState(content, answer.body['current']) : null;
         return current === null ? { kind: 'refused', status: 409 } : { kind: 'conflict', current };

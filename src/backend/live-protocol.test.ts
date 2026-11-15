@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { isFields } from '../../sim/content/read.ts';
 import { chatRefusal, enterFrame, helloFrame, leaveFrame, LIVE_LIMITS, liveUrl, moveFrame, mutesFrame, readLine, readPlayer, readServerFrame, sayable, sayFrame, whisperFrame } from './live-protocol.ts';
 import type { ServerFrame } from './live-protocol.ts';
 
@@ -140,4 +141,12 @@ void test('the mute list keeps the newest names that fit in one frame', (): void
   assert.ok(Array.isArray(names));
   assert.equal(names.at(-1), 'name number 499');
   assert.ok(names.length > 100);
+});
+
+void test('played elsewhere is read as its own frame, and the hello carries the page id only when there is one', (): void => {
+  assert.deepEqual(readServerFrame(JSON.stringify({ type: 'elsewhere' })), { type: 'elsewhere' });
+  const named: unknown = JSON.parse(helloFrame('t', 'page-a'));
+  const plain: unknown = JSON.parse(helloFrame('t'));
+  assert.ok(isFields(named) && named['play'] === 'page-a' && named['token'] === 't');
+  assert.ok(isFields(plain) && !('play' in plain));
 });

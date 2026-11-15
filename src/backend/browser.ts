@@ -23,6 +23,14 @@ import { createMinter } from './minter.ts';
 import type { Minter } from './minter.ts';
 import { createBackend, readServerUrl } from './create.ts';
 import type { ServerUrl } from './create.ts';
+import { createPlay, playId } from './play.ts';
+import type { Play } from './play.ts';
+
+const PAGE_PLAY: Play = createPlay(playId(Math.random));
+
+export function pagePlay(): Play {
+  return PAGE_PLAY;
+}
 
 export function createBrowserBackend(content: Content, rawUrl: string | undefined): Backend {
   return createBackend(content, rawUrl, {
@@ -32,6 +40,7 @@ export function createBrowserBackend(content: Content, rawUrl: string | undefine
     timers: createBrowserTimers(),
     log: createConsoleLogger(),
     characterKeys: CHARACTER_KEYS,
+    play: PAGE_PLAY,
   });
 }
 
@@ -89,7 +98,7 @@ export function createBrowserHideoutServer(rawUrl: string | undefined): HideoutS
     return record === null ? null : record.token;
   };
   return {
-    live: createLive({ serverUrl: server.url, open: openBrowserSocket, token, clock: (): number => performance.now(), timers: createBrowserTimers(), random: Math.random }),
+    live: createLive({ serverUrl: server.url, open: openBrowserSocket, token, clock: (): number => performance.now(), timers: createBrowserTimers(), random: Math.random, play: PAGE_PLAY }),
     api: createHideoutApi(server.url, browserFetch),
     lobby: createLobbyApi(server.url, browserFetch),
     token,

@@ -24,6 +24,7 @@ import { flaskAction } from '../settings/bindings.ts';
 import characterCss from './character.css?inline';
 import contextCss from './context-notice.css?inline';
 import stallCss from './stall-notice.css?inline';
+import elsewhereCss from './elsewhere-card.css?inline';
 import { createCharacterPanel } from './character-panel.ts';
 import type { CharacterPanel } from './character-panel.ts';
 import type { HudContext, PanelView } from './context.ts';
@@ -120,7 +121,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
   root.classList.add('hud');
   const style: HTMLStyleElement = el('style', '', root);
   watchFit(root);
-  style.textContent = `${hudCss}\n${globesCss}\n${fpsCss}\n${bannersCss}\n${panelsCss}\n${volumeCss}\n${dialogueCss}\n${questsCss}\n${bossCss}\n${treeCss}\n${chartPlacesCss}\n${chartStormCss}\n${atlasCss}\n${characterCss}\n${deathCss}\n${flasksCss}\n${tradeCss}\n${auctionCss}\n${playerTradeCss}\n${dropdownCss}\n${contextCss}\n${stallCss}\n${pickerCss}\n${menuCss}`;
+  style.textContent = `${hudCss}\n${globesCss}\n${fpsCss}\n${bannersCss}\n${panelsCss}\n${volumeCss}\n${dialogueCss}\n${questsCss}\n${bossCss}\n${treeCss}\n${chartPlacesCss}\n${chartStormCss}\n${atlasCss}\n${characterCss}\n${deathCss}\n${flasksCss}\n${tradeCss}\n${auctionCss}\n${playerTradeCss}\n${dropdownCss}\n${contextCss}\n${stallCss}\n${elsewhereCss}\n${pickerCss}\n${menuCss}`;
   const hovered: Set<HTMLElement> = new Set<HTMLElement>();
   const track = (element: HTMLElement): void => {
     element.addEventListener('pointerenter', (): void => {

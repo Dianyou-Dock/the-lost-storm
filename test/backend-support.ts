@@ -15,6 +15,7 @@ import { answerCount, answerFeedback } from './fake-feedback.ts';
 import { createFakeLedger } from './fake-ledger.ts';
 import type { FakeLedger, FakeLedgerAnswer } from './fake-ledger.ts';
 import type { FakeAnswer, StoredFeedback } from './fake-feedback.ts';
+import type { Play } from '../src/backend/play.ts';
 
 export const content: Content = loadContent();
 
@@ -253,6 +254,7 @@ function addressOf(body: unknown): string | null {
 export function createFakeServer(clock: FakeClock): FakeServer {
   const accounts: ServerAccount[] = [];
   const requests: RecordedRequest[] = [];
+  const plays: Map<string, string> = new Map<string, string>();
   const planned: Planned[] = [];
   const gates: Promise<void>[] = [];
   let created: number = 0;
@@ -448,6 +450,12 @@ export function createFakeServer(clock: FakeClock): FakeServer {
       if (behind) return failed(409, 'server_behind', { saveVersion: SAVE_VERSION - 1, sent: SAVE_VERSION });
       const save: SaveData | null = readSave(content, body['save']);
       if (save === null) return json(422, { error: { code: 'invalid_save', message: 'no' } });
+      const play: unknown = body['play'];
+      if (typeof play === 'string') {
+        const active: string | undefined = plays.get(owner.accountId);
+        if (active !== undefined && active !== play && body['claim'] !== true) return failed(409, 'played_elsewhere');
+        plays.set(owner.accountId, play);
+      }
       if (body['baseRevision'] !== owner.revision) return json(409, { error: { code: 'revision_conflict', message: 'no' }, current: view() });
       owner.save = save;
       owner.revision += 1;
@@ -553,7 +561,7 @@ export interface Harness {
   readonly logs: string[];
   readonly infos: string[];
   readonly warns: string[];
-  open(url?: string): Backend;
+  open(url?: string, play?: Play): Backend;
 }
 
 export function createSecondBrowser(first: Harness): Harness {
@@ -586,6 +594,6 @@ export function createHarness(sharing: Harness | null = null): Harness {
     logs,
     infos,
     warns,
-    open: (url: string = 'http://localhost:8787'): Backend => createBackend(content, url, { fetch: server.fetch, store, clock: clock.read, timers: timers.timers, log, characterKeys: [] }),
+    open: (url: string = 'http://localhost:8787', play?: Play): Backend => createBackend(content, url, play === undefined ? { fetch: server.fetch, store, clock: clock.read, timers: timers.timers, log, characterKeys: [] } : { fetch: server.fetch, store, clock: clock.read, timers: timers.timers, log, characterKeys: [], play }),
   };
 }

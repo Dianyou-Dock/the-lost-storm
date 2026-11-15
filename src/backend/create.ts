@@ -12,6 +12,7 @@ import { prepareRoster, reconcileRoster } from './roster-store.ts';
 import type { RosterPlace } from './roster-store.ts';
 import { readServerUrl } from './server-url.ts';
 import type { ServerUrl } from './server-url.ts';
+import type { Play } from './play.ts';
 
 export { readServerUrl };
 export type { ServerUrl };
@@ -23,6 +24,7 @@ export interface BackendEnvironment {
   readonly timers: Timers;
   readonly log: Logger;
   readonly characterKeys: readonly string[];
+  readonly play?: Play;
 }
 
 export function createBackend(content: Content, rawUrl: string | undefined, environment: BackendEnvironment): Backend {
@@ -47,6 +49,7 @@ export function createBackend(content: Content, rawUrl: string | undefined, envi
     timers: environment.timers,
     log: environment.log,
     epochs,
+    ...(environment.play === undefined ? {} : { play: environment.play }),
     prepare: async (signal: AbortSignal): Promise<void> => {
       await reconcileRoster(place, characters, signal, 'boot');
     },

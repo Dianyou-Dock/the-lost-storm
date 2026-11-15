@@ -6,6 +6,7 @@ import { createWorld } from '../../sim/world/create.ts';
 import type { Api, CloudState, GuestResult, ReadResult, WriteResult } from './api.ts';
 import type { Backend, BackendState, Clock, KeyValueStore, Logger, Timers } from './backend.ts';
 import type { Epochs } from './epoch.ts';
+import type { Play, PlayStamp } from './play.ts';
 import { emptyFold } from './purse-read.ts';
 import type { SaveFold } from './purse-read.ts';
 import { chooseOnConflict, chooseOnLoad, describe } from './merge.ts';
@@ -24,6 +25,7 @@ export interface RemoteOptions {
   readonly log: Logger;
   readonly epochs: Epochs;
   readonly prepare?: (signal: AbortSignal) => Promise<void>;
+  readonly play?: Play;
 }
 
 export const TIMING: {
@@ -122,6 +124,22 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
     else store.write(SYNC_KEY, serializeSyncRecord(next));
   };
   const freshSave = (): SaveData => toSave(createWorld(content, { seed: 0, save: null }));
+  const stamp = (): PlayStamp | null => options.play?.stamp() ?? null;
+  const claimed = (): void => options.play?.claimed();
+  const stop = (): void => {
+    frozen = true;
+    latest = null;
+    cancelTimer?.();
+    cancelTimer = null;
+    const stored: SyncRecord | null = parseSyncRecord(store.read(SYNC_KEY), serverUrl) ?? record;
+    if (stored !== null) keep({ ...stored, pending: false, overwriteCloud: false });
+  };
+  const playedElsewhere = (): void => {
+    log.warn('this character is being played in another window, so this one stopped saving');
+    stop();
+    options.play?.replace();
+  };
+  options.play?.onReplaced(stop);
 
   const prepared = async (signal: AbortSignal): Promise<void> => {
     if (options.prepare === undefined) return;
@@ -252,6 +270,7 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
   const handle = (sending: SaveData, held: SyncRecord, result: WriteResult): void => {
     switch (result.kind) {
       case 'ok':
+        claimed();
         succeed(sending, result.copy);
         deliver(result.fold);
         return;
@@ -277,6 +296,9 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
       case 'behind':
         waitForServer();
         return;
+      case 'elsewhere':
+        playedElsewhere();
+        return;
       case 'refused':
         blocked = true;
         log.warn(`the cloud save refused this save (status ${result.status}); it will try again after the next save`);
@@ -289,7 +311,7 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
   const send = async (sending: SaveData): Promise<{ readonly held: SyncRecord; readonly result: WriteResult } | null> => {
     const held: SyncRecord | null = await account(timeout(TIMING.requestMs));
     if (held === null) return null;
-    return { held, result: await api.writeSave(held.token, sending, held.revision, epochs.current(), timeout(TIMING.requestMs)) };
+    return { held, result: await api.writeSave(held.token, sending, held.revision, epochs.current(), timeout(TIMING.requestMs), stamp()) };
   };
 
   const sendLatest = async (sending: SaveData): Promise<void> => {
@@ -324,8 +346,13 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
   };
 
   const overwrite = async (held: SyncRecord, cloud: CloudState, localSave: SaveData | null, signal: AbortSignal): Promise<void> => {
-    const result: WriteResult = await api.writeSave(held.token, localSave ?? freshSave(), cloud.revision, epochs.current(), signal);
+    const result: WriteResult = await api.writeSave(held.token, localSave ?? freshSave(), cloud.revision, epochs.current(), signal, stamp());
+    if (result.kind === 'elsewhere') {
+      playedElsewhere();
+      return;
+    }
     if (result.kind === 'ok') {
+      claimed();
       keep({ ...held, revision: result.copy.revision, updatedAt: result.copy.updatedAt, savedAt: now(), pending: false, overwriteCloud: false });
       setState('cloud');
       deliver(result.fold);
@@ -440,7 +467,7 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
       cancelTimer?.();
       cancelTimer = null;
       latest = null;
-      frozen = false;
+      frozen = options.play?.replaced() === true;
       blocked = false;
       failures = 0;
       pushing = false;
@@ -455,8 +482,9 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
       }
       if (read.kind === 'ok') {
         epochs.raise(read.state.epoch);
-        const written: WriteResult = await api.writeSave(held.token, freshSave(), read.state.revision, epochs.current(), signal);
+        const written: WriteResult = await api.writeSave(held.token, freshSave(), read.state.revision, epochs.current(), signal, stamp());
         if (written.kind === 'ok') {
+          claimed();
           keep({ ...held, revision: written.copy.revision, updatedAt: written.copy.updatedAt, savedAt: now(), pending: false, overwriteCloud: false });
           return;
         }
