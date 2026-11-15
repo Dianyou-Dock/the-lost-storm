@@ -27,7 +27,7 @@ export const GROUND_TERRAIN = {
   outsideShade: 0.72,
 } as const;
 
-interface Field {
+export interface Field {
   readonly columns: number;
   readonly rows: number;
   readonly heights: Float32Array;
@@ -52,7 +52,7 @@ function groundHeight(zone: ZoneDef, cell: TerrainCell, floor: boolean, x: numbe
   return base + GROUND_TERRAIN.rock * broad + GROUND_TERRAIN.rockFine * fine;
 }
 
-function sampleField(zone: ZoneDef): Field {
+export function sampleField(zone: ZoneDef): Field {
   const step: number = GROUND_TERRAIN.step;
   const columns: number = Math.round((zoneColumns(zone) * zone.cellSize) / step) + 1;
   const rows: number = Math.round((zoneRows(zone) * zone.cellSize) / step) + 1;
@@ -74,7 +74,7 @@ function sampleField(zone: ZoneDef): Field {
   return { columns, rows, heights, floor, surfaces };
 }
 
-function shownTiles(zone: ZoneDef, reach: number): Uint8Array {
+export function shownTiles(zone: ZoneDef, reach: number): Uint8Array {
   const columns: number = zoneColumns(zone);
   const rows: number = zoneRows(zone);
   const shown: Uint8Array = new Uint8Array(columns * rows);

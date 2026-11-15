@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, ShaderLib, Vector3 } from 'three';
 import type { CutHero, CutSpring } from './prop-cutaway.ts';
-import { aimCutaway, CUTAWAY, CUTAWAY_UNIFORMS, cutawayChunk, ghostKeep, heroBehind, isTall, patchCutawayShader, setOccluders, springCut, windowMetres, withCutaway } from './prop-cutaway.ts';
+import { aimCutaway, claimCutaway, CUTAWAY, CUTAWAY_UNIFORMS, cutawayChunk, frontWeight, ghostKeep, heroBehind, highWeight, isTall, patchCutawayShader, resetCutaway, ringWeight, setOccluders, setTerrainSight, springCut, windowMetres, withCutaway } from './prop-cutaway.ts';
+import type { TerrainSight } from './terrain-sight.ts';
 
 function rock(x: number, z: number, height: number, floor: number = 0): Mesh {
   const mesh: Mesh = new Mesh(new BoxGeometry(2, height, 2), new MeshStandardMaterial());
@@ -132,4 +133,50 @@ void test('the ghosted remainder of a cut prop is dimmed and capped, so wet high
   const chunk: string = cutawayChunk();
   assert.match(chunk, /min\( gl_FragColor\.rgb, vec3\( /);
   assert.match(chunk, /cutWeight \* step\( 0\.0001, uCutKeep \)/);
+});
+
+function sightBlocking(blocked: boolean): TerrainSight {
+  return { drawnHeight: (): number => 0, blocks: (): boolean => blocked };
+}
+
+void test('rock terrain between the hero and the camera opens the same sprung window as a tall prop, and a zone change forgets it', (): void => {
+  setOccluders([]);
+  const camera: PerspectiveCamera = new PerspectiveCamera(30, 2, 1, 220);
+  camera.position.set(20, 21, 20);
+  camera.lookAt(0, 1, 0);
+  setTerrainSight(sightBlocking(false));
+  for (let frame: number = 0; frame < 120; frame += 1) aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
+  assert.equal(cutLevel(), 0);
+  setTerrainSight(sightBlocking(true));
+  aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
+  assert.ok(cutLevel() > 0 && cutLevel() < 0.5);
+  for (let frame: number = 0; frame < 30; frame += 1) aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
+  assert.ok(cutLevel() > 0.9);
+  resetCutaway();
+  for (let frame: number = 0; frame < 120; frame += 1) aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
+  assert.equal(cutLevel(), 0);
+});
+
+void test('the cut weights match the shader: full in front of the hero, none at or behind him, none at his waist, none outside the window', (): void => {
+  assert.equal(frontWeight(20, 20 - CUTAWAY.margin - CUTAWAY.depthFeather - 0.1), 1);
+  assert.equal(frontWeight(20, 20), 0);
+  assert.equal(highWeight(CUTAWAY.waist - 0.1), 0);
+  assert.equal(highWeight(CUTAWAY.waist + CUTAWAY.waistFeather + 0.1), 1);
+  assert.equal(ringWeight(0, 0), 1);
+  assert.equal(ringWeight(0, CUTAWAY.radius * 1.1), 0);
+  assert.match(cutawayChunk(), /smoothstep\( uCutDepth - 1\.800, uCutDepth - 0\.600, vViewPosition\.z \)/);
+});
+
+void test('a zone rebuilt before the old view is disposed keeps its own cutaway, because the old view can only reset what it claimed', (): void => {
+  const camera: PerspectiveCamera = new PerspectiveCamera(30, 2, 1, 220);
+  camera.position.set(20, 21, 20);
+  camera.lookAt(0, 1, 0);
+  const old: symbol = claimCutaway([], sightBlocking(false));
+  claimCutaway([], sightBlocking(true));
+  resetCutaway(old);
+  for (let frame: number = 0; frame < 30; frame += 1) aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
+  assert.ok(cutLevel() > 0.9);
+  resetCutaway();
+  for (let frame: number = 0; frame < 120; frame += 1) aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
+  assert.equal(cutLevel(), 0);
 });

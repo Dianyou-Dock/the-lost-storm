@@ -1,6 +1,6 @@
 import { liftAt, useTerrain } from './terrain-lift.ts';
 import type { FigureSize } from './figure-gauge.ts';
-import { isTall, resetCutaway, setOccluders, withCutaway } from './prop-cutaway.ts';
+import { claimCutaway, isTall, resetCutaway, withCutaway } from './prop-cutaway.ts';
 import type { Material, Object3D, Scene } from 'three';
 import { BufferGeometry, Color, Euler, Group, InstancedMesh, Matrix4, Mesh, MeshStandardMaterial, PlaneGeometry, PointLight, Quaternion, Vector3 } from 'three';
 import type { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -9,6 +9,8 @@ import { wallCorners, wallEdges, zoneColumns, zoneRows } from '../../sim/nav/lay
 import { allHold } from '../../sim/world/conditions.ts';
 import type { MonsterState, ShoreState, World } from '../../sim/world/types.ts';
 import { forgetModel, loadModel } from './character-loader.ts';
+import type { TerrainSight } from './terrain-sight.ts';
+import { createTerrainSight } from './terrain-sight.ts';
 import { buildGround } from './ground.ts';
 import type { MistWallView } from './mist-wall.ts';
 import { buildMistWall } from './mist-wall.ts';
@@ -249,6 +251,8 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
   useTerrain(zone);
   const ground: Ground = buildGround(content, zone);
   for (const mesh of ground.meshes) group.add(mesh);
+  const terrainSight: TerrainSight | null = createTerrainSight(zone);
+  if (terrainSight !== null) for (const mesh of ground.meshes) for (const material of Array.isArray(mesh.material) ? mesh.material : [mesh.material]) withCutaway(material);
   const walls: ZoneWalls | null = zone.walls;
   for (const edge of walls === null ? [] : wallEdges(zone)) {
     const alongZ: boolean = edge.side === 'west' || edge.side === 'east';
@@ -374,7 +378,7 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
   if (mistWall !== null) group.add(mistWall.group);
   scene.add(group);
 
-  setOccluders(occluders);
+  const cutaway: symbol = claimCutaway(occluders, terrainSight);
   const life: LifeView = createLifeView(LIFE, placesFor(LIFE, zone.id, 'zone'), lifeDensity(1, quality === 'mobile'));
   group.add(life.group);
   const groundAt = (x: number, z: number): number => zone.floorHeight + liftAt(zone, x, z);
@@ -396,7 +400,7 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
       return life.takeEvents();
     },
     dispose(): void {
-      resetCutaway();
+      resetCutaway(cutaway);
       roofs.dispose();
       life.dispose();
       group.removeFromParent();

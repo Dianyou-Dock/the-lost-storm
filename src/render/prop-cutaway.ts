@@ -1,5 +1,6 @@
 import type { IUniform, Material, PerspectiveCamera, WebGLProgramParametersWithUniforms, WebGLRenderer } from 'three';
 import type { Object3D } from 'three';
+import type { Point3, TerrainSight } from './terrain-sight.ts';
 import { Matrix4, MeshStandardMaterial, Raycaster, Vector2, Vector3 } from 'three';
 
 export const CUTAWAY = {
@@ -24,6 +25,7 @@ export const CUTAWAY = {
   ditherLift: 0,
   ghostCap: 0.22,
   ghostShade: 0.8,
+  cleared: 0.9,
 } as const;
 
 export interface CutawayUniforms {
@@ -151,6 +153,27 @@ export function withCutaway(material: Material, width: number = Infinity): Mater
   return material;
 }
 
+function smoothstep(edge0: number, edge1: number, value: number): number {
+  const t: number = Math.min(1, Math.max(0, (value - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
+export function frontWeight(heroDepth: number, depth: number): number {
+  return 1 - smoothstep(heroDepth - CUTAWAY.margin - CUTAWAY.depthFeather, heroDepth - CUTAWAY.margin, depth);
+}
+
+export function highWeight(aboveFloor: number): number {
+  return smoothstep(CUTAWAY.waist, CUTAWAY.waist + CUTAWAY.waistFeather, aboveFloor);
+}
+
+export function ringWeight(across: number, up: number): number {
+  return 1 - smoothstep(CUTAWAY.radius * (1 - CUTAWAY.feather), CUTAWAY.radius, Math.hypot(across * CUTAWAY.narrow, up));
+}
+
+export function terrainHides(sight: TerrainSight, hero: CutHero, eye: Point3): boolean {
+  return [CUTAWAY.chest, CUTAWAY.head].some((lift: number): boolean => sight.blocks(eye, { x: hero.x, y: hero.floor + lift, z: hero.z }, null));
+}
+
 export function isTall(height: number): boolean {
   return height >= CUTAWAY.tallFrom;
 }
@@ -159,14 +182,30 @@ const heroPoint: Vector3 = new Vector3();
 const viewPoint: Vector3 = new Vector3();
 const eye: Vector3 = new Vector3();
 let occluders: readonly Object3D[] = [];
+let terrain: TerrainSight | null = null;
+let owner: symbol | null = null;
 let spring: CutSpring = { level: 0, velocity: 0 };
 
 export function setOccluders(list: readonly Object3D[]): void {
   occluders = list;
 }
 
-export function resetCutaway(): void {
+export function setTerrainSight(sight: TerrainSight | null): void {
+  terrain = sight;
+}
+
+export function claimCutaway(list: readonly Object3D[], sight: TerrainSight | null): symbol {
+  occluders = list;
+  terrain = sight;
+  owner = Symbol('cutaway');
+  return owner;
+}
+
+export function resetCutaway(claim: symbol | null = null): void {
+  if (claim !== null && claim !== owner) return;
+  owner = null;
   occluders = [];
+  terrain = null;
   ghosts = [];
 }
 
@@ -174,7 +213,8 @@ export function aimCutaway(camera: PerspectiveCamera, hero: CutHero, width: numb
   camera.updateMatrixWorld();
   camera.getWorldPosition(eye);
   CUTAWAY_UNIFORMS.uCutWorld.value.copy(camera.matrixWorld);
-  spring = springCut(spring, heroBehind(hero, eye, occluders) ? 1 : 0, dt);
+  const behind: boolean = heroBehind(hero, eye, occluders) || (terrain !== null && terrainHides(terrain, hero, eye));
+  spring = springCut(spring, behind ? 1 : 0, dt);
   CUTAWAY_UNIFORMS.uCutLevel.value = spring.level;
   CUTAWAY_UNIFORMS.uCutFloor.value = hero.floor;
   heroPoint.set(hero.x, hero.floor + CUTAWAY.heroHeight, hero.z);
