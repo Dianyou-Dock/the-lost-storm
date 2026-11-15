@@ -23,6 +23,7 @@ import { emptyPathLog, markStart, readPathLog } from './path-log.ts';
 import { settleQuests, startQuests } from './quests.ts';
 import type { Equipment, ItemInstance, PlayerState, RespawnPoint, World } from './types.ts';
 import { emptyStash } from './trade.ts';
+import { copyTally, emptyTally } from '../tally.ts';
 import { beginVoid } from './wake.ts';
 import { placePlayer, respawnExists, startZone } from './zones.ts';
 
@@ -92,6 +93,7 @@ function freshPlayer(content: Content, save: SaveData | null, chosen: string | n
     walked: { x: 0, z: 0 },
     chase: { mark: { x: 0, z: 0 }, still: 0 },
     kills: save?.kills ?? 0,
+    tally: save === null ? emptyTally() : copyTally(save.tally),
     flasks: createFlasks(content, save?.flasks ?? null),
     powers: emptyPowerState(),
     momentum: { skill: null, value: 0, quiet: 0 },

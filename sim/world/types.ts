@@ -21,6 +21,7 @@ import type { HazardState, ProjectileState } from './delivery-types.ts';
 import type { Escort, SceneState } from './scene-state.ts';
 import type { WardState } from './wards.ts';
 import type { MomentumState } from './momentum-types.ts';
+import type { Tally } from '../tally.ts';
 
 export type { HazardState, MomentFigure, NpcState, ProjectileState };
 
@@ -185,6 +186,7 @@ export interface PlayerState extends ActorState {
   walked: Vec2;
   chase: ChaseState;
   kills: number;
+  tally: Tally;
   flasks: FlaskState[];
   powers: PowerState;
   momentum: MomentumState;
@@ -537,6 +539,7 @@ export type WorldEvent =
   | { readonly type: 'aggro'; readonly monsterId: number }
   | { readonly type: 'drop'; readonly ground: GroundItem }
   | { readonly type: 'pickup'; readonly ground: GroundItem }
+  | { readonly type: 'item_found'; readonly rarity: string }
   | { readonly type: 'xp'; readonly amount: number; readonly reduced: XpReduction | null }
   | { readonly type: 'level_up'; readonly level: number }
   | { readonly type: 'skill_unlocked'; readonly skill: string; readonly slot: number | null }

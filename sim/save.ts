@@ -8,6 +8,8 @@ import { heroOf } from './hero.ts';
 import { emptyEquipment, generateItem, slotOf } from './items.ts';
 import { createRng } from './rng.ts';
 import { retireUnworn } from './save-retire.ts';
+import { readTally, tallyToSave } from './tally.ts';
+import type { TallySave } from './tally.ts';
 import { adoptLearned, findNode, reachablePlaces } from './progression.ts';
 import type { AdoptedPlaces } from './progression.ts';
 import { readBar, readLearned } from './skill-book.ts';
@@ -56,6 +58,7 @@ export interface SaveData {
   readonly glitch: GlitchSave;
   readonly path: PathLogSave;
   readonly purse: number;
+  readonly tally: TallySave;
 }
 
 interface Worn {
@@ -100,6 +103,7 @@ export function toSave(world: World): SaveData {
     glitch: glitchToSave(world.glitch),
     path: pathToSave(world.path),
     purse: world.purse,
+    tally: tallyToSave(player.tally),
   };
 }
 
@@ -355,6 +359,7 @@ export function readSave(content: Content, value: unknown): SaveData | null {
     glitch: readGlitchSave(value['glitch']),
     path: value['version'] === SAVE_VERSION ? pathToSave(readPathLog(value['path'], new Set<string>(content.zones.keys()))) : pathToSave(emptyPathLog()),
     purse: readPurse(value['purse']),
+    tally: readTally(content, value['tally']),
   });
 }
 
