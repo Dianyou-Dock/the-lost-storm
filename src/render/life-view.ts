@@ -1,6 +1,8 @@
 import type { IUniform, Material, WebGLProgramParametersWithUniforms } from 'three';
 import { BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, Euler, Group, InstancedBufferAttribute, InstancedMesh, Matrix4, MeshBasicMaterial, MeshStandardMaterial, Quaternion, Vector3 } from 'three';
-import type { LifeForm, LifeGroup, LifeKind, LifeRules } from './life-kinds.ts';
+import type { BatEvent, Colony } from './bat-colony.ts';
+import { createColony, settleRoosts, stepColony } from './bat-colony.ts';
+import type { BatKind, LifeForm, LifeGroup, LifeKind, LifeRules } from './life-kinds.ts';
 import type { Creature, Hero } from './life-motion.ts';
 import { lifeCount, spawnGroup, stepCreature } from './life-motion.ts';
 
@@ -10,6 +12,7 @@ export const LIFE_VIEW = {
   bird: { swing: 0.75, rest: 0.12, roughness: 0.42, pitch: 0.18 },
   crawler: { stride: 0.16, lift: 0.08, roughness: 0.3, ride: 0.07 },
   moth: { swing: 1.1, rest: 0.3, opacity: 0.9 },
+  bat: { swing: 0.85, rest: 0.05, roughness: 0.85, fold: 0.5, hangPitch: Math.PI / 2, pitch: 0.25 },
 } as const;
 
 const BIRD_SHAPE = {
@@ -23,6 +26,14 @@ const BIRD_SHAPE = {
 const MOTH_SHAPE = {
   body: [[0, 0.02, 0.18], [0.03, 0, -0.14], [-0.03, 0, -0.14]],
   wing: [[0.02, 0.01, 0.14], [0.02, 0.01, -0.08], [0.5, 0.02, 0.22], [0.42, 0.02, -0.26]],
+} as const;
+
+const BAT_SHAPE = {
+  nose: [0, 0.03, 0.22],
+  tail: [0, 0, -0.2],
+  waist: { z: 0.02, half: 0.07, top: 0.06, belly: -0.05 },
+  ears: [[0.035, 0.05, 0.14], [0.06, 0.13, 0.12], [0.02, 0.05, 0.1]],
+  wing: { root: [[0.05, 0.01, 0.12], [0.05, 0.01, -0.12]], wrist: [0.38, 0.03, 0.14], tip: [0.72, 0.01, 0.02], scallops: [[0.56, 0.01, -0.16], [0.36, 0.01, -0.12], [0.2, 0.01, -0.2]], outer: 1.35 },
 } as const;
 
 const CRAWLER_SHAPE = {
@@ -105,6 +116,32 @@ function mothGeometry(): BufferGeometry {
   return shape.geometry();
 }
 
+function batGeometry(): BufferGeometry {
+  const shape: ShapeBuilder = new ShapeBuilder();
+  const waist = BAT_SHAPE.waist;
+  const ring: Triple[] = [[waist.half, 0, waist.z], [0, waist.top, waist.z], [-waist.half, 0, waist.z], [0, waist.belly, waist.z]];
+  ring.forEach((point: Triple, index: number): void => {
+    const next: Triple = ring[(index + 1) % ring.length] ?? point;
+    shape.triangle(BAT_SHAPE.nose, next, point);
+    shape.triangle(BAT_SHAPE.tail, point, next);
+  });
+  for (const side of [-1, 1]) {
+    const [earFront, earTip, earBack] = BAT_SHAPE.ears.map((point: Triple): Triple => mirror(point, side));
+    const [rootFront, rootBack] = BAT_SHAPE.wing.root.map((point: Triple): Triple => mirror(point, side));
+    const [outerScallop, midScallop, innerScallop] = BAT_SHAPE.wing.scallops.map((point: Triple): Triple => mirror(point, side));
+    if (earFront === undefined || earTip === undefined || earBack === undefined || rootFront === undefined || rootBack === undefined || outerScallop === undefined || midScallop === undefined || innerScallop === undefined) continue;
+    const wrist: Triple = mirror(BAT_SHAPE.wing.wrist, side);
+    const tip: Triple = mirror(BAT_SHAPE.wing.tip, side);
+    shape.triangle(earFront, earTip, earBack);
+    shape.triangle(rootFront, innerScallop, rootBack, [1, 1, 1]);
+    shape.triangle(rootFront, wrist, innerScallop, [1, 1, 1]);
+    shape.triangle(wrist, midScallop, innerScallop, [1, 1, 1]);
+    shape.triangle(wrist, tip, midScallop, [1, BAT_SHAPE.wing.outer, 1]);
+    shape.triangle(tip, outerScallop, midScallop, [BAT_SHAPE.wing.outer, BAT_SHAPE.wing.outer, 1]);
+  }
+  return shape.geometry();
+}
+
 function crawlerGeometry(legs: number): BufferGeometry {
   const shape: ShapeBuilder = new ShapeBuilder();
   const a = CRAWLER_SHAPE.abdomen;
@@ -167,6 +204,8 @@ function uniformsFor(kind: LifeKind): LifeUniforms {
       return { uSwing: { value: LIFE_VIEW.bird.swing }, uRest: { value: LIFE_VIEW.bird.rest }, uStride: { value: 0 }, uLift: { value: 0 } };
     case 'crawler':
       return { uSwing: { value: 0 }, uRest: { value: 0 }, uStride: { value: LIFE_VIEW.crawler.stride }, uLift: { value: LIFE_VIEW.crawler.lift } };
+    case 'bat':
+      return { uSwing: { value: LIFE_VIEW.bat.swing }, uRest: { value: LIFE_VIEW.bat.rest }, uStride: { value: 0 }, uLift: { value: 0 } };
     case 'moth':
       break;
   }
@@ -179,6 +218,8 @@ function geometryFor(kind: LifeKind): BufferGeometry {
       return birdGeometry();
     case 'crawler':
       return crawlerGeometry(kind.legs);
+    case 'bat':
+      return batGeometry();
     case 'moth':
       break;
   }
@@ -193,6 +234,8 @@ function materialFor(kind: LifeKind): Material {
       return animated(new MeshStandardMaterial({ color: colour, roughness: LIFE_VIEW.bird.roughness, metalness: 0, side: DoubleSide }), kind.form, uniforms);
     case 'crawler':
       return animated(new MeshStandardMaterial({ color: colour, roughness: LIFE_VIEW.crawler.roughness, metalness: 0, side: DoubleSide }), kind.form, uniforms);
+    case 'bat':
+      return animated(new MeshStandardMaterial({ color: colour, roughness: LIFE_VIEW.bat.roughness, metalness: 0, side: DoubleSide }), kind.form, uniforms);
     case 'moth':
       break;
   }
@@ -205,11 +248,15 @@ interface Herd {
   readonly mesh: InstancedMesh;
   readonly pose: InstancedBufferAttribute;
   creatures: Creature[];
+  colony: Colony | null;
 }
+
+export type LifeEvent = BatEvent;
 
 export interface LifeView {
   readonly group: Group;
-  update(time: number, dt: number, hero: Hero, groundAt: (x: number, z: number) => number): void;
+  update(time: number, dt: number, hero: Hero, groundAt: (x: number, z: number) => number, stirs: readonly Hero[]): void;
+  takeEvents(): LifeEvent[];
   setDensity(density: number): void;
   dispose(): void;
 }
@@ -233,6 +280,19 @@ function place(herd: Herd, creature: Creature, index: number, groundAt: (x: numb
   herd.mesh.setMatrixAt(index, scratch.matrix);
   const amount: number = kind.form === 'crawler' ? Math.min(1, creature.pace / Math.max(kind.amble, kind.size)) : creature.flap;
   herd.pose.setXY(index, creature.phase, amount);
+}
+
+function placeColony(herd: Herd, colony: Colony, kind: BatKind): void {
+  colony.bats.forEach((bat, index: number): void => {
+    const hanging: boolean = bat.mode === 'hanging' || bat.delay > 0;
+    scratch.position.set(bat.pos.x, Number.isNaN(bat.pos.y) ? 0 : bat.pos.y, bat.pos.z);
+    scratch.euler.set(hanging ? LIFE_VIEW.bat.hangPitch : LIFE_VIEW.bat.pitch * Math.sin(bat.phase), bat.yaw, 0);
+    scratch.turn.setFromEuler(scratch.euler);
+    scratch.scale.set(kind.size * (hanging && bat.flap === 0 ? LIFE_VIEW.bat.fold : 1), kind.size, kind.size);
+    scratch.matrix.compose(scratch.position, scratch.turn, scratch.scale);
+    herd.mesh.setMatrixAt(index, scratch.matrix);
+    herd.pose.setXY(index, bat.phase, bat.flap);
+  });
 }
 
 export function createLifeView(rules: LifeRules, groups: readonly LifeGroup[], density: number): LifeView {
@@ -260,22 +320,36 @@ export function createLifeView(rules: LifeRules, groups: readonly LifeGroup[], d
     mesh.frustumCulled = false;
     mesh.count = 0;
     group.add(mesh);
-    herds.push({ kind, groups: list, mesh, pose, creatures: [] });
+    herds.push({ kind, groups: list, mesh, pose, creatures: [], colony: null });
   }
   const populate = (wanted: number): void => {
     salt = 0;
     for (const herd of herds) {
-      herd.creatures = spawn(herd, wanted);
-      herd.mesh.count = herd.creatures.length;
-      herd.mesh.visible = herd.creatures.length > 0;
+      const kind: LifeKind = herd.kind;
+      herd.colony = kind.form === 'bat' ? createColony(kind, herd.groups, wanted) : null;
+      herd.creatures = herd.colony === null ? spawn(herd, wanted) : [];
+      const count: number = herd.colony === null ? herd.creatures.length : herd.colony.bats.length;
+      herd.mesh.count = count;
+      herd.mesh.visible = count > 0;
     }
   };
   populate(density);
+  let events: LifeEvent[] = [];
   return {
     group,
-    update(time: number, dt: number, hero: Hero, groundAt: (x: number, z: number) => number): void {
+    update(time: number, dt: number, hero: Hero, groundAt: (x: number, z: number) => number, stirs: readonly Hero[]): void {
       const step: number = Math.min(Math.max(0, dt), LIFE_VIEW.longestStep);
       for (const herd of herds) {
+        const colony: Colony | null = herd.colony;
+        const kind: LifeKind = herd.kind;
+        if (colony !== null && kind.form === 'bat') {
+          settleRoosts(colony, groundAt);
+          events.push(...stepColony(colony, hero, stirs, time, step));
+          placeColony(herd, colony, kind);
+          herd.mesh.instanceMatrix.needsUpdate = colony.bats.length > 0;
+          herd.pose.needsUpdate = colony.bats.length > 0;
+          continue;
+        }
         herd.creatures.forEach((creature: Creature, index: number): void => {
           stepCreature(creature, hero, time, step);
           place(herd, creature, index, groundAt);
@@ -284,6 +358,11 @@ export function createLifeView(rules: LifeRules, groups: readonly LifeGroup[], d
         herd.mesh.instanceMatrix.needsUpdate = true;
         herd.pose.needsUpdate = true;
       }
+    },
+    takeEvents(): LifeEvent[] {
+      const taken: LifeEvent[] = events;
+      events = [];
+      return taken;
     },
     setDensity(next: number): void {
       populate(next);

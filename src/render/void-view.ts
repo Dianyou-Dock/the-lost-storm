@@ -18,6 +18,7 @@ import { createShoreRock } from './shore-rock.ts';
 import { GROUND_FRAGMENT, GROUND_VERTEX, MIST_FRAGMENT, MIST_LAYER_FRAGMENT, MIST_SKIP, MIST_VERTEX, MOTE_FRAGMENT, MOTE_VERTEX } from './void-shaders.ts';
 import { postBufferTarget } from './scene-pass.ts';
 import { beforeScene, sceneOf } from './scene-hooks.ts';
+import type { LifeEvent } from './life-view.ts';
 import type { ViewFocus, ZoneView } from './zone-view.ts';
 import { FIGURE_GAUGE } from './figure-gauge.ts';
 import type { BodySpan } from './figure-gauge.ts';
@@ -446,6 +447,9 @@ export function buildVoidView(zone: ZoneDef, quality: QualityName, rockSurface: 
     group,
     torches: [],
     lightsVersion: 0,
+    takeLifeEvents(): LifeEvent[] {
+      return [];
+    },
     ready: glimpse === null ? Promise.resolve() : glimpse.ready,
     setGraphics(): void {},
     update(now: number, dt: number, world: World, focus: ViewFocus): void {

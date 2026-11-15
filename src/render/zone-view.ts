@@ -7,7 +7,7 @@ import type { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { Content, PropCache, PropDef, PropLight, ZoneDef, ZoneProp, ZoneScatter, ZoneWalls } from '../../sim/content/types.ts';
 import { wallCorners, wallEdges, zoneColumns, zoneRows } from '../../sim/nav/layout.ts';
 import { allHold } from '../../sim/world/conditions.ts';
-import type { ShoreState, World } from '../../sim/world/types.ts';
+import type { MonsterState, ShoreState, World } from '../../sim/world/types.ts';
 import { forgetModel, loadModel } from './character-loader.ts';
 import { buildGround } from './ground.ts';
 import type { MistWallView } from './mist-wall.ts';
@@ -31,7 +31,7 @@ import { scatterStones } from './zone-scatter.ts';
 import { momentSurfaces, zoneModels, zoneSurfaces } from './zone-assets.ts';
 import { renderBudget } from '../mobile/quality.ts';
 import type { GraphicsPreset } from '../settings/settings.ts';
-import type { LifeView } from './life-view.ts';
+import type { LifeEvent, LifeView } from './life-view.ts';
 import { createLifeView, lifeDensity } from './life-view.ts';
 import { LIFE } from './life-data.ts';
 import { placesFor } from './life-kinds.ts';
@@ -97,6 +97,7 @@ export interface ZoneView {
   readonly ready: Promise<void>;
   setGraphics(preset: GraphicsPreset): void;
   update(time: number, dt: number, world: World, focus: ViewFocus): void;
+  takeLifeEvents(): LifeEvent[];
   dispose(): void;
 }
 
@@ -113,6 +114,10 @@ function hash(a: number, b: number, c: number): number {
 
 function transform(x: number, y: number, z: number, yaw: number, scale: number): Matrix4 {
   return new Matrix4().compose(new Vector3(x, y, z), new Quaternion().setFromEuler(new Euler(0, yaw, 0)), new Vector3(scale, scale, scale));
+}
+
+export function fightsIn(world: World): Vec2[] {
+  return world.monsters.filter((monster: MonsterState): boolean => monster.alive && monster.aggro).map((monster: MonsterState): Vec2 => monster.pos);
 }
 
 export async function preloadZones(loader: GLTFLoader, content: Content, zones: readonly ZoneDef[]): Promise<void> {
@@ -191,7 +196,10 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
         rocks.follow(world);
         empty.update(time, dt, world, focus);
         const shore: ShoreState | null = world.shore;
-        if (shore !== null) shoreLife.update(time, dt, shoreLocal(shore.at, shore.facing, world.player.pos), flatGround);
+        if (shore !== null) shoreLife.update(time, dt, shoreLocal(shore.at, shore.facing, world.player.pos), flatGround, []);
+      },
+      takeLifeEvents(): LifeEvent[] {
+        return shoreLife.takeEvents();
       },
       dispose(): void {
         shoreLife.dispose();
@@ -384,6 +392,9 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
     get lightsVersion(): number {
       return lightsVersion;
     },
+    takeLifeEvents(): LifeEvent[] {
+      return life.takeEvents();
+    },
     dispose(): void {
       resetCutaway();
       roofs.dispose();
@@ -403,7 +414,7 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
     update(time: number, dt: number, world: World, focus: ViewFocus): void {
       ground.update(world.time);
       mistWall?.update(time, focus.flash);
-      life.update(time, dt, world.player.pos, groundAt);
+      life.update(time, dt, world.player.pos, groundAt, fightsIn(world));
       roofs.update(world.player.pos.x, world.player.pos.z, dt);
       for (const conditional of conditionals) {
         const wanted: boolean = conditional.wanted(world);

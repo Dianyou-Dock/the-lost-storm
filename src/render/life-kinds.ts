@@ -1,7 +1,7 @@
 import type { Fields } from '../../sim/content/read.ts';
 import { ContentError, byId, choice, colour, each, fields, nonNegative, numeric, positive, text } from '../../sim/content/read.ts';
 
-export const LIFE_FORMS = ['bird', 'crawler', 'moth'] as const;
+export const LIFE_FORMS = ['bird', 'crawler', 'moth', 'bat'] as const;
 export type LifeForm = (typeof LIFE_FORMS)[number];
 
 export const LIFE_FRAMES = ['zone', 'shore'] as const;
@@ -49,7 +49,27 @@ export interface MothKind {
   readonly flapRate: number;
 }
 
-export type LifeKind = BirdKind | CrawlerKind | MothKind;
+export interface BatKind {
+  readonly form: 'bat';
+  readonly id: string;
+  readonly size: number;
+  readonly colour: string;
+  readonly wake: number;
+  readonly stir: number;
+  readonly speed: number;
+  readonly flapRate: number;
+  readonly jitter: number;
+  readonly jitterRate: number;
+  readonly arc: number;
+  readonly hop: number;
+  readonly most: number;
+  readonly cross: number;
+  readonly reach: number;
+  readonly shuffle: number;
+  readonly rest: number;
+}
+
+export type LifeKind = BirdKind | CrawlerKind | MothKind | BatKind;
 
 export interface LifeGroup {
   readonly kind: string;
@@ -87,6 +107,8 @@ function readKind(value: unknown, where: string): LifeKind {
       return { form, id, size, colour: shade, flee: positive(source, 'flee', where), speed: positive(source, 'speed', where), circleRadius: positive(source, 'circleRadius', where), circleHeight: positive(source, 'circleHeight', where), circleSpeed: positive(source, 'circleSpeed', where), settle: nonNegative(source, 'settle', where), flapRate: positive(source, 'flapRate', where) };
     case 'crawler':
       return { form, id, size, colour: shade, flee: positive(source, 'flee', where), speed: positive(source, 'speed', where), amble: positive(source, 'amble', where), roam: positive(source, 'roam', where), pause: nonNegative(source, 'pause', where), legs: positive(source, 'legs', where), stride: positive(source, 'stride', where) };
+    case 'bat':
+      return { form, id, size, colour: shade, wake: positive(source, 'wake', where), stir: positive(source, 'stir', where), speed: positive(source, 'speed', where), flapRate: positive(source, 'flapRate', where), jitter: nonNegative(source, 'jitter', where), jitterRate: positive(source, 'jitterRate', where), arc: nonNegative(source, 'arc', where), hop: positive(source, 'hop', where), most: positive(source, 'most', where), cross: positive(source, 'cross', where), reach: positive(source, 'reach', where), shuffle: positive(source, 'shuffle', where), rest: nonNegative(source, 'rest', where) };
     case 'moth':
       break;
   }

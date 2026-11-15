@@ -278,5 +278,7 @@ export function stepCreature(creature: Creature, hero: Hero, time: number, dt: n
     case 'moth':
       stepMoth(creature, kind, time, dt);
       break;
+    case 'bat':
+      break;
   }
 }

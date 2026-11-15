@@ -5,7 +5,7 @@ import { loadContent } from '../../sim/content/content.ts';
 import { ContentError } from '../../sim/content/read.ts';
 import { must } from '../../test/support.ts';
 import { placesFor, readLife } from './life-kinds.ts';
-import type { LifeRules } from './life-kinds.ts';
+import type { LifeGroup, LifeKind, LifeRules } from './life-kinds.ts';
 
 void test('the small life in data reads, every group names a kind, and every place names a zone of the world', (): void => {
   const rules: LifeRules = readLife(life);
@@ -14,6 +14,15 @@ void test('the small life in data reads, every group names a kind, and every pla
   for (const place of rules.places) assert.ok(zones.has(place.zone), `unknown zone ${place.zone}`);
   assert.ok(placesFor(rules, 'between', 'shore').length > 0);
   assert.deepEqual(placesFor(rules, 'between', 'zone'), []);
+});
+
+void test('the caves hold bat roosts in zone coordinates, and a bat reads its flight and roosting numbers', (): void => {
+  const rules: LifeRules = readLife(life);
+  const roosts: readonly LifeGroup[] = placesFor(rules, 'under_hall', 'zone');
+  assert.ok(roosts.length >= 6);
+  for (const roost of roosts) assert.equal(rules.kinds.get(roost.kind)?.form, 'bat');
+  const bat: LifeKind | undefined = rules.kinds.get('bat');
+  assert.ok(bat !== undefined && bat.form === 'bat' && bat.most <= 4 && bat.wake > 0 && bat.cross > 0);
 });
 
 void test('a group of an unknown kind, a broken count or an unknown form is refused', (): void => {
