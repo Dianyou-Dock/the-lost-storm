@@ -145,7 +145,7 @@ void test('a leap that leaves burning ground lays it where it landed, and it bur
   const patch: AreaState = must(world.areas.find((area: AreaState): boolean => area.skill.id === left.id), 'burning ground');
   assert.equal(patch.ownerId, ghoul.id);
   assert.ok(distance(patch.pos, landing) < 0.3, 'the ground burns where it landed');
-  world.player.burn = null;
+  Object.assign(world.player, { burn: null });
   for (let step: number = 0; step < Math.round(0.9 / DT); step += 1) {
     world.player.pos = { ...hero };
     stepWorld(world, [], DT);
