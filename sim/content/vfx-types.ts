@@ -1,4 +1,4 @@
-export const VFX_STYLES = ['slash', 'claw', 'shockwave', 'bolt', 'orb', 'roll', 'fork', 'mist', 'wind', 'storm', 'heave', 'brand', 'beam', 'gap', 'gale', 'wave'] as const;
+export const VFX_STYLES = ['slash', 'claw', 'shockwave', 'bolt', 'orb', 'roll', 'fork', 'mist', 'wind', 'storm', 'heave', 'brand', 'beam', 'gap', 'gale', 'wave', 'fire'] as const;
 export type VfxStyle = (typeof VFX_STYLES)[number];
 
 export const VFX_CUES = ['none', 'hand', 'ground', 'blade'] as const;
@@ -48,6 +48,17 @@ export interface VfxPunch {
   readonly kick: number;
 }
 
+export interface VfxFlare {
+  readonly at: number;
+  readonly strength: number;
+}
+
+export interface VfxBurn {
+  readonly flares: readonly VfxFlare[];
+  readonly embers: number;
+  readonly light: number;
+}
+
 export interface SkillVfx {
   readonly style: VfxStyle;
   readonly color: string;
@@ -60,4 +71,5 @@ export interface SkillVfx {
   readonly gather: VfxGather | null;
   readonly wave: VfxWave | null;
   readonly punch: VfxPunch | null;
+  readonly burn: VfxBurn | null;
 }

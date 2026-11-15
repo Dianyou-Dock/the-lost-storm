@@ -20,7 +20,7 @@ import { dropOnGround } from './ground.ts';
 import { steadiness } from './poise.ts';
 import { steadied } from './momentum.ts';
 import { flinchTogether } from './unison.ts';
-import type { ActionState, Actor, BrandState, GuardOutcome, ItemInstance, MonsterState, Offence, Team, World } from './types.ts';
+import type { ActionState, Actor, BrandState, BurnState, GuardOutcome, ItemInstance, MonsterState, Offence, Team, World } from './types.ts';
 
 export const COMBAT = {
   guardedKnockback: 0.2,
@@ -204,11 +204,32 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
     pos: { x: target.pos.x, z: target.pos.z },
     direction: { x: direction.x, z: direction.z },
     skill,
+    burn: false,
   });
   if (killed) kill(world, target, direction);
+  else ignite(world, offence, target, skill, amount);
   if (offence.sourceId === world.player.id && target.kind === 'monster') powersOnHit(world, target, skill, killed);
   brandStrike(world, offence, target, skill);
   return true;
+}
+
+export function burnTicks(skill: SkillDef): number {
+  return skill.burn === null ? 0 : Math.max(1, Math.floor(skill.burn.duration / skill.burn.tick + 1e-9));
+}
+
+export function ignite(world: World, offence: Offence, target: Actor, skill: SkillDef, amount: number): void {
+  if (skill.burn === null || !target.alive) return;
+  const perTick: number = Math.max(1, Math.round(amount * skill.burn.share));
+  const ticks: number = burnTicks(skill);
+  const held: BurnState | null = target.burn;
+  if (held !== null && held.source === skill.id) {
+    held.perTick = Math.max(held.perTick, perTick);
+    held.ticksLeft = ticks;
+    held.tickLeft = skill.burn.tick;
+  } else {
+    target.burn = { source: skill.id, skill, offence, perTick, tickLeft: skill.burn.tick, ticksLeft: ticks };
+  }
+  world.events.push({ type: 'burn', targetId: target.id, skill, pos: { x: target.pos.x, z: target.pos.z }, duration: ticks * skill.burn.tick });
 }
 
 function powersOnHit(world: World, target: Actor, skill: SkillDef, killed: boolean): void {

@@ -1,7 +1,7 @@
 import { conditions } from './parse-conditions.ts';
 import type { Fields } from './read.ts';
-import { choice, ContentError, each, fields, fraction, nonNegative, positive, text } from './read.ts';
-import type { BeamDelivery, BlinkDelivery, BrandDef, ChainDelivery, AreaDelivery, MomentumDef, MomentumTier, PressDef, SkillUnlock } from './shape-types.ts';
+import { choice, ContentError, each, fields, flag, fraction, nonNegative, positive, text } from './read.ts';
+import type { BeamDelivery, BlinkDelivery, BrandDef, BurnDef, ChainDelivery, AreaDelivery, MomentumDef, MomentumTier, PressDef, SkillUnlock } from './shape-types.ts';
 import { AREA_ANCHORS } from './shape-types.ts';
 import type { Content, SkillBinding, SkillDef, SkillTreeNodeDef } from './types.ts';
 
@@ -34,6 +34,7 @@ function area(source: Fields, where: string): AreaDelivery {
     pull: nonNegative(source, 'pull', where),
     slow: fraction(source, 'slow', where),
     anchor: choice(source, 'anchor', AREA_ANCHORS, where),
+    opening: source['opening'] === undefined ? false : flag(source, 'opening', where),
   };
 }
 
@@ -98,14 +99,25 @@ function momentum(value: unknown, where: string): MomentumDef | null {
   };
 }
 
+function burn(value: unknown, where: string): BurnDef | null {
+  if (value === undefined || value === null) return null;
+  const source: Fields = fields(value, where);
+  const duration: number = positive(source, 'duration', where);
+  const tick: number = positive(source, 'tick', where);
+  if (tick < SHAPE_LIMITS.shortestInterval) throw new ContentError(`${where}.tick`, `expected at least ${SHAPE_LIMITS.shortestInterval} seconds`);
+  if (tick > duration) throw new ContentError(`${where}.tick`, `expected at most the duration ${duration}`);
+  return { duration, tick, share: fraction(source, 'share', where) };
+}
+
 export interface SkillPress {
   readonly press: PressDef | null;
   readonly brand: BrandDef | null;
   readonly momentum: MomentumDef | null;
+  readonly burn: BurnDef | null;
 }
 
 export function skillPress(source: Fields, where: string): SkillPress {
-  return { press: press(source['press'], `${where}.press`), brand: brand(source['brand'], `${where}.brand`), momentum: momentum(source['momentum'], `${where}.momentum`) };
+  return { press: press(source['press'], `${where}.press`), brand: brand(source['brand'], `${where}.brand`), momentum: momentum(source['momentum'], `${where}.momentum`), burn: burn(source['burn'], `${where}.burn`) };
 }
 
 export function shapeProblems(content: Content): string[] {

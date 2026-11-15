@@ -70,6 +70,15 @@ export interface Offence {
   readonly from?: Vec2;
 }
 
+export interface BurnState {
+  readonly source: string;
+  readonly skill: SkillDef;
+  readonly offence: Offence;
+  perTick: number;
+  tickLeft: number;
+  ticksLeft: number;
+}
+
 export interface BrandState {
   readonly source: string;
   readonly burst: SkillDef;
@@ -115,6 +124,7 @@ export interface ActorState {
   tempo: number;
   tempoTime: number;
   brand: BrandState | null;
+  burn: BurnState | null;
   alive: boolean;
   deadTime: number;
   moving: boolean;
@@ -525,7 +535,8 @@ export type WorldEvent =
   | { readonly type: 'skill_interrupt'; readonly actorId: number }
   | { readonly type: 'projectile_spawn'; readonly projectile: ProjectileState }
   | { readonly type: 'projectile_end'; readonly id: number; readonly pos: Vec2; readonly hit: boolean; readonly skill: SkillDef }
-  | { readonly type: 'damage'; readonly targetId: number; readonly sourceId: number; readonly targetTeam: Team; readonly amount: number; readonly crit: boolean; readonly killed: boolean; readonly pos: Vec2; readonly direction: Vec2; readonly skill: SkillDef }
+  | { readonly type: 'damage'; readonly targetId: number; readonly sourceId: number; readonly targetTeam: Team; readonly amount: number; readonly crit: boolean; readonly killed: boolean; readonly pos: Vec2; readonly direction: Vec2; readonly skill: SkillDef; readonly burn: boolean }
+  | { readonly type: 'burn'; readonly targetId: number; readonly skill: SkillDef; readonly pos: Vec2; readonly duration: number }
   | { readonly type: 'guarded'; readonly monsterId: number; readonly broken: boolean; readonly pos: Vec2; readonly direction: Vec2 }
   | { readonly type: 'area'; readonly area: AreaState; readonly stage: AreaStage; readonly hits: number }
   | { readonly type: 'chain'; readonly actorId: number; readonly team: Team; readonly skill: SkillDef; readonly points: readonly Vec2[] }
