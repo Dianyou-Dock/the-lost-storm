@@ -509,6 +509,9 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           case 'scene_ward':
           case 'flask_used':
           case 'revive':
+          case 'boss_held':
+          case 'count_broken':
+          case 'piece_unsealed':
           case 'flasks_refilled':
             break;
         }

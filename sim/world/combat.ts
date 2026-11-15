@@ -21,6 +21,7 @@ import { steadiness } from './poise.ts';
 import { steadied } from './momentum.ts';
 import { flinchTogether } from './unison.ts';
 import { dealtScale } from './weaken.ts';
+import { holdLine, openScale } from './count.ts';
 import type { ActionState, Actor, BrandState, BurnState, GuardOutcome, ItemInstance, MonsterState, Offence, Team, World } from './types.ts';
 
 export const COMBAT = {
@@ -49,9 +50,18 @@ export function offenceOf(actor: Actor): Offence {
   return { sourceId: actor.id, team: 'monster', faction: actor.def.faction, damageMin: actor.damageMin, damageMax: actor.damageMax, damagePercent: 0, critChance: 0, critMultiplier: 1 };
 }
 
+export function collateralScale(offence: Side, target: MonsterState): number {
+  const behaviour = target.def.behaviour;
+  return behaviour.type === 'fixed' && offence.faction !== null ? behaviour.collateral : 1;
+}
+
+function struckBeside(offence: Side, actor: Actor): boolean {
+  return actor.kind === 'monster' && actor.alive && !actor.sealed && actor.id !== offence.sourceId && offence.faction !== null && collateralScale(offence, actor) > 0 && actor.def.behaviour.type === 'fixed';
+}
+
 export function targetsOf(world: World, offence: Side): Actor[] {
   const actors: Actor[] = [world.player, ...world.monsters];
-  return actors.filter((actor: Actor): boolean => !isInvulnerable(actor) && mayStrike(world, offence, actor));
+  return actors.filter((actor: Actor): boolean => !isInvulnerable(actor) && (mayStrike(world, offence, actor) || struckBeside(offence, actor)));
 }
 
 export function setTempo(actor: Actor, scale: number, time: number): void {
@@ -100,6 +110,7 @@ function rollLoot(world: World, monster: MonsterState): void {
 export function kill(world: World, target: Actor, direction: ReadonlyVec2): void {
   target.alive = false;
   target.life = 0;
+  if (target.kind === 'monster' && target.def.boss?.yields === true) target.yielded = true;
   target.action = null;
   target.moving = false;
   target.deadTime = 0;
@@ -173,7 +184,9 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
   const mitigation: number = target.kind === 'player' ? damageTakenScale(target.stats, skill.damage.type, world.content.player.resistance, world.zone.stormTier) : 1;
   const striker: Actor | null = findActor(world, offence.sourceId);
   const weakened: number = striker === null ? 1 : dealtScale(world, striker);
-  const amount: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded * weakened));
+  const exposed: number = target.kind === 'monster' ? openScale(world, target) * collateralScale(offence, target) : 1;
+  const rolled: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded * weakened * exposed));
+  const amount: number = target.kind === 'monster' ? holdLine(world, target, rolled) : rolled;
   target.life -= amount;
   const poise: number = steadiness(target) * (guard === 'blocked' ? COMBAT.guardedKnockback : 1);
   const steady: boolean = steadied(target) || rollsSteady(target);

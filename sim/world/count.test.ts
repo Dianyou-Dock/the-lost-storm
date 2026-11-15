@@ -1,0 +1,210 @@
+import assert from 'node:assert/strict';
+import { test } from 'node:test';
+import { ARENA_CENTRE, ARENA_CONTENT, arena, place } from '../../test/arena-support.ts';
+import { must } from '../../test/support.ts';
+import { aimAt } from '../bot.ts';
+import type { BossDef, BossPhase, Content, MonsterDef, SkillDef } from '../content/types.ts';
+import { distance } from '../math.ts';
+import { stepBosses } from './boss.ts';
+import { applyHit, offenceOf, targetsOf } from './combat.ts';
+import { heldAtLine, holdersOf, lifeFloor } from './count.ts';
+import { removeCorpses } from './monsters.ts';
+import { stepWorld } from './step.ts';
+import type { MonsterState, World, WorldEvent } from './types.ts';
+
+const DT: number = 1 / 30;
+const gate: MonsterDef = must(ARENA_CONTENT.monsters.get('timekeeper_gatekeeper'), 'gatekeeper');
+const thrall: MonsterDef = must(ARENA_CONTENT.monsters.get('mended'), 'mended');
+const slam: SkillDef = must(ARENA_CONTENT.skills.get('test_slam'), 'test_slam');
+
+const SKILLS: readonly SkillDef[] = [
+  { ...slam, id: 'k_cut', cooldown: 0, windup: 0.3, recovery: 0.2, engageRange: 2.5, echo: 0 },
+  { ...slam, id: 'k_ring', cooldown: 0, windup: 0.3, recovery: 0.2, engageRange: 2.5, echo: 0, delivery: { type: 'nova', radius: 5 } },
+];
+
+function phase(below: number, extra: Partial<BossPhase>): BossPhase {
+  return { below, skills: [], barks: [], measure: ['k_cut'], beat: 1, holds: [], unseal: [], anchor: null, ...extra };
+}
+
+const KEEPER: BossDef = {
+  ...must(gate.boss, 'gate boss'),
+  barks: { aggro: [], death: [] },
+  firstKill: null,
+  phases: [phase(1, { measure: ['k_cut', 'k_ring', 'k_cut'], beat: 1.5, holds: ['t_clock'] }), phase(0.5, { holds: ['t_book'], unseal: ['t_book'], anchor: { monster: 't_book', radius: 3 } })],
+  countBreak: { stagger: 2, open: 4, damageTaken: 1.5 },
+  yields: true,
+};
+
+const MONSTERS: readonly MonsterDef[] = [
+  { ...thrall, id: 't_keeper', life: 1000, scalesLife: false, moveSpeed: 4, skill: 'k_cut', boss: KEEPER },
+  { ...thrall, id: 't_clock', life: 200, scalesLife: false, xp: 0, behaviour: { type: 'fixed', sealed: false, collateral: 1 }, poise: { knockback: 0, stagger: 0, resolve: 0 } },
+  { ...thrall, id: 't_book', life: 200, scalesLife: false, xp: 0, behaviour: { type: 'fixed', sealed: true, collateral: 0 }, poise: { knockback: 0, stagger: 0, resolve: 0 } },
+];
+
+const CONTENT: Content = {
+  ...ARENA_CONTENT,
+  skills: new Map<string, SkillDef>([...ARENA_CONTENT.skills, ...SKILLS.map((skill: SkillDef): [string, SkillDef] => [skill.id, skill])]),
+  monsters: new Map<string, MonsterDef>([...ARENA_CONTENT.monsters, ...MONSTERS.map((def: MonsterDef): [string, MonsterDef] => [def.id, def])]),
+};
+
+interface Hall {
+  readonly world: World;
+  readonly keeper: MonsterState;
+  readonly clock: MonsterState;
+  readonly book: MonsterState;
+}
+
+function hall(seed: number): Hall {
+  const world: World = arena(seed, CONTENT);
+  const book: MonsterState = place(world, 't_book', { x: ARENA_CENTRE.x, z: ARENA_CENTRE.z });
+  const clock: MonsterState = place(world, 't_clock', { x: ARENA_CENTRE.x + 7, z: ARENA_CENTRE.z });
+  const keeper: MonsterState = place(world, 't_keeper', { x: ARENA_CENTRE.x, z: ARENA_CENTRE.z + 2 });
+  book.aggro = false;
+  clock.aggro = false;
+  world.player.maxLife = 1e6;
+  world.player.life = 1e6;
+  return { world, keeper, clock, book };
+}
+
+function hit(world: World, target: MonsterState, times: number = 1): WorldEvent[] {
+  const seen: WorldEvent[] = [];
+  for (let index: number = 0; index < times; index += 1) {
+    world.events = [];
+    applyHit(world, { ...offenceOf(world.player), damageMin: 100, damageMax: 100, damagePercent: 0, critChance: 0 }, target, must(CONTENT.skills.get('k_cut'), 'k_cut'), { x: 1, z: 0 });
+    stepBosses(world);
+    seen.push(...world.events, ...stepWorld(world, [], DT));
+  }
+  return seen;
+}
+
+function run(world: World, seconds: number, hold: () => void = (): void => undefined): WorldEvent[] {
+  const seen: WorldEvent[] = [];
+  for (let step: number = 0; step < Math.round(seconds / DT); step += 1) {
+    hold();
+    seen.push(...stepWorld(world, [], DT));
+  }
+  return seen;
+}
+
+function ofType<T extends WorldEvent['type']>(events: readonly WorldEvent[], type: T): Extract<WorldEvent, { readonly type: T }>[] {
+  return events.filter((event: WorldEvent): event is Extract<WorldEvent, { readonly type: T }> => event.type === type);
+}
+
+void test('his life holds just above the line while a holder stands, and he says so once', (): void => {
+  const { world, keeper, clock } = hall(1);
+  const events: WorldEvent[] = hit(world, keeper, 12);
+  assert.equal(keeper.life, lifeFloor(world, keeper));
+  assert.ok(keeper.life > keeper.maxLife * 0.5, 'the line is not crossed');
+  assert.equal(keeper.phase, 0);
+  assert.ok(heldAtLine(world, keeper));
+  assert.deepEqual(holdersOf(world, keeper).map((holder: MonsterState): number => holder.id), [clock.id]);
+  assert.equal(ofType(events, 'boss_held').length, 1);
+  assert.ok(ofType(events, 'damage').some((event): boolean => event.targetId === keeper.id && event.amount === 0), 'a held hit lands for nothing');
+});
+
+void test('breaking the last holder breaks the count: he staggers, opens, and the next hit crosses the line', (): void => {
+  const { world, keeper, clock, book } = hall(2);
+  hit(world, keeper, 12);
+  const broke: WorldEvent[] = hit(world, clock, 3);
+  assert.equal(clock.alive, false);
+  assert.equal(ofType(broke, 'count_broken').length, 1);
+  assert.ok(keeper.stagger > 0, 'he staggers');
+  assert.ok(keeper.openUntil > world.time, 'he is open');
+  assert.equal(book.sealed, true);
+  const before: number = keeper.life;
+  const crossed: WorldEvent[] = hit(world, keeper);
+  assert.equal(before - keeper.life, 150, 'an open hit lands half again as hard');
+  assert.equal(keeper.phase, 1);
+  assert.equal(book.sealed, false, 'the next phase unseals what it names');
+  assert.equal(ofType(crossed, 'piece_unsealed').length, 1);
+});
+
+void test('a holder broken before the line is reached means the line never holds', (): void => {
+  const { world, keeper, clock } = hall(3);
+  hit(world, clock, 3);
+  hit(world, keeper, 6);
+  assert.equal(keeper.phase, 1);
+  assert.ok(keeper.life < keeper.maxLife * 0.5);
+});
+
+void test('a sealed piece cannot be struck until its phase opens it', (): void => {
+  const { world, book } = hall(4);
+  assert.equal(targetsOf(world, offenceOf(world.player)).includes(book), false);
+  book.sealed = false;
+  assert.equal(targetsOf(world, offenceOf(world.player)).includes(book), true);
+});
+
+void test('he plays his measure in order and never starts two steps within a beat', (): void => {
+  const { world, keeper } = hall(5);
+  const starts: { readonly skill: string; readonly time: number }[] = [];
+  for (let step: number = 0; step < Math.round(9 / DT); step += 1) {
+    world.player.pos = { x: keeper.pos.x + 1.5, z: keeper.pos.z };
+    world.player.life = world.player.maxLife;
+    for (const event of stepWorld(world, [], DT)) if (event.type === 'skill_start' && event.actorId === keeper.id) starts.push({ skill: event.skill.id, time: world.time });
+  }
+  assert.ok(starts.length >= 4, `he struck ${starts.length} times`);
+  starts.forEach((start, index: number): void => {
+    assert.equal(start.skill, ['k_cut', 'k_ring', 'k_cut'][index % 3]);
+    const before = starts[index - 1];
+    if (before !== undefined) assert.ok(start.time - before.time >= 1.5 - 1e-6, 'a beat apart');
+  });
+});
+
+void test('his own strike cracks a clock it reaches, though he never chooses it as a foe', (): void => {
+  const { world, keeper, clock } = hall(6);
+  clock.pos = { x: keeper.pos.x + 3, z: keeper.pos.z };
+  const life: number = clock.life;
+  run(world, 4, (): void => {
+    world.player.pos = { x: keeper.pos.x - 1.5, z: keeper.pos.z };
+    world.player.life = world.player.maxLife;
+  });
+  assert.ok(clock.life < life, 'the ring reached the clock');
+  assert.equal(keeper.foeId === clock.id, false);
+});
+
+void test('a fixed piece never moves, never acts and is not pushed', (): void => {
+  const { world, clock } = hall(7);
+  const at = { x: clock.pos.x, z: clock.pos.z };
+  clock.aggro = true;
+  run(world, 3, (): void => {
+    world.player.pos = { x: clock.pos.x + 0.3, z: clock.pos.z };
+  });
+  assert.ok(distance(clock.pos, at) < 1e-6);
+  assert.equal(clock.action, null);
+});
+
+void test('in an anchored phase he never leaves the anchor by more than its radius', (): void => {
+  const { world, keeper, clock, book } = hall(8);
+  hit(world, clock, 3);
+  hit(world, keeper, 6);
+  assert.equal(keeper.phase, 1);
+  let farthest: number = 0;
+  run(world, 6, (): void => {
+    world.player.pos = { x: book.pos.x + 9, z: book.pos.z };
+    world.player.life = world.player.maxLife;
+    farthest = Math.max(farthest, distance(keeper.pos, book.pos));
+  });
+  assert.ok(farthest <= 3 + 0.5, `he strayed ${farthest} m`);
+});
+
+void test('at the end a yielding boss stands down: no corpse is taken, and the defeat says he yielded', (): void => {
+  const { world, keeper, clock, book } = hall(9);
+  hit(world, clock, 3);
+  hit(world, keeper, 6);
+  book.sealed = false;
+  hit(world, book, 3);
+  const events: WorldEvent[] = hit(world, keeper, 12);
+  assert.equal(keeper.alive, false);
+  assert.equal(keeper.yielded, true);
+  assert.equal(ofType(events, 'boss_defeated')[0]?.yielded, true);
+  keeper.deadTime = 1e3;
+  removeCorpses(world);
+  assert.ok(world.monsters.includes(keeper), 'his body stays where he yielded');
+});
+
+void test('the bot strikes what holds a held foe instead of the foe', (): void => {
+  const { world, keeper, clock } = hall(10);
+  assert.equal(aimAt(world, [keeper], [keeper]), keeper);
+  hit(world, keeper, 12);
+  assert.equal(aimAt(world, [keeper], [keeper]), clock);
+});

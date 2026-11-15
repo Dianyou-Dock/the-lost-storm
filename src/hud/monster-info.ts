@@ -75,6 +75,9 @@ function states(world: World, monster: MonsterState): MonsterLine[] {
     case 'ambush':
       texts.push('Waits for you to come close, then springs');
       break;
+    case 'fixed':
+      texts.push(monster.sealed ? 'Sealed' : 'Stands fixed');
+      break;
     case 'chaser':
       break;
   }

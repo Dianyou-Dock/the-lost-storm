@@ -13,6 +13,7 @@ import { choicesOpen } from './world/death.ts';
 import { stepWorld } from './world/step.ts';
 import { fightZones, nearestFight } from './world/moments.ts';
 import { heldIn } from './world/bubble.ts';
+import { heldAtLine, holdersOf } from './world/count.ts';
 import { markRow } from './world/hazards.ts';
 import { playerMayStrike } from './world/factions.ts';
 import type { Command, EchoState, ItemInstance, HazardState, MomentState, MonsterState, NpcState, World, WorldEvent } from './world/types.ts';
@@ -288,11 +289,18 @@ function retreating(bot: Bot, hostile: readonly MonsterState[]): boolean {
   return true;
 }
 
+export function aimAt(world: World, hostile: readonly MonsterState[], wanted: readonly MonsterState[]): MonsterState | null {
+  const foes: MonsterState[] = hostile.filter((monster: MonsterState): boolean => monster.def.behaviour.type !== 'fixed');
+  const first: MonsterState | null = nearest(world, foes.length > 0 ? foes : wanted.length > 0 ? wanted : hostile);
+  if (first === null || !heldAtLine(world, first)) return first;
+  return nearest(world, holdersOf(world, first)) ?? first;
+}
+
 function fightStep(bot: Bot, prefer: string | null): boolean {
   const world: World = bot.world;
   const hostile: MonsterState[] = threats(world, bot.ignored);
   const wanted: MonsterState[] = prefer === null ? [] : world.monsters.filter((monster: MonsterState): boolean => monster.alive && monster.def.id === prefer && (bot.ignored.get(monster.id) ?? 0) <= world.time);
-  const target: MonsterState | null = nearest(world, hostile.length > 0 ? hostile : wanted);
+  const target: MonsterState | null = aimAt(world, hostile, wanted);
   if (target === null) return false;
   if (world.time - bot.fightAt > BOT.step * 2 || bot.focus !== target.id) bot.progressAt = world.time;
   bot.fightAt = world.time;

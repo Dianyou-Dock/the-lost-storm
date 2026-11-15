@@ -480,6 +480,9 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
           case 'explored':
           case 'boss_phase':
           case 'revive':
+          case 'boss_held':
+          case 'count_broken':
+          case 'piece_unsealed':
           case 'flasks_refilled':
             break;
         }

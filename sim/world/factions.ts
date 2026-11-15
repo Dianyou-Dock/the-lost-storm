@@ -30,7 +30,7 @@ function grudge(world: World, sourceId: number, target: Actor): boolean {
 }
 
 export function mayStrike(world: World, side: Side, target: Actor): boolean {
-  if (!target.alive || target.id === side.sourceId || wardStops(world, side, target)) return false;
+  if (!target.alive || target.id === side.sourceId || (target.kind === 'monster' && target.sealed) || wardStops(world, side, target)) return false;
   const from: string = side.faction ?? PLAYER_SIDE;
   const toward: string = sideOf(target);
   if (from === toward) return false;

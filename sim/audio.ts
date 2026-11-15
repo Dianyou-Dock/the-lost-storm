@@ -224,6 +224,9 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
     case 'scene_lead':
     case 'scene_ward':
     case 'revive':
+    case 'boss_held':
+    case 'count_broken':
+    case 'piece_unsealed':
     case 'flasks_refilled':
       break;
   }

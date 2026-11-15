@@ -234,6 +234,12 @@ export interface MonsterState extends ActorState {
   spawnTime: number;
   phase: number;
   nextSkill: SkillDef | null;
+  measureStep: number;
+  beatAt: number;
+  sealed: boolean;
+  openUntil: number;
+  held: boolean;
+  yielded: boolean;
   readonly summonerId: number | null;
   summonTimer: number;
   foeId: number | null;
@@ -578,7 +584,10 @@ export type WorldEvent =
   | { readonly type: 'waypoint_unlocked'; readonly zone: string }
   | { readonly type: 'exit_locked'; readonly exit: string; readonly hint: string }
   | { readonly type: 'boss_phase'; readonly monsterId: number; readonly phase: number }
-  | { readonly type: 'boss_defeated'; readonly monsterId: number; readonly monster: string; readonly first: boolean }
+  | { readonly type: 'boss_defeated'; readonly monsterId: number; readonly monster: string; readonly first: boolean; readonly yielded: boolean }
+  | { readonly type: 'boss_held'; readonly monsterId: number; readonly holders: readonly number[] }
+  | { readonly type: 'count_broken'; readonly monsterId: number; readonly piece: number; readonly pos: Vec2 }
+  | { readonly type: 'piece_unsealed'; readonly monsterId: number }
   | { readonly type: 'bark'; readonly speaker: string; readonly line: LineDef }
   | { readonly type: 'scene_lead'; readonly scene: string; readonly npcId: number }
   | { readonly type: 'scene_ward'; readonly scene: string; readonly npcId: number; readonly wardId: number }

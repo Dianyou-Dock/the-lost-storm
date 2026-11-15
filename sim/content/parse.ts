@@ -8,6 +8,7 @@ import { books } from './parse-story.ts';
 import { storyFlagNames, storyProblems } from './story.ts';
 import { bossPackProblems, conditionProblems, roadProblems } from './road.ts';
 import { parseFlasks } from './flasks.ts';
+import { boss } from './parse-boss.ts';
 import { combatProblems, fieldDelivery, markDelivery, monsterMod, monsterTraits, reviveDelivery, skillMotion } from './parse-combat.ts';
 import { faction, factionProblems } from './parse-factions.ts';
 import { momentLibrary } from './parse-moments.ts';
@@ -25,8 +26,6 @@ import { byId, choice, choiceList, colour, ContentError, each, fields, flag, fra
 import type {
   ActDef,
   AttachmentDef,
-  BossDef,
-  BossFirstKill,
   BossPhase,
   BossSkill,
   ComboStep,
@@ -171,65 +170,13 @@ function skill(value: unknown, where: string): SkillDef {
 
 function behaviour(value: unknown, where: string): MonsterBehaviour {
   const source: Fields = fields(value, where);
-  const type: MonsterBehaviour['type'] = choice(source, 'type', ['chaser', 'ranged', 'stalker', 'swarm', 'ambush'] as const, where);
+  const type: MonsterBehaviour['type'] = choice(source, 'type', ['chaser', 'ranged', 'stalker', 'swarm', 'ambush', 'fixed'] as const, where);
   if (type === 'chaser') return { type };
+  if (type === 'fixed') return { type, sealed: source['sealed'] === undefined ? false : flag(source, 'sealed', where), collateral: source['collateral'] === undefined ? 0 : share(source, 'collateral', where) };
   if (type === 'stalker') return { type, orbitRange: positive(source, 'orbitRange', where) };
   if (type === 'swarm') return { type, ring: positive(source, 'ring', where) };
   if (type === 'ambush') return { type, spring: positive(source, 'spring', where) };
   return { type, preferredRange: numeric(source, 'preferredRange', where), retreatRange: numeric(source, 'retreatRange', where) };
-}
-
-function bossSkill(value: unknown, where: string): BossSkill {
-  const source: Fields = fields(value, where);
-  return { skill: text(source, 'skill', where), weight: positive(source, 'weight', where) };
-}
-
-function bossPhase(value: unknown, where: string): BossPhase {
-  const source: Fields = fields(value, where);
-  const skills: BossSkill[] = each(source['skills'], `${where}.skills`, bossSkill);
-  if (skills.length === 0) throw new ContentError(`${where}.skills`, 'a phase needs at least one skill');
-  return { below: fraction(source, 'below', where), skills, barks: textList(source, 'barks', where) };
-}
-
-function bossDrop(source: Fields, where: string): BossDef['drop'] {
-  const items: number = numeric(source, 'items', where);
-  const goldMin: number = numeric(source, 'goldMin', where);
-  const goldMax: number = numeric(source, 'goldMax', where);
-  if (!Number.isInteger(items) || items < 0) throw new ContentError(`${where}.items`, 'expected a whole number, zero or more');
-  if (goldMin < 0) throw new ContentError(`${where}.goldMin`, 'expected zero or more');
-  if (goldMax < goldMin) throw new ContentError(`${where}.goldMax`, 'expected at least goldMin');
-  return { items, rarity: text(source, 'rarity', where), goldMin, goldMax };
-}
-
-function firstKill(value: unknown, where: string): BossFirstKill | null {
-  if (value === undefined || value === null) return null;
-  const source: Fields = fields(value, where);
-  const goldMin: number = numeric(source, 'goldMin', where);
-  const goldMax: number = numeric(source, 'goldMax', where);
-  if (goldMin < 0) throw new ContentError(`${where}.goldMin`, 'expected zero or more');
-  if (goldMax < goldMin) throw new ContentError(`${where}.goldMax`, 'expected at least goldMin');
-  return { flag: text(source, 'flag', where), xpShare: fraction(source, 'xpShare', where), goldMin, goldMax };
-}
-
-function boss(value: unknown, where: string): BossDef | null {
-  if (value === undefined || value === null) return null;
-  const source: Fields = fields(value, where);
-  const poise: Fields = fields(source['poise'], `${where}.poise`);
-  const drop: Fields = fields(source['drop'], `${where}.drop`);
-  const barks: Fields = fields(source['barks'], `${where}.barks`);
-  const phases: BossPhase[] = each(source['phases'], `${where}.phases`, bossPhase);
-  if (phases[0]?.below !== 1) throw new ContentError(`${where}.phases`, 'the first phase must start at full life (below: 1)');
-  if (phases.some((phase: BossPhase, index: number): boolean => index > 0 && phase.below >= (phases[index - 1]?.below ?? 0))) throw new ContentError(`${where}.phases`, 'each phase must begin at a lower life fraction than the one before');
-  const knockback: number = numeric(poise, 'knockback', `${where}.poise`);
-  if (knockback < 0 || knockback > 1) throw new ContentError(`${where}.poise.knockback`, 'expected a number from 0 to 1');
-  return {
-    title: text(source, 'title', where),
-    phases,
-    poise: { knockback },
-    drop: bossDrop(drop, `${where}.drop`),
-    firstKill: firstKill(source['firstKill'], `${where}.firstKill`),
-    barks: { aggro: textList(barks, 'aggro', `${where}.barks`), death: textList(barks, 'death', `${where}.barks`) },
-  };
 }
 
 function monster(value: unknown, where: string): MonsterDef {
@@ -521,7 +468,7 @@ export function contentProblems(content: Content): string[] {
     need(content.skills.has(def.skill), `monster ${def.id} uses unknown skill ${def.skill}`);
     need(content.rigs.has(def.rig), `monster ${def.id} uses unknown rig ${def.rig}`);
     animates(`monster ${def.id}`, def.rig, def.skill);
-    for (const phase of def.boss?.phases ?? []) for (const entry of phase.skills) animates(`boss ${def.id}`, def.rig, entry.skill);
+    for (const phase of def.boss?.phases ?? []) for (const id of [...phase.skills.map((entry: BossSkill): string => entry.skill), ...phase.measure]) animates(`boss ${def.id}`, def.rig, id);
     for (const held of def.gear) fits(`monster ${def.id}`, def.rig, held);
     wears(`monster ${def.id}`, def.rig, def.wear);
   }
@@ -668,7 +615,10 @@ export function contentProblems(content: Content): string[] {
     if (def.boss === null) continue;
     const at: string = `boss ${def.id}`;
     need(content.rarities.some((entry: RarityDef): boolean => entry.id === def.boss?.drop.rarity), `${at} drops unknown rarity ${def.boss.drop.rarity}`);
-    for (const phase of def.boss.phases) for (const entry of phase.skills) need(content.skills.has(entry.skill), `${at} uses unknown skill ${entry.skill}`);
+    for (const phase of def.boss.phases) {
+      for (const id of [...phase.skills.map((entry: BossSkill): string => entry.skill), ...phase.measure]) need(content.skills.has(id), `${at} uses unknown skill ${id}`);
+      for (const id of [...phase.holds, ...phase.unseal, ...(phase.anchor === null ? [] : [phase.anchor.monster])]) need(content.monsters.has(id) && id !== def.id, `${at} names unknown piece ${id}`);
+    }
     for (const lineId of [...def.boss.barks.aggro, ...def.boss.barks.death, ...def.boss.phases.flatMap((phase: BossPhase): readonly string[] => phase.barks)]) {
       const spoken: LineDef | undefined = content.lines.get(lineId);
       need(spoken !== undefined, `${at} barks unknown line ${lineId}`);

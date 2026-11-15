@@ -80,7 +80,7 @@ void test('a save is urgent for a level, a boss, a quest step, an act, a zone, a
   const at: Vec2 = { x: 0, z: 0 };
   const urgent: readonly WorldEvent[] = [
     { type: 'level_up', level: 2 },
-    { type: 'boss_defeated', monsterId: 1, monster: 'warden', first: true },
+    { type: 'boss_defeated', monsterId: 1, monster: 'warden', first: true, yielded: false },
     { type: 'quest_started', quest: 'out_of_the_mist' },
     { type: 'zone_changed', from: 'hall_of_time', to: 'outpost' },
     { type: 'character_changed' },

@@ -1,5 +1,6 @@
 import type { BossDef, BossFirstKill, BossPhase, BossSkill, LineDef, SkillDef } from '../content/types.ts';
 import { xpToNextLevel } from '../progression.ts';
+import { breakCount, measureSkill, unseal } from './count.ts';
 import { grantXp } from './character.ts';
 import { writeFlags } from './flags.ts';
 import { rollDrop } from './loot.ts';
@@ -21,7 +22,9 @@ export function lifePhase(monster: MonsterState, boss: BossDef): number {
 }
 
 export function pickBossSkill(world: World, monster: MonsterState, boss: BossDef): SkillDef | null {
-  const options: readonly BossSkill[] = boss.phases[lifePhase(monster, boss)]?.skills ?? [];
+  const phase: BossPhase | undefined = boss.phases[lifePhase(monster, boss)];
+  if (phase !== undefined && phase.measure.length > 0) return measureSkill(world, monster, phase);
+  const options: readonly BossSkill[] = phase?.skills ?? [];
   const usable: BossSkill[] = options.filter((option: BossSkill): boolean => world.content.skills.has(option.skill) && (monster.cooldowns[option.skill] ?? 0) <= 0);
   if (usable.length === 0) {
     let soonest: BossSkill | null = null;
@@ -92,9 +95,12 @@ function onHurt(world: World, monsterId: number): void {
   for (let entered: number = monster.phase + 1; entered <= phase; entered += 1) {
     world.events.push({ type: 'boss_phase', monsterId: monster.id, phase: entered });
     bark(world, boss.phases[entered]?.barks ?? []);
+    unseal(world, boss, entered);
   }
   monster.phase = phase;
   monster.nextSkill = null;
+  monster.measureStep = 0;
+  monster.held = false;
 }
 
 function onDeath(world: World, monsterId: number): void {
@@ -103,7 +109,7 @@ function onDeath(world: World, monsterId: number): void {
   if (monster === null || boss === null) return;
   reward(world, monster, boss);
   const first: BossFirstKill | null = firstVictory(world, boss);
-  world.events.push({ type: 'boss_defeated', monsterId: monster.id, monster: monster.def.id, first: first !== null });
+  world.events.push({ type: 'boss_defeated', monsterId: monster.id, monster: monster.def.id, first: first !== null, yielded: monster.yielded });
   if (first !== null) rewardFirst(world, monster, first);
   bark(world, boss.barks.death);
 }
@@ -113,6 +119,10 @@ export function stepBosses(world: World): void {
   for (const event of events) {
     if (event.type === 'aggro') onAggro(world, event.monsterId);
     else if (event.type === 'damage' && event.targetTeam === 'monster') onHurt(world, event.targetId);
-    else if (event.type === 'death' && event.team === 'monster') onDeath(world, event.actorId);
+    else if (event.type === 'death' && event.team === 'monster') {
+      const fallen: MonsterState | undefined = world.monsters.find((candidate: MonsterState): boolean => candidate.id === event.actorId);
+      if (fallen !== undefined) breakCount(world, fallen);
+      onDeath(world, event.actorId);
+    }
   }
 }

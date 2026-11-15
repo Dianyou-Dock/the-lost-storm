@@ -8,6 +8,7 @@ import type { NavGrid } from '../nav/grid.ts';
 import { findPath } from '../nav/path.ts';
 import { lifePhase, pickBossSkill } from './boss.ts';
 import { aggroPack } from './combat.ts';
+import { anchoredGoal, onBeat, stepMeasure } from './count.ts';
 import { allHold } from './conditions.ts';
 import type { Steering, SteerStep } from './movement.ts';
 import { beingKnocked, faceToward, steerAlong, steerToward, stepKnock, stepTimers } from './movement.ts';
@@ -24,6 +25,7 @@ import { heldInUnison, lookTogether } from './unison.ts';
 import type { Actor, MomentState, MonsterStance, MonsterState, World, WorldEvent } from './types.ts';
 
 const MONSTERS = {
+  anchorRest: 0.4,
   mendAfter: 4,
   repathInterval: 0.45,
   repathDrift: 1,
@@ -101,9 +103,10 @@ function approach(world: World, monster: MonsterState, target: Vec2, dt: number)
 }
 
 function attack(world: World, monster: MonsterState, skill: SkillDef, foe: Actor): boolean {
-  if (blockedReason(monster, skill) !== null || attacksHeld(world)) return false;
+  if (blockedReason(monster, skill) !== null || attacksHeld(world) || !onBeat(world, monster)) return false;
   startSkill(world, monster, skill, { x: foe.pos.x - monster.pos.x, z: foe.pos.z - monster.pos.z });
   monster.nextSkill = null;
+  stepMeasure(world, monster);
   return true;
 }
 
@@ -126,7 +129,9 @@ function chase(world: World, monster: MonsterState, skill: SkillDef, foe: Actor,
     return;
   }
   monster.stance = 'approach';
-  approach(world, monster, foe.pos, dt);
+  const goal: Vec2 = anchoredGoal(world, monster, foe.pos);
+  if (distance(goal, monster.pos) <= MONSTERS.anchorRest) face(monster, foe.pos, dt);
+  else approach(world, monster, goal, dt);
 }
 
 function rangeStance(monster: MonsterState, behaviour: RangedBehaviour, gap: number, sight: boolean, roomBehind: boolean, reach: number): MonsterStance {
@@ -413,6 +418,7 @@ export function stepMonster(world: World, monster: MonsterState, dt: number): vo
     monster.spawnTime = Math.max(0, monster.spawnTime - dt);
     return;
   }
+  if (monster.def.behaviour.type === 'fixed') return;
   if (heldInUnison(world, monster)) {
     if (!monster.aggro && !monster.returning) wake(world, monster);
     return;
@@ -483,7 +489,7 @@ export function stepMonster(world: World, monster: MonsterState, dt: number): vo
 export function removeCorpses(world: World): void {
   const kept: MonsterState[] = [];
   for (const monster of world.monsters) {
-    if (!monster.alive && monster.deadTime > MONSTERS.corpseTime) world.events.push({ type: 'monster_remove', monsterId: monster.id });
+    if (!monster.alive && !monster.yielded && monster.deadTime > MONSTERS.corpseTime) world.events.push({ type: 'monster_remove', monsterId: monster.id });
     else kept.push(monster);
   }
   world.monsters = kept;
