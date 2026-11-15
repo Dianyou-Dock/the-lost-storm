@@ -404,6 +404,7 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
   return {
     dress,
     render(renderer: WebGLRenderer, dt: number, tier: QualityName, devicePixelRatio: number): void {
+      if (document.hidden) return;
       lights.step(dt);
       mists.forEach((mist: Mesh<PlaneGeometry, MeshBasicMaterial>, index: number): void => {
         mist.position.x += LOBBY_STAGE.mistDrift * dt * (index % 2 === 0 ? 1 : -1) * (1 + index * 0.12);
