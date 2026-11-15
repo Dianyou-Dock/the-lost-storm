@@ -1,12 +1,23 @@
+import { VOID_NOISE } from './void-noise.ts';
+
 export const MIST_SKIP = {
   shown: 0.999,
   body: 2,
 } as const;
 
 const NOISE: string = `
+#ifdef VOID_NOISE_SIZE
+uniform sampler2D uNoise;
+float voidNoise(vec2 p) {
+  vec2 i = floor(p);
+  vec2 f = p - i;
+  vec2 u = f * f * (3.0 - 2.0 * f);
+  return texture2D(uNoise, (mod(i, VOID_NOISE_SIZE) + 0.5 + u) / VOID_NOISE_SIZE).r;
+}
+#else
 float voidHash(vec2 p) {
-  p = fract(p * vec2(123.34, 456.21));
-  p += dot(p, p + 45.32);
+  p = fract(p * vec2(${VOID_NOISE.stretch[0]}, ${VOID_NOISE.stretch[1]}));
+  p += dot(p, p + ${VOID_NOISE.fold});
   return fract(p.x * p.y);
 }
 
@@ -20,6 +31,7 @@ float voidNoise(vec2 p) {
   float d = voidHash(i + vec2(1.0, 1.0));
   return mix(mix(a, b, u.x), mix(c, d, u.x), u.y);
 }
+#endif
 
 float voidFbm(vec2 p) {
   float total = 0.0;
