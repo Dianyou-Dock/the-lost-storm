@@ -19,6 +19,10 @@ export function profileFor(checkout: string): string {
   return `${PROFILE.base}-${createHash('sha256').update(checkout).digest('hex').slice(0, PROFILE.hashLength)}`;
 }
 
+export const SLOW_WAIT = {
+  slowedFactor: 3,
+} as const;
+
 export interface WalkHold {
   readonly pattern: string;
   readonly ms: number;
@@ -100,6 +104,12 @@ export function slowLine(slow: WalkSlow): string | null {
     ...slow.fails.map((fail: WalkFail): string => `fail ${fail.pattern} ${Number.isFinite(fail.times) ? `${fail.times} times` : 'always'}`),
   ];
   return parts.length === 0 ? null : `slowed: ${parts.join(', ')}`;
+}
+
+export function patienceFor(slow: WalkSlow, baseMs: number): number {
+  if (slowLine(slow) === null) return baseMs;
+  const held: number = slow.holds.reduce((sum: number, hold: WalkHold): number => sum + hold.ms, 0);
+  return baseMs * slow.cpuRate * SLOW_WAIT.slowedFactor + held;
 }
 
 export interface WalkLook {

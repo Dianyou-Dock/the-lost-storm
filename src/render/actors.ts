@@ -11,7 +11,7 @@ import { heroBase, lookOf, wearKey, wornWearables } from '../../sim/wear.ts';
 import { wakeStage } from '../../sim/world/wake.ts';
 import { wakePose } from './wake-pose.ts';
 import type { ActorState, Equipment, MomentState, MonsterState, NpcState, World, WorldEvent } from '../../sim/world/types.ts';
-import type { ActorPose, ActorView } from './actor-view.ts';
+import type { ActorPose, ActorView, SyncOptions } from './actor-view.ts';
 import { ACTOR, createActorView } from './actor-view.ts';
 import type { CharacterLibrary, LoadedRig, RigInstance } from './character-loader.ts';
 import { hasWear, instantiateRig } from './character-loader.ts';
@@ -31,6 +31,8 @@ import { bodyArrived, chooseBody } from './body-choice.ts';
 import type { ShadeMotion } from './shadow-shade.ts';
 import { shadowOf, stepShade } from './shadow-shade.ts';
 import type { VfxShadow } from '../../sim/content/vfx-types.ts';
+import type { BodySwap, SwapMix } from './body-swap.ts';
+import { startSwap, stepSwap } from './body-swap.ts';
 
 export const ACTORS = {
   monsterFlash: 1,
@@ -63,6 +65,7 @@ interface MonsterEntry {
   readonly partial: boolean;
   readonly standIn: boolean;
   checked: boolean;
+  swap: BodySwap<ActorView> | null;
 }
 
 interface LeavingEcho {
@@ -113,6 +116,12 @@ function npcPose(npc: NpcState): ActorPose {
 function dress(content: Content, rigId: string, rig: RigInstance, clothes: readonly string[], equipped: Equipment | null): void {
   const look: Look = lookOf(content, rigId, clothes, equipped);
   rig.setWear(look.wearables, look.hidden);
+}
+
+function showBody(view: ActorView, echo: EchoLook | null, amount: number): void {
+  view.rig.setFade(amount);
+  view.rig.setOpacity(ACTORS.echoOpacity * amount);
+  view.setShadowOpacity(echo === null ? amount : ACTORS.echoOpacity * amount);
 }
 
 function fadeEcho(view: ActorView, ghost: GhostUniforms, fade: number): void {
@@ -224,6 +233,11 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   };
 
   const retire = (entry: MonsterEntry): void => {
+    if (entry.swap !== null) {
+      entry.swap.old.dispose();
+      entry.swap = null;
+      showBody(entry.view, entry.echo, 1);
+    }
     if (entry.echo === null && !entry.partial && !entry.standIn) keep(entry.def, entry.view);
     else entry.view.dispose();
   };
@@ -251,23 +265,23 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
     const view: ActorView | null = standIn ? makeMonsterView(monster.def, monster.facing, echo, true, choice.rig) : monsterView(monster.def, monster.facing, echo, partial);
     if (view === null) return null;
     scene.add(view.rig.root);
-    const entry: MonsterEntry = { def: monster.def, view, spawnTime: Math.max(monster.spawnTime, 1e-3), echo, partial, standIn, checked: false };
+    const entry: MonsterEntry = { def: monster.def, view, spawnTime: Math.max(monster.spawnTime, 1e-3), echo, partial, standIn, checked: false, swap: null };
     monsters.set(monster.id, entry);
     if (!monster.alive) view.die();
     return entry;
   };
 
   const rebuilt = (monster: MonsterState, entry: MonsterEntry): MonsterEntry => {
-    if (!entry.standIn && !entry.partial) return entry;
+    if ((!entry.standIn && !entry.partial) || entry.swap !== null) return entry;
     const own: LoadedRig | undefined = library.rigs.get(monster.def.rig);
     if (own === undefined || !monster.alive) return entry;
     const missing: string[] = unloaded(monster.def, own.def.frame);
     if (!bodyArrived(entry, true, missing)) return entry;
     const view: ActorView | null = makeMonsterView(monster.def, monster.facing, entry.echo, missing.length > 0, own);
     if (view === null) return entry;
-    entry.view.dispose();
+    showBody(view, entry.echo, 0);
     scene.add(view.rig.root);
-    const next: MonsterEntry = { ...entry, view, partial: missing.length > 0, standIn: false, checked: false };
+    const next: MonsterEntry = { ...entry, view, partial: missing.length > 0, standIn: false, checked: false, swap: startSwap(entry.view) };
     monsters.set(monster.id, next);
     return next;
   };
@@ -351,7 +365,20 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
         entry.view.setHover(monster.id === hoveredId);
         draw(entry.view, monster.pos.x, monster.pos.z);
         if (monster.alive) guard.keep(monster.id, entry.view.rig.root, scene, monster.def.id);
-        entry.view.sync(dt, poseOf(monster, unisonOf(current, monster) === null ? null : current.time), { rise: entry.echo === null ? turning : 1, floor: floorAt(monster.pos.x, monster.pos.z), turnRate: ACTOR.turnRate, seen: seen(entry.view, monster.pos.x, monster.pos.z) });
+        const pose: ActorPose = poseOf(monster, unisonOf(current, monster) === null ? null : current.time);
+        const placed: SyncOptions = { rise: entry.echo === null ? turning : 1, floor: floorAt(monster.pos.x, monster.pos.z), turnRate: ACTOR.turnRate, seen: seen(entry.view, monster.pos.x, monster.pos.z) };
+        entry.view.sync(dt, pose, placed);
+        if (entry.swap !== null) {
+          const mix: SwapMix = stepSwap(entry.swap, dt);
+          const shown: number = 1 - (entry.echo === null ? 0 : echoFade(current, monster.id));
+          showBody(entry.view, entry.echo, mix.incoming * shown);
+          showBody(entry.swap.old, entry.echo, mix.outgoing * shown);
+          entry.swap.old.sync(dt, pose, placed);
+          if (mix.done) {
+            entry.swap.old.dispose();
+            entry.swap = null;
+          }
+        }
         if (!entry.checked && monster.alive && (entry.echo === null || echoFade(current, monster.id) === 0)) {
           entry.checked = true;
           if (!guard.inspect(monster.id, entry.view.rig.root, monster.def.id)) {
@@ -365,8 +392,9 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
         if (echo === undefined) continue;
         echo.age += dt;
         fadeEcho(echo.entry.view, echo.ghost, Math.min(1, echo.age / ACTORS.leaveTime));
+        if (echo.entry.swap !== null) fadeEcho(echo.entry.swap.old, echo.ghost, Math.min(1, echo.age / ACTORS.leaveTime));
         if (echo.age < ACTORS.leaveTime) continue;
-        echo.entry.view.dispose();
+        retire(echo.entry);
         leaving.splice(index, 1);
       }
       const sameZone: boolean = npcZone === current.zone;
@@ -426,6 +454,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           }
           case 'death':
             viewOf(event.actorId)?.die();
+            monsters.get(event.actorId)?.swap?.old.die();
             break;
           case 'unison_look':
             for (const id of event.monsterIds) viewOf(id)?.glance(event.turn);
@@ -459,7 +488,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
             waiting.clear();
             for (const entry of monsters.values()) retire(entry);
             monsters.clear();
-            for (const echo of leaving.splice(0, leaving.length)) echo.entry.view.dispose();
+            for (const echo of leaving.splice(0, leaving.length)) retire(echo.entry);
             break;
           case 'skill_impact':
           case 'hazard':

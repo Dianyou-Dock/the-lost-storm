@@ -22,6 +22,7 @@ import { fitClip } from './clip-fit.ts';
 import { dressPiece } from './dress-piece.ts';
 import type { KeepLoadingDeps, NamedLoad } from './keep-loading.ts';
 import { loadAllKeepTrying } from './keep-loading.ts';
+import { fadeMaterials } from './body-swap.ts';
 import { seeThrough, shadeHeld, SHADOW_BODY, SHADOW_LIGHT, SHADOW_UNIFORMS, shadowRim } from './shadow-shade.ts';
 
 export interface ActionClip {
@@ -678,7 +679,7 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
       if (look.ghost !== null) return;
       faded = amount;
       seeThrough([...materials, ...wornMaterials(), ...heldMaterials()], faded < 1 || glow.shadeMix.value > 0);
-      for (const material of [...materials, ...wornMaterials(), ...heldMaterials()]) material.opacity = Math.min(1, Math.max(0, amount));
+      fadeMaterials([...materials, ...wornMaterials(), ...heldMaterials()], amount);
     },
     setShade(color: Color, amount: number): void {
       if (look.ghost !== null) return;

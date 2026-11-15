@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { PROFILE, profileFor, readWalk, slowLine, UNSLOWED, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
+import { patienceFor, PROFILE, profileFor, readWalk, SLOW_WAIT, slowLine, UNSLOWED, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
 
 void test('the walk takes a build address, a Chrome and a port, and falls back to a local dev server and the usual Chrome', (): void => {
   assert.deepEqual(walkArgs([], {}), { url: null, chrome: WALK_DEFAULTS.chrome, port: WALK_DEFAULTS.port, hero: WALK_DEFAULTS.hero, slow: UNSLOWED });
@@ -52,4 +52,11 @@ void test('each checkout walks with its own fixed Chrome profile, so two walks n
   assert.equal(profileFor('/work/the-lost-storm/'), here);
   assert.notEqual(profileFor('/work/the-lost-storm/.claude/worktrees/other/'), here);
   assert.match(here, new RegExp(`^${PROFILE.base}-[0-9a-f]{${PROFILE.hashLength}}$`));
+});
+
+void test('a slowed walk waits longer for the world: the slowed factor times the CPU rate, plus every held file', (): void => {
+  assert.equal(patienceFor(UNSLOWED, 30000), 30000);
+  assert.equal(patienceFor(walkArgs(['--hold', 'Throw.glb=40000'], {}).slow, 30000), 30000 * SLOW_WAIT.slowedFactor + 40000);
+  assert.equal(patienceFor(walkArgs(['--cpu', '4', '--hold', 'a.glb=1000', '--hold', 'b.glb=2000'], {}).slow, 30000), 30000 * 4 * SLOW_WAIT.slowedFactor + 3000);
+  assert.ok(patienceFor(walkArgs(['--kbps', '800'], {}).slow, 30000) > 30000);
 });

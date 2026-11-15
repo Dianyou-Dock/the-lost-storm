@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { fields, items, text } from '../sim/content/read.ts';
 import type { Fields } from '../sim/content/read.ts';
 import type { WalkArgs, WalkFail, WalkHold, WalkSlow, WalkSummary } from './walk-report.ts';
-import { profileFor, readWalk, slowLine, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
+import { patienceFor, profileFor, readWalk, slowLine, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
 
 const WALK = {
   serverWaitMs: 60000,
@@ -47,8 +47,10 @@ async function until<T>(what: string, ms: number, attempt: () => Promise<T | nul
 }
 
 async function startServer(port: number): Promise<{ readonly url: string; readonly process: ChildProcess }> {
-  const server: ChildProcess = spawn('npx', ['vite', '--port', String(port), '--strictPort'], { stdio: 'ignore', detached: false });
   const url: string = `http://localhost:${port}`;
+  const taken: boolean = await fetch(`${url}/play/`).then((): boolean => true, (): boolean => false);
+  if (taken) throw new Error(`Port ${port} is already served by another process, which may be another checkout; pass a free --port`);
+  const server: ChildProcess = spawn('npx', ['vite', '--port', String(port), '--strictPort'], { stdio: 'ignore', detached: false });
   await until('the dev server', WALK.serverWaitMs, async (): Promise<boolean | null> => ((await fetch(`${url}/play/`)).ok ? true : null));
   return { url, process: server };
 }
@@ -227,8 +229,8 @@ async function main(): Promise<number> {
     cdp = await connect(await pageSocket(chrome.profile));
     await listenForWarnings(cdp, warnings);
     await slowDown(cdp, args.slow);
-    await enterPlay(cdp, args.url ?? server?.url ?? '', args.hero, WALK.stepWaitMs * args.slow.cpuRate);
-    const summary: WalkSummary = readWalk(await evaluate(cdp, 'window.storm === undefined ? Promise.reject(new Error("no window.storm: walk a dev build")) : window.storm.walk()', WALK.walkWaitMs * args.slow.cpuRate));
+    await enterPlay(cdp, args.url ?? server?.url ?? '', args.hero, patienceFor(args.slow, WALK.stepWaitMs));
+    const summary: WalkSummary = readWalk(await evaluate(cdp, 'window.storm === undefined ? Promise.reject(new Error("no window.storm: walk a dev build")) : window.storm.walk()', patienceFor(args.slow, WALK.walkWaitMs)));
     for (const line of walkLines(summary)) console.log(line);
     return summary.ok ? 0 : 1;
   } finally {
