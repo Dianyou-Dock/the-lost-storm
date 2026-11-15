@@ -423,3 +423,19 @@ void test('Spell Strike lands on the enemy ahead the moment its windup ends, wit
   assert.ok(Math.abs(must(marks.struck, 'struck') - strike.windup) < step * 2);
   assert.equal(world.projectiles.length, 0);
 });
+
+void test('an echo with a turn repeats the skill turned by that many degrees from the first strike', (): void => {
+  const world: World = arena(7);
+  const turner: MonsterState = place(world, 'test_turner', { x: ARENA_CENTRE.x + 2, z: ARENA_CENTRE.z });
+  const seen: WorldEvent[] = [];
+  for (let step: number = 0; step < 90; step += 1) {
+    world.player.pos = { ...ARENA_CENTRE };
+    world.player.life = world.player.maxLife;
+    seen.push(...stepWorld(world, [], 1 / 30));
+  }
+  const impacts = seen.filter((event: WorldEvent): event is Extract<WorldEvent, { readonly type: 'skill_impact' }> => event.type === 'skill_impact' && event.actorId === turner.id);
+  const first = must(impacts.find((event): boolean => !event.echo), 'first strike');
+  const echo = must(impacts.find((event): boolean => event.echo), 'echo');
+  const turned: number = Math.atan2(first.direction.x * echo.direction.z - first.direction.z * echo.direction.x, first.direction.x * echo.direction.x + first.direction.z * echo.direction.z);
+  assert.ok(Math.abs(Math.abs(turned) - Math.PI / 2) < 1e-6, `the echo is turned a quarter, not ${turned}`);
+});

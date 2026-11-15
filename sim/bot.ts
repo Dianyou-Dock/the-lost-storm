@@ -13,6 +13,7 @@ import { choicesOpen } from './world/death.ts';
 import { stepWorld } from './world/step.ts';
 import { fightZones, nearestFight } from './world/moments.ts';
 import { heldIn } from './world/bubble.ts';
+import { markRow } from './world/hazards.ts';
 import { playerMayStrike } from './world/factions.ts';
 import type { Command, EchoState, ItemInstance, HazardState, MomentState, MonsterState, NpcState, World, WorldEvent } from './world/types.ts';
 
@@ -196,6 +197,7 @@ function struck(world: World, skill: SkillDef, origin: ReadonlyVec2, direction: 
       return gap <= delivery.reach + reach && (gap <= reach || dot(normalize(offset, direction), direction) >= spread);
     }
     case 'mark':
+      return markRow(target ?? origin, direction, delivery.count, delivery.spacing).some((mark: Vec2): boolean => Math.hypot(pos.x - mark.x, pos.z - mark.z) <= delivery.radius + reach);
     case 'field': {
       const mark: ReadonlyVec2 = target ?? origin;
       return Math.hypot(pos.x - mark.x, pos.z - mark.z) <= delivery.radius + reach;

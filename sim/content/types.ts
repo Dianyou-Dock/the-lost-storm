@@ -155,6 +155,7 @@ export interface SkillDef extends SkillShape {
   readonly combo: SkillCombo | null;
   readonly hold: number;
   readonly echo: number;
+  readonly echoTurn: number;
   readonly lifeOnHit: number;
 }
 

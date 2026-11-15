@@ -13,7 +13,7 @@ import { firePowers } from '../powers.ts';
 import { effectiveAttackSpeed } from '../stats.ts';
 import { skillAllowed } from '../weapons.ts';
 import { placeArea, timeScaleAt } from './areas.ts';
-import { placeHazard } from './hazards.ts';
+import { placeHazard, placeMarks } from './hazards.ts';
 import { raiseFallen } from './revive.ts';
 import { feedMomentum, glidesWith, momentumOf, momentumStep } from './momentum.ts';
 import type { MomentumStep } from './momentum.ts';
@@ -254,6 +254,8 @@ function strike(world: World, impact: Impact): number {
     case 'dash':
       return 0;
     case 'mark':
+      placeMarks(world, offence, skill, impact.target ?? origin, direction);
+      return 0;
     case 'field':
       placeHazard(world, offence, skill, impact.target ?? origin);
       return 0;
@@ -277,7 +279,8 @@ function resolve(world: World, impact: Impact, team: Team): number {
   const { offence, skill, origin, direction, target } = impact;
   world.events.push({ type: 'skill_impact', actorId: offence.sourceId, team, skill, origin: { x: origin.x, z: origin.z }, direction: { x: direction.x, z: direction.z }, hits, echo: impact.echo });
   if (impact.echo || skill.echo <= 0) return hits;
-  world.echoes.push({ ownerId: offence.sourceId, ...offence, skill, origin: { x: origin.x, z: origin.z }, direction: { x: direction.x, z: direction.z }, target: target === null ? null : { x: target.x, z: target.z }, timeLeft: skill.echo });
+  const turned: Vec2 = skill.echoTurn === 0 ? { x: direction.x, z: direction.z } : rotate(direction, skill.echoTurn * DEGREES_TO_RADIANS);
+  world.echoes.push({ ownerId: offence.sourceId, ...offence, skill, origin: { x: origin.x, z: origin.z }, direction: turned, target: target === null ? null : { x: target.x, z: target.z }, timeLeft: skill.echo });
   return hits;
 }
 

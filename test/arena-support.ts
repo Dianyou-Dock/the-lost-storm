@@ -22,15 +22,20 @@ const thrall: MonsterDef = must(shipped.monsters.get('mended'), 'mended');
 const SKILLS: readonly SkillDef[] = [
   { ...claw, id: 'test_grab', windup: 0.6, root: 1.2, knockback: 0 },
   { ...claw, id: 'test_pounce', cooldown: 2, windup: 0.8, engageRange: 8, delivery: { type: 'nova', radius: 1.4 }, leap: { distance: 9, stopShort: 0.8, airTime: 0.35, lane: false } },
-  { ...bolt, id: 'test_mark', cooldown: 3, windup: 0.4, engageRange: 11, delivery: { type: 'mark', range: 12, radius: 2.2, delay: 1.2 } },
-  { ...bolt, id: 'test_burst', delivery: { type: 'mark', range: 0, radius: 3, delay: 0.8 } },
+  { ...bolt, id: 'test_mark', cooldown: 3, windup: 0.4, engageRange: 11, delivery: { type: 'mark', range: 12, radius: 2.2, delay: 1.2, count: 1, spacing: 0, step: 0 } },
+  { ...bolt, id: 'test_burst', delivery: { type: 'mark', range: 0, radius: 3, delay: 0.8, count: 1, spacing: 0, step: 0 } },
   { ...claw, id: 'test_slam', cooldown: 2.5, windup: 1.2, recovery: 0.9, engageRange: 2, delivery: { type: 'arc', reach: 3, arcDegrees: 90 } },
   { ...claw, id: 'test_heavy', stagger: 0.6 },
+  { ...bolt, id: 'test_row', cooldown: 3, windup: 0.4, engageRange: 11, delivery: { type: 'mark', range: 12, radius: 0.8, delay: 1, count: 5, spacing: 1.6, step: 0.12 } },
+  { ...claw, id: 'test_turned', cooldown: 4, windup: 0.5, engageRange: 3, delivery: { type: 'arc', reach: 3, arcDegrees: 40 }, echo: 0.6, echoTurn: 90 },
 ];
 
 const MONSTERS: readonly MonsterDef[] = [
   { ...thrall, id: 'test_shambler', skill: 'test_grab', moveSpeed: 2.6, poise: { knockback: 0.4, stagger: 0.5, resolve: 0 } },
   { ...thrall, id: 'test_ghoul', skill: 'test_pounce', moveSpeed: 7, behaviour: { type: 'stalker', orbitRange: 5 } },
+  { ...thrall, id: 'test_counter', skill: 'test_row', behaviour: { type: 'ranged', preferredRange: 9, retreatRange: 4.5 } },
+  { ...thrall, id: 'test_turner', skill: 'test_turned' },
+  { ...thrall, id: 'test_rower', deathSkill: 'test_row' },
   { ...thrall, id: 'test_caller', skill: 'test_mark', behaviour: { type: 'ranged', preferredRange: 9, retreatRange: 4.5 } },
   { ...thrall, id: 'test_breeder', summon: { monster: null, count: 1, cooldown: 1, limit: 2 } },
   { ...thrall, id: 'test_brute', skill: 'test_slam', life: 400, guard: { arcDegrees: 140, damageTaken: 0.2, breakStagger: 0.45, breakTime: 1.4 } },

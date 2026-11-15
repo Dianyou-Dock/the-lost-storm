@@ -1,5 +1,6 @@
 import type { SkillDef } from '../content/types.ts';
 import type { ReadonlyVec2, Vec2 } from '../math.ts';
+import { directionOf, normalize } from '../math.ts';
 import type { Offence } from './combat.ts';
 import { applyHit, offenceOf, setTempo, targetsOf } from './combat.ts';
 import { timeScaleAt } from './areas.ts';
@@ -10,10 +11,10 @@ export const HAZARDS = {
   fieldGrip: 0.2,
 } as const;
 
-export function placeHazard(world: World, offence: Offence, skill: SkillDef, at: ReadonlyVec2): HazardState | null {
+export function placeHazard(world: World, offence: Offence, skill: SkillDef, at: ReadonlyVec2, later: number = 0): HazardState | null {
   const delivery = skill.delivery;
   if (delivery.type !== 'mark' && delivery.type !== 'field') return null;
-  const delay: number = delivery.type === 'mark' ? delivery.delay : delivery.duration;
+  const delay: number = (delivery.type === 'mark' ? delivery.delay : delivery.duration) + later;
   const hazard: HazardState = {
     id: world.nextId,
     ownerId: offence.sourceId,
@@ -35,6 +36,26 @@ export function placeHazard(world: World, offence: Offence, skill: SkillDef, at:
   world.hazards.push(hazard);
   world.events.push({ type: 'hazard', hazard, burst: false, hits: 0 });
   return hazard;
+}
+
+export function markRow(at: ReadonlyVec2, direction: ReadonlyVec2, count: number, spacing: number): Vec2[] {
+  const along: Vec2 = normalize(direction, { x: 0, z: 1 });
+  const spots: Vec2[] = [];
+  for (let index: number = 0; index < count; index += 1) {
+    const offset: number = (index - (count - 1) / 2) * spacing;
+    spots.push({ x: at.x + along.x * offset, z: at.z + along.z * offset });
+  }
+  return spots;
+}
+
+export function placeMarks(world: World, offence: Offence, skill: SkillDef, at: ReadonlyVec2, direction: ReadonlyVec2): number {
+  const delivery = skill.delivery;
+  if (delivery.type !== 'mark') return placeHazard(world, offence, skill, at) === null ? 0 : 1;
+  const spots: Vec2[] = markRow(at, direction, delivery.count, delivery.spacing);
+  spots.forEach((spot: Vec2, index: number): void => {
+    placeHazard(world, offence, skill, spot, index * delivery.step);
+  });
+  return spots.length;
 }
 
 function inside(world: World, hazard: HazardState): Actor[] {
@@ -68,7 +89,7 @@ function deathBursts(world: World, events: readonly WorldEvent[]): void {
     const monster: MonsterState | undefined = world.monsters.find((candidate: MonsterState): boolean => candidate.id === event.actorId);
     const skillId: string | null = monster?.def.deathSkill ?? null;
     const skill: SkillDef | undefined = skillId === null ? undefined : world.content.skills.get(skillId);
-    if (monster !== undefined && skill !== undefined) placeHazard(world, offenceOf(monster), skill, monster.pos);
+    if (monster !== undefined && skill !== undefined) placeMarks(world, offenceOf(monster), skill, monster.pos, directionOf(monster.facing));
   }
 }
 

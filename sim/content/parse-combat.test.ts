@@ -3,12 +3,12 @@ import { test } from 'node:test';
 import { ARENA_CONTENT } from '../../test/arena-support.ts';
 import { must } from '../../test/support.ts';
 import type { MonsterModDef } from './combat-types.ts';
-import { combatProblems, monsterMod, monsterTraits, packMods, skillMotion } from './parse-combat.ts';
+import { combatProblems, markDelivery, monsterMod, monsterTraits, packMods, skillMotion } from './parse-combat.ts';
 import type { Content, MonsterDef, SkillDef, ZoneDef } from './types.ts';
 
 void test('a monster without combat traits is steady, unguarded and plain', (): void => {
   assert.deepEqual(monsterTraits({ faction: 'f' }, 'm'), { poise: { knockback: 1, stagger: 1, resolve: 0 }, guard: null, deathSkill: null, summon: null, mods: [], faction: 'f', dormant: null, alarm: null, support: null, barks: [], regen: 0, rank: null });
-  assert.deepEqual(skillMotion({}, 's'), { leap: null, root: 0, hold: 0, echo: 0, lifeOnHit: 0, commit: null });
+  assert.deepEqual(skillMotion({}, 's'), { leap: null, root: 0, hold: 0, echo: 0, echoTurn: 0, lifeOnHit: 0, commit: null });
   assert.deepEqual(packMods({}, 'p'), []);
 });
 
@@ -56,4 +56,12 @@ void test('combat problems name bad bursts, bad summons, unknown pack mods, misp
   for (const expected of ['bursts with skill mender_needle', 'summons stormcaller_rival', 'circles at 30', 'springs from 30', 'unknown mod nope', 'more than one mod with a death burst', 'more than one mod that summons', 'bad_leap leaps', 'bad_leap is in the air', 'boss bad_boss cannot have a guard']) {
     assert.ok(problems.some((problem: string): boolean => problem.includes(expected)), `${expected} in ${problems.join('; ')}`);
   }
+});
+
+void test('a mark is one by default and a row needs a whole count and a spacing', (): void => {
+  assert.deepEqual(markDelivery({ range: 9, radius: 2, delay: 1 }, 'm'), { type: 'mark', range: 9, radius: 2, delay: 1, count: 1, spacing: 0, step: 0 });
+  assert.deepEqual(markDelivery({ range: 9, radius: 1, delay: 1, count: 5, spacing: 1.6, step: 0.1 }, 'm'), { type: 'mark', range: 9, radius: 1, delay: 1, count: 5, spacing: 1.6, step: 0.1 });
+  assert.throws(() => markDelivery({ range: 9, radius: 1, delay: 1, count: 2.5, spacing: 1 }, 'm'), /whole number/);
+  assert.throws(() => markDelivery({ range: 9, radius: 1, delay: 1, count: 3 }, 'm'), /spacing/);
+  assert.equal(skillMotion({ echo: 0.9, echoTurn: 45 }, 's').echoTurn, 45);
 });

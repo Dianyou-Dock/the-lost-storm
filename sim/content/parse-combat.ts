@@ -25,7 +25,12 @@ function share(source: Fields, key: string, where: string): number {
 }
 
 export function markDelivery(source: Fields, where: string): MarkDelivery {
-  return { type: 'mark', range: zeroOrMore(source, 'range', where), radius: positive(source, 'radius', where), delay: positive(source, 'delay', where) };
+  const count: number = source['count'] === undefined ? 1 : positive(source, 'count', where);
+  if (!Number.isInteger(count)) throw new ContentError(`${where}.count`, 'expected a whole number');
+  const spacing: number = source['spacing'] === undefined ? 0 : zeroOrMore(source, 'spacing', where);
+  if (count > 1 && spacing === 0) throw new ContentError(`${where}.spacing`, 'a row of marks needs a spacing');
+  const step: number = source['step'] === undefined ? 0 : zeroOrMore(source, 'step', where);
+  return { type: 'mark', range: zeroOrMore(source, 'range', where), radius: positive(source, 'radius', where), delay: positive(source, 'delay', where), count, spacing, step };
 }
 
 function leap(source: Fields, where: string): SkillLeap {
@@ -53,6 +58,7 @@ export interface SkillMotion {
   readonly root: number;
   readonly hold: number;
   readonly echo: number;
+  readonly echoTurn: number;
   readonly lifeOnHit: number;
   readonly commit: SkillCommit | null;
 }
@@ -63,6 +69,7 @@ export function skillMotion(source: Fields, where: string): SkillMotion {
     root: zeroOrMore(source, 'root', where),
     hold: zeroOrMore(source, 'hold', where),
     echo: zeroOrMore(source, 'echo', where),
+    echoTurn: source['echoTurn'] === undefined ? 0 : numeric(source, 'echoTurn', where),
     lifeOnHit: zeroOrMore(source, 'lifeOnHit', where),
     commit: optional(source['commit'], `${where}.commit`, commit),
   };

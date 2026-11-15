@@ -3,6 +3,9 @@ export interface MarkDelivery {
   readonly range: number;
   readonly radius: number;
   readonly delay: number;
+  readonly count: number;
+  readonly spacing: number;
+  readonly step: number;
 }
 
 export interface SkillLeap {

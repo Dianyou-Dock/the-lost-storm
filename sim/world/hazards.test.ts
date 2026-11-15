@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ARENA_CENTRE, arena, place } from '../../test/arena-support.ts';
 import { must } from '../../test/support.ts';
-import { distance } from '../math.ts';
-import { applyHit, offenceOf } from './combat.ts';
+import { directionOf, distance } from '../math.ts';
+import { applyHit, kill, offenceOf } from './combat.ts';
 import { clearHazards, stepHazards } from './hazards.ts';
 import { stepWorld } from './step.ts';
 import type { HazardState, MonsterState, World, WorldEvent } from './types.ts';
@@ -110,4 +110,53 @@ void test('clearing hazards forgets every mark', (): void => {
   assert.equal(world.hazards.length, 1);
   clearHazards(world);
   assert.deepEqual(world.hazards, []);
+});
+
+void test('a row of marks is laid through the target along the cast, nearest first, each later by its step', (): void => {
+  const world: World = arena(3);
+  const counter: MonsterState = place(world, 'test_counter', { x: ARENA_CENTRE.x + 8, z: ARENA_CENTRE.z });
+  const hero = world.player;
+  const events: WorldEvent[] = run(world, 0.45, (): void => {
+    hero.pos = { ...ARENA_CENTRE };
+  });
+  const row: HazardState[] = marks(events, false);
+  assert.equal(row.length, 5);
+  const middle: HazardState = must(row[2], 'middle mark');
+  assert.ok(distance(middle.pos, ARENA_CENTRE) < 0.5, 'the row is centred on the hero');
+  for (let index: number = 1; index < row.length; index += 1) {
+    const before: HazardState = must(row[index - 1], 'earlier mark');
+    const here: HazardState = must(row[index], 'mark');
+    assert.ok(Math.abs(distance(before.pos, here.pos) - 1.6) < 1e-6, 'marks sit a spacing apart');
+    assert.ok(distance(here.pos, counter.pos) > distance(before.pos, counter.pos), 'nearest the caster first');
+    assert.ok(Math.abs(here.delay - before.delay - 0.12) < 1e-9, 'each mark falls a step after the one before');
+  }
+});
+
+void test('a hero standing beside the row but off its line is never hit', (): void => {
+  const world: World = arena(4);
+  place(world, 'test_counter', { x: ARENA_CENTRE.x + 8, z: ARENA_CENTRE.z });
+  const hero = world.player;
+  run(world, 0.45, (): void => {
+    hero.pos = { ...ARENA_CENTRE };
+  });
+  const life: number = hero.life;
+  const events: WorldEvent[] = run(world, 1.6, (): void => {
+    hero.pos = { x: ARENA_CENTRE.x, z: ARENA_CENTRE.z + 3 };
+  });
+  assert.equal(marks(events, true).length, 5);
+  assert.equal(hero.life, life);
+});
+
+void test('a death burst that is a row lies along the facing of the monster that fell', (): void => {
+  const world: World = arena(5);
+  const rower: MonsterState = place(world, 'test_rower', { x: ARENA_CENTRE.x + 6, z: ARENA_CENTRE.z });
+  rower.facing = Math.PI / 2;
+  kill(world, rower, { x: 1, z: 0 });
+  stepHazards(world, DT);
+  assert.equal(world.hazards.length, 5);
+  const first: HazardState = must(world.hazards[0], 'first mark');
+  const last: HazardState = must(world.hazards[4], 'last mark');
+  const along = directionOf(rower.facing);
+  const reach: number = (last.pos.x - first.pos.x) * along.x + (last.pos.z - first.pos.z) * along.z;
+  assert.ok(Math.abs(reach - 6.4) < 1e-6, 'the row runs four spacings along the facing');
 });
