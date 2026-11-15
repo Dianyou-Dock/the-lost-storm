@@ -143,14 +143,14 @@ export const RAY_MARCH = {
 export function rayToSurface(ray: RayLike, heightOf: (x: number, z: number) => number, out: Vector3): Vector3 | null {
   const { origin, direction } = ray;
   const above = (t: number): boolean => origin.y + direction.y * t > heightOf(origin.x + direction.x * t, origin.z + direction.z * t);
-  if (!above(0)) return null;
-  let low: number = 0;
+  let low: number = above(0) ? 0 : -1;
   let high: number = -1;
   for (let t: number = RAY_MARCH.step; t <= RAY_MARCH.reach; t += RAY_MARCH.step) {
     if (above(t)) {
       low = t;
       continue;
     }
+    if (low < 0) continue;
     high = t;
     break;
   }

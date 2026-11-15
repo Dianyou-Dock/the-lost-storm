@@ -65,6 +65,18 @@ void test('a click ray finds the upper terrace before the floor beneath it', ():
   assert.equal(rayToSurface(below, heightOf, new Vector3()), null);
 });
 
+function caveWall(x: number): number {
+  return x < 10 ? 50 : 0;
+}
+
+void test('a ray that starts inside rock lands on the first surface it meets from above, as a camera behind a cave wall must', (): void => {
+  const ray = { origin: { x: 4, y: 30, z: 2 }, direction: { x: Math.SQRT1_2, y: -Math.SQRT1_2, z: 0 } };
+  const hit: Vector3 | null = rayToSurface(ray, caveWall, new Vector3());
+  assert.ok(hit !== null);
+  assert.ok(Math.abs(hit.y) < 0.01, `hit at ${hit.y}`);
+  assert.ok(Math.abs(hit.x - 34) < 0.05, `hit at ${hit.x}`);
+});
+
 function caveTerraces(zone: ZoneDef): readonly { readonly x: number; readonly z: number; readonly height: number }[] {
   const levels: readonly string[] = zone.terrain?.levels ?? [];
   const rise: number = zone.terrain?.rise ?? 0;
