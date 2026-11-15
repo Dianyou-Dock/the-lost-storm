@@ -180,8 +180,21 @@ export function refundState(content: Content, holder: ChartHolder, nodeId: strin
   return canRefund(content, holder.allocated, nodeId) ? affordable(content, holder, 1) : 'not_allowed';
 }
 
-export function respecState(content: Content, holder: ChartHolder): ChartChange {
-  return holder.allocated.length > 0 ? affordable(content, holder, holder.allocated.length) : 'not_allowed';
+export interface RestartHolder extends ChartHolder {
+  readonly freeReset: boolean;
+}
+
+export function respecCost(content: Content, holder: RestartHolder): number {
+  return holder.freeReset ? 0 : refundCost(content, holder.level, holder.allocated.length);
+}
+
+export function respecState(content: Content, holder: RestartHolder): ChartChange {
+  if (holder.allocated.length === 0) return 'not_allowed';
+  return holder.gold < respecCost(content, holder) ? 'no_gold' : 'ready';
+}
+
+export function bankedReset(revision: number, seen: unknown, banked: unknown): boolean {
+  return banked === true || typeof seen !== 'number' || seen < revision;
 }
 
 export function reachablePlaces(content: Content, allocated: readonly string[]): string[] {

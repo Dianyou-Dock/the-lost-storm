@@ -80,9 +80,12 @@ export function chartDef(value: unknown, where: string): ChartDef {
   if (!isFields(respec)) throw new ContentError(`${where}.respec`, 'expected an object');
   const pointsPerLevel: number = positive(source, 'pointsPerLevel', where);
   if (!Number.isInteger(pointsPerLevel)) throw new ContentError(`${where}.pointsPerLevel`, 'expected a whole number');
+  const revision: number = nonNegative(source, 'revision', where);
+  if (!Number.isInteger(revision)) throw new ContentError(`${where}.revision`, 'expected a whole number');
   return {
     title: text(source, 'title', where),
     pointsPerLevel,
+    revision,
     respec: { goldPerPoint: nonNegative(respec, 'goldPerPoint', `${where}.respec`), goldPerLevel: nonNegative(respec, 'goldPerLevel', `${where}.respec`) },
     paths: each(source['paths'], `${where}.paths`, chartPath),
     groups: each(source['groups'], `${where}.groups`, chartGroup),

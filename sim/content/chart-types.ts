@@ -41,6 +41,7 @@ export interface PointGrant {
 export interface ChartDef {
   readonly title: string;
   readonly pointsPerLevel: number;
+  readonly revision: number;
   readonly respec: ChartRespec;
   readonly paths: readonly ChartPath[];
   readonly groups: readonly ChartGroup[];

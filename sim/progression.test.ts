@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadContent } from './content/content.ts';
 import type { Content, SkillTreeNodeDef, XpCurve } from './content/types.ts';
-import { adoptLearned, applyXp, gapBand, gapScale, canAllocate, canRefund, findNode, holdingParts, holdingTrunk, joinBlock, placeLinks, reachablePlaces, refundBlock, refundCost, refundState, respecState, rivalBlock, rivalVariant, startingPlaces, xpToNextLevel } from './progression.ts';
+import { adoptLearned, applyXp, gapBand, gapScale, canAllocate, canRefund, findNode, holdingParts, holdingTrunk, joinBlock, placeLinks, reachablePlaces, bankedReset, refundBlock, refundCost, refundState, respecCost, respecState, rivalBlock, rivalVariant, startingPlaces, xpToNextLevel } from './progression.ts';
 import type { RivalBlock, XpResult } from './progression.ts';
 
 const content: Content = loadContent();
@@ -127,9 +127,12 @@ void test('giving a place back or starting over is ready, not allowed, or short 
   assert.equal(refundState(content, { allocated, gold: one - 1, level: 5 }, 'bedrock'), 'no_gold');
   assert.equal(refundState(content, { allocated, gold: one, level: 5 }, 'stone_1'), 'not_allowed');
   assert.equal(refundState(content, { allocated, gold: 0, level: 5 }, 'old_oak'), 'not_allowed');
-  assert.equal(respecState(content, { allocated, gold: all, level: 5 }), 'ready');
-  assert.equal(respecState(content, { allocated, gold: all - 1, level: 5 }), 'no_gold');
-  assert.equal(respecState(content, { allocated: [], gold: 0, level: 5 }), 'not_allowed');
+  assert.equal(respecState(content, { allocated, gold: all, level: 5, freeReset: false }), 'ready');
+  assert.equal(respecState(content, { allocated, gold: all - 1, level: 5, freeReset: false }), 'no_gold');
+  assert.equal(respecState(content, { allocated, gold: 0, level: 5, freeReset: true }), 'ready');
+  assert.equal(respecCost(content, { allocated, gold: 0, level: 5, freeReset: true }), 0);
+  assert.equal(respecCost(content, { allocated, gold: 0, level: 5, freeReset: false }), all);
+  assert.equal(respecState(content, { allocated: [], gold: 0, level: 5, freeReset: true }), 'not_allowed');
 });
 
 void test('a holding made before the rule keeps every place, grows only from its largest part, and gives back from the leaves', (): void => {
@@ -145,7 +148,7 @@ void test('a holding made before the rule keeps every place, grows only from its
   assert.ok(canRefund(content, legacy, 'echo_forkline'));
   assert.ok(canRefund(content, legacy, 'heavy_hands'));
   assert.equal(refundBlock(content, legacy, 'blade_thunderhead'), 'root');
-  assert.equal(respecState(content, { allocated: legacy, gold: refundCost(content, 5, legacy.length), level: 5 }), 'ready');
+  assert.equal(respecState(content, { allocated: legacy, gold: refundCost(content, 5, legacy.length), level: 5, freeReset: false }), 'ready');
 });
 
 void test('on load a place stays when its part of the holding reaches a starting place, in the order it was taken', (): void => {
@@ -229,4 +232,12 @@ void test('the shipped curve makes every level take longer than the one before, 
     const earlier: number = 1 + content.world.scaling.xpPerLevel * (level - 2);
     assert.ok(xpToNextLevel(shipped, level) / perFoe > xpToNextLevel(shipped, level - 1) / earlier, `level ${level}`);
   }
+});
+
+void test('a free start over is banked when the save last saw an older tree revision or none, and kept until it is spent', (): void => {
+  assert.equal(bankedReset(2, 1, false), true);
+  assert.equal(bankedReset(2, undefined, undefined), true);
+  assert.equal(bankedReset(2, 2, false), false);
+  assert.equal(bankedReset(2, 2, true), true);
+  assert.equal(bankedReset(2, 3, false), false);
 });

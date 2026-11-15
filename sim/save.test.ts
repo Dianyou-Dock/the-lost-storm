@@ -6,7 +6,7 @@ import type { Content, ZoneDef, ZoneVoice } from './content/types.ts';
 import { emptyEquipment, generateItem } from './items.ts';
 import { canAllocate } from './progression.ts';
 import { createRng } from './rng.ts';
-import { parseSaveText, readSave, SAVE_VERSION, toSave } from './save.ts';
+import { earnedPoints, parseSaveText, readSave, SAVE_VERSION, toSave } from './save.ts';
 import type { SaveData } from './save.ts';
 import { createWorld } from './world/create.ts';
 import { blockedReason } from './world/skills.ts';
@@ -512,4 +512,41 @@ void test('a save can never carry the hero into a withheld cave: its flag, the z
   assert.ok(!read.waypoints.includes('under_hall'));
   const restored: World = createWorld(held, { seed: 7, save: read });
   assert.notEqual(restored.zone.id, 'under_hall');
+});
+
+void test('a stored save from before the tree revision loads with one free start over banked, and a spent one stays spent', (): void => {
+  const stored: Record<string, unknown> = Object.fromEntries(Object.entries(toSave(played())).filter(([key]: [string, unknown]): boolean => key !== 'treeRevision' && key !== 'freeReset'));
+  const old: SaveData = must(parseSaveText(content, JSON.stringify(stored)), 'old save');
+  assert.equal(old.freeReset, true);
+  assert.equal(old.treeRevision, content.chart.revision);
+  const spent: World = played();
+  spent.player.freeReset = false;
+  assert.equal(roundTrip(spent).freeReset, false);
+  const kept: World = played();
+  assert.equal(roundTrip(kept).freeReset, true);
+});
+
+void test('a save written at an older tree revision is granted the free start over again', (): void => {
+  const world: World = played();
+  world.player.freeReset = false;
+  const older: SaveData = { ...toSave(world), treeRevision: content.chart.revision - 1 };
+  assert.equal(must(parseSaveText(content, JSON.stringify(older)), 'save').freeReset, true);
+});
+
+void test('a place the tree no longer has is handed back as a point on load, and the rest of the save loads', (): void => {
+  const world: World = played();
+  world.player.allocated = ['stone_thunderclap', 'tempered_body', 'a_place_that_was_removed'];
+  const save: SaveData = roundTrip(world);
+  assert.deepEqual(save.allocated, ['stone_thunderclap', 'tempered_body']);
+  assert.equal(save.skillPoints, 3);
+  const restored: World = createWorld(content, { seed: 2, save });
+  assert.deepEqual(restored.player.allocated, ['stone_thunderclap', 'tempered_body']);
+});
+
+void test('made-up place names in a save hand back no more points than the character could have earned', (): void => {
+  const world: World = played();
+  world.player.allocated = ['stone_thunderclap', 'tempered_body', 'blade_thunderhead', 'heavy_hands', 'junk_a', 'junk_b', 'junk_c', 'junk_d', 'junk_e'];
+  const save: SaveData = roundTrip(world);
+  assert.deepEqual(save.allocated, ['stone_thunderclap', 'tempered_body', 'blade_thunderhead', 'heavy_hands']);
+  assert.equal(save.skillPoints + save.allocated.length, earnedPoints(content, save.level, save.grants));
 });

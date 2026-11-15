@@ -1,6 +1,6 @@
 import type { ItemSlot, XpReduction } from '../content/types.ts';
 import { isStoryItem, slotOf } from '../items.ts';
-import { applyXp, canAllocate, findNode, gapScale, refundCost, refundState, respecState, xpReduction } from '../progression.ts';
+import { applyXp, canAllocate, findNode, gapScale, refundCost, refundState, respecCost, respecState, xpReduction } from '../progression.ts';
 import type { ChartChange } from '../progression.ts';
 import type { XpResult } from '../progression.ts';
 import { assignSlot, chartSkills } from '../skill-book.ts';
@@ -113,16 +113,16 @@ export function allocateNode(world: World, nodeId: string): void {
   refreshPlayer(world);
 }
 
-function pay(world: World, change: ChartChange, points: number): boolean {
+function pay(world: World, change: ChartChange, price: number): boolean {
   if (change === 'no_gold') world.events.push({ type: 'notice', reason: 'no_gold' });
   if (change !== 'ready') return false;
-  world.player.gold -= refundCost(world.content, world.player.level, points);
+  world.player.gold -= price;
   return true;
 }
 
 export function refundNode(world: World, nodeId: string): void {
   const player: PlayerState = world.player;
-  if (!pay(world, refundState(world.content, player, nodeId), 1)) return;
+  if (!pay(world, refundState(world.content, player, nodeId), refundCost(world.content, player.level, 1))) return;
   player.allocated = player.allocated.filter((id: string): boolean => id !== nodeId);
   player.skillPoints += 1;
   const unlock: string | null = findNode(world.content, nodeId)?.unlock ?? null;
@@ -133,7 +133,8 @@ export function refundNode(world: World, nodeId: string): void {
 export function respecChart(world: World): void {
   const player: PlayerState = world.player;
   const points: number = player.allocated.length;
-  if (!pay(world, respecState(world.content, player), points)) return;
+  if (!pay(world, respecState(world.content, player), respecCost(world.content, player))) return;
+  player.freeReset = false;
   for (const skill of chartSkills(world.content, player.allocated)) forget(world, skill);
   player.allocated = [];
   player.skillPoints += points;

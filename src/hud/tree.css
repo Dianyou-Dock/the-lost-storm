@@ -513,6 +513,11 @@ body:has(.hud.chart-open) #overlays {
   pointer-events: auto;
 }
 
+.chart-restart.free {
+  color: var(--storm);
+  background: rgba(134, 200, 240, 0.12);
+}
+
 .chart-restart.confirm {
   color: var(--ember);
   background: rgba(232, 184, 102, 0.14);

@@ -174,6 +174,7 @@ export interface PlayerState extends ActorState {
   allocated: string[];
   learned: string[];
   grantsTaken: string[];
+  freeReset: boolean;
   inventory: (ItemInstance | null)[];
   equipped: Equipment;
   intent: Intent;

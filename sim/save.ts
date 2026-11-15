@@ -3,14 +3,14 @@ import type { Fields } from './content/read.ts';
 import { isFields } from './content/read.ts';
 import type { StoryFlags } from './content/story-types.ts';
 import type { RetiredZones } from './content/road-types.ts';
-import type { Content, ItemSlot } from './content/types.ts';
+import type { Content, ItemSlot, PointGrant } from './content/types.ts';
 import { heroOf } from './hero.ts';
 import { emptyEquipment, generateItem, slotOf } from './items.ts';
 import { createRng } from './rng.ts';
 import { retireUnworn } from './save-retire.ts';
 import { readTally, tallyToSave } from './tally.ts';
 import type { TallySave } from './tally.ts';
-import { adoptLearned, findNode, reachablePlaces } from './progression.ts';
+import { adoptLearned, bankedReset, findNode, reachablePlaces } from './progression.ts';
 import type { AdoptedPlaces } from './progression.ts';
 import { readBar, readLearned } from './skill-book.ts';
 import { grantIds } from './world/learning.ts';
@@ -38,6 +38,8 @@ export interface SaveData {
   readonly allocated: readonly string[];
   readonly learned: readonly string[];
   readonly grants: readonly string[];
+  readonly treeRevision: number;
+  readonly freeReset: boolean;
   readonly bar: readonly (string | null)[];
   readonly inventory: readonly (ItemInstance | null)[];
   readonly equipped: Equipment;
@@ -70,6 +72,11 @@ export function copyVendors(vendors: Readonly<Record<string, VendorStock>>): Rec
   return Object.fromEntries(Object.entries(vendors).map(([id, vendor]: [string, VendorStock]): [string, VendorStock] => [id, { stock: [...vendor.stock], buyback: [...vendor.buyback], stale: vendor.stale }]));
 }
 
+export function earnedPoints(content: Content, level: number, grants: readonly string[]): number {
+  const granted: number = content.chart.grants.filter((grant: PointGrant): boolean => grants.includes(grant.id)).reduce((sum: number, grant: PointGrant): number => sum + grant.points, 0);
+  return (level - 1) * content.chart.pointsPerLevel + granted;
+}
+
 export function toSave(world: World): SaveData {
   const player = world.player;
   return {
@@ -83,6 +90,8 @@ export function toSave(world: World): SaveData {
     allocated: [...player.allocated],
     learned: [...player.learned],
     grants: [...player.grantsTaken],
+    treeRevision: world.content.chart.revision,
+    freeReset: player.freeReset,
     bar: [...player.bar],
     inventory: [...player.inventory],
     equipped: { ...player.equipped },
@@ -321,10 +330,15 @@ export function readSave(content: Content, value: unknown): SaveData | null {
   const kept: ItemInstance[] = spilledList.map((entry: unknown): ItemInstance | null => readItem(content, entry)).filter((entry: ItemInstance | null): entry is ItemInstance => entry !== null);
   const reached: number = Math.min(Math.floor(level), content.player.xp.maxLevel);
   const savedBar: unknown = value['bar'];
-  const listed: string[] = allocatedList.filter((node: unknown): node is string => typeof node === 'string' && findNode(content, node) !== null);
+  const saved: ReadonlySet<string> = new Set<string>(allocatedList.filter((node: unknown): node is string => typeof node === 'string'));
+  const listed: string[] = [...saved].filter((node: string): boolean => findNode(content, node) !== null);
   const standing: readonly string[] = reachablePlaces(content, listed);
   const adopted: AdoptedPlaces = adoptLearned(content, value['learned'], standing);
   const taken: string[] = [...adopted.allocated];
+  const grants: string[] = grantIds(content.chart.grants, value['grants']);
+  const unreached: number = listed.length - standing.length + adopted.refund;
+  const room: number = Math.max(0, earnedPoints(content, reached, grants) - Math.floor(skillPoints) - taken.length - unreached);
+  const removed: number = Math.min(saved.size - listed.length, room);
   const learned: string[] = readLearned(content, value['learned'], taken);
   const dressed: Dressed = dressOnce(content, worn.equipped, { ...readFlags(content, value['flags'], legacy), ...retired?.flags }, Math.floor(nextItemUid));
   const savedHero: unknown = value['hero'];
@@ -335,10 +349,12 @@ export function readSave(content: Content, value: unknown): SaveData | null {
     xp,
     gold,
     kills,
-    skillPoints: Math.floor(skillPoints) + listed.length - standing.length + adopted.refund,
+    skillPoints: Math.floor(skillPoints) + unreached + removed,
     allocated: taken,
     learned,
-    grants: grantIds(content.chart.grants, value['grants']),
+    grants,
+    treeRevision: content.chart.revision,
+    freeReset: bankedReset(content.chart.revision, value['treeRevision'], value['freeReset']),
     bar: readBar(content, savedBar, learned),
     inventory: slots,
     equipped: worn.equipped,

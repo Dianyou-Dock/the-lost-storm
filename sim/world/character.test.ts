@@ -48,6 +48,7 @@ void test('a place at the edge of what was taken is given back for gold and its 
 
 void test('a full respec returns every point and costs gold for each, and without the gold nothing changes', (): void => {
   const world: World = chartWorld();
+  world.player.freeReset = false;
   world.player.gold = 0;
   const refused: WorldEvent[] = send(world, { type: 'respec' });
   assert.ok(refused.some((event: WorldEvent): boolean => event.type === 'notice' && event.reason === 'no_gold'));
@@ -57,6 +58,21 @@ void test('a full respec returns every point and costs gold for each, and withou
   assert.deepEqual(world.player.allocated, []);
   assert.equal(world.player.skillPoints, 5);
   assert.equal(world.player.gold, 0);
+});
+
+void test('a banked free start over returns every point for no gold once, and the next one costs gold again', (): void => {
+  const world: World = chartWorld();
+  assert.equal(world.player.freeReset, true);
+  world.player.gold = 0;
+  send(world, { type: 'respec' });
+  assert.deepEqual(world.player.allocated, []);
+  assert.equal(world.player.skillPoints, 5);
+  assert.equal(world.player.gold, 0);
+  assert.equal(world.player.freeReset, false);
+  for (const node of ['stone_thunderclap', 'tempered_body']) send(world, { type: 'allocate', node });
+  const refused: WorldEvent[] = send(world, { type: 'respec' });
+  assert.ok(refused.some((event: WorldEvent): boolean => event.type === 'notice' && event.reason === 'no_gold'));
+  assert.equal(world.player.allocated.length, 2);
 });
 
 void test('a fourth Legendary stays in the bag with a notice, and the three worn stay on', (): void => {

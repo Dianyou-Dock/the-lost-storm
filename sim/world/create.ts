@@ -82,6 +82,7 @@ function freshPlayer(content: Content, save: SaveData | null, chosen: string | n
     allocated,
     learned: save === null ? startingSkills(content) : [...save.learned],
     grantsTaken: save === null ? [] : [...save.grants],
+    freeReset: save?.freeReset ?? true,
     inventory,
     equipped,
     intent: { type: 'idle' },

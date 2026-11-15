@@ -1,6 +1,6 @@
 import type { ChartPath, SkillTreeNodeDef } from '../../sim/content/types.ts';
 import type { PlayerState } from '../../sim/world/types.ts';
-import { refundBlock, refundCost, refundState, respecState } from '../../sim/progression.ts';
+import { refundBlock, refundCost, refundState, respecCost, respecState } from '../../sim/progression.ts';
 import type { ChartChange } from '../../sim/progression.ts';
 import { ATLAS_VIEW, atRest, stepMotion, still, toMap, toScreen } from './atlas-view.ts';
 import type { AtlasFrame, AtlasMotion, AtlasView, ScreenPoint } from './atlas-view.ts';
@@ -288,8 +288,9 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
 
   let confirmUntil: number = 0;
   const restartLabel = (): string => {
-    const count: number = player().allocated.length;
-    return performance.now() < confirmUntil ? `Again to start over · ${goldFor(count)} gold` : `Start over · ${goldFor(count)} gold`;
+    const price: number = respecCost(content, player());
+    const cost: string = price === 0 ? 'free' : `${price} gold`;
+    return performance.now() < confirmUntil ? `Again to start over · ${cost}` : `Start over · ${cost}`;
   };
   restart.addEventListener('click', (): void => {
     const count: number = player().allocated.length;
@@ -574,6 +575,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
     if (you.skillPoints > 0) setText(prompt, pointsPrompt(you.skillPoints, you.allocated.length), true);
     else if (fresh) setText(prompt, CHART.emptyLine, false);
     restart.classList.toggle('shown', you.allocated.length > 0);
+    restart.classList.toggle('free', you.freeReset);
     if (performance.now() >= confirmUntil) restart.classList.remove('confirm');
     setText(restart, restartLabel(), true);
     for (const view of views) {

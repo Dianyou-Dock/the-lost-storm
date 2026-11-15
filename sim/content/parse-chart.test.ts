@@ -37,7 +37,7 @@ void test('a skill the tree makes from another is turned again by one place only
 });
 
 void test('the chart needs whole points per level and a plain colour for each path', (): void => {
-  const base = { title: 'The Skill Tree', pointsPerLevel: 2, respec: { goldPerPoint: 1, goldPerLevel: 1 }, grants: [], twist: 0.08, paths: [{ id: 'a', name: 'A', tint: '#aabbcc', description: '' }], groups: [], weaponGroups: [{ id: 'blade', name: 'Blade', kinds: ['blade'] }] };
+  const base = { title: 'The Skill Tree', pointsPerLevel: 2, revision: 1, respec: { goldPerPoint: 1, goldPerLevel: 1 }, grants: [], twist: 0.08, paths: [{ id: 'a', name: 'A', tint: '#aabbcc', description: '' }], groups: [], weaponGroups: [{ id: 'blade', name: 'Blade', kinds: ['blade'] }] };
   assert.equal(chartDef(base, 'chart').pointsPerLevel, 2);
   assert.throws((): unknown => chartDef({ ...base, pointsPerLevel: 1.5 }, 'chart'), /whole number/);
   assert.throws((): unknown => chartDef({ ...base, paths: [{ id: 'a', name: 'A', tint: 'blue', description: '' }] }, 'chart'), /colour/);
@@ -45,7 +45,7 @@ void test('the chart needs whole points per level and a plain colour for each pa
 });
 
 void test('a place and a skill name weapon groups the chart knows, and every weapon kind sits in exactly one group', (): void => {
-  assert.equal(chartDef({ title: 'T', pointsPerLevel: 2, respec: { goldPerPoint: 1, goldPerLevel: 1 }, grants: [], twist: 0, paths: [], groups: [], weaponGroups: [] }, 'chart').weaponGroups.length, 0);
+  assert.equal(chartDef({ title: 'T', pointsPerLevel: 2, revision: 1, respec: { goldPerPoint: 1, goldPerLevel: 1 }, grants: [], twist: 0, paths: [], groups: [], weaponGroups: [] }, 'chart').weaponGroups.length, 0);
   assert.ok(chartProblems(withNode({ weapon: 'wand' })).some((line: string): boolean => line.includes('tree node probe leans on unknown weapon group wand')));
   assert.deepEqual(chartProblems(withNode({ weapon: 'staff' })), []);
   const cleave = must(content.skills.get('cleave'), 'cleave');
