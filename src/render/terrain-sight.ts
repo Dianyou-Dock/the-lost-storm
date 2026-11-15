@@ -1,12 +1,12 @@
 import { PerspectiveCamera, Ray, Vector3 } from 'three';
-import { heightAt } from '../../sim/nav/terrain.ts';
+import { floorAt, heightAt } from '../../sim/nav/terrain.ts';
 import type { ZoneDef } from '../../sim/content/types.ts';
 import type { Field } from './ground-terrain.ts';
 import { GROUND_TERRAIN, sampleField, shownTiles } from './ground-terrain.ts';
 import { CAMERA } from './iso-camera.ts';
 import { CUTAWAY, frontWeight, highWeight, ringWeight, terrainHides, throughWindow } from './prop-cutaway.ts';
-import type { PassThrough } from './terrain-lift.ts';
-import { liftAt, rayToSurface } from './terrain-lift.ts';
+import type { FloorTest, PassThrough } from './terrain-lift.ts';
+import { liftAt, rayToFloor, rayToSurface } from './terrain-lift.ts';
 
 export const TERRAIN_SIGHT = {
   march: 0.1,
@@ -16,6 +16,7 @@ export const TERRAIN_SIGHT = {
   aspect: 16 / 9,
   near: 1,
   far: 220,
+  floorRise: 0.35,
 } as const;
 
 export interface Point3 {
@@ -132,23 +133,47 @@ export function clickHeight(zone: ZoneDef): (x: number, z: number) => number {
   return (x: number, z: number): number => sight.drawnHeight(x, z) ?? Number.NaN;
 }
 
+export function clickFloor(zone: ZoneDef): FloorTest {
+  const drawn: boolean = drawsTerrain(zone);
+  return (x: number, y: number, z: number): boolean => floorAt(zone, x, z) && Math.abs(y - (drawn ? liftAt(zone, x, z) : heightAt(zone, x, z))) <= TERRAIN_SIGHT.floorRise;
+}
+
+export type ClickRule = 'surface' | 'floor';
+
+export interface FloorSpot {
+  readonly x: number;
+  readonly z: number;
+}
+
+export interface ClickLanding {
+  readonly miss: number;
+  readonly windowed: boolean;
+}
+
 const clickRay: Ray = new Ray();
 const landed: Vector3 = new Vector3();
 
-export function clickMiss(sight: TerrainSight, zone: ZoneDef, x: number, z: number, window: boolean): number {
-  const floor: number = liftAt(zone, x, z);
-  const eye: Vector3 = cameraEye(zone, x, z);
+export function clickLanding(sight: TerrainSight, zone: ZoneDef, hero: FloorSpot, target: FloorSpot, radius: number | null, rule: ClickRule): ClickLanding {
+  const heroFloor: number = liftAt(zone, hero.x, hero.z);
+  const floor: number = liftAt(zone, target.x, target.z);
+  const eye: Vector3 = cameraEye(zone, hero.x, hero.z);
   view.position.copy(eye);
-  view.lookAt(x, floor + CAMERA.lookHeight, z);
+  view.lookAt(hero.x, heroFloor + CAMERA.lookHeight, hero.z);
   view.updateMatrixWorld(true);
-  const opened: boolean = window && terrainHides(sight, { x, z, floor }, eye);
-  centre.set(x, floor + CUTAWAY.heroHeight, z).project(view);
-  projected.set(x, floor, z).project(view);
-  const through: PassThrough | null = opened
-    ? throughWindow({ level: 1, depth: depthOf(x, floor + CUTAWAY.heroHeight, z), floor, across: ((projected.x - centre.x) / 2) * TERRAIN_SIGHT.aspect, up: (projected.y - centre.y) / 2, radius: CUTAWAY.radius, inverse: view.matrixWorldInverse })
-    : null;
+  const opened: boolean = radius !== null && terrainHides(sight, { x: hero.x, z: hero.z, floor: heroFloor }, eye);
+  centre.set(hero.x, heroFloor + CUTAWAY.heroHeight, hero.z).project(view);
+  projected.set(target.x, floor, target.z).project(view);
+  const through: PassThrough | null =
+    opened && radius !== null
+      ? throughWindow({ level: 1, depth: depthOf(hero.x, heroFloor + CUTAWAY.heroHeight, hero.z), floor: heroFloor, across: ((projected.x - centre.x) / 2) * TERRAIN_SIGHT.aspect, up: (projected.y - centre.y) / 2, radius, inverse: view.matrixWorldInverse })
+      : null;
   clickRay.origin.copy(eye);
-  clickRay.direction.set(x - eye.x, floor - eye.y, z - eye.z).normalize();
-  const hit: Vector3 | null = rayToSurface(clickRay, clickHeight(zone), landed, through);
-  return hit === null ? Number.POSITIVE_INFINITY : Math.hypot(hit.x - x, hit.z - z);
+  clickRay.direction.set(target.x - eye.x, floor - eye.y, target.z - eye.z).normalize();
+  const heightOf: (x: number, z: number) => number = clickHeight(zone);
+  const hit: Vector3 | null = rule === 'floor' ? rayToFloor(clickRay, heightOf, clickFloor(zone), landed, through) : rayToSurface(clickRay, heightOf, landed, through);
+  return { miss: hit === null ? Number.POSITIVE_INFINITY : Math.hypot(hit.x - target.x, hit.z - target.z), windowed: through !== null };
+}
+
+export function clickMiss(sight: TerrainSight, zone: ZoneDef, x: number, z: number, window: boolean, rule: ClickRule = 'floor'): number {
+  return clickLanding(sight, zone, { x, z }, { x, z }, window ? CUTAWAY.radius : null, rule).miss;
 }

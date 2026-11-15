@@ -1,5 +1,5 @@
-import type { PassThrough } from './terrain-lift.ts';
-import { rayToSurface } from './terrain-lift.ts';
+import type { FloorTest, PassThrough } from './terrain-lift.ts';
+import { rayToFloor, rayToSurface } from './terrain-lift.ts';
 import type { PerspectiveCamera, Vector2 } from 'three';
 import { Plane, Raycaster, Vector3 } from 'three';
 import type { ElementSize } from './element-size.ts';
@@ -48,7 +48,7 @@ export interface IsoCamera {
   zoomBy(wheelDelta: number): void;
   addTrauma(amount: number): void;
   punch(dirX: number, dirZ: number, amount: number): void;
-  groundPoint(pointer: Vector2, heightOf?: (x: number, z: number) => number, through?: PassThrough | null): Vector3 | null;
+  groundPoint(pointer: Vector2, heightOf?: (x: number, z: number) => number, through?: PassThrough | null, isFloor?: FloorTest | null): Vector3 | null;
   rayDistanceTo(pointer: Vector2, bottom: Vector3, height: number): number;
   project(x: number, y: number, z: number, out: Vector2): boolean;
 }
@@ -160,9 +160,9 @@ export function createIsoCamera(camera: PerspectiveCamera, canvas: HTMLCanvasEle
       punchOffset.x += dirX * amount;
       punchOffset.z += dirZ * amount;
     },
-    groundPoint(pointer: Vector2, heightOf?: (x: number, z: number) => number, through: PassThrough | null = null): Vector3 | null {
+    groundPoint(pointer: Vector2, heightOf?: (x: number, z: number) => number, through: PassThrough | null = null, isFloor: FloorTest | null = null): Vector3 | null {
       raycaster.setFromCamera(pointer, camera);
-      if (heightOf !== undefined) return rayToSurface(raycaster.ray, heightOf, hit, through);
+      if (heightOf !== undefined) return isFloor === null ? rayToSurface(raycaster.ray, heightOf, hit, through) : rayToFloor(raycaster.ray, heightOf, isFloor, hit, through);
       return raycaster.ray.intersectPlane(ground, hit) === null ? null : hit;
     },
     rayDistanceTo(pointer: Vector2, bottom: Vector3, height: number): number {

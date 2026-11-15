@@ -7,7 +7,7 @@ import { loadContent } from '../../sim/content/content.ts';
 import { TERRAIN_MARKS } from '../../sim/content/terrain-types.ts';
 import { isFloorCell } from '../../sim/nav/layout.ts';
 import { heightAt } from '../../sim/nav/terrain.ts';
-import { floorUp, glideFloor, liftAt, liftHere, liftSamples, rayToSurface, tileLift, useTerrain } from './terrain-lift.ts';
+import { floorUp, glideFloor, liftAt, liftHere, liftSamples, rayToFloor, rayToSurface, tileLift, useTerrain } from './terrain-lift.ts';
 
 const SIZE = 4;
 const STAIR: ZoneDef = roadZone({
@@ -146,4 +146,52 @@ void test('ground that is not drawn is neither above nor below, so a ray enterin
   const ray = { origin: { x: 0, y: 4, z: 0 }, direction: { x: 1, y: -0.2, z: 0 } };
   const hit: Vector3 | null = rayToSurface(ray, drawnOnlyNearFloor, new Vector3());
   assert.ok(hit !== null && Math.abs(hit.x - 20) < 0.05, `hit at ${hit?.x}`);
+});
+
+function floorBehindShelf(x: number): number {
+  return x > 6 && x < 10 ? 4 : 0;
+}
+
+function onLowFloor(x: number, y: number): boolean {
+  return (x <= 6 || x >= 10) && Math.abs(y) < 0.35;
+}
+
+function terraceOverFloor(x: number): number {
+  return x > 14 && x < 18 ? 3 : 0;
+}
+
+function rampUp(x: number): number {
+  return Math.min(4, x * 0.2);
+}
+
+function onAnyLevel(_x: number, y: number): boolean {
+  return Math.abs(y) < 0.35 || Math.abs(y - 3) < 0.35;
+}
+
+void test('a floor click passes the shelf top in front, with no window open, and lands on the floor behind it', (): void => {
+  const ray = { origin: { x: 0, y: 10, z: 0 }, direction: { x: 0.8, y: -0.6, z: 0 } };
+  const top: Vector3 | null = rayToSurface(ray, floorBehindShelf, new Vector3());
+  assert.ok(top !== null && Math.abs(top.y - 4) < 0.01, `shelf hit at ${top?.x},${top?.y}`);
+  const floor: Vector3 | null = rayToFloor(ray, floorBehindShelf, onLowFloor, new Vector3());
+  assert.ok(floor !== null && Math.abs(floor.y) < 0.01 && Math.abs(floor.x - 13.33) < 0.05, `floor hit at ${floor?.x},${floor?.y}`);
+});
+
+void test('a floor click on a walkable terrace above the floor takes the terrace, nearest the camera, unless the window has cut it', (): void => {
+  const ray = { origin: { x: 0, y: 19, z: 0 }, direction: { x: Math.SQRT1_2, y: -Math.SQRT1_2, z: 0 } };
+  const terrace: Vector3 | null = rayToFloor(ray, terraceOverFloor, onAnyLevel, new Vector3());
+  assert.ok(terrace !== null && Math.abs(terrace.y - 3) < 0.01 && Math.abs(terrace.x - 16) < 0.05, `terrace hit at ${terrace?.x},${terrace?.y}`);
+  const cut: Vector3 | null = rayToFloor(ray, terraceOverFloor, onAnyLevel, new Vector3(), (_x: number, y: number): boolean => y > 1.5);
+  assert.ok(cut !== null && Math.abs(cut.y) < 0.01 && Math.abs(cut.x - 19) < 0.05, `floor under the cut terrace at ${cut?.x},${cut?.y}`);
+});
+
+void test('a floor click whose only floor the window has cut still takes that floor rather than nothing', (): void => {
+  const ray = { origin: { x: 0, y: 10, z: 0 }, direction: { x: Math.SQRT1_2, y: -Math.SQRT1_2, z: 0 } };
+  const hit: Vector3 | null = rayToFloor(ray, rampUp, (): boolean => true, new Vector3(), (): boolean => true);
+  assert.ok(hit !== null && Math.abs(hit.x - 8.33) < 0.05, `ramp hit at ${hit?.x},${hit?.y}`);
+});
+
+void test('a floor click whose ray meets only rock keeps the first surface it meets', (): void => {
+  const ray = { origin: { x: 0, y: 10, z: 0 }, direction: { x: 0.8, y: -0.6, z: 0 } };
+  const hit: Vector3 | null = rayToFloor(ray, floorBehindShelf, (): boolean => false, new Vector3());
+  assert.ok(hit !== null && Math.abs(hit.y - 4) < 0.01 && hit.x > 6 && hit.x < 10, `rock hit at ${hit?.x},${hit?.y}`);
 });

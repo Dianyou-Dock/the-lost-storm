@@ -179,3 +179,11 @@ export function rayToSurface(ray: RayLike, heightOf: (x: number, z: number) => n
   }
   return null;
 }
+
+export type FloorTest = (x: number, y: number, z: number) => boolean;
+
+export function rayToFloor(ray: RayLike, heightOf: (x: number, z: number) => number, isFloor: FloorTest, out: Vector3, through: PassThrough | null = null): Vector3 | null {
+  const rock: PassThrough = (x: number, y: number, z: number): boolean => !isFloor(x, y, z);
+  const seen: PassThrough = (x: number, y: number, z: number): boolean => !isFloor(x, y, z) || (through !== null && through(x, y, z));
+  return rayToSurface(ray, heightOf, out, seen) ?? (through === null ? null : rayToSurface(ray, heightOf, out, rock)) ?? rayToSurface(ray, heightOf, out, through);
+}
