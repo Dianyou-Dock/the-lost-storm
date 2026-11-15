@@ -1,3 +1,4 @@
+import type { PortalStage } from './world/portal-types.ts';
 import type { AudioDef, CueDef, CueTable, LifeSoundEvent, UiAction, WeaponCue, WorldSoundEvent } from './content/audio.ts';
 import { FALLBACK_KEY, GOLD_KEY, PLAYER_KEY } from './content/audio.ts';
 import type { ItemBaseDef, WeaponKind } from './content/types.ts';
@@ -70,6 +71,13 @@ function worldCues(audio: AudioDef, event: WorldSoundEvent, position: Vec2 | nul
   return cues(audio.world, event, position);
 }
 
+const PORTAL_SOUNDS: Readonly<Record<PortalStage, WorldSoundEvent | null>> = { channel: null, broken: null, opened: 'portal_opened', entered: 'portal_entered', arrived: 'portal_arrived', closed: 'portal_closed' };
+
+function portalCues(audio: AudioDef, stage: PortalStage, position: Vec2): readonly SoundCue[] {
+  const sound: WorldSoundEvent | null = PORTAL_SOUNDS[stage];
+  return sound === null ? NONE : worldCues(audio, sound, position);
+}
+
 export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): readonly SoundCue[] {
   let found: readonly SoundCue[] = NONE;
   switch (event.type) {
@@ -137,6 +145,9 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
       break;
     case 'flask_used':
       found = worldCues(audio, 'flask_used', event.pos);
+      break;
+    case 'portal':
+      found = portalCues(audio, event.stage, event.pos);
       break;
     case 'quest_started':
       found = worldCues(audio, 'quest_started', null);
@@ -269,6 +280,8 @@ export function uiActionForCommand(command: Command): UiAction | null {
     case 'respawn':
     case 'flask':
     case 'use':
+    case 'use_item':
+    case 'enter_portal':
     case 'open':
     case 'read':
     case 'glitch':

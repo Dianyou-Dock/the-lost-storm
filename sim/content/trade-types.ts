@@ -14,6 +14,11 @@ export interface StockRarity {
   readonly weight: number;
 }
 
+export interface TradeGood {
+  readonly base: string;
+  readonly price: number;
+}
+
 export interface TradeDef {
   readonly stashSize: number;
   readonly stockSize: number;
@@ -21,4 +26,5 @@ export interface TradeDef {
   readonly reach: number;
   readonly price: TradePricing;
   readonly stockRarities: readonly StockRarity[];
+  readonly goods: readonly TradeGood[];
 }

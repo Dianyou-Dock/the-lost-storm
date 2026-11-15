@@ -581,6 +581,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
           case 'xp':
           case 'surge_cleared':
           case 'notice':
+          case 'portal':
           case 'glitch_start':
           case 'glitch_clock':
           case 'glitch_phase':

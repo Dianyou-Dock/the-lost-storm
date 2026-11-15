@@ -27,6 +27,8 @@ import { emptyStash } from './trade.ts';
 import { copyTally, emptyTally } from '../tally.ts';
 import { beginVoid } from './wake.ts';
 import { placePlayer, respawnExists, startZone } from './zones.ts';
+import { restoreKept } from './portal-keep.ts';
+import { portalFromSave } from './portal-save.ts';
 
 export interface WorldOptions {
   readonly seed: number;
@@ -203,6 +205,7 @@ export function createWorld(content: Content, options: WorldOptions): World {
     scene: null,
     wards: [],
     escort: null,
+    portal: portalFromSave(save?.portal ?? null),
   };
   placePlayer(world);
   beginVoid(world, 'first');
@@ -211,7 +214,7 @@ export function createWorld(content: Content, options: WorldOptions): World {
   settleQuests(world);
   startQuests(world);
   spawnNpcs(world);
-  spawnPacks(world);
+  if (!restoreKept(world)) spawnPacks(world);
   startMoments(world);
   stepExploration(world);
   world.glitch.progress = storyProgress(world);

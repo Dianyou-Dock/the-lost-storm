@@ -22,6 +22,7 @@ import type { Escort, SceneState } from './scene-state.ts';
 import type { WardState } from './wards.ts';
 import type { MomentumState } from './momentum-types.ts';
 import type { Tally } from '../tally.ts';
+import type { EnterPortalCommand, PortalChannelIntent, PortalIntent, PortalStage, PortalState, UseItemCommand } from './portal-types.ts';
 
 export type { HazardState, MomentFigure, NpcState, ProjectileState, QueuedShot };
 
@@ -167,7 +168,7 @@ export interface UseIntent {
   readonly prop: number;
 }
 
-export type Intent = IdleIntent | MoveIntent | AttackIntent | PickupIntent | TravelIntent | TalkIntent | UseIntent | OpenChest;
+export type Intent = IdleIntent | MoveIntent | AttackIntent | PickupIntent | TravelIntent | TalkIntent | UseIntent | OpenChest | PortalChannelIntent | PortalIntent;
 
 export interface PlayerState extends ActorState {
   readonly kind: 'player';
@@ -481,6 +482,7 @@ export type TradeAction =
   | { readonly type: 'buy'; readonly index: number }
   | { readonly type: 'sell'; readonly inventoryIndex: number }
   | { readonly type: 'buy_back'; readonly index: number }
+  | { readonly type: 'buy_good'; readonly index: number }
   | { readonly type: 'stash'; readonly inventoryIndex: number }
   | { readonly type: 'unstash'; readonly index: number }
   | { readonly type: 'close' };
@@ -511,7 +513,7 @@ export interface OverlayCommand {
   readonly open: boolean;
 }
 
-export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | ChooseChangeCommand | TravelCommand | TalkCommand | AdvanceCommand | ReplayCommand | TeleportCommand | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand;
+export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | ChooseChangeCommand | TravelCommand | TalkCommand | AdvanceCommand | ReplayCommand | TeleportCommand | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand | UseItemCommand | EnterPortalCommand;
 
 export interface StartRespawn {
   readonly type: 'start';
@@ -535,7 +537,7 @@ export type RespawnPoint = StartRespawn | ExitRespawn | CheckpointRespawn | Wayp
 
 export type AreaStage = 'start' | 'pulse' | 'end';
 
-export type NoticeReason = 'wrong_weapon' | 'no_mana' | 'on_cooldown' | 'inventory_full' | 'flask_empty' | 'life_full' | 'mana_full' | 'no_gold' | 'stash_full' | 'legendary_limit';
+export type NoticeReason = 'wrong_weapon' | 'no_mana' | 'on_cooldown' | 'inventory_full' | 'flask_empty' | 'life_full' | 'mana_full' | 'no_gold' | 'stash_full' | 'legendary_limit' | 'portal_town' | 'portal_boss';
 
 export type WorldEvent =
   | { readonly type: 'skill_start'; readonly actorId: number; readonly skill: SkillDef; readonly direction: Vec2; readonly windup: number; readonly recovery: number }
@@ -589,6 +591,7 @@ export type WorldEvent =
   | { readonly type: 'scene_lead'; readonly scene: string; readonly npcId: number }
   | { readonly type: 'scene_ward'; readonly scene: string; readonly npcId: number; readonly wardId: number }
   | { readonly type: 'notice'; readonly reason: NoticeReason }
+  | { readonly type: 'portal'; readonly stage: PortalStage; readonly zone: string; readonly pos: Vec2 }
   | { readonly type: 'flasks_refilled' }
   | { readonly type: 'flask_used'; readonly slot: number; readonly flask: string; readonly resource: FlaskResource; readonly pos: Vec2 }
   | { readonly type: 'character_changed' }
@@ -686,6 +689,7 @@ export interface World {
   scene: SceneState | null;
   escort: Escort | null;
   wards: WardState[];
+  portal: PortalState | null;
 }
 
 export type { ShoreState };

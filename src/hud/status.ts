@@ -23,6 +23,8 @@ const NOTICE_TEXT: Readonly<Record<NoticeReason, string>> = {
   no_gold: 'Not enough gold',
   stash_full: 'Stash is full',
   legendary_limit: 'Three Legendary items are already worn',
+  portal_town: 'No way opens from here',
+  portal_boss: 'The fight holds the way shut',
 };
 
 export interface Notices {

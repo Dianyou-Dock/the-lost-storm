@@ -37,6 +37,14 @@ export interface GroundLook {
   readonly yawJitter: number;
 }
 
+export interface PortalUse {
+  readonly type: 'portal';
+  readonly channel: number;
+  readonly reach: number;
+}
+
+export type ItemUse = PortalUse;
+
 export interface ItemBaseDef {
   readonly id: string;
   readonly name: string;
@@ -55,6 +63,8 @@ export interface ItemBaseDef {
   readonly ground: GroundLook;
   readonly power: PowerDef | null;
   readonly variants: readonly SkillVariant[];
+  readonly use: ItemUse | null;
+  readonly unsellable: boolean;
 }
 
 export const POWER_TRIGGERS = ['hit', 'kill', 'pulse', 'use'] as const;

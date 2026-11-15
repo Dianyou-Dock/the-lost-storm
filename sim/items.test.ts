@@ -222,7 +222,7 @@ void test('each material has its own trade-off', (): void => {
         assert.ok(implicitOf(base, 'maxLife') > 0, `${base.id} gives life`);
         break;
       case null:
-        assert.ok(base.slot === 'weapon' || base.slot === 'charm' || base.book !== null, base.id);
+        assert.ok(base.slot === 'weapon' || base.slot === 'charm' || base.book !== null || base.use !== null, base.id);
         break;
     }
   }

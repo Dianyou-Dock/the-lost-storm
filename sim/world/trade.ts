@@ -1,6 +1,7 @@
 import type { ServiceKind, StockRarity } from '../content/trade-types.ts';
 import type { Content, LineDef, PropDef, TalkDef, ZoneProp } from '../content/types.ts';
-import { generateItem, isStoryItem } from '../items.ts';
+import { baseOf, generateItem, isStoryItem } from '../items.ts';
+import type { TradeGood } from '../content/trade-types.ts';
 import type { Vec2 } from '../math.ts';
 import { distance, facingOf } from '../math.ts';
 import { pickWeighted } from '../rng.ts';
@@ -150,10 +151,25 @@ function buy(world: World, vendor: VendorStock, index: number): void {
   changed(world);
 }
 
+export function buysBack(world: World, item: ItemInstance): boolean {
+  return !isStoryItem(world.content, item) && baseOf(world.content, item)?.unsellable !== true;
+}
+
+function buyGood(world: World, index: number): void {
+  const good: TradeGood | undefined = world.content.trade.goods[index];
+  const common: string | null = world.content.rarities[0]?.id ?? null;
+  if (good === undefined || !pay(world, good.price)) return;
+  const item: ItemInstance | null = generateItem(world.content, world.rng, world.nextItemUid, 1, good.base, common);
+  if (item === null || !receive(world, item)) return;
+  world.nextItemUid += 1;
+  world.player.gold -= good.price;
+  changed(world);
+}
+
 function sell(world: World, vendor: VendorStock, inventoryIndex: number): void {
   const player: PlayerState = world.player;
   const item: ItemInstance | null = player.inventory[inventoryIndex] ?? null;
-  if (item === null || isStoryItem(world.content, item)) return;
+  if (item === null || !buysBack(world, item)) return;
   player.inventory[inventoryIndex] = null;
   player.gold += sellPrice(world.content, item);
   vendor.buyback = [item, ...vendor.buyback].slice(0, world.content.trade.buybackSize);
@@ -207,6 +223,9 @@ export function handleTrade(world: World, action: TradeAction): void {
       return;
     case 'buy_back':
       if (vendor !== null) buyBack(world, vendor, action.index);
+      return;
+    case 'buy_good':
+      if (vendor !== null) buyGood(world, action.index);
       return;
     case 'stash':
       if (service.kind === 'stash') stash(world, action.inventoryIndex);

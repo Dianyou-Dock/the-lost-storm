@@ -1,8 +1,8 @@
 import type { Fields } from './read.ts';
 import { choice, ContentError, each, fields, fraction, isFields, numeric, positive, text } from './read.ts';
-import type { ServiceKind, StockRarity, TradeDef, TradePricing } from './trade-types.ts';
+import type { ServiceKind, StockRarity, TradeDef, TradeGood, TradePricing } from './trade-types.ts';
 import { SERVICE_KINDS } from './trade-types.ts';
-import type { Content } from './types.ts';
+import type { Content, ItemBaseDef } from './types.ts';
 
 export function service(source: Fields, where: string): ServiceKind | null {
   const value: unknown = source['service'];
@@ -39,6 +39,11 @@ function stockRarity(value: unknown, where: string): StockRarity {
   return { rarity: text(source, 'rarity', where), weight: positive(source, 'weight', where) };
 }
 
+function good(value: unknown, where: string): TradeGood {
+  const source: Fields = fields(value, where);
+  return { base: text(source, 'base', where), price: count(source, 'price', where) };
+}
+
 export function trade(value: unknown, where: string): TradeDef {
   const source: Fields = fields(value, where);
   return {
@@ -48,6 +53,7 @@ export function trade(value: unknown, where: string): TradeDef {
     reach: positive(source, 'reach', where),
     price: pricing(source['price'], `${where}.price`),
     stockRarities: each(source['stockRarities'], `${where}.stockRarities`, stockRarity),
+    goods: source['goods'] === undefined ? [] : each(source['goods'], `${where}.goods`, good),
   };
 }
 
@@ -58,5 +64,12 @@ export function tradeProblems(content: Content): string[] {
   for (const key of Object.keys(content.trade.price.rarity)) if (!rarities.has(key)) problems.push(`trade prices unknown rarity ${key}`);
   for (const entry of content.trade.stockRarities) if (!rarities.has(entry.rarity)) problems.push(`trade stocks unknown rarity ${entry.rarity}`);
   if (content.trade.stockRarities.length === 0) problems.push('trade needs at least one stock rarity');
+  for (const entry of content.trade.goods) {
+    const base: ItemBaseDef | undefined = content.itemBases.get(entry.base);
+    if (base === undefined) problems.push(`trade sells unknown item ${entry.base}`);
+    else if (base.dropWeight > 0) problems.push(`trade good ${entry.base} must not drop`);
+    else if (!base.unsellable) problems.push(`trade good ${entry.base} must be unsellable`);
+  }
+  if (new Set<string>(content.trade.goods.map((entry: TradeGood): string => entry.base)).size !== content.trade.goods.length) problems.push('trade lists a good twice');
   return problems;
 }

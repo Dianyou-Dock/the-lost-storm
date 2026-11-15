@@ -22,6 +22,8 @@ import { emptyPathLog, pathToSave, readPathLog } from './world/path-log.ts';
 import { LEDGER_ID } from './world/ledger.ts';
 import { decodeExplored, encodeExplored, exploredSize } from './world/exploration.ts';
 import type { Equipment, GroundItem, ItemInstance, RespawnPoint, RolledAffix, VendorStock, World } from './world/types.ts';
+import type { PortalSave } from './world/portal-types.ts';
+import { portalToSave, readPortal } from './world/portal-save.ts';
 
 export const SAVE_VERSION: number = 6;
 const FLAGGED_VERSION: number = 5;
@@ -62,6 +64,7 @@ export interface SaveData {
   readonly path: PathLogSave;
   readonly purse: number;
   readonly tally: TallySave;
+  readonly portal: PortalSave | null;
 }
 
 interface Worn {
@@ -115,6 +118,7 @@ export function toSave(world: World): SaveData {
     path: pathToSave(world.path),
     purse: world.purse,
     tally: tallyToSave(player.tally),
+    portal: portalToSave(world),
   };
 }
 
@@ -384,6 +388,7 @@ export function readSave(content: Content, value: unknown): SaveData | null {
     path: value['version'] === SAVE_VERSION ? pathToSave(readPathLog(value['path'], new Set<string>(content.zones.keys()))) : pathToSave(emptyPathLog()),
     purse: readPurse(value['purse']),
     tally: readTally(content, value['tally']),
+    portal: readPortal(content, value['portal'], { item: (entry: unknown): ItemInstance | null => readItem(content, entry), respawn: readRespawn }),
   });
 }
 

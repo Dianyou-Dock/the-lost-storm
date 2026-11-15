@@ -3182,6 +3182,20 @@
       "implicit": []
     },
     {
+      "id": "folded_hour",
+      "name": "Folded Hour",
+      "slot": null,
+      "material": null,
+      "icon": "charm",
+      "dropWeight": 0,
+      "minLevel": 1,
+      "visual": null,
+      "wear": [],
+      "implicit": [],
+      "unsellable": true,
+      "use": {"type": "portal", "channel": 1.2, "reach": 1.6}
+    },
+    {
       "id": "wirethread_gloves",
       "name": "Wirethread Gloves",
       "slot": "hands",

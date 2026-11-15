@@ -28,6 +28,7 @@ export function roadZone(patch: Partial<ZoneDef>): ZoneDef {
     exits: [],
     checkpoints: [],
     deathReturn: null,
+    portalSpot: null,
     waypoint: null,
     voices: [],
     surge: null,

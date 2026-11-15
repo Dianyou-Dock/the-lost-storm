@@ -295,6 +295,7 @@ export function zone(value: unknown, where: string): ZoneDef {
     exits: [...byId(each(source['exits'], `${where}.exits`, zoneExit), `${where}.exits`).values()],
     checkpoints: [...byId(each(source['checkpoints'], `${where}.checkpoints`, zoneCheckpoint), `${where}.checkpoints`).values()],
     waypoint: zoneWaypoint(source['waypoint'], `${where}.waypoint`),
+    portalSpot: source['portalSpot'] === undefined || source['portalSpot'] === null ? null : point(source['portalSpot'], `${where}.portalSpot`),
     deathReturn: zoneReturn(source['deathReturn'], `${where}.deathReturn`),
     npcs: each(source['npcs'], `${where}.npcs`, zoneNpc),
     voices: source['voices'] === undefined ? [] : [...byId(each(source['voices'], `${where}.voices`, zoneVoice), `${where}.voices`).values()],

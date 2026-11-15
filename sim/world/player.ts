@@ -34,6 +34,8 @@ import { chooseHero, HERO, heroRig } from '../hero.ts';
 import { stepWaypoints, teleport } from './waypoints.ts';
 import { findExit, stepCheckpoints, travelThrough } from './zones.ts';
 import { exitWaits } from './scene.ts';
+import type { PortalEnd } from './portal-types.ts';
+import { goThrough, portalEndHere, stepChannel, useItem } from './portal.ts';
 
 const PLAYER = {
   moveDeadZone: 0.7,
@@ -229,6 +231,13 @@ function act(world: World, command: Command): void {
     case 'teleport':
       teleport(world, command.zone);
       return;
+    case 'enter_portal': {
+      const end: PortalEnd | null = portalEndHere(world);
+      if (end === null) return;
+      player.intent = { type: 'portal' };
+      setDestination(world, end.pos);
+      return;
+    }
     case 'use': {
       const station: Station | null = stationAt(world, command.prop);
       const cache: Cache | null = station === null ? cacheAt(world, command.prop) : null;
@@ -269,6 +278,7 @@ function act(world: World, command: Command): void {
     case 'respec':
     case 'choose_change':
     case 'respawn':
+    case 'use_item':
       return;
   }
 }
@@ -314,6 +324,9 @@ export function handleCommand(world: World, command: Command): void {
       return;
     case 'respawn':
       respawnPlayer(world, command.choice);
+      return;
+    case 'use_item':
+      useItem(world, command.inventoryIndex);
       return;
     case 'flask':
       useFlask(world, command.slot);
@@ -361,6 +374,7 @@ export function handleCommand(world: World, command: Command): void {
     case 'travel':
     case 'talk':
     case 'teleport':
+    case 'enter_portal':
       if (!player.alive) return;
       if (command.type !== 'skill') closeDialogue(world, false);
       if ((command.type === 'move' || command.type === 'walk') && aimGlide(player, command.dest)) return;
@@ -472,6 +486,25 @@ function stepIntent(world: World, dt: number): void {
     case 'use':
       useProp(world, intent.prop, dt);
       return;
+    case 'portal_channel':
+      stepChannel(world, intent, dt);
+      return;
+    case 'portal': {
+      const end: PortalEnd | null = portalEndHere(world);
+      if (end === null) {
+        player.intent = { type: 'idle' };
+        player.path = [];
+        return;
+      }
+      if (distance(player.pos, end.pos) <= end.reach) {
+        player.intent = { type: 'idle' };
+        player.path = [];
+        goThrough(world, end);
+        return;
+      }
+      pursue(world, end.pos, dt);
+      return;
+    }
     case 'open': {
       const moment: MomentState | null = chestOf(world, intent.momentId);
       const spot: Vec2 | null = moment === null ? null : chestSpot(moment);

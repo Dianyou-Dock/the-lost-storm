@@ -463,6 +463,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
           case 'burn':
           case 'brand':
           case 'surge_cleared':
+          case 'portal':
           case 'player_respawn':
           case 'hero_step':
           case 'wake':

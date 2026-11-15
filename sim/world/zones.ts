@@ -15,6 +15,7 @@ import { beginVoid } from './wake.ts';
 import { clearMoments, startMoments } from './moments.ts';
 import { arriveWith } from './npc-walk.ts';
 import { leavingWith } from './scene.ts';
+import { parkZone, restoreKept } from './portal-keep.ts';
 
 export function startZone(content: Content): ZoneDef {
   const zone: ZoneDef | undefined = content.zones.get(content.world.start);
@@ -75,6 +76,7 @@ export function placePlayer(world: World): void {
 }
 
 export function enterZone(world: World, zone: ZoneDef, respawn: RespawnPoint): void {
+  parkZone(world);
   closeDialogue(world, false);
   world.scene = null;
   world.wards = [];
@@ -103,7 +105,7 @@ export function enterZone(world: World, zone: ZoneDef, respawn: RespawnPoint): v
   spawnNpcs(world);
   if (world.escort !== null) arriveWith(world, world.escort);
   world.escort = null;
-  spawnPacks(world);
+  if (!restoreKept(world)) spawnPacks(world);
   startMoments(world);
 }
 

@@ -36,7 +36,7 @@ export function storyProblems(content: Content): string[] {
   const problems: string[] = [];
   for (const base of content.itemBases.values()) {
     const at: string = `item ${base.id}`;
-    if ((base.slot === null) !== (base.book !== null)) problems.push(`${at} must have either a slot or a book, not both or neither`);
+    if ([base.slot, base.book, base.use].filter((kind: unknown): boolean => kind !== null).length !== 1) problems.push(`${at} must have exactly one of a slot, a book or a use`);
     if (base.book !== null && !content.books.has(base.book)) problems.push(`${at} is unknown book ${base.book}`);
     if (base.book !== null && base.dropWeight > 0) problems.push(`${at} is a book and cannot drop at random`);
   }

@@ -2,6 +2,7 @@ import type { Fields } from './read.ts';
 import { ContentError, choice, choiceList, each, fields, flag, nonNegative, nullableText, numeric, positive, text, textList } from './read.ts';
 import { skillMod, skillTarget, statMod } from './parse-chart.ts';
 import type { SkillTarget, SkillVariant } from './chart-types.ts';
+import type { ItemUse } from './item-types.ts';
 import type { AffixDef, FamilyDef, GroundLook, ItemBaseDef, ItemSlot, PowerDef, PowerEffect, PowerTriggerDef, RarityDef, WeaponKind } from './types.ts';
 import { ARMOUR_MATERIALS, CAST_ORIGINS, GROUND_KEEPS, GROUND_MODELS, ITEM_SLOTS, ITEM_STATS, MOD_OPS, POWER_TARGETS, POWER_TRIGGERS, RARITY_MARKERS, STAT_IDS, WEAPON_KINDS } from './types.ts';
 
@@ -105,7 +106,17 @@ export function itemBase(value: unknown, where: string): ItemBaseDef {
     ground: source['ground'] === undefined ? genericLook(slot) : groundLook(source['ground'], `${where}.ground`),
     power: power(source['power'], `${where}.power`),
     variants: source['variants'] === undefined ? [] : each(source['variants'], `${where}.variants`, skillVariant),
+    use: itemUse(source['use'], `${where}.use`),
+    unsellable: source['unsellable'] === undefined ? false : flag(source, 'unsellable', where),
   };
+}
+
+const ITEM_USES = ['portal'] as const;
+
+function itemUse(value: unknown, where: string): ItemUse | null {
+  if (value === undefined || value === null) return null;
+  const source: Fields = fields(value, where);
+  return { type: choice(source, 'type', ITEM_USES, where), channel: positive(source, 'channel', where), reach: positive(source, 'reach', where) };
 }
 
 function groundLook(value: unknown, where: string): GroundLook {
