@@ -1,6 +1,6 @@
 import { spawn } from 'node:child_process';
 import type { ChildProcess } from 'node:child_process';
-import { mkdtempSync, readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fields, items, text } from '../sim/content/read.ts';
@@ -16,6 +16,8 @@ const WALK = {
   settleMs: 1500,
   walkWaitMs: 240000,
   audioKey: 'the-lost-storm.audio.v1',
+  profile: 'walk-bodies-profile',
+  portFile: 'DevToolsActivePort',
   steps: ['^enter$', '^(choose for me|take .+)$', '^enter$'],
   begin: '^(enter the storm|continue)$',
 } as const;
@@ -45,14 +47,17 @@ async function startServer(port: number): Promise<{ readonly url: string; readon
 }
 
 function startChrome(chrome: string): { readonly process: ChildProcess; readonly profile: string } {
-  const profile: string = mkdtempSync(join(tmpdir(), 'walk-bodies-'));
+  const profile: string = join(tmpdir(), WALK.profile);
+  mkdirSync(profile, { recursive: true });
+  rmSync(join(profile, WALK.portFile), { force: true });
   const process: ChildProcess = spawn(chrome, ['--headless=new', '--mute-audio', '--no-first-run', '--no-default-browser-check', '--enable-unsafe-swiftshader', `--window-size=${WALK_DEFAULTS.width},${WALK_DEFAULTS.height}`, '--remote-debugging-port=0', `--user-data-dir=${profile}`, 'about:blank'], { stdio: 'ignore' });
   return { process, profile };
 }
 
 async function pageSocket(profile: string): Promise<string> {
-  const port: string = await until('Chrome to open its debugging port', WALK.chromeWaitMs, (): Promise<string | null> => new Promise<string | null>((resolve: (port: string | null) => void): void => resolve(readFileSync(join(profile, 'DevToolsActivePort'), 'utf8').split('\n')[0] ?? null)));
   return until('a page in Chrome', WALK.chromeWaitMs, async (): Promise<string | null> => {
+    const port: string | undefined = readFileSync(join(profile, WALK.portFile), 'utf8').split('\n')[0];
+    if (port === undefined) return null;
     const listed: readonly unknown[] = items(await (await fetch(`http://127.0.0.1:${port}/json/list`)).json(), 'targets');
     const page: Fields | undefined = listed.map((entry: unknown): Fields => fields(entry, 'target')).find((target: Fields): boolean => target['type'] === 'page');
     return page === undefined ? null : text(page, 'webSocketDebuggerUrl', 'target');
@@ -124,6 +129,8 @@ async function clickThrough(cdp: Cdp, steps: readonly string[]): Promise<void> {
 }
 
 async function enterPlay(cdp: Cdp, url: string, hero: string): Promise<void> {
+  await cdp.call('Storage.clearDataForOrigin', { origin: url, storageTypes: 'all' });
+  await cdp.call('Network.clearBrowserCache', {});
   await cdp.call('Page.navigate', { url: `${url}/` });
   await pause(WALK.settleMs);
   await evaluate(cdp, `localStorage.setItem(${JSON.stringify(WALK.audioKey)}, JSON.stringify({ volumes: { master: 0, effects: 0, voice: 0, ambience: 0 }, muted: true })), true`);
