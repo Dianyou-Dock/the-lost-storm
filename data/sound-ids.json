@@ -46,6 +46,7 @@
   "door_wood",
   "electric_crackle",
   "equip_cloth",
+  "fire_blast",
   "footstep_dirt",
   "footstep_grass",
   "footstep_gravel",
@@ -54,6 +55,7 @@
   "footstep_wade",
   "footstep_water",
   "footstep_wood",
+  "ghost_horn",
   "glass_clink",
   "glitch_return",
   "glitch_sub_drop",
@@ -89,6 +91,7 @@
   "seam_riser",
   "shimmer_faint",
   "slam_heavy",
+  "spell_flick",
   "still_creak",
   "still_exhale",
   "swell_slow",
@@ -111,5 +114,6 @@
   "unfinished_breath",
   "unfinished_growl",
   "water_splash",
-  "wave_arrival"
+  "wave_arrival",
+  "wisp_whoosh"
 ]

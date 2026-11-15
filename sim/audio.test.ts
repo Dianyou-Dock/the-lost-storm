@@ -75,17 +75,18 @@ void test('Thunderclap landing plays a boom and a crack at the origin', (): void
 void test('a hit plays what the skill and the target sound like, and a crit the crit sound', (): void => {
   const world: World = fresh();
   const thrall: MonsterState = monster(world, 'mended');
-  const base = { type: 'damage', targetId: thrall.id, sourceId: world.player.id, targetTeam: 'monster', amount: 5, killed: false, pos: thrall.pos, direction: AWAY } as const;
+  const base = { type: 'damage', targetId: thrall.id, sourceId: world.player.id, targetTeam: 'monster', amount: 5, killed: false, pos: thrall.pos, direction: AWAY, burn: false } as const;
   assert.deepEqual(sounds(cuesForEvent(audio, world, { ...base, crit: false, skill: skill('cleave') })), ['bone_hit']);
   assert.deepEqual(sounds(cuesForEvent(audio, world, { ...base, crit: true, skill: skill('cleave') })), ['bone_hit', 'crit_hit']);
   assert.deepEqual(sounds(cuesForEvent(audio, world, { ...base, crit: false, skill: skill('storm_bolt') })), ['bolt_impact', 'bone_hit']);
   const hurt: readonly SoundCue[] = cuesForEvent(audio, world, { ...base, targetId: world.player.id, targetTeam: 'player', crit: false, skill: skill('mender_needle') });
   assert.deepEqual(sounds(hurt), ['hex_impact', 'hero_hurt']);
+  assert.deepEqual(sounds(cuesForEvent(audio, world, { ...base, crit: false, skill: skill('storm_bolt'), burn: true })), []);
 });
 
 void test('a hit on a monster that is already gone still plays the skill sound only', (): void => {
   const world: World = fresh();
-  const cues: readonly SoundCue[] = cuesForEvent(audio, world, { type: 'damage', targetId: 99999, sourceId: world.player.id, targetTeam: 'monster', amount: 1, crit: false, killed: true, pos: AWAY, direction: AWAY, skill: skill('storm_bolt') });
+  const cues: readonly SoundCue[] = cuesForEvent(audio, world, { type: 'damage', targetId: 99999, sourceId: world.player.id, targetTeam: 'monster', amount: 1, crit: false, killed: true, pos: AWAY, direction: AWAY, skill: skill('storm_bolt'), burn: false });
   assert.deepEqual(sounds(cues), ['bolt_impact']);
 });
 
@@ -258,7 +259,7 @@ function swung(world: World, skillId: string, from: AudioDef = audio): string[] 
 }
 
 function hitSounds(world: World, target: MonsterState, skillId: string, crit: boolean, from: AudioDef = audio): string[] {
-  return sounds(cuesForEvent(from, world, { type: 'damage', targetId: target.id, sourceId: world.player.id, targetTeam: 'monster', amount: 5, crit, killed: false, pos: target.pos, direction: AWAY, skill: skill(skillId) }));
+  return sounds(cuesForEvent(from, world, { type: 'damage', targetId: target.id, sourceId: world.player.id, targetTeam: 'monster', amount: 5, crit, killed: false, pos: target.pos, direction: AWAY, skill: skill(skillId), burn: false }));
 }
 
 void test('a swing adds a heavy layer only for heavy weapons, and an empty hand still swings', (): void => {
@@ -290,7 +291,7 @@ void test('a cue filtered by weapon kind plays only for that kind, for the shot 
   assert.deepEqual(hitSounds(world, thrall, 'quarrel', false, filtered), ['hit_wood', 'bone_hit']);
   world.player.equipped.weapon = null;
   assert.deepEqual(hitSounds(world, thrall, 'quarrel', false, filtered), ['bone_hit']);
-  const theirs: readonly SoundCue[] = cuesForEvent(filtered, world, { type: 'damage', targetId: world.player.id, sourceId: thrall.id, targetTeam: 'player', amount: 5, crit: false, killed: false, pos: AWAY, direction: AWAY, skill: skill('quarrel') });
+  const theirs: readonly SoundCue[] = cuesForEvent(filtered, world, { type: 'damage', targetId: world.player.id, sourceId: thrall.id, targetTeam: 'player', amount: 5, crit: false, killed: false, pos: AWAY, direction: AWAY, skill: skill('quarrel'), burn: false });
   assert.deepEqual(sounds(theirs), ['hero_hurt']);
 });
 

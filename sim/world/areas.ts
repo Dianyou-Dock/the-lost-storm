@@ -25,6 +25,7 @@ export function placeArea(world: World, offence: Offence, skill: SkillDef, at: R
   world.nextId += 1;
   world.areas.push(area);
   world.events.push({ type: 'area', area, stage: 'start', hits: 0 });
+  if (delivery.opening) pulse(world, area, delivery);
   return area;
 }
 

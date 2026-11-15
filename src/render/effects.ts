@@ -3,7 +3,10 @@ import type { Group, Object3D, Scene, Vector3 } from 'three';
 import { Color, Mesh, MeshBasicMaterial, SphereGeometry } from 'three';
 import type { FlaskResource } from '../../sim/content/flasks.ts';
 import type { Delivery, SkillDef } from '../../sim/content/types.ts';
+import type { VfxGather, VfxWave } from '../../sim/content/vfx-types.ts';
+import type { Vec2 } from '../../sim/math.ts';
 import { DEGREES_TO_RADIANS, facingOf } from '../../sim/math.ts';
+import { SKILLS } from '../../sim/world/skills.ts';
 import type { MonsterState, ProjectileState, World, WorldEvent } from '../../sim/world/types.ts';
 import { disposeObject, glow, programKeepers, projectileMesh, slashMesh } from './effect-shapes.ts';
 import type { Shockwave } from './shockwave.ts';
@@ -19,6 +22,12 @@ import type { BurstOptions, ParticleSystem } from './particles.ts';
 import { renderBudget } from '../mobile/quality.ts';
 import type { AbilityCues } from './ability-cues.ts';
 import { createAbilityCues, novaLook } from './ability-cues.ts';
+import type { GatherOrbs } from './gather-orb.ts';
+import { createGatherOrbs } from './gather-orb.ts';
+import type { FireBursts } from './fire-burst.ts';
+import { createFireBursts } from './fire-burst.ts';
+import type { GhostWaves } from './ghost-wave.ts';
+import { createGhostWaves } from './ghost-wave.ts';
 import type { HurtWash } from './hurt-wash.ts';
 import { CALM_WASH, stepWash, washHit } from './hurt-wash.ts';
 import type { NovaLook } from './ability-cues.ts';
@@ -143,6 +152,8 @@ function landsAhead(skill: SkillDef): boolean {
   return skill.leap !== null || delivery.type === 'blink' || (delivery.type === 'area' && delivery.anchor === 'ground');
 }
 
+const launchPoint = (from: { readonly x: number; readonly z: number }, direction: { readonly x: number; readonly z: number }): Vec2 => ({ x: from.x + direction.x * SKILLS.projectileOrigin, z: from.z + direction.z * SKILLS.projectileOrigin });
+
 function easeOut(t: number): number {
   return 1 - (1 - t) * (1 - t) * (1 - t);
 }
@@ -247,6 +258,9 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
   };
 
   const cues: AbilityCues = createAbilityCues({ add, spray, flashLight, gather: riseLight, ring });
+  const orbs: GatherOrbs = createGatherOrbs({ add, spray, gather: riseLight, flashLight });
+  const waves: GhostWaves = createGhostWaves({ parent: scene, spray });
+  const fires: FireBursts = createFireBursts({ parent: scene, kit, spray, flashLight, colorOf, trauma: (amount: number): void => camera.addTrauma(amount) });
   const shockwave: Shockwave = createShockwave({ add, spray, flashLight, shade: (x: number, z: number, radius: number): void => cues.shade(x, z, radius), kit, dust: DUST });
 
   const burst = (x: number, z: number, radius: number, skill: SkillDef): void => {
@@ -266,6 +280,11 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
   };
 
   const onSkillStart = (event: Extract<WorldEvent, { type: 'skill_start' }>, world: World): void => {
+    const gathered: VfxGather | null = event.skill.vfx.gather;
+    if (gathered !== null) {
+      const caster: { readonly pos: { readonly x: number; readonly z: number } } | undefined = event.actorId === world.player.id ? world.player : world.monsters.find((candidate: MonsterState): boolean => candidate.id === event.actorId);
+      if (caster !== undefined) orbs.start(event.actorId, launchPoint(caster.pos, event.direction), EFFECTS.projectileHeight, gathered, event.windup, colorOf(event.skill.vfx.color));
+    }
     if (event.skill.vfx.style === 'roll') {
       const roller: { readonly pos: { readonly x: number; readonly z: number } } | undefined = event.actorId === world.player.id ? world.player : world.monsters.find((candidate: MonsterState): boolean => candidate.id === event.actorId);
       if (roller !== undefined) dashTrails.start(event.actorId, roller.pos, event.direction, colorOf(event.skill.vfx.color));
@@ -287,6 +306,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     const color: Color = colorOf(event.skill.vfx.color);
     const delivery = event.skill.delivery;
     cancelOwned(event.actorId);
+    if (event.skill.vfx.gather !== null) orbs.release(launchPoint(event.origin, event.direction), EFFECTS.projectileHeight, event.direction, event.skill.vfx.gather, color);
     switch (delivery.type) {
       case 'arc': {
         const weight: number = heft(event.skill.shake);
@@ -312,9 +332,9 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
       case 'dash':
         if (event.skill.vfx.style === 'roll') dashTrails.land(event.origin, event.direction, color);
         break;
-      case 'revive':
-      case 'area':
       case 'chain':
+      case 'area':
+      case 'revive':
       case 'beam':
       case 'blink':
         break;
@@ -369,6 +389,10 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     }
     flights.delete(event.id);
     kit.drop(event.id);
+    if (event.skill.vfx.wave !== null) {
+      waves.end(event.id, event.pos);
+      return;
+    }
     const color: Color = colorOf(event.skill.vfx.color);
     const impact = event.skill.vfx.impact;
     if (impact !== null) {
@@ -407,8 +431,15 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     if (event.broken) ring(event.pos.x, event.pos.z, EFFECTS.breakRing, SPARK, EFFECTS.ringTime);
   };
 
+  const launchWave = (projectile: ProjectileState): void => {
+    const look: VfxWave | null = projectile.skill.vfx.wave;
+    const delivery = projectile.skill.delivery;
+    if (look === null || delivery.type !== 'projectile') return;
+    waves.launch(projectile.id, projectile.from, projectile.direction, look, colorOf(projectile.skill.vfx.color), delivery.speed, delivery.range + SKILLS.projectileOrigin);
+  };
+
   const projectileView = (projectile: ProjectileState): ProjectileView | null => {
-    if (projectile.skill.vfx.lightning !== null) return null;
+    if (projectile.skill.vfx.lightning !== null || projectile.skill.vfx.wave !== null) return null;
     const existing: ProjectileView | undefined = projectiles.get(projectile.id);
     if (existing !== undefined) return existing;
     const color: Color = colorOf(projectile.skill.vfx.color);
@@ -451,6 +482,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     },
     handle(events: readonly WorldEvent[], world: World): void {
       for (const event of events) {
+        fires.take(event);
         storm.handle(event);
         switch (event.type) {
           case 'skill_start':
@@ -471,13 +503,14 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
             onGuarded(event);
             break;
           case 'damage':
-            onDamage(event);
+            if (!event.burn) onDamage(event);
             break;
           case 'death':
             onDeath(event, world);
             break;
           case 'projectile_spawn':
             projectileView(event.projectile);
+            launchWave(event.projectile);
             break;
           case 'projectile_end':
             onProjectileEnd(event);
@@ -538,6 +571,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
           case 'aggro':
           case 'drop':
           case 'area':
+          case 'burn':
           case 'chain':
           case 'beam':
           case 'blink':
@@ -604,10 +638,14 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
       kit.clear();
       dashTrails.clear();
       storm.clear();
+      waves.clear();
+      fires.clear();
       telegraphs.clear();
     },
     update(dt: number, world: World): void {
       dashTrails.update(dt, world);
+      waves.update(dt);
+      fires.update(dt, world);
       storm.update(dt, world);
       telegraphs.update(dt, world);
       for (const transient of transients) {
@@ -621,19 +659,23 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
       }
       kit.update(dt);
       for (const projectile of world.projectiles) {
+        if (projectile.skill.vfx.wave !== null) {
+          waves.carry(projectile.id, projectile.pos);
+          continue;
+        }
         const lightning = projectile.skill.vfx.lightning;
         const flight: number = glideFloor(flights.get(projectile.id), projectile.pos.x, projectile.pos.z, dt);
         flights.set(projectile.id, flight);
         const flying: number = EFFECTS.projectileHeight + flight - liftHere(projectile.pos.x, projectile.pos.z);
         if (lightning !== null) {
-          kit.carry(projectile.id, projectile.pos.x, flying, projectile.pos.z, projectile.direction.x, projectile.direction.z, colorOf(projectile.skill.vfx.color), lightning, projectile.skill.vfx.trail, dt);
+          kit.carry(projectile.id, projectile.pos.x, flying, projectile.pos.z, projectile.direction.x, projectile.direction.z, colorOf(projectile.skill.vfx.color), lightning, projectile.skill.vfx.trail, projectile.skill.vfx.linger, dt);
           continue;
         }
         const view: ProjectileView | null = projectileView(projectile);
         if (view === null) continue;
         view.mesh.position.set(projectile.pos.x, floorUp(projectile.pos.x, flying, projectile.pos.z), projectile.pos.z);
         view.mesh.rotation.z += dt * 14;
-        if (projectile.skill.vfx.trail > 0) kit.carry(projectile.id, projectile.pos.x, flying, projectile.pos.z, projectile.direction.x, projectile.direction.z, view.color, null, projectile.skill.vfx.trail, dt);
+        if (projectile.skill.vfx.trail > 0) kit.carry(projectile.id, projectile.pos.x, flying, projectile.pos.z, projectile.direction.x, projectile.direction.z, view.color, null, projectile.skill.vfx.trail, projectile.skill.vfx.linger, dt);
         else spray(projectile.pos.x, flying, projectile.pos.z, view.color, 2, { speed: { min: 0, max: 1.2 }, lift: { min: -0.6, max: 0.8 }, life: { min: 0.12, max: 0.32 }, size: { min: 0.3, max: 0.7 }, gravity: 0, jitter: 0.25 });
       }
       if (warmFrames > 0) {

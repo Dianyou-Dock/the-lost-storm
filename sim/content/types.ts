@@ -89,6 +89,7 @@ export interface ProjectileDelivery {
   readonly pierce: number;
   readonly count: number;
   readonly spreadDegrees: number;
+  readonly interval: number;
 }
 
 export interface DashDelivery {

@@ -86,6 +86,7 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
       if (!event.hit) found = cues(audio.projectileExpire, event.skill.id, event.pos);
       break;
     case 'damage': {
+      if (event.burn) break;
       const weapon: WeaponKind | null = weaponOf(world, event.sourceId);
       const keys: readonly string[] = targetKeys(world, event.targetTeam, event.targetId);
       const arrival: readonly SoundCue[] = cues(audio.skillHit, event.skill.id, event.pos, weapon);
@@ -172,6 +173,7 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
     case 'chain':
     case 'beam':
     case 'blink':
+    case 'burn':
     case 'brand':
     case 'skill_unlocked':
     case 'chart_point':

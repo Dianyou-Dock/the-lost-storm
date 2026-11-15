@@ -9,7 +9,9 @@ void test('each new delivery reads from data with its own fields', (): void => {
   assert.deepEqual(shapeDelivery('chain', { range: 9, jumps: 3, jumpRange: 5, falloff: 0.8 }, 'x'), { type: 'chain', range: 9, jumps: 3, jumpRange: 5, falloff: 0.8 });
   assert.deepEqual(shapeDelivery('blink', { range: 7, radius: 0 }, 'x'), { type: 'blink', range: 7, radius: 0 });
   assert.deepEqual(shapeDelivery('beam', { range: 11, width: 0.8 }, 'x'), { type: 'beam', range: 11, width: 0.8 });
-  assert.deepEqual(shapeDelivery('area', { range: 9, radius: 3, duration: 4, pulse: 0.5, pull: 0, slow: 1, anchor: 'ground' }, 'x'), { type: 'area', range: 9, radius: 3, duration: 4, pulse: 0.5, pull: 0, slow: 1, anchor: 'ground' });
+  assert.deepEqual(shapeDelivery('area', { range: 9, radius: 3, duration: 4, pulse: 0.5, pull: 0, slow: 1, anchor: 'ground' }, 'x'), { type: 'area', range: 9, radius: 3, duration: 4, pulse: 0.5, pull: 0, slow: 1, anchor: 'ground', opening: false });
+  const opening = shapeDelivery('area', { range: 4, radius: 2, duration: 1, pulse: 0, pull: 0, slow: 1, anchor: 'ground', opening: true }, 'x');
+  assert.ok(opening.type === 'area' && opening.opening);
 });
 
 void test('a field that pulses less often than it lasts, a fractional jump count or an unknown anchor is refused', (): void => {
@@ -21,13 +23,21 @@ void test('a field that pulses less often than it lasts, a fractional jump count
 });
 
 void test('hold and brand are optional and read as charge, channel or a burst skill', (): void => {
-  assert.deepEqual(skillPress({}, 'x'), { press: null, brand: null, momentum: null });
+  assert.deepEqual(skillPress({}, 'x'), { press: null, brand: null, momentum: null, burn: null });
   assert.deepEqual(skillPress({ press: { type: 'channel', interval: 0.2, max: 3 } }, 'x').press, { type: 'channel', interval: 0.2, max: 3, move: 0 });
   assert.deepEqual(skillPress({ press: { type: 'charge', max: 1, damageScale: 3, areaScale: 1.4 }, brand: { duration: 6, burst: 'pop' } }, 'x'), {
     press: { type: 'charge', max: 1, damageScale: 3, areaScale: 1.4 },
     brand: { duration: 6, burst: 'pop' },
     momentum: null,
+    burn: null,
   });
+});
+
+void test('a burn reads as a duration, a tick no longer than it and a share of the hit', (): void => {
+  assert.deepEqual(skillPress({ burn: { duration: 1.25, tick: 0.25, share: 0.15 } }, 'x').burn, { duration: 1.25, tick: 0.25, share: 0.15 });
+  assert.throws(() => skillPress({ burn: { duration: 1, tick: 2, share: 0.1 } }, 'x'), ContentError);
+  assert.throws(() => skillPress({ burn: { duration: 1, tick: 0.001, share: 0.1 } }, 'x'), ContentError);
+  assert.throws(() => skillPress({ burn: { duration: 1, tick: 0.25, share: 0 } }, 'x'), ContentError);
 });
 
 void test('a brand must burst as a nova, and a blink or a leap cannot be held', (): void => {

@@ -21,6 +21,7 @@ export interface AreaDelivery {
   readonly pull: number;
   readonly slow: number;
   readonly anchor: AreaAnchor;
+  readonly opening: boolean;
 }
 
 export interface BlinkDelivery {
@@ -73,6 +74,12 @@ export interface MomentumDef {
   readonly tiers: readonly MomentumTier[];
 }
 
+export interface BurnDef {
+  readonly duration: number;
+  readonly tick: number;
+  readonly share: number;
+}
+
 export interface SkillShape {
   readonly leap: SkillLeap | null;
   readonly root: number;
@@ -80,6 +87,7 @@ export interface SkillShape {
   readonly press: PressDef | null;
   readonly brand: BrandDef | null;
   readonly momentum: MomentumDef | null;
+  readonly burn: BurnDef | null;
 }
 
 export interface SkillUnlock {

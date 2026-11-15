@@ -1,6 +1,6 @@
 import type { Fields } from './read.ts';
-import { choice, ContentError, fields, nonNegative, positive, share, text } from './read.ts';
-import type { SkillVfx, VfxImpact, VfxLightning } from './vfx-types.ts';
+import { choice, ContentError, each, fields, nonNegative, positive, share, text } from './read.ts';
+import type { SkillVfx, VfxBurn, VfxFlare, VfxGather, VfxImpact, VfxLightning, VfxPunch, VfxRipple, VfxWave } from './vfx-types.ts';
 import { VFX_CUES, VFX_MAX_FORKS, VFX_STYLES } from './vfx-types.ts';
 
 function vfxLightning(value: unknown, where: string): VfxLightning | null {
@@ -26,6 +26,80 @@ function vfxImpact(value: unknown, where: string): VfxImpact | null {
   return { sparks, flash: nonNegative(source, 'flash', where) };
 }
 
+export const GATHER_MIN_SAMPLES: number = 2;
+
+function gatherCurve(value: unknown, where: string): readonly number[] {
+  const samples: number[] = each(value, where, (entry: unknown, entryWhere: string): number => {
+    if (typeof entry !== 'number' || entry < 0 || entry > 1) throw new ContentError(entryWhere, 'expected a number from 0 to 1');
+    return entry;
+  });
+  if (samples.length < GATHER_MIN_SAMPLES) throw new ContentError(where, `expected at least ${GATHER_MIN_SAMPLES} samples`);
+  return samples;
+}
+
+function vfxGather(value: unknown, where: string): VfxGather | null {
+  if (value === undefined) return null;
+  const source: Fields = fields(value, where);
+  return {
+    radius: positive(source, 'radius', where),
+    lift: nonNegative(source, 'lift', where),
+    size: gatherCurve(source['size'], `${where}.size`),
+    glow: gatherCurve(source['glow'], `${where}.glow`),
+    dust: nonNegative(source, 'dust', where),
+    light: nonNegative(source, 'light', where),
+  };
+}
+
+function vfxRipple(value: unknown, where: string): VfxRipple {
+  const source: Fields = fields(value, where);
+  return { delay: positive(source, 'delay', where), strength: share(source, 'strength', where) };
+}
+
+function vfxWave(value: unknown, where: string): VfxWave | null {
+  if (value === undefined) return null;
+  const source: Fields = fields(value, where);
+  const ripples: VfxRipple[] = each(source['ripples'], `${where}.ripples`, vfxRipple);
+  ripples.forEach((ripple: VfxRipple, index: number): void => {
+    const before: VfxRipple | undefined = ripples[index - 1];
+    if (before !== undefined && ripple.delay <= before.delay) throw new ContentError(`${where}.ripples[${index}].delay`, 'expected each after-wave to leave later than the one before');
+  });
+  const quiet: number = positive(source, 'quiet', where);
+  const last: VfxRipple | undefined = ripples.at(-1);
+  if (last !== undefined && quiet <= last.delay) throw new ContentError(`${where}.quiet`, 'expected the wave to go quiet after its last after-wave leaves');
+  return {
+    halfWidth: positive(source, 'halfWidth', where),
+    depth: positive(source, 'depth', where),
+    mist: nonNegative(source, 'mist', where),
+    swell: gatherCurve(source['swell'], `${where}.swell`),
+    ripples,
+    quiet,
+  };
+}
+
+function vfxPunch(value: unknown, where: string): VfxPunch | null {
+  if (value === undefined) return null;
+  const source: Fields = fields(value, where);
+  const dust: number = nonNegative(source, 'dust', where);
+  if (!Number.isInteger(dust)) throw new ContentError(`${where}.dust`, 'expected a whole number');
+  return { dust, kick: positive(source, 'kick', where) };
+}
+
+function vfxFlare(value: unknown, where: string): VfxFlare {
+  const source: Fields = fields(value, where);
+  return { at: nonNegative(source, 'at', where), strength: share(source, 'strength', where) };
+}
+
+function vfxBurn(value: unknown, where: string): VfxBurn | null {
+  if (value === undefined) return null;
+  const source: Fields = fields(value, where);
+  const flares: VfxFlare[] = each(source['flares'], `${where}.flares`, vfxFlare);
+  flares.forEach((flare: VfxFlare, index: number): void => {
+    const before: VfxFlare | undefined = flares[index - 1];
+    if (before !== undefined && flare.at <= before.at) throw new ContentError(`${where}.flares[${index}].at`, 'expected each flare later than the one before');
+  });
+  return { flares, embers: nonNegative(source, 'embers', where), light: nonNegative(source, 'light', where) };
+}
+
 export function skillVfx(value: unknown, where: string): SkillVfx {
   const source: Fields = fields(value, where);
   return {
@@ -36,5 +110,10 @@ export function skillVfx(value: unknown, where: string): SkillVfx {
     lightning: vfxLightning(source['lightning'], `${where}.lightning`),
     impact: vfxImpact(source['impact'], `${where}.impact`),
     trail: source['trail'] === undefined ? 0 : nonNegative(source, 'trail', where),
+    linger: source['linger'] === undefined ? 0 : nonNegative(source, 'linger', where),
+    gather: vfxGather(source['gather'], `${where}.gather`),
+    wave: vfxWave(source['wave'], `${where}.wave`),
+    punch: vfxPunch(source['punch'], `${where}.punch`),
+    burn: vfxBurn(source['burn'], `${where}.burn`),
   };
 }

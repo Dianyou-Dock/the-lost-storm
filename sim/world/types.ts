@@ -17,13 +17,13 @@ import type { MomentFigure } from './moment-figure.ts';
 import type { TransitState } from './moment-transit.ts';
 import type { Rng } from '../rng.ts';
 import type { NpcState } from './npc-types.ts';
-import type { HazardState, ProjectileState } from './delivery-types.ts';
+import type { HazardState, ProjectileState, QueuedShot } from './delivery-types.ts';
 import type { Escort, SceneState } from './scene-state.ts';
 import type { WardState } from './wards.ts';
 import type { MomentumState } from './momentum-types.ts';
 import type { Tally } from '../tally.ts';
 
-export type { HazardState, MomentFigure, NpcState, ProjectileState };
+export type { HazardState, MomentFigure, NpcState, ProjectileState, QueuedShot };
 
 export interface RolledAffix {
   readonly affix: string;
@@ -68,6 +68,15 @@ export interface Offence {
   readonly critChance: number;
   readonly critMultiplier: number;
   readonly from?: Vec2;
+}
+
+export interface BurnState {
+  readonly source: string;
+  readonly skill: SkillDef;
+  readonly offence: Offence;
+  perTick: number;
+  tickLeft: number;
+  ticksLeft: number;
 }
 
 export interface BrandState {
@@ -115,6 +124,7 @@ export interface ActorState {
   tempo: number;
   tempoTime: number;
   brand: BrandState | null;
+  burn: BurnState | null;
   alive: boolean;
   deadTime: number;
   moving: boolean;
@@ -534,7 +544,8 @@ export type WorldEvent =
   | { readonly type: 'skill_interrupt'; readonly actorId: number }
   | { readonly type: 'projectile_spawn'; readonly projectile: ProjectileState }
   | { readonly type: 'projectile_end'; readonly id: number; readonly pos: Vec2; readonly hit: boolean; readonly skill: SkillDef }
-  | { readonly type: 'damage'; readonly targetId: number; readonly sourceId: number; readonly targetTeam: Team; readonly amount: number; readonly crit: boolean; readonly killed: boolean; readonly pos: Vec2; readonly direction: Vec2; readonly skill: SkillDef }
+  | { readonly type: 'damage'; readonly targetId: number; readonly sourceId: number; readonly targetTeam: Team; readonly amount: number; readonly crit: boolean; readonly killed: boolean; readonly pos: Vec2; readonly direction: Vec2; readonly skill: SkillDef; readonly burn: boolean }
+  | { readonly type: 'burn'; readonly targetId: number; readonly skill: SkillDef; readonly pos: Vec2; readonly duration: number }
   | { readonly type: 'guarded'; readonly monsterId: number; readonly broken: boolean; readonly pos: Vec2; readonly direction: Vec2 }
   | { readonly type: 'area'; readonly area: AreaState; readonly stage: AreaStage; readonly hits: number }
   | { readonly type: 'chain'; readonly actorId: number; readonly team: Team; readonly skill: SkillDef; readonly points: readonly Vec2[] }
@@ -642,6 +653,7 @@ export interface World {
   explored: Record<string, Uint8Array>;
   exploredRevision: number;
   projectiles: ProjectileState[];
+  shots: QueuedShot[];
   hazards: HazardState[];
   echoes: EchoState[];
   areas: AreaState[];

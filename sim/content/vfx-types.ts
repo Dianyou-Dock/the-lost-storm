@@ -1,4 +1,4 @@
-export const VFX_STYLES = ['slash', 'claw', 'shockwave', 'bolt', 'orb', 'roll', 'fork', 'mist', 'wind', 'storm', 'heave', 'brand', 'beam', 'gap', 'gale'] as const;
+export const VFX_STYLES = ['slash', 'claw', 'shockwave', 'bolt', 'orb', 'roll', 'fork', 'mist', 'wind', 'storm', 'heave', 'brand', 'beam', 'gap', 'gale', 'wave', 'fire'] as const;
 export type VfxStyle = (typeof VFX_STYLES)[number];
 
 export const VFX_CUES = ['none', 'hand', 'ground', 'blade'] as const;
@@ -20,6 +20,45 @@ export interface VfxImpact {
   readonly flash: number;
 }
 
+export interface VfxGather {
+  readonly radius: number;
+  readonly lift: number;
+  readonly size: readonly number[];
+  readonly glow: readonly number[];
+  readonly dust: number;
+  readonly light: number;
+}
+
+export interface VfxRipple {
+  readonly delay: number;
+  readonly strength: number;
+}
+
+export interface VfxWave {
+  readonly halfWidth: number;
+  readonly depth: number;
+  readonly mist: number;
+  readonly swell: readonly number[];
+  readonly ripples: readonly VfxRipple[];
+  readonly quiet: number;
+}
+
+export interface VfxPunch {
+  readonly dust: number;
+  readonly kick: number;
+}
+
+export interface VfxFlare {
+  readonly at: number;
+  readonly strength: number;
+}
+
+export interface VfxBurn {
+  readonly flares: readonly VfxFlare[];
+  readonly embers: number;
+  readonly light: number;
+}
+
 export interface SkillVfx {
   readonly style: VfxStyle;
   readonly color: string;
@@ -28,4 +67,9 @@ export interface SkillVfx {
   readonly lightning: VfxLightning | null;
   readonly impact: VfxImpact | null;
   readonly trail: number;
+  readonly linger: number;
+  readonly gather: VfxGather | null;
+  readonly wave: VfxWave | null;
+  readonly punch: VfxPunch | null;
+  readonly burn: VfxBurn | null;
 }

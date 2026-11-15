@@ -111,6 +111,7 @@ function delivery(value: unknown, where: string): Delivery {
     pierce: numeric(source, 'pierce', where),
     count: numeric(source, 'count', where),
     spreadDegrees: numeric(source, 'spreadDegrees', where),
+    interval: source['interval'] === undefined ? 0 : nonNegative(source, 'interval', where),
   };
 }
 

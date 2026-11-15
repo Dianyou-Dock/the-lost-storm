@@ -51,6 +51,9 @@ export const KIT = {
   trailLift: 0.5,
   trailJitter: 0.18,
   trailPerFrame: 6,
+  lingerFrom: 0.6,
+  lingerSizeMin: 0.2,
+  lingerSizeMax: 0.36,
   reducedSparks: 0.5,
   channelStrength: 0.8,
   strikeLight: 16,
@@ -134,7 +137,7 @@ export interface EffectKit {
   skyStrike(x: number, z: number, color: Color, look: VfxLightning, radius: number, impact: VfxImpact | null, light: number, delay: number): void;
   channel(id: number, from: StrandEnds, to: StrandEnds, color: Color, look: VfxLightning, hold: number): void;
   ground(x: number, z: number, radius: number, color: Color): void;
-  carry(id: number, x: number, y: number, z: number, dirX: number, dirZ: number, color: Color, look: VfxLightning | null, trail: number, dt: number): void;
+  carry(id: number, x: number, y: number, z: number, dirX: number, dirZ: number, color: Color, look: VfxLightning | null, trail: number, linger: number, dt: number): void;
   drop(id: number): void;
   update(dt: number): void;
   clear(): void;
@@ -449,7 +452,7 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
     ground(x: number, z: number, radius: number, color: Color): void {
       groundFlash(x, z, radius, color);
     },
-    carry(id: number, x: number, y: number, z: number, dirX: number, dirZ: number, color: Color, look: VfxLightning | null, trail: number, dt: number): void {
+    carry(id: number, x: number, y: number, z: number, dirX: number, dirZ: number, color: Color, look: VfxLightning | null, trail: number, linger: number, dt: number): void {
       let body: Body | undefined = bodies.get(id);
       if (body === undefined) {
         body = { handle: look === null ? null : strands.hold(color, look), dice: createDice(), startX: x, startZ: z, lastX: x, lastZ: z, owed: 0, age: 0, reshape: 0, seed: random() };
@@ -477,6 +480,13 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
       const moved: number = Math.hypot(x - body.lastX, z - body.lastZ);
       body.owed += moved * trail * budget().trailScale;
       let emitted: number = 0;
+      if (linger > 0) {
+        range(motes.life, linger * KIT.lingerFrom, linger);
+        range(motes.size, KIT.lingerSizeMin, KIT.lingerSizeMax);
+      } else {
+        range(motes.life, KIT.trailLifeMin, KIT.trailLifeMax);
+        range(motes.size, KIT.trailSizeMin, KIT.trailSizeMax);
+      }
       while (body.owed >= 1 && emitted < KIT.trailPerFrame) {
         const share: number = random();
         particles.burst(aim(motes, body.lastX + (x - body.lastX) * share, y, body.lastZ + (z - body.lastZ) * share, 1, color));

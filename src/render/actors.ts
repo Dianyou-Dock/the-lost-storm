@@ -31,6 +31,7 @@ import { bodyArrived, chooseBody } from './body-choice.ts';
 
 export const ACTORS = {
   monsterFlash: 1,
+  burnFlash: 0.35,
   playerFlash: 0.4,
   defaultHeight: 2.2,
   npcAppearRate: 3.4,
@@ -90,6 +91,7 @@ export interface Actors {
 }
 
 const HIT_WHITE: Color = new Color(0xffffff);
+const HIT_BURN: Color = new Color(0xff8a3a);
 const HIT_RED: Color = new Color(0xff6040);
 
 function poseOf(actor: ActorState, beat: number | null): ActorPose {
@@ -396,7 +398,8 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           case 'damage': {
             const isPlayer: boolean = event.targetTeam === 'player';
             const stagger: boolean = isPlayer ? current.player.action === null && !current.player.moving : event.skill.stagger > 0;
-            viewOf(event.targetId)?.hit(isPlayer ? HIT_RED : HIT_WHITE, isPlayer ? ACTORS.playerFlash : ACTORS.monsterFlash, stagger && !event.killed && !guarded.has(event.targetId));
+            if (event.burn) viewOf(event.targetId)?.hit(HIT_BURN, ACTORS.burnFlash, false);
+            else viewOf(event.targetId)?.hit(isPlayer ? HIT_RED : HIT_WHITE, isPlayer ? ACTORS.playerFlash : ACTORS.monsterFlash, stagger && !event.killed && !guarded.has(event.targetId));
             break;
           }
           case 'guarded': {
@@ -472,6 +475,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           case 'chain':
           case 'beam':
           case 'blink':
+          case 'burn':
           case 'brand':
           case 'skill_unlocked':
           case 'chart_point':

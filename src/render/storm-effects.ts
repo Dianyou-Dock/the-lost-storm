@@ -2,10 +2,11 @@ import type { Group } from 'three';
 import { Color, PointLight, Vector3 } from 'three';
 import type { BufferGeometry, Mesh, MeshBasicMaterial, Object3D } from 'three';
 import type { AreaDelivery } from '../../sim/content/shape-types.ts';
-import type { SkillDef, VfxImpact } from '../../sim/content/types.ts';
+import type { SkillDef, VfxImpact, VfxLightning } from '../../sim/content/types.ts';
+import type { VfxPunch } from '../../sim/content/vfx-types.ts';
 import type { Vec2 } from '../../sim/math.ts';
 import { areaOf } from '../../sim/world/areas.ts';
-import { chargeOf } from '../../sim/world/skills.ts';
+import { chargeOf, SKILLS } from '../../sim/world/skills.ts';
 import type { AreaState, MonsterState, World, WorldEvent } from '../../sim/world/types.ts';
 import { glow, groundArcs, lightningLine, skyBolt } from './effect-shapes.ts';
 import type { GroundLight } from './ground-light.ts';
@@ -14,6 +15,8 @@ import { STRAND } from './strand-shape.ts';
 import type { BurstOptions } from './particles.ts';
 import type { EffectKit } from './effect-kit.ts';
 import { floorUp } from './terrain-lift.ts';
+import type { PunchRoll } from './punch.ts';
+import { dustHeadings, PUNCH, punchRoll, reachedFrom, swungFrom } from './punch.ts';
 
 export const STORM_EFFECTS = {
   handHeight: 1.35,
@@ -149,9 +152,31 @@ export function createStormEffects(kit: StormKit): StormEffects {
     );
   };
 
+  const onPunch = (event: Extract<WorldEvent, { type: 'chain' }>, look: VfxLightning, punch: VfxPunch): void => {
+    const color: Color = kit.colorOf(event.skill.vfx.color);
+    const impact: VfxImpact | null = event.skill.vfx.impact;
+    event.points.forEach((from: Vec2, index: number): void => {
+      const to: Vec2 | undefined = event.points[index + 1];
+      if (to === undefined) return;
+      const roll: PunchRoll = punchRoll(impact === null ? 0 : impact.sparks, Math.random);
+      const delay: number = index * STORM_EFFECTS.hop;
+      const start: Spot = index === 0 ? placed(START, swungFrom(reachedFrom(from, to, SKILLS.projectileOrigin), to, roll.swing), STORM_EFFECTS.handHeight) : placed(START, from, STORM_EFFECTS.bodyHeight);
+      kit.kit.strike(start, placed(END, to, STORM_EFFECTS.bodyHeight), color, look, delay);
+      if (impact !== null) kit.kit.impact(to.x, to.z, color, { sparks: roll.sparks, flash: impact.flash }, event.skill.vfx.light, delay);
+      for (const heading of dustHeadings(punch.dust, roll.turn)) {
+        kit.spray(to.x, PUNCH.dustHeight, to.z, color, 1, { dirX: heading.x, dirZ: heading.z, spread: PUNCH.dustSpread, speed: { min: punch.kick * PUNCH.dustSlowest, max: punch.kick }, lift: { min: PUNCH.dustLiftMin, max: PUNCH.dustLiftMax }, life: { min: PUNCH.dustLifeMin, max: PUNCH.dustLifeMax }, size: { min: PUNCH.dustSizeMin, max: PUNCH.dustSizeMax }, gravity: 0, drag: PUNCH.dustDrag, jitter: 0.1 });
+      }
+    });
+  };
+
   const onChain = (event: Extract<WorldEvent, { type: 'chain' }>): void => {
     const color: Color = kit.colorOf(event.skill.vfx.color);
     const lightning = event.skill.vfx.lightning;
+    const punch: VfxPunch | null = event.skill.vfx.punch;
+    if (lightning !== null && punch !== null) {
+      onPunch(event, lightning, punch);
+      return;
+    }
     if (lightning !== null) {
       const impact = event.skill.vfx.impact;
       event.points.forEach((point: Vec2, index: number): void => {
@@ -284,6 +309,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
   };
 
   const onArea = (event: Extract<WorldEvent, { type: 'area' }>): void => {
+    if (event.area.skill.vfx.burn !== null) return;
     if (event.stage === 'start') startArea(event.area);
     else if (event.stage === 'pulse') pulseArea(event.area, event.hits);
     else dropArea(event.area.id);

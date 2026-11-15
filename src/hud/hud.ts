@@ -460,6 +460,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
           case 'chain':
           case 'beam':
           case 'blink':
+          case 'burn':
           case 'brand':
           case 'surge_cleared':
           case 'player_respawn':

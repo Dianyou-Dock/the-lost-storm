@@ -2,6 +2,7 @@ import { grantPoints, learnSkills } from './learning.ts';
 import { stepBosses } from './boss.ts';
 import { stepDeath } from './death.ts';
 import { stepAreas, timeScaleOf } from './areas.ts';
+import { stepBurns } from './burn.ts';
 import { stepHazards } from './hazards.ts';
 import { removeCorpses, stepMonster, stepSurge } from './monsters.ts';
 import { stepPackReturns } from './pack-return.ts';
@@ -62,6 +63,7 @@ export function stepWorld(world: World, commands: readonly Command[], dt: number
   stepHazards(world, dt);
   stepEchoes(world, dt);
   stepAreas(world, dt);
+  stepBurns(world, dt);
   bindEchoes(world, dt, starts);
   keepOut(world);
   keepOutOfWards(world);
