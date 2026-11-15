@@ -12,3 +12,12 @@ export function warmPaths(ids: readonly string[], manifest: AssetManifest): stri
   }
   return paths;
 }
+
+export function warmVoicePaths(ids: readonly string[], manifest: AssetManifest): string[] {
+  const paths: Set<string> = new Set<string>();
+  for (const id of ids) {
+    const path: string | undefined = manifest.voice.get(id);
+    if (path !== undefined) paths.add(path);
+  }
+  return [...paths];
+}

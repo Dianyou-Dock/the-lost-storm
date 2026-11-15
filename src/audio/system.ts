@@ -25,7 +25,7 @@ import type { VoiceLimiter } from './voices.ts';
 import { createVoiceLimiter } from './voices.ts';
 import type { VoiceMeasure } from './loudness.ts';
 import { measureVoice, spokenSeconds, voiceGain } from './loudness.ts';
-import { warmPaths } from './warm.ts';
+import { warmPaths, warmVoicePaths } from './warm.ts';
 
 const SYSTEM = {
   cacheBytes: 64 * 1024 * 1024,
@@ -69,7 +69,7 @@ export interface AudioSystem {
   play(cue: SoundCue, place: Placement): void;
   playVoice(speaker: string, clipId: string): Promise<void>;
   playEcho(audio: ArrayBuffer): Promise<void>;
-  warm(ids: readonly string[]): void;
+  warm(ids: readonly string[], voices: readonly string[]): void;
   stopVoice(): void;
   speaking(): readonly string[];
   startAmbience(zone: ZoneAmbience): void;
@@ -141,6 +141,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
   const zoneLoops: AmbienceTracker<AmbienceLoop> = createAmbienceTracker<AmbienceLoop>();
   let loopRetryLeft: number = 0;
   let warmIds: readonly string[] = [];
+  let warmVoices: readonly string[] = [];
   let warming: boolean = false;
 
   const report = (cue: SoundCue, place: Placement): void => {
@@ -280,7 +281,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
   const startWarm = (): void => {
     const manifest: AssetManifest | null = loader.current();
     if (manifest === null || graph === null || warming) return;
-    const queue: readonly string[] = warmPaths(warmIds, manifest);
+    const queue: readonly string[] = [...warmVoicePaths(warmVoices, manifest), ...warmPaths(warmIds, manifest)];
     if (queue.length === 0) return;
     warming = true;
     let next: number = 0;
@@ -454,8 +455,9 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
         source.start();
       });
     },
-    warm(ids: readonly string[]): void {
+    warm(ids: readonly string[], voices: readonly string[]): void {
       warmIds = ids;
+      warmVoices = voices;
       startWarm();
     },
     stopVoice(): void {

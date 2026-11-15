@@ -44,7 +44,7 @@ void test('with no asset base nothing is requested, nothing throws and nothing i
     system.unlock();
     system.play(CUE, CENTRE);
     system.startAmbience(ZONE);
-    system.warm(['bone_hit']);
+    system.warm(['bone_hit'], []);
     system.update(10);
     system.stopAmbience();
     await system.playVoice('warden_guide', 'anything');
@@ -107,7 +107,7 @@ void test('a base with no Web Audio available stays silent and requests nothing'
     assert.equal(system.configured, true);
     system.unlock();
     system.play(CUE, CENTRE);
-    system.warm(['bone_hit']);
+    system.warm(['bone_hit'], []);
     system.update(30);
     await system.playVoice('warden_guide', 'greeting');
     assert.deepEqual(requests, []);

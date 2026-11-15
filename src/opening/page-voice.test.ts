@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { PageDef } from '../../sim/content/story-types.ts';
+import type { BookDef, PageDef } from '../../sim/content/story-types.ts';
 import type { LineDef } from '../../sim/content/types.ts';
 import type { PageVoice } from './page-voice.ts';
-import { createPageVoice, pageLine } from './page-voice.ts';
+import { bookVoiceIds, createPageVoice, pageLine } from './page-voice.ts';
 
 interface Rig {
   readonly voice: PageVoice;
@@ -43,11 +43,11 @@ void test('the page names its line, and a page without one or with an unknown on
   assert.equal(pageLine(lines, []), null);
 });
 
-void test('the line is said once, when the page settles, and not again while it stays open', (): void => {
+void test('the line is said once, the moment the page opens, and not again while it stays open', (): void => {
   const { voice, said } = rig();
   voice.update();
   assert.deepEqual(said, []);
-  voice.settled(LINE);
+  voice.opened(LINE);
   assert.deepEqual(said, [LINE.id]);
   voice.update();
   voice.update();
@@ -56,16 +56,16 @@ void test('the line is said once, when the page settles, and not again while it 
 
 void test('each opening says it again', (): void => {
   const { voice, said } = rig();
-  voice.settled(LINE);
+  voice.opened(LINE);
   voice.closed();
-  voice.settled(LINE);
+  voice.opened(LINE);
   assert.deepEqual(said, [LINE.id, LINE.id]);
 });
 
 void test('while another line is spoken it waits, and says it once that line has ended', (): void => {
   const state: Rig = rig();
   state.busy = true;
-  state.voice.settled(LINE);
+  state.voice.opened(LINE);
   state.voice.update();
   assert.deepEqual(state.said, []);
   state.busy = false;
@@ -77,7 +77,7 @@ void test('while another line is spoken it waits, and says it once that line has
 void test('a page closed before the other line ends says nothing', (): void => {
   const state: Rig = rig();
   state.busy = true;
-  state.voice.settled(LINE);
+  state.voice.opened(LINE);
   state.voice.closed();
   state.busy = false;
   state.voice.update();
@@ -87,14 +87,14 @@ void test('a page closed before the other line ends says nothing', (): void => {
 void test('with sound off it says nothing, and turning sound on while the page is open does not start it late', (): void => {
   const state: Rig = rig();
   state.soundOn = false;
-  state.voice.settled(LINE);
+  state.voice.opened(LINE);
   state.soundOn = true;
   state.voice.update();
   assert.deepEqual(state.said, []);
 
   const waiting: Rig = rig();
   waiting.busy = true;
-  waiting.voice.settled(LINE);
+  waiting.voice.opened(LINE);
   waiting.soundOn = false;
   waiting.voice.update();
   waiting.soundOn = true;
@@ -105,7 +105,19 @@ void test('with sound off it says nothing, and turning sound on while the page i
 
 void test('a page with no line says nothing', (): void => {
   const { voice, said } = rig();
-  voice.settled(null);
+  voice.opened(null);
   voice.update();
   assert.deepEqual(said, []);
+});
+
+void test('the clips to load ahead are every line a book page names, once each, and no unknown line', (): void => {
+  const other: LineDef = { id: 'diary_wait', speaker: 'diary', text: 'Wait.' };
+  const lines: ReadonlyMap<string, LineDef> = new Map<string, LineDef>([
+    [LINE.id, LINE],
+    [other.id, other],
+  ]);
+  const diary: BookDef = { id: 'diary', title: 'A diary', pages: [page('first', LINE.id), page('second', null), page('third', 'diary_gone')] };
+  const notes: BookDef = { id: 'notes', title: 'Notes', pages: [page('first', other.id), page('second', LINE.id)] };
+  assert.deepEqual(bookVoiceIds([diary, notes], lines), [LINE.id, other.id]);
+  assert.deepEqual(bookVoiceIds([], lines), []);
 });

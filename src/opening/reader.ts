@@ -20,7 +20,7 @@ export interface ReaderPage {
 }
 
 export interface Reader {
-  open(book: BookDef, pages: readonly ReaderPage[], onSettle: () => void, onClose: () => void, onDrop: () => void): boolean;
+  open(book: BookDef, pages: readonly ReaderPage[], onOpen: () => void, onClose: () => void, onDrop: () => void): boolean;
   isOpen(): boolean;
 }
 
@@ -39,7 +39,7 @@ function line(parent: HTMLElement, className: string, text: string): HTMLParagra
 interface ReaderRequest {
   readonly book: BookDef;
   readonly pages: readonly ReaderPage[];
-  readonly onSettle: () => void;
+  readonly onOpen: () => void;
   readonly onClose: () => void;
   readonly onDrop: () => void;
 }
@@ -67,18 +67,12 @@ export function createReader(root: HTMLElement, touch: boolean, overlays: Overla
   };
 
   const show = (request: ReaderRequest): void => {
-    const { book, pages, onSettle, onClose } = request;
+    const { book, pages, onOpen, onClose } = request;
     const veil: HTMLDivElement = document.createElement('div');
     veil.className = 'reader-veil';
     const sheet: HTMLDivElement = document.createElement('div');
     sheet.className = 'reader-sheet';
     veil.append(sheet);
-    let settled: boolean = false;
-    sheet.addEventListener('animationend', (event: AnimationEvent): void => {
-      if (settled || event.target !== sheet || current !== veil) return;
-      settled = true;
-      onSettle();
-    });
     line(sheet, 'reader-title', book.title);
     const addresses: HTMLParagraphElement[] = [];
     for (const entry of pages) {
@@ -90,6 +84,7 @@ export function createReader(root: HTMLElement, touch: boolean, overlays: Overla
     root.append(veil);
     markOverlay(veil, true);
     current = veil;
+    onOpen();
     const timers: number[] = [
       window.setTimeout((): void => {
         for (const address of addresses) address.classList.add('shown');
@@ -136,10 +131,10 @@ export function createReader(root: HTMLElement, touch: boolean, overlays: Overla
   });
 
   return {
-    open(book: BookDef, pages: readonly ReaderPage[], onSettle: () => void, onClose: () => void, onDrop: () => void): boolean {
+    open(book: BookDef, pages: readonly ReaderPage[], onOpen: () => void, onClose: () => void, onDrop: () => void): boolean {
       if (pages.length === 0) return true;
       if (current !== null || overlays.state().pending.includes('reader')) return false;
-      next = { book, pages, onSettle, onClose, onDrop };
+      next = { book, pages, onOpen, onClose, onDrop };
       if (overlays.send({ type: 'open', id: 'reader' }) !== 'refused') return true;
       next = null;
       return false;

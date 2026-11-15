@@ -1,4 +1,4 @@
-import type { PageDef } from '../../sim/content/story-types.ts';
+import type { BookDef, PageDef } from '../../sim/content/story-types.ts';
 import type { LineDef } from '../../sim/content/types.ts';
 
 export interface PageVoiceDeps {
@@ -8,7 +8,7 @@ export interface PageVoiceDeps {
 }
 
 export interface PageVoice {
-  settled(line: LineDef | null): void;
+  opened(line: LineDef | null): void;
   update(): void;
   closed(): void;
 }
@@ -23,6 +23,17 @@ export function pageLine(lines: ReadonlyMap<string, LineDef>, pages: readonly Pa
     if (line !== undefined) return line;
   }
   return null;
+}
+
+export function bookVoiceIds(books: Iterable<BookDef>, lines: ReadonlyMap<string, LineDef>): string[] {
+  const ids: Set<string> = new Set<string>();
+  for (const book of books) {
+    for (const page of book.pages) {
+      const line: LineDef | undefined = page.voice === null ? undefined : lines.get(page.voice);
+      if (line !== undefined) ids.add(line.id);
+    }
+  }
+  return [...ids];
 }
 
 export function createPageVoice(deps: PageVoiceDeps): PageVoice {
@@ -44,7 +55,7 @@ export function createPageVoice(deps: PageVoiceDeps): PageVoice {
   };
 
   return {
-    settled(line: LineDef | null): void {
+    opened(line: LineDef | null): void {
       state = line === null ? QUIET : { kind: 'waiting', line };
       attempt();
     },

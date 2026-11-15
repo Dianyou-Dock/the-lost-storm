@@ -102,7 +102,7 @@ export function createOpening(deps: OpeningDeps): Opening {
     return reader.open(
       book,
       pages.map((page: PageDef) => ({ page, name })),
-      (): void => pageVoice.settled(pageLine(world.content.lines, pages)),
+      (): void => pageVoice.opened(pageLine(world.content.lines, pages)),
       (): void => {
         pageVoice.closed();
         for (const page of pages) deps.send({ type: 'read', book: book.id, page: page.id });

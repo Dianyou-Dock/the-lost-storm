@@ -87,6 +87,7 @@ import type { NameVoiceClient, SpokenName } from './backend/name-voice.ts';
 import { createBrowserNameVoice } from './opening/browser-voice.ts';
 import type { Opening } from './opening/opening.ts';
 import { createOpening } from './opening/opening.ts';
+import { bookVoiceIds } from './opening/page-voice.ts';
 import { createBrowserJournalCountClient } from './journal-count/browser-journal-count.ts';
 import type { JournalCountClient } from './backend/journal-count-api.ts';
 import { loadCountLines } from './journal-count/count-lines.ts';
@@ -248,7 +249,7 @@ async function start(): Promise<void> {
     random: Math.random,
     clock: (): number => performance.now() / GAME.millisecondsPerSecond,
   });
-  audio.warm(warmSoundIds(audioDef));
+  audio.warm(warmSoundIds(audioDef), bookVoiceIds(content.books.values(), content.lines));
   const listener: Listener = createListener(camera, canvas, (): Vec2 => world.player.pos);
   const playCues = (cues: readonly SoundCue[]): void => {
     for (const cue of cues) {
