@@ -20,11 +20,13 @@ function placed(root: Object3D): boolean {
 export function drawable(root: Object3D): boolean {
   if (!placed(root)) return false;
   let found: boolean = false;
-  root.traverseVisible((object: Object3D): void => {
+  const look = (object: Object3D): void => {
     if (found || !(object instanceof Mesh)) return;
     const materials: readonly Material[] = Array.isArray(object.material) ? object.material : [object.material];
     if (materials.some(shownMaterial)) found = true;
-  });
+  };
+  look(root);
+  for (const child of root.children) child.traverseVisible(look);
   return found;
 }
 

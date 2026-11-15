@@ -20,15 +20,12 @@ void test('a material draws unless it is hidden, writes no colour, or is transpa
   assert.equal(shownMaterial(new MeshBasicMaterial({ opacity: 0 })), true);
 });
 
-void test('an actor is drawable only with a shown mesh on a visible chain, a finite place and a real scale', (): void => {
+void test('an actor is drawable only with a shown mesh on a visible chain below its root, a finite place and a real scale', (): void => {
   const { root, mesh } = body();
   assert.equal(drawable(root), true);
   mesh.visible = false;
   assert.equal(drawable(root), false);
   mesh.visible = true;
-  root.visible = false;
-  assert.equal(drawable(root), false);
-  root.visible = true;
   mesh.material.visible = false;
   assert.equal(drawable(root), false);
   mesh.material = new MeshStandardMaterial();
@@ -86,4 +83,11 @@ void test('an undrawable actor is reported once per monster, and a forgotten id 
   guard.forget(3);
   assert.equal(guard.inspect(3, root, 'unfinished_taker'), false);
   assert.equal(reports.length, 3);
+});
+
+void test('an actor left undrawn off screen is still drawable, so its first check keeps its gear', (): void => {
+  const { root } = body();
+  root.visible = false;
+  assert.equal(drawable(root), true);
+  assert.equal(createActorGuard((): undefined => undefined).inspect(1, root, 'skeleton'), true);
 });

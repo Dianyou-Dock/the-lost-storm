@@ -3,6 +3,7 @@ import { Frustum, Matrix4, Sphere, Vector3 } from 'three';
 
 export const SIGHT = {
   margin: 3,
+  drawReach: 2,
 } as const;
 
 export interface Sight {
@@ -31,4 +32,8 @@ export function cameraSight(camera: Camera, margin: number = SIGHT.margin): Sigh
       return frustum.intersectsSphere(sphere);
     },
   };
+}
+
+export function drawnBy(sight: Sight, x: number, floor: number, z: number, height: number): boolean {
+  return sight.sees(x, floor + height / 2, z, height * SIGHT.drawReach);
 }

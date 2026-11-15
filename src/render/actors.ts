@@ -1,6 +1,6 @@
 import { heightAt } from '../../sim/nav/terrain.ts';
 import type { Sight } from './sight.ts';
-import { SEES_ALL } from './sight.ts';
+import { drawnBy, SEES_ALL } from './sight.ts';
 import type { Box3, Object3D, Scene } from 'three';
 import { isTimeHeld, knockTime } from '../../sim/world/movement.ts';
 import { Color } from 'three';
@@ -319,6 +319,10 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       const floorAt = (x: number, z: number): number => heightAt(current.zone, x, z);
       sight.refresh();
       const seen = (view: ActorView, x: number, z: number): boolean => sight.sees(x, floorAt(x, z) + view.height / 2, z, view.height);
+      const draw = (view: ActorView, x: number, z: number): void => {
+        const drawn: boolean = drawnBy(sight, x, floorAt(x, z), z, view.height);
+        if (view.rig.root.visible !== drawn) view.rig.root.visible = drawn;
+      };
       standChosen(current);
       if (librarySize() !== dressedWith) {
         dressedWith = librarySize();
@@ -346,6 +350,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           if (fade > 0) fadeEcho(entry.view, entry.echo.ghost, fade);
         }
         entry.view.setHover(monster.id === hoveredId);
+        draw(entry.view, monster.pos.x, monster.pos.z);
         if (monster.alive) guard.keep(monster.id, entry.view.rig.root, scene, monster.def.id);
         entry.view.sync(dt, poseOf(monster, unisonOf(current, monster) === null ? null : current.time), { rise: entry.echo === null ? turning : 1, floor: floorAt(monster.pos.x, monster.pos.z), turnRate: ACTOR.turnRate, seen: seen(entry.view, monster.pos.x, monster.pos.z) });
         if (!entry.checked && monster.alive && (entry.echo === null || echoFade(current, monster.id) === 0)) {
@@ -380,6 +385,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           entry.view.setShadowOpacity(easedFade(npc.fade));
         }
         entry.view.setHover(npc.id === hoveredId);
+        draw(entry.view, entry.pose.pos.x, entry.pose.pos.z);
         entry.view.sync(dt, entry.pose, { rise: entry.shown, floor: floorAt(entry.pose.pos.x, entry.pose.pos.z), turnRate: ACTOR.npcTurnRate, seen: seen(entry.view, entry.pose.pos.x, entry.pose.pos.z) });
       }
       for (const [id, entry] of npcs) {
@@ -391,6 +397,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           continue;
         }
         entry.view.setHover(false);
+        draw(entry.view, entry.pose.pos.x, entry.pose.pos.z);
         entry.view.sync(dt, entry.pose, { rise: entry.shown, floor: floorAt(entry.pose.pos.x, entry.pose.pos.z), turnRate: ACTOR.npcTurnRate, seen: seen(entry.view, entry.pose.pos.x, entry.pose.pos.z) });
       }
     },

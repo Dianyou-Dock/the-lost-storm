@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { PerspectiveCamera } from 'three';
 import type { Sight } from './sight.ts';
-import { cameraSight, SEES_ALL, SIGHT } from './sight.ts';
+import { cameraSight, drawnBy, SEES_ALL, SIGHT } from './sight.ts';
 
 function looking(): PerspectiveCamera {
   const camera: PerspectiveCamera = new PerspectiveCamera(30, 1.6, 1, 220);
@@ -43,4 +43,20 @@ void test('the camera moving is picked up on refresh', (): void => {
 
 void test('without a camera every rig counts as seen', (): void => {
   assert.equal(SEES_ALL.sees(1e6, 0, 1e6, 0), true);
+});
+
+void test('a figure is drawn while its body or its shadow can reach the view and dropped once it is far outside', (): void => {
+  const sight: Sight = cameraSight(looking(), 0);
+  sight.refresh();
+  let edge: number = 0;
+  while (sight.sees(edge, 1, 0, 0)) edge += 0.25;
+  const height: number = 2;
+  assert.equal(drawnBy(sight, 0, 0, 0, height), true);
+  assert.equal(drawnBy(sight, edge + height, 0, 0, height), true);
+  assert.equal(drawnBy(sight, edge + height * (SIGHT.drawReach + 1), 0, 0, height), false);
+  assert.equal(drawnBy(sight, 0, 0, 160, height), false);
+});
+
+void test('without a camera every figure is drawn', (): void => {
+  assert.equal(drawnBy(SEES_ALL, 1e6, 0, 1e6, 2), true);
 });
