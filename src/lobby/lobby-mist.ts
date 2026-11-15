@@ -1,5 +1,5 @@
 import type { Texture, WebGLRenderer } from 'three';
-import { BufferAttribute, BufferGeometry, LinearFilter, Mesh, OrthographicCamera, Scene, ShaderMaterial, Vector2, WebGLRenderTarget } from 'three';
+import { BufferAttribute, BufferGeometry, HalfFloatType, LinearFilter, Mesh, OrthographicCamera, Scene, ShaderMaterial, Vector2, WebGLRenderTarget } from 'three';
 
 export const LOBBY_MIST = {
   renderScale: 0.5,
@@ -117,7 +117,7 @@ export function createLobbyMist(): LobbyMist {
   const stage: Scene = new Scene();
   stage.add(quad);
   const flat: OrthographicCamera = new OrthographicCamera();
-  const surface: WebGLRenderTarget = new WebGLRenderTarget(1, 1, { depthBuffer: false, magFilter: LinearFilter, minFilter: LinearFilter });
+  const surface: WebGLRenderTarget = new WebGLRenderTarget(1, 1, { type: HalfFloatType, depthBuffer: false, magFilter: LinearFilter, minFilter: LinearFilter });
   return {
     texture: surface.texture,
     release(): void {

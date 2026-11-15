@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
+import { HalfFloatType } from 'three';
 import { unsafeGlsl } from '../../test/glsl-support.ts';
-import { LOBBY_MIST, MIST_FRAGMENT, mistSize } from './lobby-mist.ts';
+import { createLobbyMist, LOBBY_MIST, MIST_FRAGMENT, mistSize } from './lobby-mist.ts';
 import type { MistSize } from './lobby-mist.ts';
 
 void test('the storm backdrop draws at half size and never past its pixel budget, so a big screen stays smooth', (): void => {
@@ -17,4 +18,8 @@ void test('the backdrop holds no shaft of light: the shaft stands in the world, 
 
 void test('the backdrop shader has no unclamped pow and no reversed smoothstep', (): void => {
   assert.deepEqual(unsafeGlsl(MIST_FRAGMENT), []);
+});
+
+void test('the backdrop is kept in half-float, so its dark linear sky does not step into blotches before the output dither', (): void => {
+  assert.equal(createLobbyMist().texture.type, HalfFloatType);
 });
