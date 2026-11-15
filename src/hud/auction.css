@@ -442,6 +442,11 @@
   color: var(--ember);
 }
 
+.inv-grid.auction-stash {
+  grid-template-columns: repeat(auto-fill, 44px);
+  justify-content: space-between;
+}
+
 .auction-stash .cell {
   cursor: pointer;
   transition:
