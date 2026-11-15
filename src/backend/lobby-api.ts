@@ -31,7 +31,7 @@ function readRow(value: unknown): BoardRow | null {
   const furthest: string | null = shortText(value, 'furthest');
   const online: unknown = value['online'];
   if (rank === null || level === null || name === null || furthest === null || typeof online !== 'boolean') return null;
-  return { rank, name, level, damage: wholeNumber(value, 'damage', 0) ?? 0, life: wholeNumber(value, 'life', 0) ?? 0, furthest, online, account: shortText(value, 'account') };
+  return { rank, name, level, damage: wholeNumber(value, 'damage', 0) ?? 0, life: wholeNumber(value, 'life', 0) ?? 0, playedMs: wholeNumber(value, 'playedMs', 0) ?? 0, kills: wholeNumber(value, 'kills', 0) ?? 0, deaths: wholeNumber(value, 'deaths', 0) ?? 0, furthest, online, account: shortText(value, 'account') };
 }
 
 function readYou(value: unknown): YourRow | null | undefined {

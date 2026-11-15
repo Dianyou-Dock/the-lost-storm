@@ -598,26 +598,28 @@
 }
 
 .ranked .lobby-note {
-  top: 104px;
+  top: 129px;
 }
 
 .lobby-tabs {
   --lobby-tab: 0;
+  --lobby-tab-row: 0;
   position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-auto-rows: 25px;
   margin: 0 0 4px;
 }
 
 .lobby-tab-glide {
   position: absolute;
   top: 0;
-  bottom: 0;
   left: 0;
   width: calc(100% / 3);
+  height: 25px;
   border-radius: 3px;
   background: rgba(255, 255, 255, 0.06);
-  transform: translateX(calc(var(--lobby-tab) * 100%));
+  transform: translate(calc(var(--lobby-tab) * 100%), calc(var(--lobby-tab-row) * 100%));
   transition: transform var(--spring-smooth-ms) var(--spring-smooth);
   pointer-events: none;
 }

@@ -215,6 +215,8 @@ function ahead(left: readonly number[], right: readonly number[]): number {
   return 0;
 }
 
+const LADDER_ORDERS: ReadonlySet<string> = new Set<string>(['damage', 'life', 'played', 'kills', 'deaths']);
+
 function ladder(accounts: readonly ServerAccount[], viewer: ServerAccount | undefined, by: string | null): unknown {
   const usernameOf = (account: ServerAccount): string | null => accounts.find((other: ServerAccount): boolean => other.accountId === (account.owner ?? account.accountId))?.username ?? null;
   const ranked: ServerAccount[] = accounts
@@ -223,7 +225,7 @@ function ladder(accounts: readonly ServerAccount[], viewer: ServerAccount | unde
   const rankOf = (account: ServerAccount): number => 1 + ranked.filter((other: ServerAccount): boolean => ahead(standing(other, by), standing(account, by)) > 0).length;
   const row = (account: ServerAccount): Record<string, unknown> => ({ rank: rankOf(account), name: account.character ?? guestName(account), account: usernameOf(account), level: account.save?.level ?? 1, ...figuresOf(account), furthest: 'The Waystation', online: account === viewer });
   const you: unknown = viewer === undefined || !ranked.includes(viewer) ? null : { ...row(viewer), chosen: viewer.character !== null };
-  return { by: by === 'damage' || by === 'life' ? by : 'level', top: ranked.slice(0, 25).map(row), you, online: viewer === undefined ? 0 : 1, characters: ranked.length, levelUps: [] };
+  return { by: by !== null && LADDER_ORDERS.has(by) ? by : 'level', top: ranked.slice(0, 25).map(row), you, online: viewer === undefined ? 0 : 1, characters: ranked.length, levelUps: [] };
 }
 
 function nameRefusal(accounts: readonly ServerAccount[], owner: ServerAccount | null, raw: unknown): string | null {

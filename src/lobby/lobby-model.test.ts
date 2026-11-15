@@ -3,10 +3,10 @@ import { test } from 'node:test';
 import type { BoardRow, Leaderboard, PresentList } from '../backend/api.ts';
 import { RANKINGS } from '../backend/api.ts';
 import { DAMAGE_EXPLAINED } from '../../sim/ladder.ts';
-import { agoText, arrivalsText, asksForName, charactersText, levelUpText, moreText, nameProblem, onlineTotal, passedNames, presentView, RANKING_TABS, rankValueText, shownKey, spokenName, tabOf, tidyName, wholeText } from './lobby-model.ts';
+import { playedShort, agoText, arrivalsText, asksForName, charactersText, levelUpText, moreText, nameProblem, onlineTotal, passedNames, presentView, RANKING_TABS, rankValueText, shownKey, spokenName, tabOf, tidyName, wholeText } from './lobby-model.ts';
 
 function row(rank: number, name: string, level: number): BoardRow {
-  return { rank, name, level, damage: 0, life: 0, furthest: 'The Waystation', online: false, account: null };
+  return { rank, name, level, damage: 0, life: 0, playedMs: 0, kills: 0, deaths: 0, furthest: 'The Waystation', online: false, account: null };
 }
 
 function board(top: readonly BoardRow[], you: string | null, chosen: boolean = true): Leaderboard {
@@ -70,17 +70,21 @@ void test('only a name the player chose is ever spoken', (): void => {
 
 void test('there is one tab per ranking, in order, and the damage tab says what it measures in one line', (): void => {
   assert.deepEqual(RANKING_TABS.map((tab) => tab.by), [...RANKINGS]);
-  assert.deepEqual(RANKING_TABS.map((tab) => tab.label), ['Level', 'Damage', 'Life']);
+  assert.deepEqual(RANKING_TABS.map((tab) => tab.label), ['Level', 'Damage', 'Life', 'Time', 'Kills', 'Deaths']);
   assert.equal(tabOf('damage').caption, DAMAGE_EXPLAINED);
   for (const tab of RANKING_TABS) assert.ok(tab.caption.length > 0 && !tab.caption.includes('\n'));
 });
 
 void test('every ranked value is a whole number with thousands grouped', (): void => {
-  const entry: BoardRow = { ...row(1, 'Ash', 12), damage: 12345.8, life: 987 };
-  assert.deepEqual(RANKINGS.map((by) => rankValueText(entry, by)), ['12', '12,345', '987']);
+  const entry: BoardRow = { ...row(1, 'Ash', 12), damage: 12345.8, life: 987, playedMs: 7_380_000, kills: 12_034, deaths: 4 };
+  assert.deepEqual(RANKINGS.map((by) => rankValueText(entry, by)), ['12', '12,345', '987', '2h 03m', '12,034', '4']);
   assert.equal(wholeText(1_000_000_000), '1,000,000,000');
   assert.equal(wholeText(-4), '0');
   assert.equal(wholeText(Number.NaN), '0');
+});
+
+void test('time played reads in minutes, then hours and minutes, then whole hours once it is long', (): void => {
+  assert.deepEqual([0, 59_999, 60_000, 3_540_000, 3_600_000, 35_940_000, 36_000_000, 4_320_000_000, -5, Number.NaN].map(playedShort), ['0m', '0m', '1m', '59m', '1h 00m', '9h 59m', '10h', '1,200h', '0m', '0m']);
 });
 
 void test('the same answer has the same shown key', (): void => {

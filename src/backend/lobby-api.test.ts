@@ -23,8 +23,8 @@ function server(): FakeServer {
 void test('a well-formed answer reads into a leaderboard and keeps only the known fields', (): void => {
   const board: Leaderboard | null = readLeaderboard({ ...BOARD, top: [{ ...ROW, accountId: 'secret' }], extra: 1 });
   assert.ok(board !== null);
-  assert.deepEqual(board.top, [ROW]);
-  assert.deepEqual(board.you, { ...ROW, chosen: true });
+  assert.deepEqual(board.top, [{ ...ROW, playedMs: 0, kills: 0, deaths: 0 }]);
+  assert.deepEqual(board.you, { ...ROW, playedMs: 0, kills: 0, deaths: 0, chosen: true });
   assert.equal(board.online, 3);
   assert.equal(board.characters, 40);
   assert.deepEqual(board.levelUps, [{ name: 'Grey Heron', level: 7, minutesAgo: 2 }]);
@@ -44,7 +44,12 @@ void test('an older server without rankings reads as the level board with no fig
   const board: Leaderboard | null = readLeaderboard({ ...BOARD, top: [older] });
   assert.ok(board !== null);
   assert.equal(board.by, 'level');
-  assert.deepEqual([board.top[0]?.damage, board.top[0]?.life], [0, 0]);
+  assert.deepEqual([board.top[0]?.damage, board.top[0]?.life, board.top[0]?.playedMs, board.top[0]?.kills, board.top[0]?.deaths], [0, 0, 0, 0, 0]);
+  const counted: Leaderboard | null = readLeaderboard({ ...BOARD, by: 'played', top: [{ ...ROW, playedMs: 7_260_000, kills: 340, deaths: 3 }, { ...ROW, rank: 2, name: 'Moth', playedMs: -1, kills: 2.5 }] });
+  assert.ok(counted !== null);
+  assert.equal(counted.by, 'played');
+  assert.deepEqual(counted.top.map((entry) => [entry.playedMs, entry.kills, entry.deaths]), [[7_260_000, 340, 3], [0, 0, 0]]);
+  assert.deepEqual(['played', 'kills', 'deaths', 'bosses'].map((by) => readLeaderboard({ ...BOARD, by })?.by), ['played', 'kills', 'deaths', 'level']);
   assert.deepEqual([readLeaderboard({ ...BOARD, by: 'damage' })?.by, readLeaderboard({ ...BOARD, by: 'life' })?.by, readLeaderboard({ ...BOARD, by: 'gold' })?.by], ['damage', 'life', 'level']);
   assert.equal(readLeaderboard({ ...BOARD, top: [{ ...ROW, damage: -3, life: 1.5 }] })?.top[0]?.damage, 0);
 });
@@ -54,7 +59,7 @@ void test('each ranking asks its own path, and the level board keeps the path ol
   const api = createLobbyApi(URL_A, fake.fetch);
   const results: readonly LeaderboardResult[] = await Promise.all(RANKINGS.map((by): Promise<LeaderboardResult> => api.leaderboard(null, AbortSignal.timeout(1000), by)));
   assert.deepEqual(results.map((result: LeaderboardResult): string | null => (result.kind === 'ok' ? result.board.by : null)), [...RANKINGS]);
-  assert.deepEqual(RANKINGS.map(rankingPath), ['/v1/leaderboard', '/v1/leaderboard?by=damage', '/v1/leaderboard?by=life']);
+  assert.deepEqual(RANKINGS.map(rankingPath), ['/v1/leaderboard', '/v1/leaderboard?by=damage', '/v1/leaderboard?by=life', '/v1/leaderboard?by=played', '/v1/leaderboard?by=kills', '/v1/leaderboard?by=deaths']);
 });
 
 void test('a name that appears twice on the board is kept once, so rows stay one per character', (): void => {

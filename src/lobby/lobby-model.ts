@@ -11,6 +11,9 @@ export const RANKING_TABS: readonly RankingTab[] = [
   { by: 'level', label: 'Level', caption: 'Highest level reached, then experience' },
   { by: 'damage', label: 'Damage', caption: DAMAGE_EXPLAINED },
   { by: 'life', label: 'Life', caption: 'Maximum life' },
+  { by: 'played', label: 'Time', caption: 'Time played, counted while in the storm' },
+  { by: 'kills', label: 'Kills', caption: 'Monsters slain' },
+  { by: 'deaths', label: 'Deaths', caption: 'Times fallen' },
 ];
 
 const GROUPED: Intl.NumberFormat = new Intl.NumberFormat('en-US', { maximumFractionDigits: 0 });
@@ -27,12 +30,28 @@ export function rankValue(row: BoardRow, by: Ranking): number {
       return row.damage;
     case 'life':
       return row.life;
+    case 'played':
+      return row.playedMs;
+    case 'kills':
+      return row.kills;
+    case 'deaths':
+      return row.deaths;
   }
   return row.level;
 }
 
+export const PLAYED: { readonly msPerMinute: number; readonly minutesPerHour: number; readonly minutesShownBelowHours: number } = { msPerMinute: 60_000, minutesPerHour: 60, minutesShownBelowHours: 10 };
+
+export function playedShort(ms: number): string {
+  const minutes: number = Number.isFinite(ms) && ms > 0 ? Math.floor(ms / PLAYED.msPerMinute) : 0;
+  const hours: number = Math.floor(minutes / PLAYED.minutesPerHour);
+  if (hours === 0) return `${String(minutes)}m`;
+  if (hours >= PLAYED.minutesShownBelowHours) return `${wholeText(hours)}h`;
+  return `${String(hours)}h ${String(minutes % PLAYED.minutesPerHour).padStart(2, '0')}m`;
+}
+
 export function rankValueText(row: BoardRow, by: Ranking): string {
-  return wholeText(rankValue(row, by));
+  return by === 'played' ? playedShort(row.playedMs) : wholeText(rankValue(row, by));
 }
 
 export function tabOf(by: Ranking): RankingTab {

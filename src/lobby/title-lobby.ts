@@ -15,7 +15,7 @@ export interface TitleLobby {
 
 type YouMode = 'hidden' | 'line';
 
-export const TITLE_LOBBY: { readonly tabProperty: string; readonly rankedClass: string } = { tabProperty: '--lobby-tab', rankedClass: 'ranked' };
+export const TITLE_LOBBY: { readonly tabProperty: string; readonly tabRowProperty: string; readonly tabColumns: number; readonly rankedClass: string } = { tabProperty: '--lobby-tab', tabRowProperty: '--lobby-tab-row', tabColumns: 3, rankedClass: 'ranked' };
 
 export function mountTitleLobby(root: HTMLElement, lobby: Lobby): TitleLobby {
   root.classList.add(TITLE_LOBBY.rankedClass);
@@ -63,7 +63,9 @@ export function mountTitleLobby(root: HTMLElement, lobby: Lobby): TitleLobby {
   const select = (by: Ranking, fetch: boolean): void => {
     active = by;
     const tab: RankingTab = tabOf(by);
-    setVar(tabs, TITLE_LOBBY.tabProperty, String(RANKING_TABS.indexOf(tab)));
+    const index: number = RANKING_TABS.indexOf(tab);
+    setVar(tabs, TITLE_LOBBY.tabProperty, String(index % TITLE_LOBBY.tabColumns));
+    setVar(tabs, TITLE_LOBBY.tabRowProperty, String(Math.floor(index / TITLE_LOBBY.tabColumns)));
     for (const [ranking, made] of buttons) {
       setAttr(made, 'aria-selected', String(ranking === by));
       const tabIndex: number = ranking === by ? 0 : -1;

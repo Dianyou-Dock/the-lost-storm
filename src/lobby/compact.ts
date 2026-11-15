@@ -40,7 +40,7 @@ export function createBrowserLobby(rawUrl: string | undefined, withAccount: bool
   });
   const feedFor = (by: Ranking): LobbyFeed => createLobbyFeed(rankedService(service, by), createBrowserTimers(), (): number => Date.now());
   const feed: LobbyFeed = feedFor('level');
-  return { service, feed, boards: { level: feed, damage: feedFor('damage'), life: feedFor('life') } };
+  return { service, feed, boards: { level: feed, damage: feedFor('damage'), life: feedFor('life'), played: feedFor('played'), kills: feedFor('kills'), deaths: feedFor('deaths') } };
 }
 
 export function watchFocus(feed: LobbyFeed): () => void {
