@@ -12,6 +12,7 @@ import { wearFrames, wearModel } from '../wear.ts';
 import { loadContent } from './content.ts';
 import { contentProblems } from './parse.ts';
 import { objectivePaths } from './road.ts';
+import { sharedBarIcons } from './skill-icons.ts';
 import { allHold } from '../world/conditions.ts';
 import { createWorld } from '../world/create.ts';
 import { nextTalk } from '../world/dialogue.ts';
@@ -39,6 +40,10 @@ void test('the shipped data loads and has no dangling references', (): void => {
   assert.deepEqual(contentProblems(content), []);
   assert.ok(content.monsters.size >= 2);
   assert.ok(content.skills.size >= 5);
+});
+
+void test('every skill a player can put on the bar has its own icon, shared only with a change of the same skill', (): void => {
+  assert.deepEqual(sharedBarIcons(content), []);
 });
 
 void test('the hero is a dressed human: a human body, and starting clothes that are items for the chest, legs and feet, and a bare head', (): void => {
