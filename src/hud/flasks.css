@@ -1,15 +1,16 @@
 .globe-flask {
+  --flask-gap: 6px;
   position: absolute;
   bottom: 0;
   pointer-events: none;
 }
 
 .hud-globe.life .globe-flask {
-  left: calc(100% - 6px);
+  left: calc(100% + var(--flask-gap));
 }
 
 .hud-globe.mana .globe-flask {
-  right: calc(100% - 6px);
+  right: calc(100% + var(--flask-gap));
 }
 
 body.touch .globe-flask {
