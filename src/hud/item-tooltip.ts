@@ -92,7 +92,7 @@ function itemCard(api: HudApi, item: ItemInstance, equipped: ItemInstance | null
   const head: HTMLDivElement = el('div', 'tip-head', root);
   const picture: HTMLDivElement = el('div', 'tip-picture', head);
   picture.style.setProperty('--rarity', rarity.color);
-  setPicture(picture, api.itemImage(item), base === null ? '' : base.icon);
+  setPicture(picture, api.itemImage(item), base);
   const heading: HTMLDivElement = el('div', 'tip-heading', head);
   const title: HTMLDivElement = label('tip-title', itemName(content, item), heading);
   title.style.color = rarity.color;

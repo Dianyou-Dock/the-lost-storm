@@ -5,7 +5,7 @@ import { baseOf, rarityOf, slotOf } from '../../sim/items.ts';
 import type { ItemInstance, PlayerState } from '../../sim/world/types.ts';
 import type { HudContext, PanelView } from './context.ts';
 import { el, label, retrigger } from './dom.ts';
-import { setPicture } from './item-picture.ts';
+import { arrivalOrder, setPicture } from './item-picture.ts';
 import { itemTooltip } from './item-tooltip.ts';
 import { attachTooltip } from './tooltip.ts';
 import { promptText, use } from './prompts.ts';
@@ -67,6 +67,7 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
       view.current = item;
       return false;
     }
+    const arriving: boolean = item !== null && view.current !== null && item.uid === view.current.uid && view.image === null && image !== null;
     view.current = item;
     view.image = image;
     if (item === null) {
@@ -74,10 +75,10 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
       return true;
     }
     const base: ItemBaseDef | null = baseOf(context.api.world.content, item);
-    setPicture(view.item, image, base === null ? '' : base.icon);
+    setPicture(view.item, image, base, arriving ? arrivalOrder(item.uid) : null);
     view.item.style.setProperty('--rarity', rarityOf(context.api.world.content, item).color);
     view.item.classList.add('filled');
-    retrigger(view.item, 'pop');
+    if (!arriving) retrigger(view.item, 'pop');
     return true;
   };
 

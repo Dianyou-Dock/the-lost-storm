@@ -4,7 +4,10 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { Timers } from '../backend/backend.ts';
 import { GPU } from '../gpu-release.ts';
 import { wearKey } from '../../sim/wear.ts';
-import type { CharacterLibrary, LoadedWearable } from './character-loader.ts';
+import type { Picture } from '../../sim/pictures.ts';
+import type { CharacterLibrary, LoadedAttachment, LoadedWearable } from './character-loader.ts';
+import type { Keepsake } from './keepsake.ts';
+import { createKeepsake } from './keepsake.ts';
 
 export const THUMBNAIL = {
   size: 128,
@@ -69,10 +72,6 @@ function encode(canvas: HTMLCanvasElement): Promise<string | null> {
       resolve(blob === null ? null : URL.createObjectURL(blob));
     }, 'image/png');
   });
-}
-
-export function wornImageKey(wearableId: string): string {
-  return `worn:${wearableId}`;
 }
 
 function pose(template: Object3D): Group {
@@ -262,7 +261,38 @@ function framing(wearable: LoadedWearable): (posed: Group) => Box3 {
   return frame;
 }
 
-export async function createItemThumbnails(library: CharacterLibrary, frame: string, wearableIds: readonly string[], skinTint: string, timers: Timers): Promise<ItemThumbnails> {
+const BOOK_SHOT = {
+  lie: 0.72,
+  turn: -0.55,
+  roll: -0.22,
+} as const;
+
+function bookPose(keepsake: Keepsake): Group {
+  const upright: Group = new Group();
+  upright.rotation.set(Math.PI / 2 - BOOK_SHOT.lie, 0, 0);
+  upright.add(keepsake.group);
+  const turned: Group = new Group();
+  turned.rotation.y = BOOK_SHOT.turn;
+  turned.add(upright);
+  const rolled: Group = new Group();
+  rolled.rotation.z = BOOK_SHOT.roll;
+  rolled.add(turned);
+  return rolled;
+}
+
+export interface ThumbnailStudio {
+  paint(frame: string, pictures: readonly Picture[]): Promise<ItemThumbnails>;
+  dispose(): void;
+}
+
+interface Studio {
+  readonly renderer: WebGLRenderer;
+  readonly scene: Scene;
+  readonly camera: OrthographicCamera;
+  readonly close: () => void;
+}
+
+function openStudio(): Studio {
   const renderer: WebGLRenderer = new WebGLRenderer({ alpha: true, antialias: true });
   const letGo: () => void = GPU.hold((): void => renderer.forceContextLoss());
   renderer.setPixelRatio(1);
@@ -286,45 +316,94 @@ export async function createItemThumbnails(library: CharacterLibrary, frame: str
 
   const camera: OrthographicCamera = new OrthographicCamera(-1, 1, 1, -1, 0.1, THUMBNAIL.distance * 2);
   camera.position.set(0, 0, THUMBNAIL.distance);
+  return {
+    renderer,
+    scene,
+    camera,
+    close: (): void => {
+      reflections.dispose();
+      room.dispose();
+      generator.dispose();
+      renderer.dispose();
+      renderer.forceContextLoss();
+      letGo();
+    },
+  };
+}
 
-  const made: Made = { materials: [], geometries: [] };
-  const shots: Shot[] = [...library.attachments.values()].map((attachment): Shot => ({ name: attachment.def.id, posed: pose(attachment.template), frame: boundsOf }));
-  for (const id of wearableIds) {
-    const wearable: LoadedWearable | undefined = library.wearables.get(wearKey(frame, id));
-    if (wearable !== undefined) shots.push({ name: wornImageKey(id), posed: dressed(wearable, skinTint, made), frame: framing(wearable) });
-  }
+export function createThumbnailStudio(library: CharacterLibrary, skinTint: string, timers: Timers): ThumbnailStudio {
+  let studio: Studio | null = null;
+  let closed: boolean = false;
+  const shotFor = (frame: string, picture: Picture, made: Made, keepsakes: Keepsake[]): Shot | null => {
+    const { source } = picture;
+    let shot: Shot | null = null;
+    switch (source.kind) {
+      case 'held': {
+        const attachment: LoadedAttachment | undefined = library.attachments.get(source.attachment);
+        if (attachment !== undefined) shot = { name: picture.key, posed: pose(attachment.template), frame: boundsOf };
+        break;
+      }
+      case 'worn': {
+        const wearable: LoadedWearable | undefined = library.wearables.get(wearKey(frame, source.piece));
+        if (wearable !== undefined) shot = { name: picture.key, posed: dressed(wearable, skinTint, made), frame: framing(wearable) };
+        break;
+      }
+      case 'book': {
+        const keepsake: Keepsake = createKeepsake();
+        keepsakes.push(keepsake);
+        shot = { name: picture.key, posed: bookPose(keepsake), frame: boundsOf };
+        break;
+      }
+      case 'none':
+        break;
+    }
+    return shot;
+  };
+  return {
+    async paint(frame: string, pictures: readonly Picture[]): Promise<ItemThumbnails> {
+      const images: Map<string, string> = new Map<string, string>();
+      if (closed || pictures.length === 0) return images;
+      studio ??= openStudio();
+      const { renderer, scene, camera } = studio;
+      const made: Made = { materials: [], geometries: [] };
+      const keepsakes: Keepsake[] = [];
+      const shots: Shot[] = [];
+      for (const picture of pictures) {
+        const shot: Shot | null = shotFor(frame, picture, made, keepsakes);
+        if (shot !== null) shots.push(shot);
+      }
 
-  for (const shot of shots) scene.add(shot.posed);
-  await renderer.compileAsync(scene, camera).catch((): Object3D => scene);
-  for (const shot of shots) shot.posed.removeFromParent();
+      for (const shot of shots) scene.add(shot.posed);
+      await renderer.compileAsync(scene, camera).catch((): Object3D => scene);
+      for (const shot of shots) shot.posed.removeFromParent();
 
-  const images: Map<string, string> = new Map<string, string>();
-  await oneAtATime(shots, timers, THUMBNAIL.gapMs, async (shot: Shot): Promise<void> => {
-    const { posed } = shot;
-    scene.add(posed);
-    const bounds: Box3 = shot.frame(posed);
-    posed.position.sub(bounds.getCenter(new Vector3()));
-    const size: Vector3 = bounds.getSize(new Vector3());
-    const half: number = (Math.max(size.x, size.y) / 2) * (1 + THUMBNAIL.padding);
-    camera.left = -half;
-    camera.right = half;
-    camera.top = half;
-    camera.bottom = -half;
-    camera.updateProjectionMatrix();
-    renderer.render(scene, camera);
-    const encoded: Promise<string | null> = encode(renderer.domElement);
-    posed.removeFromParent();
-    const url: string | null = await encoded;
-    if (url !== null) images.set(shot.name, url);
-  });
-  for (const material of made.materials) material.dispose();
-  for (const geometry of made.geometries) geometry.dispose();
-
-  reflections.dispose();
-  room.dispose();
-  generator.dispose();
-  renderer.dispose();
-  renderer.forceContextLoss();
-  letGo();
-  return images;
+      await oneAtATime(shots, timers, THUMBNAIL.gapMs, async (shot: Shot): Promise<void> => {
+        const { posed } = shot;
+        scene.add(posed);
+        const bounds: Box3 = shot.frame(posed);
+        posed.position.sub(bounds.getCenter(new Vector3()));
+        const size: Vector3 = bounds.getSize(new Vector3());
+        const half: number = (Math.max(size.x, size.y) / 2) * (1 + THUMBNAIL.padding);
+        camera.left = -half;
+        camera.right = half;
+        camera.top = half;
+        camera.bottom = -half;
+        camera.updateProjectionMatrix();
+        renderer.render(scene, camera);
+        const encoded: Promise<string | null> = encode(renderer.domElement);
+        posed.removeFromParent();
+        const url: string | null = await encoded;
+        if (url !== null) images.set(shot.name, url);
+      });
+      for (const material of made.materials) material.dispose();
+      for (const geometry of made.geometries) geometry.dispose();
+      for (const keepsake of keepsakes) keepsake.dispose();
+      return images;
+    },
+    dispose(): void {
+      closed = true;
+      studio?.close();
+      studio = null;
+    },
+  };
 }

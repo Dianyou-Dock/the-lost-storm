@@ -2,7 +2,8 @@ import type { Box3, Material } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { cuesForEvent, cuesForUi, uiActionForCommand, warmSoundIds } from '../sim/audio.ts';
-import { frameOf, zoneCharacterNeeds } from '../sim/wear.ts';
+import { zoneCharacterNeeds } from '../sim/wear.ts';
+import { carriedPictures } from '../sim/pictures.ts';
 import { heroRig } from '../sim/hero.ts';
 import { noteInConsole, warnInConsole } from './backend/console-log.ts';
 import { runFrames } from './frame-loop.ts';
@@ -14,8 +15,7 @@ import type { SoundCue } from '../sim/audio.ts';
 import type { AudioDef, UiAction, ZoneAmbience } from '../sim/content/audio.ts';
 import { loadAudio } from '../sim/content/audio.ts';
 import { loadContent } from '../sim/content/content.ts';
-import type { Content, ItemBaseDef, LineDef } from '../sim/content/types.ts';
-import { baseOf } from '../sim/items.ts';
+import type { Content, LineDef } from '../sim/content/types.ts';
 import type { Vec2 } from '../sim/math.ts';
 import type { SaveData } from '../sim/save.ts';
 import { toSave } from '../sim/save.ts';
@@ -113,8 +113,8 @@ import { createWard } from './render/ward.ts';
 import type { IsoCamera } from './render/iso-camera.ts';
 import { createIsoCamera, liftAt } from './render/iso-camera.ts';
 import { cameraSight } from './render/sight.ts';
-import type { ItemThumbnails } from './render/item-thumbnails.ts';
-import { createItemThumbnails, wornImageKey } from './render/item-thumbnails.ts';
+import type { ItemPictures } from './render/item-pictures.ts';
+import { startItemPictures } from './render/item-pictures-start.ts';
 import type { LootView } from './render/loot-view.ts';
 import { createLootView } from './render/loot-view.ts';
 import type { Overlays } from './render/overlays.ts';
@@ -231,12 +231,13 @@ async function start(): Promise<void> {
     keepHero(createBrowserStore(), id);
     send({ type: 'hero', hero: id });
   };
-  const pick: HeroPick = createHeroPick({ content, chosen: startingHero(content, save === null ? null : world.player.hero, keptHero), standing: (): PlayerState => world.player, entered: (): boolean => entered, keep: keepChosen, restage: (): void => flow.restage(), settled: (): Promise<void> => (restLoaded ? paintThumbnails() : Promise.resolve()), load: (id: string): Promise<void> => loadNeeds(loader, content, dresser, library, zoneCharacterNeeds(content, world.zone, world.player.equipped, id)) });
+  const pick: HeroPick = createHeroPick({ content, chosen: startingHero(content, save === null ? null : world.player.hero, keptHero), standing: (): PlayerState => world.player, entered: (): boolean => entered, keep: keepChosen, restage: (): void => flow.restage(), settled: (): Promise<void> => {
+    wantCarried();
+    return pictures.settled();
+  }, load: (id: string): Promise<void> => loadNeeds(loader, content, dresser, library, zoneCharacterNeeds(content, world.zone, world.player.equipped, id)) });
   const propDresser: Dresser = (dress: Readonly<Record<string, string>>, material: Material): Material => dressedProp(content, dress, material, propDressing(world.zone));
   const [library, firstView]: [CharacterLibrary, ZoneView] = await Promise.all([loadCharacters(loader, content, dresser, zoneCharacterNeeds(content, world.zone, world.player.equipped, world.player.hero)), buildZoneView(loader, content, world.zone, stage.scene, mobile.quality.tier.name)]);
   const loot: LootView = await createLootView(loader, stage.scene, library);
-  const shownPieces: string[] = [...content.itemBases.values()].flatMap((base: ItemBaseDef): string[] => base.wear.slice(0, 1));
-  let thumbnails: ItemThumbnails = new Map<string, string>();
   let zoneView: ZoneView = firstView;
   let markers: ZoneMarkers = createZoneMarkers(stage.scene, world.zone);
   stage.setAmbience(world.zone.ambience);
@@ -290,13 +291,9 @@ async function start(): Promise<void> {
   const ward: Ward = createWard(stage.scene);
   const actors: Actors = createActors(stage.scene, library, world, mobile.quality.tier.msaaSamples > 0, cameraSight(stage.camera), particles);
   const figureGauge: FigureGauge = createFigureGauge(figureJoints(content.rigs.get(heroRig(content, world.player.hero))?.bodyParts ?? {}));
-  const itemImage = (item: ItemInstance): string | null => {
-    const base: ItemBaseDef | null = baseOf(content, item);
-    if (base === null) return null;
-    if (base.visual !== null) return thumbnails.get(base.visual) ?? null;
-    const piece: string | null = base.wear[0] ?? null;
-    return piece === null ? null : (thumbnails.get(wornImageKey(piece)) ?? null);
-  };
+  const pictures: ItemPictures = startItemPictures({ content, library, loader, dresser, hero: (): string | null => pick.chosen ?? world.player.hero, refresh: (): void => hud.refreshItems() });
+  const itemImage = (item: ItemInstance): string | null => pictures.image(item);
+  const wantCarried = (): void => pictures.want(carriedPictures(content, world.player));
   const voice: VoicePlayer = {
     play(line: LineDef): Promise<void> {
       return audio.playVoice(line.speaker, line.id).catch((): void => undefined);
@@ -451,7 +448,10 @@ async function start(): Promise<void> {
         warnInConsole(`Zone rebuild after a glitch failed: ${String(error)}`);
       });
     hitStop = Math.max(hitStop, effects.takeHitStop());
-    if (changesSave(events)) dirty = true;
+    if (changesSave(events)) {
+      dirty = true;
+      wantCarried();
+    }
   };
   const present = (events: readonly WorldEvent[]): void => {
     presentScene(events);
@@ -618,18 +618,9 @@ async function start(): Promise<void> {
     await loadRemainingCharacters(loader, content, dresser, library);
     actors.refreshWear(world);
     await warmUp(stage, stage.scene, stage.camera, loot.standIns(world));
-    restLoaded = true;
     hud.warm();
-    await paintThumbnails();
   };
-  let restLoaded: boolean = false;
-  const paintThumbnails = async (): Promise<void> => {
-    const hero: string | null = pick.chosen;
-    const painted: ItemThumbnails = await createItemThumbnails(library, frameOf(content, heroRig(content, hero ?? world.player.hero)), shownPieces, content.player.tint, createBrowserTimers());
-    if (hero !== pick.chosen) return;
-    thumbnails = painted;
-    hud.refreshItems();
-  };
+  wantCarried();
 
   status.classList.remove('failed');
   if (backend.freshStart()) statusLine.show(TITLE_NOTICES.freshStart);
