@@ -4,9 +4,11 @@ import type { SaveData } from '../../sim/save.ts';
 import { toSave } from '../../sim/save.ts';
 import { createWorld } from '../../sim/world/create.ts';
 import type { Api, CloudState, GuestResult, ReadResult, WriteResult } from './api.ts';
-import type { Backend, BackendState, Clock, KeyValueStore, Logger, Timers } from './backend.ts';
+import type { Backend, BackendState, Clock, KeyValueStore, Logger, SaveOptions, Timers } from './backend.ts';
 import type { Epochs } from './epoch.ts';
 import type { Play, PlayStamp } from './play.ts';
+import { PUSH, pushWhen } from './push-timing.ts';
+import type { PushWhen } from './push-timing.ts';
 import { emptyFold } from './purse-read.ts';
 import type { SaveFold } from './purse-read.ts';
 import { chooseOnConflict, chooseOnLoad, describe } from './merge.ts';
@@ -33,6 +35,7 @@ export const TIMING: {
   readonly resetMs: number;
   readonly requestMs: number;
   readonly pushGapMs: number;
+  readonly routinePushMs: number;
   readonly retryBaseMs: number;
   readonly retryMaxMs: number;
   readonly maxQuickRetries: number;
@@ -42,7 +45,8 @@ export const TIMING: {
   loadMs: 3000,
   resetMs: 3000,
   requestMs: 8000,
-  pushGapMs: 1000,
+  pushGapMs: PUSH.firstMs,
+  routinePushMs: PUSH.routineMs,
   retryBaseMs: 2000,
   retryMaxMs: 60_000,
   maxQuickRetries: 3,
@@ -92,6 +96,8 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
   let unsent: SaveData | null = null;
   let restarted: boolean = false;
   let inFlight: Promise<void> | null = null;
+  let claimedHere: boolean = false;
+  let hurried: boolean = false;
   const foldListeners: ((fold: SaveFold) => void)[] = [];
   const heldFolds: SaveFold[] = [];
 
@@ -125,7 +131,10 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
   };
   const freshSave = (): SaveData => toSave(createWorld(content, { seed: 0, save: null }));
   const stamp = (): PlayStamp | null => options.play?.stamp() ?? null;
-  const claimed = (): void => options.play?.claimed();
+  const claimed = (): void => {
+    claimedHere = true;
+    options.play?.claimed();
+  };
   const stop = (): void => {
     frozen = true;
     latest = null;
@@ -230,7 +239,7 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
     setState('cloud');
     if (record !== null) keep({ ...record, revision: copy.revision, updatedAt: copy.updatedAt, pending: latest !== sending, overwriteCloud: false });
     if (latest === sending) latest = null;
-    else schedule(TIMING.pushGapMs);
+    else schedule(hurried ? 0 : TIMING.routinePushMs);
   };
 
   const settle = (sending: SaveData, held: SyncRecord, current: CloudState): void => {
@@ -328,6 +337,7 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
     if (pushing) return inFlight ?? Promise.resolve();
     if (latest === null || frozen || blocked || cloudUnreadable) return Promise.resolve();
     pushing = true;
+    hurried = false;
     const run: Promise<void> = sendLatest(latest);
     inFlight = run;
     return run;
@@ -339,6 +349,22 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
     cancelTimer = null;
     await push();
     await syncFrom(tries + 1);
+  };
+
+  const pushSoon = (urgent: boolean): void => {
+    const when: PushWhen = pushWhen(urgent, claimedHere);
+    if (when.kind === 'after') {
+      schedule(when.ms);
+      return;
+    }
+    hurried = true;
+    if (pushing || failures > 0) {
+      schedule(0);
+      return;
+    }
+    cancelTimer?.();
+    cancelTimer = null;
+    void push();
   };
 
   const adopt = (cloud: CloudState): void => {
@@ -449,7 +475,7 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
     load,
     freshStart: (): boolean => epochs.dropped(),
     setAside: (): boolean => local.setAside(),
-    save(save: SaveData): boolean {
+    save(save: SaveData, saveOptions?: SaveOptions): boolean {
       if (frozen) return true;
       const written: boolean = local.save(save);
       latest = save;
@@ -458,7 +484,7 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
       cancelEnrol = null;
       blocked = false;
       if (record !== null) keep({ ...record, pending: true, savedAt: now() });
-      schedule(TIMING.pushGapMs);
+      pushSoon(saveOptions?.urgent === true);
       return written;
     },
     async reset(): Promise<void> {

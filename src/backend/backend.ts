@@ -3,9 +3,13 @@ import type { SaveFold } from './purse-read.ts';
 
 export type BackendState = 'offline' | 'cloud';
 
+export interface SaveOptions {
+  readonly urgent: boolean;
+}
+
 export interface Backend {
   load(): Promise<SaveData | null>;
-  save(save: SaveData): boolean;
+  save(save: SaveData, options?: SaveOptions): boolean;
   reset(): Promise<void>;
   flush(): void;
   sync(): Promise<void>;

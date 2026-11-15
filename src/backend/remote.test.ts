@@ -98,7 +98,7 @@ void test('a burst of saves becomes one push with the newest save, and the next 
   assert.equal(harness.server.count('PUT', '/v1/save'), 1);
   assert.deepEqual(lastPut(harness), { baseRevision: 0, level: 3 });
   backend.save(makeSave(4, 0));
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   assert.deepEqual(lastPut(harness), { baseRevision: 1, level: 4 });
 });
 
@@ -110,7 +110,7 @@ void test('a save that arrives while a push is in flight is pushed right after i
   const first: Promise<void> = harness.timers.advance(1000);
   backend.save(makeSave(3, 0));
   await first;
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   assert.equal(account(harness).save?.level, 3);
   assert.equal(account(harness).revision, 2);
 });
@@ -211,7 +211,7 @@ void test('a conflict while playing keeps this device when it is further along, 
   const backend: Backend = await synced(harness, 2);
   harness.server.plant(account(harness), makeSave(3, 0));
   backend.save(makeSave(4, 0));
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   assert.ok(harness.infos.some((line: string): boolean => line.includes("keeping this device's save")));
   await harness.timers.advance(0);
   assert.equal(account(harness).save?.level, 4);
@@ -223,7 +223,7 @@ void test('a conflict while playing keeps the cloud copy when it is further alon
   const backend: Backend = await synced(harness, 2);
   harness.server.plant(account(harness), makeSave(9, 0));
   backend.save(makeSave(4, 0));
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   assert.ok(harness.warns.some((line: string): boolean => line.includes('keeping the cloud save') && line.includes('Reload')));
   assert.equal(storedLevel(harness), 9);
   const puts: number = harness.server.count('PUT', '/v1/save');
@@ -239,7 +239,7 @@ void test('a token the server no longer knows is replaced by a new guest account
   const backend: Backend = await synced(harness, 2);
   harness.server.accounts.splice(0);
   backend.save(makeSave(3, 0));
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   await harness.timers.advance(0);
   assert.equal(harness.server.count('POST', '/v1/guest'), 2);
   assert.equal(record(harness).token, 'token-2');
@@ -383,11 +383,11 @@ void test('a push that finishes after start over cannot clear the flag of a newe
   const backend: Backend = await synced(harness, 3);
   backend.save(makeSave(4, 0));
   const releaseOld: () => void = harness.server.holdNext();
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   await backend.reset();
   backend.save(makeSave(1, 5));
   const releaseNew: () => void = harness.server.holdNext();
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   releaseOld();
   await settle();
   await settle();
@@ -611,9 +611,9 @@ void test('the entries a save answer folded and the ledger ids it stripped or cl
   backend.onFold((fold: SaveFold): void => void heard.push(fold));
   harness.server.foldNext({ folded: [{ id: 4, kind: 'collect', gold: 30, item: null, direction: null }], stripped: [FOLDED_ITEM], unverified: [CLEARED_ITEM] });
   backend.save(makeSave(4, 0));
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   backend.save(makeSave(5, 0));
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   assert.deepEqual(heard, [{ folded: [{ id: 4, kind: 'collect', gold: 30, item: null, direction: null }], stripped: [FOLDED_ITEM], unverified: [CLEARED_ITEM] }]);
 });
 
@@ -622,7 +622,7 @@ void test('a fold that arrives before the game listens is handed over when it do
   const backend: Backend = await synced(harness, 3);
   harness.server.foldNext({ folded: [], stripped: [], unverified: [CLEARED_ITEM] });
   backend.save(makeSave(4, 0));
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   const heard: SaveFold[] = [];
   backend.onFold((fold: SaveFold): void => void heard.push(fold));
   assert.deepEqual(heard, [{ folded: [], stripped: [], unverified: [CLEARED_ITEM] }]);

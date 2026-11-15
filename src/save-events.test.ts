@@ -8,10 +8,11 @@ import { toSave } from '../sim/save.ts';
 import { createWorld } from '../sim/world/create.ts';
 import { stepWorld } from '../sim/world/step.ts';
 import { enterZone } from '../sim/world/zones.ts';
+import type { Vec2 } from '../sim/math.ts';
 import type { World, WorldEvent } from '../sim/world/types.ts';
 import { OUTPOST_CONTENT } from '../test/road-support.ts';
 import { must } from '../test/support.ts';
-import { changesSave } from './save-events.ts';
+import { changesSave, urgentEvents } from './save-events.ts';
 
 const shipped: Content = loadContent();
 const town: ZoneDef = must(shipped.zones.get('hall_of_time'), 'town');
@@ -73,4 +74,20 @@ void test('drinking a flask and refilling flasks each ask for a save', (): void 
   assert.notEqual(kept(world), spent);
   assert.equal(changesSave(refill), true);
   assert.equal(changesSave(stepWorld(world, [], PLAY.dt)), false);
+});
+
+void test('a save is urgent for a level, a boss, a quest step, an act, a zone, a change to the character or the hero dying, and for nothing else', (): void => {
+  const at: Vec2 = { x: 0, z: 0 };
+  const urgent: readonly WorldEvent[] = [
+    { type: 'level_up', level: 2 },
+    { type: 'boss_defeated', monsterId: 1, monster: 'warden', first: true },
+    { type: 'quest_started', quest: 'out_of_the_mist' },
+    { type: 'zone_changed', from: 'hall_of_time', to: 'outpost' },
+    { type: 'character_changed' },
+    { type: 'death', actorId: 0, team: 'player', pos: at, direction: at },
+  ];
+  for (const event of urgent) assert.equal(urgentEvents([event]), true, event.type);
+  assert.equal(urgentEvents([]), false);
+  assert.equal(urgentEvents([{ type: 'death', actorId: 7, team: 'monster', pos: at, direction: at }]), false);
+  assert.equal(urgentEvents([{ type: 'xp', amount: 5, reduced: null }, { type: 'explored', zone: 'hall_of_time' }, { type: 'flasks_refilled' }]), false);
 });

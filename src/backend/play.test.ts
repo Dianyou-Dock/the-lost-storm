@@ -6,6 +6,7 @@ import type { Harness, RecordedRequest } from '../../test/backend-support.ts';
 import { must } from '../../test/support.ts';
 import type { Backend } from './backend.ts';
 import { SAVE_KEY } from './local.ts';
+import { TIMING } from './remote.ts';
 import { parseSyncRecord, SYNC_KEY } from './sync-record.ts';
 import type { SyncRecord } from './sync-record.ts';
 import type { Play } from './play.ts';
@@ -71,7 +72,7 @@ void test('the newest window claims the character; the older one is refused, sto
   await playing(harness, newer, 4);
   assert.equal(storedLevel(harness), 4);
   first.save(makeSave(5, 0));
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   assert.equal(older.replaced(), true);
   assert.equal(must(harness.server.accounts[0], 'the account').save?.level, 4);
   first.save(makeSave(6, 0));
@@ -106,7 +107,7 @@ void test('the window that took the character back claims again and the other on
   const again: Play = createPlay('first-reloaded');
   await playing(harness, again, 5);
   other.save(makeSave(6, 0));
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   assert.equal(second.replaced(), true);
   assert.equal(again.replaced(), false);
   assert.equal(must(harness.server.accounts[0], 'the account').save?.level, 5);
@@ -128,7 +129,7 @@ void test('playing here again after being refused takes the newer cloud copy, ne
   const first: Backend = await playing(harness, older, 3);
   await playing(harness, createPlay('newer'), 4);
   first.save(makeSave(9, 0));
-  await harness.timers.advance(1000);
+  await harness.timers.advance(TIMING.routinePushMs);
   assert.equal(older.replaced(), true);
   const reloaded: Backend = harness.open(undefined, createPlay('older-reloaded'));
   assert.equal((await reloaded.load())?.level, 4);

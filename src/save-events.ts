@@ -28,3 +28,18 @@ export const SAVE_EVENTS: ReadonlySet<WorldEvent['type']> = new Set<WorldEvent['
 export function changesSave(events: readonly WorldEvent[]): boolean {
   return events.some((event: WorldEvent): boolean => SAVE_EVENTS.has(event.type));
 }
+
+export const URGENT_EVENTS: ReadonlySet<WorldEvent['type']> = new Set<WorldEvent['type']>([
+  'level_up',
+  'boss_defeated',
+  'quest_started',
+  'quest_advanced',
+  'quest_completed',
+  'act_ended',
+  'zone_changed',
+  'character_changed',
+]);
+
+export function urgentEvents(events: readonly WorldEvent[]): boolean {
+  return events.some((event: WorldEvent): boolean => URGENT_EVENTS.has(event.type) || (event.type === 'death' && event.team === 'player'));
+}

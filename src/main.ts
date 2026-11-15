@@ -150,7 +150,7 @@ import { defaultBar } from '../sim/skill-book.ts';
 import type { Bar } from '../sim/skill-book.ts';
 import { shippedKeys, showTitleKeys, skillSlots, TITLE_KEYS, titleKeyRows, titleNames } from './title-keys.ts';
 import type { StatusLine } from './title-status.ts';
-import { changesSave } from './save-events.ts';
+import { changesSave, urgentEvents } from './save-events.ts';
 import type { TransitionReport, ZoneTransition } from './transition.ts';
 import type { VoicePlayer } from './voice.ts';
 import { createZoneTransition, describeTransition, veilColour } from './transition.ts';
@@ -417,12 +417,14 @@ async function start(): Promise<void> {
   let saveHeld: boolean = false;
   let hitStop: number = 0;
   let dirty: boolean = false;
+  let urgent: boolean = false;
   let sinceSave: number = 0;
   let last: number = performance.now();
 
   const persist = (): void => {
-    if (!dirty || saveHeld) return;
-    dirty = !backend.save(toSave(world));
+    if ((!dirty && !urgent) || saveHeld) return;
+    dirty = !backend.save(toSave(world), { urgent });
+    urgent = false;
     sinceSave = 0;
   };
   const saveNow = (): void => {
@@ -456,6 +458,7 @@ async function start(): Promise<void> {
       dirty = true;
       wantCarried();
     }
+    if (urgentEvents(events)) urgent = true;
   };
   const present = (events: readonly WorldEvent[]): void => {
     presentScene(events);
@@ -556,7 +559,7 @@ async function start(): Promise<void> {
     }
     debug.record(events);
     hideout?.frame(dt, playing, world, transition.presenting);
-    if (minter?.pump(world) === true) dirty = true;
+    if (minter?.pump(world) === true) urgent = true;
     if (events.some((event: WorldEvent): boolean => event.type === 'zone_changed')) {
       const held: WorldEvent[] = events;
       saveHeld = true;
@@ -600,7 +603,7 @@ async function start(): Promise<void> {
     if (transition.presenting) glitches.update(now / 1000, dt, gate.queue && hitStop <= 0 && !transition.blocking ? dt : 0);
     if (lobbyFlow?.render(dt) !== true && !hud.coversScene()) stage.render();
     sinceSave += dt;
-    if (sinceSave > GAME.saveEvery) persist();
+    if (urgent || sinceSave > GAME.saveEvery) persist();
   };
   window.addEventListener('resize', (): void => stage.resize());
   window.addEventListener('beforeunload', saveNow);

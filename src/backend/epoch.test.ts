@@ -117,7 +117,7 @@ void test('a wipe while the game is open: the next push is refused as stale, the
   const backend: Backend = await synced(harness, 4);
   harness.server.wipe(SAVE_EPOCH + 1);
   backend.save(makeSave(5, 0));
-  await harness.timers.advance(TIMING.pushGapMs);
+  await harness.timers.advance(TIMING.routinePushMs);
   assert.equal(account(harness).save, null);
   assert.equal(harness.store.read(SAVE_KEY), null);
   assert.ok(harness.warns.some((line: string): boolean => line.includes('every save was reset')));
