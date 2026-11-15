@@ -22,7 +22,7 @@ import { fitClip } from './clip-fit.ts';
 import { dressPiece } from './dress-piece.ts';
 import type { KeepLoadingDeps, NamedLoad } from './keep-loading.ts';
 import { loadAllKeepTrying } from './keep-loading.ts';
-import { seeThrough, SHADOW_BODY, SHADOW_LIGHT, SHADOW_UNIFORMS, shadowRim } from './shadow-shade.ts';
+import { seeThrough, shadeHeld, SHADOW_BODY, SHADOW_LIGHT, SHADOW_UNIFORMS, shadowRim } from './shadow-shade.ts';
 
 export interface ActionClip {
   readonly clip: AnimationClip;
@@ -597,6 +597,7 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
         holder.scale.setScalar(socket.scale * piece.value);
         const copy: Object3D = attachment.template.clone(true);
         if (look.ghost !== null) copy.traverse((object: Object3D): void => dress(object, look, glow, piece.materials));
+        else shadeHeld(copy, glow, piece.materials);
         holder.add(copy);
         bone.add(holder);
         held.set(id, piece);

@@ -1,4 +1,6 @@
-import type { Material } from 'three';
+import type { Material, Object3D } from 'three';
+import { Mesh, MeshStandardMaterial } from 'three';
+import type { RigGlow } from './ghost-material.ts';
 import type { VfxShadow } from '../../sim/content/vfx-types.ts';
 import { isInvulnerable } from '../../sim/world/dash.ts';
 import type { ActorState } from '../../sim/world/types.ts';
@@ -9,9 +11,10 @@ export const SHADOW_SHADE = {
   see: 0.45,
   rim: 1,
   rimPower: 2,
-  stiffness: 260,
-  damping: 30,
+  stiffness: 600,
+  damping: 46,
   settle: 0.002,
+  programKey: 'storm-shade',
 } as const;
 
 export const SHADOW_UNIFORMS: string = 'uniform vec3 uShade;\nuniform float uShadeMix;';
@@ -56,4 +59,33 @@ export function seeThrough(materials: readonly Material[], see: boolean): void {
 export function shadowOf(actor: ActorState): VfxShadow | null {
   if (actor.action === null || !isInvulnerable(actor)) return null;
   return actor.action.skill.vfx.shadow;
+}
+
+export function shadeFragment(source: string): string {
+  return source
+    .replace('void main() {', `${SHADOW_UNIFORMS}\nvoid main() {`)
+    .replace('#include <emissivemap_fragment>', ['#include <emissivemap_fragment>', 'float shadeFacing = clamp( 1.0 - dot( normal, normalize( vViewPosition ) ), 0.0, 1.0 );', ...SHADOW_BODY, `totalEmissiveRadiance += ${shadowRim('shadeFacing')};`].join('\n'))
+    .replace('#include <lights_fragment_end>', `#include <lights_fragment_end>\n${SHADOW_LIGHT}`);
+}
+
+export function shadedCopy(source: MeshStandardMaterial, glow: RigGlow): MeshStandardMaterial {
+  const material: MeshStandardMaterial = source.clone();
+  material.onBeforeCompile = (shader): void => {
+    shader.uniforms['uShade'] = glow.shade;
+    shader.uniforms['uShadeMix'] = glow.shadeMix;
+    shader.fragmentShader = shadeFragment(shader.fragmentShader);
+  };
+  material.customProgramCacheKey = (): string => SHADOW_SHADE.programKey;
+  return material;
+}
+
+export function shadeHeld(copy: Object3D, glow: RigGlow, sink: MeshStandardMaterial[]): void {
+  copy.traverse((object: Object3D): void => {
+    if (!(object instanceof Mesh)) return;
+    const source: unknown = object.material;
+    if (!(source instanceof MeshStandardMaterial)) return;
+    const material: MeshStandardMaterial = shadedCopy(source, glow);
+    object.material = material;
+    sink.push(material);
+  });
 }

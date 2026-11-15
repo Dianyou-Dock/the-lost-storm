@@ -7,8 +7,11 @@ import { isInvulnerable } from '../../sim/world/dash.ts';
 import { startSkill } from '../../sim/world/skills.ts';
 import { stepWorld } from '../../sim/world/step.ts';
 import type { World } from '../../sim/world/types.ts';
+import { BoxGeometry, Group, Mesh, MeshStandardMaterial } from 'three';
+import { createRigGlow } from './ghost-material.ts';
+import type { RigGlow } from './ghost-material.ts';
 import type { ShadeMotion } from './shadow-shade.ts';
-import { shadowOf, stepShade } from './shadow-shade.ts';
+import { SHADOW_SHADE, shadeFragment, shadeHeld, shadowOf, stepShade } from './shadow-shade.ts';
 
 const content: Content = loadContent();
 const STEP: number = 1 / 60;
@@ -55,4 +58,26 @@ void test('the shade eases in and out without a jump and comes to rest', (): voi
   }
   assert.equal(motion.value, 0);
   assert.equal(motion.speed, 0);
+});
+
+void test('a held piece takes the shadow through its own shader without touching the shared template', (): void => {
+  const fragment: string = shadeFragment('void main() {\n#include <emissivemap_fragment>\n#include <lights_fragment_end>\n}');
+  assert.ok(fragment.includes('uniform float uShadeMix;'));
+  assert.ok(fragment.indexOf('uniform float uShadeMix;') < fragment.indexOf('void main() {'));
+  assert.ok(fragment.includes('diffuseColor.a *= 1.0 - uShadeMix'));
+  assert.ok(fragment.includes('reflectedLight.directSpecular *= 1.0 - uShadeMix;'));
+  const shared: MeshStandardMaterial = new MeshStandardMaterial();
+  const template: Group = new Group();
+  template.add(new Mesh(new BoxGeometry(), shared));
+  const copy: Group = template.clone(true);
+  const glow: RigGlow = createRigGlow();
+  const sink: MeshStandardMaterial[] = [];
+  shadeHeld(copy, glow, sink);
+  assert.equal(sink.length, 1);
+  const held: unknown = copy.children[0];
+  const kept: unknown = template.children[0];
+  assert.ok(held instanceof Mesh && kept instanceof Mesh);
+  assert.notEqual(held.material, shared);
+  assert.equal(kept.material, shared);
+  assert.equal(sink[0]?.customProgramCacheKey(), SHADOW_SHADE.programKey);
 });
