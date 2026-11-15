@@ -60,6 +60,14 @@ export interface ZoneMistWall {
   readonly height: number;
 }
 
+export interface ZoneHeroLight {
+  readonly strength: number;
+  readonly radius: number;
+  readonly height: number;
+  readonly falloff: number;
+  readonly rim: number;
+}
+
 export interface ZoneWeather {
   readonly lightning: ZoneLightning | null;
   readonly rain: number;

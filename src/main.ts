@@ -240,6 +240,7 @@ async function start(): Promise<void> {
   let zoneView: ZoneView = firstView;
   let markers: ZoneMarkers = createZoneMarkers(stage.scene, world.zone);
   stage.setAmbience(world.zone.ambience);
+  stage.setHeroLight(world.zone.heroLight);
   placeLine.show(world.zone.name);
   const audioDef: AudioDef = loadAudio(content);
   const controls: AudioControls = createSettingsStore(browserSettingsStorage());
@@ -489,6 +490,7 @@ async function start(): Promise<void> {
     preloadNearZones();
     markers = createZoneMarkers(stage.scene, world.zone);
     stage.setAmbience(world.zone.ambience);
+    stage.setHeroLight(world.zone.heroLight);
     applyWeather(world.zone);
     zoneView.setGraphics(gameSettings.preset());
     effects.setTorches(zoneView.torches);
@@ -497,7 +499,7 @@ async function start(): Promise<void> {
     startZoneAmbience();
     glitches.refresh();
     camera.snap(world.player.pos.x, world.player.pos.z, liftAt(world.zone, world.player.pos.x, world.player.pos.z));
-    stage.follow(world.player.pos.x, world.player.pos.z);
+    stage.follow(world.player.pos.x, world.player.pos.z, world.zone.floorHeight + liftAt(world.zone, world.player.pos.x, world.player.pos.z), 0);
     const hideWarm: () => void = effects.showWarm(world.player.pos.x, world.player.pos.z);
     stage.render();
     hideWarm();
@@ -567,7 +569,7 @@ async function start(): Promise<void> {
       camera.update(dt, world.player.pos.x, world.player.pos.z, liftAt(world.zone, world.player.pos.x, world.player.pos.z));
       effects.update(dt, world);
       ward.update(dt, world);
-      stage.follow(world.player.pos.x, world.player.pos.z);
+      stage.follow(world.player.pos.x, world.player.pos.z, world.zone.floorHeight + liftAt(world.zone, world.player.pos.x, world.player.pos.z), dt);
       overlays.update(dt, world, input.hoveredId);
       weather.update(dt, world.player.pos.x, world.player.pos.z, glitchSettings.get().reduceFlashes);
       rain.update(dt, world.player.pos.x, world.player.pos.z, weather.flash, zoneView);

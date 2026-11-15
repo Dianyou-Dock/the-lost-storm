@@ -1,6 +1,10 @@
 import type { Camera, Object3D } from 'three';
 import { Color, CustomToneMapping, DirectionalLight, Fog, HalfFloatType, HemisphereLight, PCFShadowMap, PerspectiveCamera, PointLight, Scene, ShaderChunk, SRGBColorSpace, Vector2, WebGLRenderer, WebGLRenderTarget } from 'three';
 import type { ZoneAmbience } from '../../sim/content/types.ts';
+import type { ZoneHeroLight } from '../../sim/content/road-types.ts';
+import { DEFAULT_HERO_LIGHT } from '../../sim/content/parse-weather.ts';
+import type { Spring } from '../hud/character-spring.ts';
+import { springTo, stepSpring } from '../hud/character-spring.ts';
 import type { SkyFlash } from './weather.ts';
 import type { GraphicsPreset } from '../settings/settings.ts';
 import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
@@ -26,9 +30,6 @@ export const STAGE = {
   shadowExtent: 30,
   shadowFar: 90,
   heroColor: 0xe9e4dc,
-  heroIntensity: 14,
-  heroDistance: 21,
-  heroHeight: 3.6,
   heroToward: 2.4,
   bloomStrength: 0.62,
   bloomRadius: 0.42,
@@ -102,7 +103,8 @@ export interface Stage {
   readonly scene: Scene;
   readonly camera: PerspectiveCamera;
   setAmbience(ambience: ZoneAmbience): void;
-  follow(x: number, z: number): void;
+  setHeroLight(light: ZoneHeroLight): void;
+  follow(x: number, z: number, floor: number, dt: number): void;
   setFlash(light: SkyFlash): void;
   applyGraphics(preset: GraphicsPreset): void;
   resize(): void;
@@ -138,7 +140,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
   let swingZ: number = 0;
 
   const placeStorm = (): void => {
-    storm.position.set(storm.target.position.x + STAGE.stormOffsetX + (swingX - STAGE.stormOffsetX) * swing, STAGE.stormOffsetY, storm.target.position.z + STAGE.stormOffsetZ + (swingZ - STAGE.stormOffsetZ) * swing);
+    storm.position.set(storm.target.position.x + STAGE.stormOffsetX + (swingX - STAGE.stormOffsetX) * swing, storm.target.position.y + STAGE.stormOffsetY, storm.target.position.z + STAGE.stormOffsetZ + (swingZ - STAGE.stormOffsetZ) * swing);
   };
   const shownBackground: Color = background.clone();
   const fog: Fog = new Fog(background, 1, 2);
@@ -174,7 +176,11 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
   scene.add(storm);
   scene.add(storm.target);
 
-  const hero: PointLight = new PointLight(STAGE.heroColor, STAGE.heroIntensity, STAGE.heroDistance, 1.6);
+  const heroStrength: Spring = { value: DEFAULT_HERO_LIGHT.strength, velocity: 0, target: DEFAULT_HERO_LIGHT.strength };
+  const heroRadius: Spring = { value: DEFAULT_HERO_LIGHT.radius, velocity: 0, target: DEFAULT_HERO_LIGHT.radius };
+  const heroHeight: Spring = { value: DEFAULT_HERO_LIGHT.height, velocity: 0, target: DEFAULT_HERO_LIGHT.height };
+  const heroFalloff: Spring = { value: DEFAULT_HERO_LIGHT.falloff, velocity: 0, target: DEFAULT_HERO_LIGHT.falloff };
+  const hero: PointLight = new PointLight(STAGE.heroColor, heroStrength.value, heroRadius.value, heroFalloff.value);
   scene.add(hero);
 
   const primer: WebGLRenderTarget = new WebGLRenderTarget(1, 1, { type: HalfFloatType });
@@ -264,12 +270,25 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
       rimBase.copy(rimFor(ambience));
       RIM_LIGHT.value.copy(rimBase);
     },
-    follow(x: number, z: number): void {
+    setHeroLight(light: ZoneHeroLight): void {
+      springTo(heroStrength, light.strength);
+      springTo(heroRadius, light.radius);
+      springTo(heroHeight, light.height);
+      springTo(heroFalloff, light.falloff);
+    },
+    follow(x: number, z: number, floor: number, dt: number): void {
       const snappedX: number = Math.round(x / texel) * texel;
       const snappedZ: number = Math.round(z / texel) * texel;
-      storm.target.position.set(snappedX, 0, snappedZ);
+      storm.target.position.set(snappedX, floor, snappedZ);
       placeStorm();
-      hero.position.set(x + STAGE.heroToward * Math.SQRT1_2, STAGE.heroHeight, z + STAGE.heroToward * Math.SQRT1_2);
+      stepSpring(heroStrength, dt);
+      stepSpring(heroRadius, dt);
+      stepSpring(heroHeight, dt);
+      stepSpring(heroFalloff, dt);
+      hero.decay = Math.max(0, heroFalloff.value);
+      hero.intensity = Math.max(0, heroStrength.value);
+      hero.distance = Math.max(0, heroRadius.value);
+      hero.position.set(x + STAGE.heroToward * Math.SQRT1_2, floor + heroHeight.value, z + STAGE.heroToward * Math.SQRT1_2);
       heroAt.set(x, z);
     },
     setFlash(light: SkyFlash): void {

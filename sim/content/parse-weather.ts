@@ -1,12 +1,14 @@
 import type { Fields } from './read.ts';
 import { ContentError, fields, nonNegative, numeric, positive, share } from './read.ts';
-import type { LightningCluster, LightningKinds, ZoneLightning, ZoneMistWall, ZoneWeather } from './road-types.ts';
+import type { LightningCluster, LightningKinds, ZoneHeroLight, ZoneLightning, ZoneMistWall, ZoneWeather } from './road-types.ts';
 
 export const LIGHTNING_CLUSTER: LightningCluster = { chance: 0.4, most: 3, min: 1.4, max: 3.2 };
 
 export const LIGHTNING_KINDS: LightningKinds = { sheet: 4, near: 3, fork: 1 };
 
 export const STRIKE_SPACING: number = 1.4;
+
+export const DEFAULT_HERO_LIGHT: ZoneHeroLight = { strength: 14, radius: 21, height: 3.6, falloff: 1.6, rim: 0 };
 
 export const DEFAULT_WEATHER: ZoneWeather = {
   lightning: { first: 7, min: 7, max: 16, cluster: LIGHTNING_CLUSTER, kinds: LIGHTNING_KINDS },
@@ -61,5 +63,17 @@ export function zoneWeather(value: unknown, where: string): ZoneWeather {
     rain: share(source, 'rain', where),
     wet: share(source, 'wet', where),
     mistWall: mistWall(source['mistWall'], `${where}.mistWall`),
+  };
+}
+
+export function zoneHeroLight(value: unknown, where: string): ZoneHeroLight {
+  if (value === undefined) return DEFAULT_HERO_LIGHT;
+  const source: Fields = fields(value, where);
+  return {
+    strength: nonNegative(source, 'strength', where),
+    radius: positive(source, 'radius', where),
+    height: source['height'] === undefined ? DEFAULT_HERO_LIGHT.height : positive(source, 'height', where),
+    falloff: source['falloff'] === undefined ? DEFAULT_HERO_LIGHT.falloff : positive(source, 'falloff', where),
+    rim: nonNegative(source, 'rim', where),
   };
 }

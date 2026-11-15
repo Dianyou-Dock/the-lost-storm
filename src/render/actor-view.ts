@@ -45,6 +45,7 @@ export const ACTOR = {
   hoverGlow: 1,
   hostileHover: 0xff5a3c,
   friendlyHover: 0xffd9a0,
+  edgeTint: 0xf2e6d2,
   npcTurnRate: 6,
   minActionSpeed: 0.35,
   maxActionSpeed: 5,
@@ -131,6 +132,7 @@ export interface ActorView {
   detach(): void;
   wake(pose: WakePose | null): void;
   setHover(hovered: boolean): void;
+  setEdge(amount: number): void;
   face(facing: number): void;
   spin(animation: string | null, turn: number): void;
   bounds(out: Box3): void;
@@ -249,6 +251,7 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
   let punch: number = 0;
   let hover: boolean = false;
   const hoverLevel: Spring = { value: 0, velocity: 0, target: 0 };
+  const edgeLevel: Spring = { value: 0, velocity: 0, target: 0 };
   let yaw: number = facing;
   let turned: number = 0;
   let spinning: boolean = false;
@@ -268,6 +271,8 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
   const heldColor: Color = new Color(ACTOR.heldTint);
   const glowColor: Color = new Color();
   const hoverColor: Color = new Color(hoverTint);
+  const edgeColor: Color = new Color(ACTOR.edgeTint);
+  const shownHover: Color = new Color();
   rig.root.scale.setScalar(scale);
   rig.root.rotation.order = 'YXZ';
   rig.root.rotation.y = yaw;
@@ -454,7 +459,12 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
       const cool: number = Math.max(0, heldLevel.value) * ACTOR.heldGlow * (1 - ACTOR.heldPulse * (0.5 - 0.5 * Math.cos(heldClock * ACTOR.heldPulseRate)));
       glowColor.copy(flashColor).lerp(heldColor, flash + cool > 0 ? cool / (flash + cool) : 0);
       rig.setFlash(glowColor, Math.max(flash, cool));
-      rig.setHover(hoverColor, Math.max(0, hoverLevel.value));
+      stepSpring(edgeLevel, dt);
+      shownHover.copy(hoverColor).multiplyScalar(Math.max(0, hoverLevel.value));
+      shownHover.r += edgeColor.r * Math.max(0, edgeLevel.value);
+      shownHover.g += edgeColor.g * Math.max(0, edgeLevel.value);
+      shownHover.b += edgeColor.b * Math.max(0, edgeLevel.value);
+      rig.setHover(shownHover, 1);
       unlayer();
       const posing: boolean = lying || woke !== null;
       const step: number | null = settled && !posing ? null : bank.take(dt * pace.value, posing || options.seen);
@@ -580,6 +590,9 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
     },
     setHover(hovered: boolean): void {
       hover = hovered;
+    },
+    setEdge(amount: number): void {
+      springTo(edgeLevel, amount);
     },
     bounds(out: Box3): void {
       out.setFromObject(rig.root);

@@ -47,7 +47,7 @@ import { conditions } from './parse-conditions.ts';
 import { actEnd, drifts, retiredZones, triggers } from './parse-road.ts';
 import { momentField } from './parse-moments.ts';
 import { zoneScenes } from './parse-scene.ts';
-import { zoneWeather } from './parse-weather.ts';
+import { zoneHeroLight, zoneWeather } from './parse-weather.ts';
 import { zoneTerrain } from './parse-terrain.ts';
 
 function point(value: unknown, where: string): ZonePoint {
@@ -304,6 +304,7 @@ export function zone(value: unknown, where: string): ZoneDef {
     triggers: triggers(source['triggers'], `${where}.triggers`),
     moments: momentField(source['moments'], `${where}.moments`),
     weather: zoneWeather(source['weather'], `${where}.weather`),
+    heroLight: zoneHeroLight(source['heroLight'], `${where}.heroLight`),
   };
 }
 

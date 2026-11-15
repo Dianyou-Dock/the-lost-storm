@@ -288,6 +288,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       playerView.wake(current.wake === null ? null : wakePose(wakeStage(current.wake.plan, current.wake.elapsed), current.wake.elapsed));
       const spun: SpinPose = spin.step(dt, current.time, current.player);
       playerView.spin(spun.animation, spun.turn);
+      playerView.setEdge(current.zone.heroLight.rim);
       playerView.sync(dt, poseOf(current.player, null), { rise: 1, floor: floorAt(current.player.pos.x, current.player.pos.z), turnRate: ACTOR.turnRate, seen: true });
       for (const monster of current.monsters) {
         const entry: MonsterEntry | null = entryFor(current, monster);

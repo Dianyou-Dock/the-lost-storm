@@ -13,7 +13,7 @@ import type { Condition } from './condition-types.ts';
 import type { ZoneAmbience } from './ambience-types.ts';
 import type { BookDef, StoryFlags, ZoneVoid } from './story-types.ts';
 export type { ZoneAmbience } from './ambience-types.ts';
-import type { ActEnd, RetiredZones, ZoneDrift, ZoneTrigger, ZoneWeather } from './road-types.ts';
+import type { ActEnd, RetiredZones, ZoneDrift, ZoneHeroLight, ZoneTrigger, ZoneWeather } from './road-types.ts';
 import type { MomentField, MomentLibrary } from './moment-types.ts';
 import type { ChartDef, SkillTarget, SkillVariant } from './chart-types.ts';
 import type { SkillVfx } from './vfx-types.ts';
@@ -408,6 +408,7 @@ export interface ZoneDef {
   readonly triggers: readonly ZoneTrigger[];
   readonly moments: MomentField | null;
   readonly weather: ZoneWeather;
+  readonly heroLight: ZoneHeroLight;
 }
 
 export interface LineDef {
