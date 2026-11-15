@@ -94,11 +94,18 @@
     "wearables": [
       "keeper_robe",
       "lens_mask",
-      "keeper_gloves"
+      "keeper_gloves",
+      "tally_robe",
+      "custodian_robe",
+      "blackened_plate",
+      "iron_vambraces",
+      "iron_greaves",
+      "iron_sabatons"
     ],
     "weapons": [
       "keeper_rod",
-      "keeper_blade"
+      "keeper_blade",
+      "rank_shield"
     ],
     "regards": {
       "player": "hostile",

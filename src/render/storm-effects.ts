@@ -7,7 +7,7 @@ import type { VfxPunch } from '../../sim/content/vfx-types.ts';
 import type { Vec2 } from '../../sim/math.ts';
 import { areaOf } from '../../sim/world/areas.ts';
 import { chargeOf, SKILLS } from '../../sim/world/skills.ts';
-import type { AreaState, MonsterState, World, WorldEvent } from '../../sim/world/types.ts';
+import type { Actor, AreaState, MonsterState, World, WorldEvent } from '../../sim/world/types.ts';
 import { glow, groundArcs, lightningLine, skyBolt } from './effect-shapes.ts';
 import type { GroundLight } from './ground-light.ts';
 import { createGroundLight, GROUND_LIGHT } from './ground-light.ts';
@@ -431,28 +431,29 @@ export function createStormEffects(kit: StormKit): StormEffects {
   };
 
   const updateBrands = (dt: number, world: World): void => {
-    for (const monster of world.monsters) {
-      const brand = monster.alive ? monster.brand : null;
-      const view: BrandView | undefined = brands.get(monster.id);
+    const marked: readonly Actor[] = [world.player, ...world.monsters];
+    for (const actor of marked) {
+      const brand = actor.alive ? actor.brand : null;
+      const view: BrandView | undefined = brands.get(actor.id);
       if (brand === null) {
         if (view !== undefined) {
           view.mark.dispose();
-          brands.delete(monster.id);
+          brands.delete(actor.id);
         }
         continue;
       }
-      const reach: number = monster.radius + STORM_EFFECTS.brandSize;
+      const reach: number = actor.radius + STORM_EFFECTS.brandSize;
       const shown: BrandView = view ?? { mark: createGroundLight(kit.colorOf(brand.burst.vfx.color), { kind: 'round', radius: reach, inner: 0, arc: Math.PI * 2 }, { fill: STORM_EFFECTS.brandFill, band: 1, width: reach * STORM_EFFECTS.brandWidth, wobble: reach * STORM_EFFECTS.areaWobble }) };
       if (view === undefined) {
         kit.addObject(shown.mark.mesh);
-        brands.set(monster.id, shown);
+        brands.set(actor.id, shown);
       }
-      shown.mark.mesh.position.set(monster.pos.x, floorUp(monster.pos.x, STORM_EFFECTS.brandHeight, monster.pos.z), monster.pos.z);
+      shown.mark.mesh.position.set(actor.pos.x, floorUp(actor.pos.x, STORM_EFFECTS.brandHeight, actor.pos.z), actor.pos.z);
       shown.mark.show(brand.timeLeft < 1 ? STORM_EFFECTS.brandGlow * brand.timeLeft : STORM_EFFECTS.brandGlow * (1 + STORM_EFFECTS.brandPulse * Math.sin(world.time * STORM_EFFECTS.brandRate)));
       shown.mark.step(dt, world.time);
     }
     for (const id of brands.keys()) {
-      if (world.monsters.some((monster: MonsterState): boolean => monster.id === id)) continue;
+      if (marked.some((actor: Actor): boolean => actor.id === id)) continue;
       const view: BrandView | undefined = brands.get(id);
       if (view !== undefined) view.mark.dispose();
       brands.delete(id);

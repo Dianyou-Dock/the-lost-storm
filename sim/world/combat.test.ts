@@ -131,6 +131,22 @@ void test('a branding hit marks the enemy, and the next hit from another skill b
   assert.ok(damageTo(second, branded.id).includes(50));
 });
 
+void test('a monster can brand the hero, and the next hit from another of its skills bursts the brand on the hero', (): void => {
+  const world: World = shapeArena(['test_brander', 'test_fork']);
+  const marker: MonsterState = dummy(world, offset(2, 0));
+  const brander: SkillDef = must(world.content.skills.get('test_brander'), 'brander');
+  const fork: SkillDef = must(world.content.skills.get('test_fork'), 'fork');
+  const towardHero: Vec2 = toward(marker.pos, world.player.pos);
+  applyHit(world, { ...offenceOf(marker), critChance: 0 }, world.player, brander, towardHero);
+  assert.equal(world.player.brand?.source, 'test_brander');
+  world.events.length = 0;
+  applyHit(world, { ...offenceOf(marker), critChance: 0 }, world.player, fork, towardHero);
+  assert.equal(world.player.brand, null);
+  assert.ok(world.events.some((event: WorldEvent): boolean => event.type === 'brand' && event.burst && event.targetId === world.player.id));
+  assert.equal(world.events.filter((event: WorldEvent): boolean => event.type === 'damage' && event.targetId === world.player.id).length, 2);
+  assert.ok(!world.events.some((event: WorldEvent): boolean => event.type === 'damage' && event.targetId === marker.id));
+});
+
 void test('hitting a brand again with the skill that set it refreshes it instead of bursting it', (): void => {
   const world: World = shapeArena(['test_brander']);
   const branded: MonsterState = dummy(world, offset(2, 0));

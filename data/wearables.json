@@ -451,6 +451,28 @@
     "hides": []
   },
   {
+    "id": "tally_robe",
+    "model": "models/wear/{frame}/peasant.glb",
+    "pieces": [
+      "Peasant_Body",
+      "Peasant_Arms"
+    ],
+    "region": "chest",
+    "tint": "#6e7079",
+    "hides": []
+  },
+  {
+    "id": "custodian_robe",
+    "model": "models/wear/{frame}/peasant.glb",
+    "pieces": [
+      "Peasant_Body",
+      "Peasant_Arms"
+    ],
+    "region": "chest",
+    "tint": "#d9dce3",
+    "hides": []
+  },
+  {
     "id": "keeper_hood",
     "model": "models/wear/{frame}/ranger.glb",
     "pieces": [
