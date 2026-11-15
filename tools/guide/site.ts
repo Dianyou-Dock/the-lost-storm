@@ -5,7 +5,7 @@ import { esc } from './html.ts';
 import type { NavEntry, PageBody } from './layout.ts';
 import { frame } from './layout.ts';
 import type { BuildNotes } from './pages/build-page.ts';
-import { buildHref, buildPage } from './pages/build-page.ts';
+import { buildHref, buildPage, staleNotice } from './pages/build-page.ts';
 import { BUILD_NOTES } from './pages/build-notes.ts';
 import { buildsPage } from './pages/builds.ts';
 import { combatPage } from './pages/combat.ts';
@@ -22,6 +22,7 @@ export interface GuidePage {
   readonly href: string;
   readonly label: string;
   readonly render: (data: GuideData) => PageBody;
+  readonly measured: boolean;
 }
 
 function indefinite(word: string): string {
@@ -33,18 +34,19 @@ function buildEntry(notes: BuildNotes): GuidePage {
     key: `builds/${notes.id}`,
     href: buildHref(notes.id),
     label: notes.name,
+    measured: true,
     render: (data: GuideData): PageBody => ({ kicker: `Build · ${notes.kind}`, title: notes.name, lede: notes.forWho, description: `${notes.name}, ${indefinite(notes.kind)} ${notes.kind.toLowerCase()} build for The Lost Storm: the route through the Skill Tree, the skill to lean on, gear and measured numbers.`, body: buildPage(data, notes) }),
   };
 }
 
 export const GUIDE_PAGES: readonly GuidePage[] = [
-  { key: 'home', href: '/guide/', label: 'Guide', render: homePage },
-  { key: 'start', href: '/guide/start/', label: 'Getting started', render: startPage },
-  { key: 'combat', href: '/guide/combat/', label: 'Combat', render: combatPage },
-  { key: 'skills', href: '/guide/skills/', label: 'Skills', render: skillsPage },
-  { key: 'tree', href: '/guide/tree/', label: 'Skill Tree', render: treePage },
-  { key: 'items', href: '/guide/items/', label: 'Items', render: itemsPage },
-  { key: 'builds', href: '/guide/builds/', label: 'Builds', render: buildsPage },
+  { key: 'home', href: '/guide/', label: 'Guide', render: homePage, measured: false },
+  { key: 'start', href: '/guide/start/', label: 'Getting started', render: startPage, measured: false },
+  { key: 'combat', href: '/guide/combat/', label: 'Combat', render: combatPage, measured: false },
+  { key: 'skills', href: '/guide/skills/', label: 'Skills', render: skillsPage, measured: false },
+  { key: 'tree', href: '/guide/tree/', label: 'Skill Tree', render: treePage, measured: false },
+  { key: 'items', href: '/guide/items/', label: 'Items', render: itemsPage, measured: false },
+  { key: 'builds', href: '/guide/builds/', label: 'Builds', render: buildsPage, measured: true },
   ...BUILD_NOTES.map(buildEntry),
 ];
 
@@ -75,7 +77,8 @@ function current(page: GuidePage): string {
 }
 
 export function renderGuideBody(data: GuideData, page: GuidePage): PageBody & { readonly html: string } {
-  const body: PageBody = page.render(data);
+  const rendered: PageBody = page.render(data);
+  const body: PageBody = page.measured ? { ...rendered, body: `${staleNotice(data)}${rendered.body}` } : rendered;
   const html: string = frame({ href: page.href, kicker: body.kicker, title: body.title, lede: body.lede, body: body.body, nav: MAIN_NAV, next: nextOf(page), current: current(page) });
   return { ...body, html };
 }

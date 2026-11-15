@@ -10,12 +10,14 @@ import type { GuideBuildSpec, GuideSpec } from './builds.ts';
 import { GUIDE_SPEC, guideBuildPolicy, guideRoute } from './builds.ts';
 import type { BuildMeasure, Measured } from './measures.ts';
 import { readMeasured } from './measures.ts';
+import { currentFingerprint } from './fingerprint.ts';
 
 export interface GuideData {
   readonly content: Content;
   readonly policies: Policies;
   readonly spec: GuideSpec;
   readonly measured: Measured;
+  readonly balance: string;
   readonly routes: ReadonlyMap<string, readonly string[]>;
 }
 
@@ -34,17 +36,21 @@ export function topLevel(spec: GuideSpec): number {
   return Math.max(...spec.levels);
 }
 
-export function makeGuideData(content: Content, policies: Policies, spec: GuideSpec, measured: Measured): GuideData {
+export function makeGuideData(content: Content, policies: Policies, spec: GuideSpec, measured: Measured, balance: string): GuideData {
   const limit: number = pointsAtLevel(content, topLevel(spec));
   const routes: Map<string, readonly string[]> = new Map<string, readonly string[]>(spec.builds.map((build: GuideBuildSpec): [string, readonly string[]] => [build.id, guideRoute(content, policies, spec, build, limit)]));
-  return { content, policies, spec, measured, routes };
+  return { content, policies, spec, measured, balance, routes };
 }
 
 let cached: GuideData | null = null;
 
 export function guideData(): GuideData {
-  cached ??= makeGuideData(CONTENT, POLICIES, GUIDE_SPEC, readMeasured(measuredFile));
+  cached ??= makeGuideData(CONTENT, POLICIES, GUIDE_SPEC, readMeasured(measuredFile), currentFingerprint());
   return cached;
+}
+
+export function measuredNow(data: GuideData): boolean {
+  return data.measured.fingerprint === data.balance;
 }
 
 export function skill(data: GuideData, id: string): SkillDef {

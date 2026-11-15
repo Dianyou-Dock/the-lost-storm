@@ -1,10 +1,12 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import type { TestContext } from 'node:test';
 import { test } from 'node:test';
 import { canAllocate } from '../../sim/progression.ts';
 import type { GuideBuildSpec } from './builds.ts';
 import { GUIDE_SPEC } from './builds.ts';
-import { guideData, levelForPlace, pointsAtLevel, route } from './data.ts';
+import type { GuideData } from './data.ts';
+import { guideData, levelForPlace, measuredNow, pointsAtLevel, route } from './data.ts';
 import { currentFingerprint } from './fingerprint.ts';
 import type { BuildMeasure } from './measures.ts';
 import { BUILD_NOTES } from './pages/build-notes.ts';
@@ -12,19 +14,43 @@ import type { BuildNotes } from './pages/build-page.ts';
 import type { GuidePage } from './site.ts';
 import { fillShell, GUIDE_PAGES, renderGuideBody, shellHtml, shellPath } from './site.ts';
 
-const STALE: string = 'the guide\'s measured numbers were made from other balance data. Run: ~/Dev/ops/lanes/lane test --timeout 2400 -- node tools/guide/measure.ts';
+const UNMEASURED: string = 'a build in the guide has no measured numbers yet. Measure them once with: node tools/guide/measure.ts';
+const STALE: string = 'the guide\'s measured numbers are older than the balance data, and the guide says so on every page that shows them. They are refreshed on main by npm run guide:refresh; a branch never re-measures.';
 
 function visibleText(html: string): string {
   return html.replace(/<svg[\s\S]*?<\/svg>/g, '').replace(/<[^>]+>/g, ' ').replace(/&[a-z#0-9]+;/g, ' ');
 }
 
-void test('the measured numbers were made from the balance data the game has now', (): void => {
-  assert.equal(guideData().measured.fingerprint, currentFingerprint(), STALE);
+function measuredAt(fingerprint: string): GuideData {
+  const data: GuideData = guideData();
+  return { ...data, measured: { ...data.measured, fingerprint } };
+}
+
+const MEASURED_PAGES: readonly GuidePage[] = GUIDE_PAGES.filter((page: GuidePage): boolean => page.measured);
+
+void test('the guide reads its balance from the game, and reports numbers measured on other balance without failing', (t: TestContext): void => {
+  assert.equal(guideData().balance, currentFingerprint());
+  if (!measuredNow(guideData())) t.diagnostic(STALE);
+});
+
+void test('numbers measured on other balance are marked as old on every page that shows them, and current ones are not', (): void => {
+  assert.deepEqual(MEASURED_PAGES.map((page: GuidePage): string => page.key), GUIDE_PAGES.filter((page: GuidePage): boolean => page.key === 'builds' || page.key.startsWith('builds/')).map((page: GuidePage): string => page.key));
+  const old: GuideData = measuredAt('0000000000000000');
+  const now: GuideData = measuredAt(guideData().balance);
+  for (const page of MEASURED_PAGES) {
+    const stale: string = visibleText(renderGuideBody(old, page).html);
+    assert.ok(stale.includes('show the game as it was, not as it is now'), page.key);
+    assert.ok(stale.includes('measured on balance 0000000000000000'), page.key);
+    const fresh: string = visibleText(renderGuideBody(now, page).html);
+    assert.ok(!fresh.includes('as it was'), page.key);
+    assert.ok(fresh.includes(`as it is now, balance ${now.balance}`), page.key);
+  }
+  for (const page of GUIDE_PAGES.filter((entry: GuidePage): boolean => !entry.measured)) assert.ok(!visibleText(renderGuideBody(old, page).html).includes('as it was'), page.key);
 });
 
 void test('every build in the guide has measurements, notes and a page, and nothing else does', (): void => {
   const ids: readonly string[] = GUIDE_SPEC.builds.map((build: GuideBuildSpec): string => build.id);
-  assert.deepEqual(guideData().measured.builds.map((build: BuildMeasure): string => build.id).toSorted(), [...ids].toSorted(), STALE);
+  assert.deepEqual(guideData().measured.builds.map((build: BuildMeasure): string => build.id).toSorted(), [...ids].toSorted(), UNMEASURED);
   assert.deepEqual(BUILD_NOTES.map((notes: BuildNotes): string => notes.id).toSorted(), [...ids].toSorted());
   for (const id of ids) assert.ok(GUIDE_PAGES.some((page: GuidePage): boolean => page.key === `builds/${id}`), id);
 });

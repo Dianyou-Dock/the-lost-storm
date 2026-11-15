@@ -73,6 +73,10 @@ How a fight sounds is data too. A weapon base has a `weaponKind` and a monster h
 
 If new content cannot be expressed in the data, extend the schema in `sim/content/` and its handling in the engine in a general way (a new delivery type, a new modifier target), then write the content as data. Do not special-case an id in engine or render code. `sim/content/content.test.ts` checks every cross-reference between the data files.
 
+## The guide's measured numbers
+
+`tools/guide/measured.json` holds the numbers the guide's build pages show, with the balance fingerprint they were measured at. A pull request never re-measures them and never changes that file. A sim or data change lands with the old numbers. The guide then says, on every page that shows them, that they were measured on other balance, and `tools/guide/site.test.ts` reports that without failing. One job refreshes them on main: `npm run guide:refresh` measures a fresh worktree of `origin/main` and opens a pull request that changes only that file. The fingerprint (`tools/guide/fingerprint.ts`) skips fields that cannot change a fight: names, descriptions, icons, pictures, worn models, colours and effects. The one exception: a pull request that adds a build to the guide runs `node tools/guide/measure.ts` once at its own head and commits the result, because a build with no numbers cannot be drawn. The fingerprint still keeps, for each starting item, whether it is worn and whether it has a picture, because both decide what a new character starts with.
+
 ## Tests
 
 Name a test file exactly after the file it tests, in the same directory: `foo.ts` is tested by `foo.test.ts`. Run `npm run test:affected` while you work and `npm test` when you want everything.

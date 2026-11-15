@@ -5,8 +5,8 @@ import type { SkillTreeNodeDef, StatBlock } from '../../../sim/content/types.ts'
 import type { SkillPolicy } from '../../simulate-policies.ts';
 import { namedSkill } from '../builds.ts';
 import type { GuideData } from '../data.ts';
-import { buildMeasure, focusSkill, levelForPlace, path, place, route, topLevel } from '../data.ts';
-import { bullets, decimal, esc, list, minutes, para, percent, section, signedPercent } from '../html.ts';
+import { buildMeasure, focusSkill, levelForPlace, measuredNow, path, place, route, topLevel } from '../data.ts';
+import { bullets, decimal, esc, list, minutes, note, para, percent, section, signedPercent } from '../html.ts';
 import { treePicture } from '../tree-picture.ts';
 import type { NamedMeasure } from './measured-view.ts';
 import { barChart, bossAt, levelMinutes, measuredTable } from './measured-view.ts';
@@ -145,7 +145,12 @@ export function measuredMethod(data: GuideData): string {
   return para(
     `These numbers come from the game's own rules, played by a simulated player ${data.measured.runs} times per build from a fresh character. The steady player ${habits(namedSkill(data.policies, data.spec.skill))}. The careless player ${habits(namedSkill(data.policies, data.spec.careless))}. Both follow the route on the page and wear whatever raises their damage and toughness most.`,
     'A simulated player walks straight to the next fight and never stops to read an item, so a person takes longer to reach each level. Compare the builds with each other, not with your own clock.',
+    measuredNow(data) ? `They were measured on the game as it is now, balance ${data.balance}.` : `They were measured on balance ${data.measured.fingerprint}. The game is now at balance ${data.balance}.`,
   );
+}
+
+export function staleNotice(data: GuideData): string {
+  return measuredNow(data) ? '' : note(`The game's balance has changed since these numbers were measured, so they show the game as it was, not as it is now. They are measured again after the changes settle.`);
 }
 
 function deaths(perHour: number): string {
