@@ -205,3 +205,25 @@ void test('a warm-up told of things still loading warms again once they are in',
   await settle();
   assert.equal(compiled.length, 2);
 });
+
+void test('a stand-in that goes live while its shaders compile stays in the scene through the late draw and the later warm-up', async (): Promise<void> => {
+  const scene: Scene = new Scene();
+  const standIn: Mesh = new Mesh();
+  const compiler: Recorder = recorder(standIn);
+  const arrivals: (() => void)[] = [];
+  const loading: Promise<void> = new Promise<void>((resolve: () => void): void => {
+    arrivals.push(resolve);
+  });
+  const done: Promise<void> = warmUp(compiler, scene, new PerspectiveCamera(), [standIn], loading);
+  assert.equal(standIn.parent, null);
+  scene.add(standIn);
+  compiler.finish();
+  await done;
+  assert.equal(standIn.parent, scene);
+  for (const arrive of arrivals) arrive();
+  await settle();
+  compiler.finish();
+  await settle();
+  assert.deepEqual(compiler.seen, [true, true]);
+  assert.equal(standIn.parent, scene);
+});

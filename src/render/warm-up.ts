@@ -37,7 +37,8 @@ export function revealHidden(root: Object3D): () => void {
 
 function staged<T>(scene: Scene, standIns: readonly Object3D[], culled: boolean, work: () => T): T {
   const holder: Group = new Group();
-  for (const standIn of standIns) holder.add(standIn);
+  const loose: Object3D[] = standIns.filter((standIn: Object3D): boolean => standIn.parent === null);
+  for (const standIn of loose) holder.add(standIn);
   scene.add(holder);
   const restore: () => void = revealHidden(scene);
   const unculled: Object3D[] = [];
@@ -54,7 +55,7 @@ function staged<T>(scene: Scene, standIns: readonly Object3D[], culled: boolean,
     for (const object of unculled) object.frustumCulled = true;
     restore();
     holder.removeFromParent();
-    holder.remove(...standIns);
+    for (const standIn of loose) if (standIn.parent === holder) holder.remove(standIn);
   }
 }
 
