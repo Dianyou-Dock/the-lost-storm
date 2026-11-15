@@ -1,9 +1,15 @@
 import type { SkillTarget } from './chart-types.ts';
 import { skillMod, skillTarget } from './parse-mods.ts';
 import type { Fields } from './read.ts';
-import { choice, each, fields, nonNegative, numeric, positive, text } from './read.ts';
-import type { PowerEffect, PowerTriggerDef } from './types.ts';
+import { choice, colour, each, fields, fraction, nonNegative, numeric, positive, text } from './read.ts';
+import type { EmpowerLook, PowerEffect, PowerTriggerDef } from './types.ts';
 import { CAST_ORIGINS, MOD_OPS, POWER_TARGETS, POWER_TRIGGERS, STAT_IDS } from './types.ts';
+
+function empowerLook(value: unknown, where: string): EmpowerLook | null {
+  if (value === undefined || value === null) return null;
+  const source: Fields = fields(value, where);
+  return { color: colour(source, 'color', where), shade: fraction(source, 'shade', where) };
+}
 
 function powerEffect(value: unknown, where: string): PowerEffect {
   const source: Fields = fields(value, where);
@@ -14,7 +20,7 @@ function powerEffect(value: unknown, where: string): PowerEffect {
     case 'buff':
       return { type, stat: choice(source, 'stat', STAT_IDS, where), op: choice(source, 'op', MOD_OPS, where), value: numeric(source, 'value', where), duration: positive(source, 'duration', where), stacks: positive(source, 'stacks', where) };
     case 'empower':
-      return { type, skillMods: each(source['skillMods'], `${where}.skillMods`, skillMod), duration: positive(source, 'duration', where) };
+      return { type, skillMods: each(source['skillMods'], `${where}.skillMods`, skillMod), duration: positive(source, 'duration', where), look: empowerLook(source['look'], `${where}.look`) };
     case 'flask':
       return { type, charges: positive(source, 'charges', where) };
   }

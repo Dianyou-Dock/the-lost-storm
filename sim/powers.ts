@@ -120,7 +120,7 @@ function buff(state: PowerState, key: string, effect: BuffEffect): void {
 }
 
 function empower(state: PowerState, key: string, effect: EmpowerEffect): void {
-  state.empowers = [...state.empowers.filter((held: EmpowerState): boolean => held.key !== key), { key, skillMods: effect.skillMods, timeLeft: effect.duration }];
+  state.empowers = [...state.empowers.filter((held: EmpowerState): boolean => held.key !== key), { key, skillMods: effect.skillMods, look: effect.look, timeLeft: effect.duration }];
 }
 
 interface TriggerSource {

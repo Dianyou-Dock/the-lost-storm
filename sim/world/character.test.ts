@@ -7,7 +7,7 @@ import { generateItem } from '../items.ts';
 import { xpToNextLevel } from '../progression.ts';
 import { createRng } from '../rng.ts';
 import { refundCost } from '../progression.ts';
-import { bountyReduction, grantXp, killReduction, killXp, refreshPlayer } from './character.ts';
+import { bountyReduction, grantXp, heldLook, killReduction, killXp, refreshPlayer } from './character.ts';
 import { stepWorld } from './step.ts';
 import type { Command, ItemInstance, World, WorldEvent } from './types.ts';
 
@@ -187,4 +187,17 @@ void test('the player picks which held change of a skill is active, only among c
   send(world, { type: 'refund', node: 'twice_told_bolt' });
   assert.deepEqual(world.player.changes, {});
   assert.equal(boltName(world), lance);
+});
+
+void test('a held change with a look reaches the bar skill it changes, even where a weapon turns that skill into another', (): void => {
+  const world: World = armed(worldIn(content, 'hall_of_time', 1));
+  const bow: ItemInstance = must(generateItem(content, createRng(3), 900001, 10, 'hand_crossbow', 'common'), 'crossbow');
+  world.player.equipped.weapon = bow;
+  refreshPlayer(world);
+  assert.equal(heldLook(world, 'cleave'), null);
+  world.player.powers.empowers.push({ key: 'veil', skillMods: [{ target: { type: 'skill', skill: 'quarrel' }, field: 'pierce', value: 1 }], look: { color: '#5a2fc0', shade: 0.22 }, timeLeft: 2 });
+  assert.deepEqual(heldLook(world, 'cleave'), { color: '#5a2fc0', shade: 0.22 });
+  world.player.equipped.weapon = null;
+  refreshPlayer(world);
+  assert.equal(heldLook(world, 'cleave'), null);
 });

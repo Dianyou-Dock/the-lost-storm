@@ -29,12 +29,13 @@ import { warnInConsole } from '../backend/console-log.ts';
 import type { BodyChoice } from './body-choice.ts';
 import { bodyArrived, chooseBody } from './body-choice.ts';
 import type { ShadeMotion } from './shadow-shade.ts';
-import { shadowOf, stepShade } from './shadow-shade.ts';
+import { shadowOf, stepShade, veilOf } from './shadow-shade.ts';
 import type { Soaking } from './soak-look.ts';
 import { SOAK_COLOR, SOAK_LOOK, soakDried, soakedFor, stepSoak } from './soak-look.ts';
 import type { CountLook, CountShade } from './count-look.ts';
 import { countShadeOf, createCountLook } from './count-look.ts';
 import type { VfxShadow } from '../../sim/content/vfx-types.ts';
+import type { EmpowerLook } from '../../sim/content/types.ts';
 import type { BodySwap, SwapMix } from './body-swap.ts';
 import { startSwap, stepSwap } from './body-swap.ts';
 
@@ -365,8 +366,10 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       playerView.spin(spun.animation, spun.turn);
       playerView.setEdge(current.zone.heroLight.rim);
       const shadow: VfxShadow | null = shadowOf(current.player);
+      const veil: EmpowerLook | null = veilOf(current.player.powers);
       if (shadow !== null) shadeColor.set(shadow.color);
-      stepShade(shade, shadow?.strength ?? 0, dt);
+      else if (veil !== null) shadeColor.set(veil.color);
+      stepShade(shade, Math.max(shadow?.strength ?? 0, veil?.shade ?? 0), dt);
       playerView.rig.setShade(shadeColor, shade.value, true, 0);
       playerView.sync(dt, poseOf(current.player, null), { rise: 1, floor: floorAt(current.player.pos.x, current.player.pos.z), turnRate: ACTOR.turnRate, seen: true });
       for (const monster of current.monsters) {
