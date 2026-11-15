@@ -65,6 +65,9 @@ export const STORM_EFFECTS = {
   blinkHeight: 1,
   strikeReach: 0.5,
   missShare: 0.4,
+  lashStagger: 0.035,
+  crackleSparks: 6,
+  crackleLight: 12,
 } as const;
 
 export interface StormKit {
@@ -91,8 +94,12 @@ interface AreaView {
   readonly color: Color;
   readonly delivery: AreaDelivery;
   readonly duration: number;
+  readonly ownerId: number;
+  readonly skillId: string;
+  readonly center: { x: number; z: number };
   age: number;
   moteTimer: number;
+  lashes: number;
 }
 
 interface BrandView {
@@ -253,7 +260,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
     const shine: number = gap ? STORM_EFFECTS.gapGlow : STORM_EFFECTS.areaGlow;
     light.show(shine);
     kit.addObject(light.mesh);
-    areas.set(area.id, { light, glow: shine, color, delivery, duration: delivery.duration, age: 0, moteTimer: 0 });
+    areas.set(area.id, { light, glow: shine, color, delivery, duration: delivery.duration, ownerId: area.offence.sourceId, skillId: area.skill.id, center: { x: area.pos.x, z: area.pos.z }, age: 0, moteTimer: 0, lashes: 0 });
     if (gap && delivery.slow < 1) kit.flashLight(area.pos.x, 3, area.pos.z, color, STORM_EFFECTS.gapLight);
   };
 
@@ -272,6 +279,10 @@ export function createStormEffects(kit: StormKit): StormEffects {
     const x: number = area.pos.x + Math.sin(angle) * reach;
     const z: number = area.pos.z + Math.cos(angle) * reach;
     const lightning = area.skill.vfx.lightning;
+    if (lightning !== null && delivery.anchor === 'caster') {
+      crackle(view, area, hits);
+      return;
+    }
     if (lightning !== null) {
       const impact = area.skill.vfx.impact;
       kit.kit.skyStrike(x, z, color, lightning, delivery.radius * STORM_EFFECTS.strikeReach, impact === null ? null : missed(impact, hits), area.skill.vfx.light, 0);
@@ -287,6 +298,25 @@ export function createStormEffects(kit: StormKit): StormEffects {
     kit.flashLight(x, 3, z, color, hits > 0 ? 70 : 40);
     kit.spray(x, 0.3, z, color, 10, { speed: { min: 1, max: 5 }, lift: { min: 1, max: 6 }, life: { min: 0.2, max: 0.5 } });
     if (hits > 0) kit.trauma(area.skill.shake);
+  };
+
+  const crackle = (view: AreaView, area: AreaState, hits: number): void => {
+    view.lashes = 0;
+    kit.spray(area.pos.x, STORM_EFFECTS.bodyHeight, area.pos.z, view.color, STORM_EFFECTS.crackleSparks, { speed: { min: 1, max: 4 }, lift: { min: 0.5, max: 3 }, life: { min: 0.15, max: 0.35 }, size: { min: 0.15, max: 0.35 } });
+    kit.flashLight(area.pos.x, STORM_EFFECTS.bodyHeight, area.pos.z, view.color, STORM_EFFECTS.crackleLight);
+    if (hits > 0) kit.trauma(area.skill.shake);
+  };
+
+  const onLash = (event: Extract<WorldEvent, { type: 'damage' }>): void => {
+    const lightning = event.skill.vfx.lightning;
+    if (lightning === null || areaOf(event.skill)?.anchor !== 'caster') return;
+    const view: AreaView | undefined = [...areas.values()].find((shown: AreaView): boolean => shown.ownerId === event.sourceId && shown.skillId === event.skill.id);
+    if (view === undefined) return;
+    const delay: number = view.lashes * STORM_EFFECTS.lashStagger;
+    view.lashes += 1;
+    kit.kit.strike(placed(START, view.center, STORM_EFFECTS.bodyHeight), placed(END, event.pos, STORM_EFFECTS.bodyHeight), view.color, lightning, delay);
+    const impact: VfxImpact | null = event.skill.vfx.impact;
+    if (impact !== null) kit.kit.impact(event.pos.x, event.pos.z, view.color, impact, event.skill.vfx.light, delay + STRAND.lead);
   };
 
   const dropArea = (id: number): void => {
@@ -366,6 +396,8 @@ export function createStormEffects(kit: StormKit): StormEffects {
       const view: AreaView | undefined = areas.get(area.id);
       if (view === undefined) continue;
       view.age += dt;
+      view.center.x = area.pos.x;
+      view.center.z = area.pos.z;
       view.light.show(area.timeLeft > STORM_EFFECTS.areaFadeOut ? view.glow : 0);
       view.light.mesh.position.set(area.pos.x, floorUp(area.pos.x, GROUND_LIGHT.height, area.pos.z), area.pos.z);
       view.light.step(dt, world.time);
@@ -436,6 +468,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
       else if (event.type === 'brand') onBrand(event);
       else if (event.type === 'area') onArea(event);
       else if (event.type === 'skill_impact') onRelease(event);
+      else if (event.type === 'damage') onLash(event);
     },
     update(dt: number, world: World): void {
       updateAreas(dt, world);
