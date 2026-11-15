@@ -23,6 +23,16 @@ export function skillAllowed(skill: SkillDef, held: string | null): boolean {
 
 export const ANY_WEAPON: string = '*';
 
+export function weaponNeed(content: Content, groups: readonly string[], held: string | null): string | null {
+  if (groups.length === 0 || held === ANY_WEAPON || (held !== null && groups.includes(held))) return null;
+  const phrases: readonly string[] = content.chart.weaponGroups.filter((group: WeaponGroup): boolean => groups.includes(group.id)).map((group: WeaponGroup): string => group.needs);
+  return phrases.length === 0 ? null : `Needs ${phrases.join(' or ')}`;
+}
+
+export function placeNeed(content: Content, node: SkillTreeNodeDef, held: string | null): string | null {
+  return node.weapon === null ? null : weaponNeed(content, [node.weapon], held);
+}
+
 export const WEAPON_DAMAGE_STATS: ReadonlySet<StatId> = new Set<StatId>(['damagePercent', 'damageMin', 'damageMax', 'critChance', 'critMultiplier', 'attackSpeed']);
 
 export function placeLive(node: SkillTreeNodeDef, held: string | null): boolean {

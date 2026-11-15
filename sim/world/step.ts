@@ -31,11 +31,13 @@ import { acceptsCommand, hurryWake } from './wake.ts';
 import { stepPowerState } from '../powers.ts';
 import { refreshPlayer } from './character.ts';
 import { stepTally } from '../tally.ts';
+import { announceArming } from './arming.ts';
 
 export const MAX_STEP: number = 1 / 30;
 
 export function stepWorld(world: World, commands: readonly Command[], dt: number): WorldEvent[] {
   world.events = [];
+  announceArming(world);
   world.time += dt;
   stepDrifts(world);
   for (const command of heldCommands(world, commands)) {

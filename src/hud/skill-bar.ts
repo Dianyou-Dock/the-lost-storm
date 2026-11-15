@@ -1,5 +1,6 @@
 import type { SkillDef } from '../../sim/content/types.ts';
 import { usable } from '../../sim/world/hud.ts';
+import { weaponNeed } from '../../sim/weapons.ts';
 import type { Command, PlayerState } from '../../sim/world/types.ts';
 import { rowPress } from './row-press.ts';
 import { slotAction } from '../settings/bindings.ts';
@@ -96,7 +97,7 @@ export function createSkillBar(parent: HTMLElement, context: HudContext, track: 
     const cost: HTMLDivElement = el('div', 'slot-cost', root);
     const view: SlotView = { root, icon, cost, cooldown, keyNode, key: null, skill: null, empty: null, iconId: '', angle: -1, cooling: null, dim: null };
     paintKey(view, keyOf(index));
-    attachTooltip(context.tooltip, root, (): HTMLElement | null => (picker.slot !== null ? null : view.skill === null ? emptyTooltip(keyOf(index), context.api.touch) : skillDetails(view.skill, `Skill · ${keyOf(index)} · click to change`, null)));
+    attachTooltip(context.tooltip, root, (): HTMLElement | null => (picker.slot !== null ? null : view.skill === null ? emptyTooltip(keyOf(index), context.api.touch) : skillDetails(view.skill, `Skill · ${keyOf(index)} · click to change`, null, weaponNeed(context.api.world.content, view.skill.weapons, context.api.world.player.wielding))));
     return view;
   };
 
@@ -153,7 +154,7 @@ export function createSkillBar(parent: HTMLElement, context: HudContext, track: 
           view.cooling = cooling;
           view.root.classList.toggle('cooling', cooling);
         }
-        const dim: boolean = player.mana < skill.manaCost;
+        const dim: boolean = player.mana < skill.manaCost || weaponNeed(context.api.world.content, skill.weapons, player.wielding) !== null;
         if (dim !== view.dim) {
           view.dim = dim;
           view.root.classList.toggle('dim', dim);

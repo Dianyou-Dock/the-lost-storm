@@ -498,6 +498,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           case 'level_up':
           case 'surge':
           case 'surge_cleared':
+          case 'armed':
           case 'notice':
           case 'portal':
           case 'hero_step':

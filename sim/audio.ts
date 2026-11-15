@@ -211,6 +211,7 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
     case 'explored':
     case 'zone_changed':
     case 'checkpoint':
+    case 'armed':
     case 'dialogue_line':
     case 'dialogue_closed':
     case 'act_ended':

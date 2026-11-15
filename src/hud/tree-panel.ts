@@ -2,6 +2,7 @@ import type { ChartPath, SkillTreeNodeDef } from '../../sim/content/types.ts';
 import type { PlayerState } from '../../sim/world/types.ts';
 import { refundBlock, refundCost, refundState, respecCost, respecState } from '../../sim/progression.ts';
 import type { ChartChange } from '../../sim/progression.ts';
+import { placeNeed } from '../../sim/weapons.ts';
 import { ATLAS_VIEW, atRest, stepMotion, still, toMap, toScreen } from './atlas-view.ts';
 import type { AtlasFrame, AtlasMotion, AtlasView, ScreenPoint } from './atlas-view.ts';
 import { abilityCard } from './chart-ability.ts';
@@ -208,7 +209,8 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
     const refund: ChartChange = refundState(content, player(), node.id);
     const refundable: boolean = status.kind === 'allocated' && refund !== 'not_allowed';
     const ability: AbilityCard | null = abilityCard(content, node, player().bar);
-    const key: string = `${node.id}:${status.kind}:${refundable ? goldFor(1) : -1}:${player().skillPoints}:${ability?.slot ?? -1}`;
+    const need: string | null = placeNeed(content, node, player().wielding);
+    const key: string = `${node.id}:${status.kind}:${refundable ? goldFor(1) : -1}:${player().skillPoints}:${ability?.slot ?? -1}:${need ?? ''}`;
     showRoute(node.id);
     card.style.setProperty('--tint', pathTint(content, node.path));
     action.classList.toggle('shown', refundable);
@@ -226,6 +228,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
     label('tree-tip-name', node.name, body);
     if (ability !== null) label('chart-card-tags', ability.tags, body);
     label('tree-tip-effect', node.description, body);
+    if (need !== null) label('tree-tip-need', `${need} for its full effect`, body);
     if (ability !== null) label('chart-card-cost', `${ability.cost}${slotWords(ability.slot)}`, body);
     label(`tree-tip-status ${status.kind}`, costLine(node, status), body);
     cardBody.replaceChildren(body);

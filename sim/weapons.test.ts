@@ -6,7 +6,7 @@ import type { Content, SkillDef, SkillMod, SkillTreeNodeDef } from './content/ty
 import { emptyEquipment, generateItem } from './items.ts';
 import { createRng } from './rng.ts';
 import { computeStats, resolveSkill } from './stats.ts';
-import { ANY_WEAPON, groupOfKind, heldGroup, heldPlace, placeLive, skillAllowed, weaponGroup } from './weapons.ts';
+import { ANY_WEAPON, groupOfKind, heldGroup, heldPlace, placeLive, placeNeed, skillAllowed, weaponGroup, weaponNeed } from './weapons.ts';
 import { addToInventory, equipFromInventory, refreshPlayer } from './world/character.ts';
 import { createWorld } from './world/create.ts';
 import { stepWorld } from './world/step.ts';
@@ -136,4 +136,16 @@ void test('a skill cast with the wrong weapon is refused with a notice and costs
   assert.equal(right.player.wielding, 'staff');
   assert.ok(!bolted(right).some((event: WorldEvent): boolean => event.type === 'notice'));
   assert.equal(right.player.action?.skill.id, 'storm_bolt');
+});
+
+void test('a skill or a place for a group not in hand names the weapon it needs, from the chart', (): void => {
+  const bolt: SkillDef = must(content.skills.get('storm_bolt'), 'storm_bolt');
+  const place: SkillTreeNodeDef = must(content.skillTree.find((node: SkillTreeNodeDef): boolean => node.id === 'storm_storm_bolt'), 'storm_storm_bolt');
+  assert.equal(weaponNeed(content, ['staff'], 'blade'), 'Needs a staff');
+  assert.equal(weaponNeed(content, ['heavy', 'staff'], null), 'Needs a heavy weapon or a staff');
+  assert.equal(weaponNeed(content, ['staff'], 'staff'), null);
+  assert.equal(weaponNeed(content, [], 'blade'), null);
+  assert.equal(weaponNeed(content, bolt.weapons, ANY_WEAPON), null);
+  assert.equal(placeNeed(content, place, 'blade'), 'Needs a staff');
+  assert.equal(placeNeed(content, place, 'staff'), null);
 });

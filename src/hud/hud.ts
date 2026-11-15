@@ -10,6 +10,8 @@ import type { HintPanel } from '../../sim/content/hints.ts';
 import { onWaypoint } from '../../sim/world/waypoints.ts';
 import atlasCss from './atlas.css?inline';
 import { createBanners } from './banners.ts';
+import { armedLine } from './armed-line.ts';
+import type { ArmedLine } from './armed-line.ts';
 import { createBarkStrip } from './bark-strip.ts';
 import type { BarkStrip } from './bark-strip.ts';
 import { createBossBar } from './boss-bar.ts';
@@ -354,6 +356,11 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
           case 'checkpoint':
             banners.show('Checkpoint', null, 'checkpoint');
             break;
+          case 'armed': {
+            const armed: ArmedLine = armedLine(api.world.content, event.group, event.base, event.where);
+            banners.show(armed.title, armed.subtitle, 'checkpoint');
+            break;
+          }
           case 'dialogue_line':
             if (event.index === 0) overlays.send({ type: 'interrupt', cause: 'dialogue' });
             dialogue.show(event);

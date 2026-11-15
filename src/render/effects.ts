@@ -106,7 +106,6 @@ export const EFFECTS = {
   dimFrom: 0.4,
 } as const;
 
-
 interface Transient {
   readonly object: Mesh | Group;
   readonly duration: number;
@@ -580,6 +579,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
           case 'chart_point':
           case 'xp':
           case 'surge_cleared':
+          case 'armed':
           case 'notice':
           case 'portal':
           case 'glitch_start':

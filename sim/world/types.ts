@@ -537,6 +537,8 @@ export type RespawnPoint = StartRespawn | ExitRespawn | CheckpointRespawn | Wayp
 
 export type AreaStage = 'start' | 'pulse' | 'end';
 
+export type ArmedWhere = 'bag' | 'ground';
+
 export type NoticeReason = 'wrong_weapon' | 'no_mana' | 'on_cooldown' | 'inventory_full' | 'flask_empty' | 'life_full' | 'mana_full' | 'no_gold' | 'stash_full' | 'legendary_limit' | 'portal_town' | 'portal_boss';
 
 export type WorldEvent =
@@ -591,6 +593,7 @@ export type WorldEvent =
   | { readonly type: 'scene_lead'; readonly scene: string; readonly npcId: number }
   | { readonly type: 'scene_ward'; readonly scene: string; readonly npcId: number; readonly wardId: number }
   | { readonly type: 'notice'; readonly reason: NoticeReason }
+  | { readonly type: 'armed'; readonly group: string; readonly base: string; readonly where: ArmedWhere | null }
   | { readonly type: 'portal'; readonly stage: PortalStage; readonly zone: string; readonly pos: Vec2 }
   | { readonly type: 'flasks_refilled' }
   | { readonly type: 'flask_used'; readonly slot: number; readonly flask: string; readonly resource: FlaskResource; readonly pos: Vec2 }

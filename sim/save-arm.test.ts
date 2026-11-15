@@ -19,7 +19,7 @@ function made(base: string, uid: number): ItemInstance {
 }
 
 function holding(allocated: readonly string[], owned: readonly (ItemInstance | null)[], flags: Readonly<Record<string, string>>): Holding {
-  return { level: 13, allocated, owned, flags, nextItemUid: 50 };
+  return { level: 13, allocated, owned, flags, nextItemUid: 50, room: 1 };
 }
 
 void test('a holding with staff places and no staff is laid the staff group starter at its level, once', (): void => {
@@ -30,8 +30,13 @@ void test('a holding with staff places and no staff is laid the staff group star
   assert.equal(staff.level, 13);
   assert.equal(staff.uid, 50);
   assert.equal(armed.nextItemUid, 51);
-  assert.equal(armed.flags[armedFlag('staff')], 'yes');
+  assert.equal(armed.flags[armedFlag('staff')], 'bag');
   assert.equal(armOnce(content, holding(['storm_storm_bolt'], [], armed.flags)).laid.length, 0);
+});
+
+void test('a starter laid with no room in the bag is marked as lying on the ground', (): void => {
+  const armed: Armed = armOnce(content, { ...holding(['storm_storm_bolt'], [], {}), room: 0 });
+  assert.equal(armed.flags[armedFlag('staff')], 'ground');
 });
 
 void test('a holding that owns a weapon of the group, or has no place that names one, is laid nothing', (): void => {
@@ -62,6 +67,7 @@ function staves(world: World): number {
 void test('a Stormcaller saved with a sword in hand loads with a staff in the bag, and a second load lays no other', (): void => {
   const once: World = reload(stormcaller());
   assert.equal(staves(once), 1);
+  assert.equal(once.flags[armedFlag('staff')], 'bag');
   assert.equal(must(once.player.equipped.weapon, 'sword').base, 'warden_shortsword');
   once.player.inventory = once.player.inventory.map((): ItemInstance | null => null);
   assert.equal(staves(reload(once)), 0);

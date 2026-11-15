@@ -354,7 +354,7 @@ export function readSave(content: Content, value: unknown): SaveData | null {
   const removed: number = Math.min(saved.size - listed.length, room);
   const learned: string[] = readLearned(content, value['learned'], taken);
   const dressed: Dressed = dressOnce(content, worn.equipped, { ...readFlags(content, value['flags'], legacy), ...retired?.flags }, Math.floor(nextItemUid));
-  const armed: Armed = armOnce(content, { level: reached, allocated: taken, owned: [...Object.values(worn.equipped), ...slots, ...stashed.stash, ...kept], flags: dressed.flags, nextItemUid: dressed.nextItemUid });
+  const armed: Armed = armOnce(content, { level: reached, allocated: taken, owned: [...Object.values(worn.equipped), ...slots, ...stashed.stash, ...kept], flags: dressed.flags, nextItemUid: dressed.nextItemUid, room: slots.filter((slot: ItemInstance | null): boolean => slot === null).length });
   const unplaced: ItemInstance[] = [];
   for (const item of armed.laid) {
     const free: number = slots.indexOf(null);

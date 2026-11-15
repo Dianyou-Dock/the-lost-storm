@@ -166,3 +166,7 @@
 .tip-line.locked {
   color: var(--ember);
 }
+
+.tip-line.need {
+  color: #d98572;
+}

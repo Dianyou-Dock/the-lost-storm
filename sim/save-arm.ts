@@ -3,9 +3,10 @@ import type { Content, ItemBaseDef, SkillTreeNodeDef, WeaponGroup } from './cont
 import { generateItem } from './items.ts';
 import { createRng } from './rng.ts';
 import { groupOfKind } from './weapons.ts';
-import type { ItemInstance } from './world/types.ts';
+import type { ArmedWhere, ItemInstance } from './world/types.ts';
 
-const ARMING: { readonly flagPrefix: string } = { flagPrefix: 'armed_' };
+const ARMING: { readonly flagPrefix: string; readonly toldPrefix: string; readonly told: string } = { flagPrefix: 'armed_', toldPrefix: 'told_armed_', told: 'yes' };
+
 
 export interface Holding {
   readonly level: number;
@@ -13,6 +14,7 @@ export interface Holding {
   readonly owned: readonly (ItemInstance | null)[];
   readonly flags: StoryFlags;
   readonly nextItemUid: number;
+  readonly room: number;
 }
 
 export interface Armed {
@@ -23,6 +25,18 @@ export interface Armed {
 
 export function armedFlag(group: string): string {
   return `${ARMING.flagPrefix}${group}`;
+}
+
+export function armedWhere(value: string | undefined): ArmedWhere | null {
+  return value === 'bag' || value === 'ground' ? value : null;
+}
+
+export function toldFlag(group: string): string {
+  return `${ARMING.toldPrefix}${group}`;
+}
+
+export function toldValue(): string {
+  return ARMING.told;
 }
 
 function ownedGroups(content: Content, owned: readonly (ItemInstance | null)[]): Set<string> {
@@ -47,9 +61,10 @@ export function armOnce(content: Content, holding: Holding): Armed {
     if (!wanted.has(group.id) || owned.has(group.id) || flags[flag] !== undefined) continue;
     const item: ItemInstance | null = generateItem(content, createRng(uid), uid, holding.level, group.starter, common);
     if (item === null) continue;
+    const where: ArmedWhere = laid.length < holding.room ? 'bag' : 'ground';
     laid.push(item);
     uid += 1;
-    flags[flag] = 'yes';
+    flags[flag] = where;
   }
   return { laid, flags, nextItemUid: uid };
 }

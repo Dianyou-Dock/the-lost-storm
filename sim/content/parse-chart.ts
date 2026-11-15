@@ -64,7 +64,7 @@ function chartGroup(value: unknown, where: string): ChartGroup {
 
 function weaponGroup(value: unknown, where: string): WeaponGroup {
   const source: Fields = fields(value, where);
-  return { id: text(source, 'id', where), name: text(source, 'name', where), kinds: choiceList(source, 'kinds', WEAPON_KINDS, where), starter: text(source, 'starter', where) };
+  return { id: text(source, 'id', where), name: text(source, 'name', where), kinds: choiceList(source, 'kinds', WEAPON_KINDS, where), starter: text(source, 'starter', where), needs: text(source, 'needs', where) };
 }
 
 function pointGrant(value: unknown, where: string): PointGrant {

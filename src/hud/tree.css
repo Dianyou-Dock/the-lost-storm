@@ -599,7 +599,13 @@ body:has(.hud.chart-open) #overlays {
   color: #d98572;
 }
 
-.chart-card.deny .tree-tip-status {
+.chart-card.deny .tree-tip-need {
+  margin-top: 3px;
+  font-size: 11px;
+  color: #d98572;
+}
+
+.tree-tip-status {
   animation: tree-deny var(--spring-snappy-ms) var(--spring-snappy);
 }
 
