@@ -152,6 +152,8 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
     holdEquipped(content, playerView.rig, current.player.equipped);
     dress(content, playerView.rig.def.id, playerView.rig, heroBase(content, playerView.rig.def.id), current.player.equipped);
   };
+  const librarySize = (): number => library.rigs.size + library.wearables.size + library.attachments.size;
+  let dressedWith: number = librarySize();
   const monsters: Map<number, MonsterEntry> = new Map<number, MonsterEntry>();
   const npcs: Map<number, NpcEntry> = new Map<number, NpcEntry>();
   let npcZone: World['zone'] | null = null;
@@ -311,6 +313,10 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       sight.refresh();
       const seen = (view: ActorView, x: number, z: number): boolean => sight.sees(x, floorAt(x, z) + view.height / 2, z, view.height);
       standChosen(current);
+      if (librarySize() !== dressedWith) {
+        dressedWith = librarySize();
+        dressHero(current);
+      }
       holdEquipped(content, playerView.rig, current.player.equipped);
       playerView.wake(current.wake === null ? null : wakePose(wakeStage(current.wake.plan, current.wake.elapsed), current.wake.elapsed));
       const spun: SpinPose = spin.step(dt, current.time, current.player);

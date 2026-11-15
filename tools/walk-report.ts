@@ -51,9 +51,17 @@ function pairOf(name: string, value: string): { readonly pattern: string; readon
 
 function valuesOf(argv: readonly string[], name: string): string[] {
   return argv.flatMap((entry: string, at: number): string[] => {
+    if (entry !== name) return [];
     const value: string | undefined = argv[at + 1];
-    return entry === name && value !== undefined && !value.startsWith('--') ? [value] : [];
+    if (value === undefined || value.startsWith('--')) throw new Error(`${name} needs a value`);
+    return [value];
   });
+}
+
+function count(name: string, value: string): number {
+  const parsed: number = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) throw new Error(`${name} needs a whole number of times of at least 1, not ${value}`);
+  return parsed;
 }
 
 export function walkSlow(argv: readonly string[]): WalkSlow {
@@ -69,7 +77,7 @@ export function walkSlow(argv: readonly string[]): WalkSlow {
     }),
     fails: valuesOf(argv, '--fail').map((value: string): WalkFail => {
       const pair = pairOf('--fail', value);
-      return { pattern: pair.pattern, times: pair.amount === null ? Number.POSITIVE_INFINITY : Math.round(positive('--fail', pair.amount)) };
+      return { pattern: pair.pattern, times: pair.amount === null ? Number.POSITIVE_INFINITY : count('--fail', pair.amount) };
     }),
   };
 }

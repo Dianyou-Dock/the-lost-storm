@@ -40,4 +40,9 @@ void test('the slow mode throttles the CPU and the network, holds a file once an
   assert.throws((): unknown => walkArgs(['--hold', 'Throw.glb'], {}));
   assert.throws((): unknown => walkArgs(['--hold', '=40000'], {}));
   assert.throws((): unknown => walkArgs(['--fail', 'x=-1'], {}));
+  assert.throws((): unknown => walkArgs(['--fail', 'Throw.glb=0.4'], {}));
+  assert.throws((): unknown => walkArgs(['--fail', 'Throw.glb=1.5'], {}));
+  assert.throws((): unknown => walkArgs(['--cpu'], {}));
+  assert.throws((): unknown => walkArgs(['--hold', '--cpu', '4'], {}));
+  assert.throws((): unknown => walkArgs(['--kbps', '--hold', 'Throw.glb=1'], {}));
 });

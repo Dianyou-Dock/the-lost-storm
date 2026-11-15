@@ -222,17 +222,17 @@ async function main(): Promise<number> {
   const server = args.url === null ? await startServer(args.port) : null;
   const chrome = startChrome(args.chrome);
   let cdp: Cdp | null = null;
+  const warnings: string[] = [];
   try {
     cdp = await connect(await pageSocket(chrome.profile));
-    const warnings: string[] = [];
     await listenForWarnings(cdp, warnings);
     await slowDown(cdp, args.slow);
     await enterPlay(cdp, args.url ?? server?.url ?? '', args.hero, WALK.stepWaitMs * args.slow.cpuRate);
     const summary: WalkSummary = readWalk(await evaluate(cdp, 'window.storm === undefined ? Promise.reject(new Error("no window.storm: walk a dev build")) : window.storm.walk()', WALK.walkWaitMs * args.slow.cpuRate));
-    for (const warning of warnings) console.log(`page ${warning}`);
     for (const line of walkLines(summary)) console.log(line);
     return summary.ok ? 0 : 1;
   } finally {
+    for (const warning of warnings) console.log(`page ${warning}`);
     cdp?.close();
     chrome.process.kill();
     server?.process.kill();
