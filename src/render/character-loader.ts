@@ -20,6 +20,8 @@ import { addBoxUvs } from './box-uv.ts';
 import { assetUrl } from './asset-url.ts';
 import { fitClip } from './clip-fit.ts';
 import { dressPiece } from './dress-piece.ts';
+import type { KeepLoadingDeps, NamedLoad } from './keep-loading.ts';
+import { loadAllKeepTrying } from './keep-loading.ts';
 
 export interface ActionClip {
   readonly clip: AnimationClip;
@@ -388,21 +390,19 @@ export async function loadNeeds(loader: GLTFLoader, content: Content, dresser: D
   ]);
 }
 
-export async function loadRemainingCharacters(loader: GLTFLoader, content: Content, dresser: Dresser, library: CharacterLibrary): Promise<void> {
+export function remainingLoads(loader: GLTFLoader, content: Content, dresser: Dresser, library: CharacterLibrary): NamedLoad[] {
   const heldIds: string[] = [...content.attachments.keys()].filter((id: string): boolean => !library.attachments.has(id));
   const rigIds: string[] = [...usedRigs(content)].filter((id: string): boolean => !library.rigs.has(id));
   const unworn: FramedWearable[] = everyWearable(content).filter((worn: FramedWearable): boolean => !library.wearables.has(wearKey(worn.frame, worn.def.id)));
-  await Promise.all([
-    ...rigDefs(content, rigIds).map(async (def: RigDef): Promise<void> => {
-      library.rigs.set(def.id, await loadRig(loader, def));
-    }),
-    ...unworn.map(async (worn: FramedWearable): Promise<void> => {
-      library.wearables.set(wearKey(worn.frame, worn.def.id), await loadWearable(loader, dresser, worn.def, worn.frame));
-    }),
-    ...attachmentDefs(content, heldIds).map(async (def: AttachmentDef): Promise<void> => {
-      library.attachments.set(def.id, await loadAttachment(loader, dresser, def));
-    }),
-  ]);
+  return [
+    ...rigDefs(content, rigIds).map((def: RigDef): NamedLoad => ({ what: `Rig ${def.id}`, load: async (): Promise<void> => void library.rigs.set(def.id, await loadRig(loader, def)) })),
+    ...unworn.map((worn: FramedWearable): NamedLoad => ({ what: `Wearable ${worn.def.id} on ${worn.frame}`, load: async (): Promise<void> => void library.wearables.set(wearKey(worn.frame, worn.def.id), await loadWearable(loader, dresser, worn.def, worn.frame)) })),
+    ...attachmentDefs(content, heldIds).map((def: AttachmentDef): NamedLoad => ({ what: `Attachment ${def.id}`, load: async (): Promise<void> => void library.attachments.set(def.id, await loadAttachment(loader, dresser, def)) })),
+  ];
+}
+
+export function loadRemainingCharacters(loader: GLTFLoader, content: Content, dresser: Dresser, library: CharacterLibrary, deps: KeepLoadingDeps): Promise<void> {
+  return loadAllKeepTrying(remainingLoads(loader, content, dresser, library), deps);
 }
 
 export function hasWear(library: CharacterLibrary, frame: string, wearableIds: readonly string[], gear: readonly string[]): boolean {

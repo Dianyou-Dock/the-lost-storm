@@ -9,11 +9,79 @@ export const WALK_DEFAULTS = {
   hero: 'woman',
 } as const;
 
+export interface WalkHold {
+  readonly pattern: string;
+  readonly ms: number;
+}
+
+export interface WalkFail {
+  readonly pattern: string;
+  readonly times: number;
+}
+
+export interface WalkSlow {
+  readonly cpuRate: number;
+  readonly kbps: number | null;
+  readonly holds: readonly WalkHold[];
+  readonly fails: readonly WalkFail[];
+}
+
 export interface WalkArgs {
   readonly url: string | null;
   readonly chrome: string;
   readonly port: number;
   readonly hero: string;
+  readonly slow: WalkSlow;
+}
+
+export const UNSLOWED: WalkSlow = { cpuRate: 1, kbps: null, holds: [], fails: [] };
+
+function positive(name: string, value: string): number {
+  const parsed: number = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) throw new Error(`${name} must be a positive number, not ${value}`);
+  return parsed;
+}
+
+function pairOf(name: string, value: string): { readonly pattern: string; readonly amount: string | null } {
+  const at: number = value.lastIndexOf('=');
+  const pattern: string = at < 0 ? value : value.slice(0, at);
+  if (pattern === '') throw new Error(`${name} needs a part of a file path, not ${value}`);
+  return { pattern, amount: at < 0 ? null : value.slice(at + 1) };
+}
+
+function valuesOf(argv: readonly string[], name: string): string[] {
+  return argv.flatMap((entry: string, at: number): string[] => {
+    const value: string | undefined = argv[at + 1];
+    return entry === name && value !== undefined && !value.startsWith('--') ? [value] : [];
+  });
+}
+
+export function walkSlow(argv: readonly string[]): WalkSlow {
+  const cpu: string | undefined = valuesOf(argv, '--cpu')[0];
+  const kbps: string | undefined = valuesOf(argv, '--kbps')[0];
+  return {
+    cpuRate: cpu === undefined ? UNSLOWED.cpuRate : positive('--cpu', cpu),
+    kbps: kbps === undefined ? null : positive('--kbps', kbps),
+    holds: valuesOf(argv, '--hold').map((value: string): WalkHold => {
+      const pair = pairOf('--hold', value);
+      if (pair.amount === null) throw new Error(`--hold needs a delay in ms after =, as in Throw.glb=40000, not ${value}`);
+      return { pattern: pair.pattern, ms: positive('--hold', pair.amount) };
+    }),
+    fails: valuesOf(argv, '--fail').map((value: string): WalkFail => {
+      const pair = pairOf('--fail', value);
+      return { pattern: pair.pattern, times: pair.amount === null ? Number.POSITIVE_INFINITY : Math.round(positive('--fail', pair.amount)) };
+    }),
+  };
+}
+
+export function slowLine(slow: WalkSlow): string | null {
+  const parts: string[] = [
+    ...(slow.cpuRate === 1 ? [] : [`cpu ${slow.cpuRate}x slower`]),
+    ...(slow.kbps === null ? [] : [`network ${slow.kbps} kbps`]),
+    ...slow.holds.map((hold: WalkHold): string => `hold ${hold.pattern} ${hold.ms} ms`),
+    ...slow.fails.map((fail: WalkFail): string => `fail ${fail.pattern} ${Number.isFinite(fail.times) ? `${fail.times} times` : 'always'}`),
+  ];
+  return parts.length === 0 ? null : `slowed: ${parts.join(', ')}`;
 }
 
 export interface WalkLook {
@@ -40,7 +108,7 @@ export function walkArgs(argv: readonly string[], env: Readonly<Record<string, s
   const url: string | null = valueOf('--url');
   const hero: string = valueOf('--hero') ?? WALK_DEFAULTS.hero;
   if (!/^[a-z]+$/.test(hero)) throw new Error(`--hero must be a hero id, not ${hero}`);
-  return { url: url === null ? null : url.replace(/\/+$/, ''), chrome: valueOf('--chrome') ?? env['CHROME_PATH'] ?? WALK_DEFAULTS.chrome, port, hero };
+  return { url: url === null ? null : url.replace(/\/+$/, ''), chrome: valueOf('--chrome') ?? env['CHROME_PATH'] ?? WALK_DEFAULTS.chrome, port, hero, slow: walkSlow(argv) };
 }
 
 function readLook(value: unknown, where: string): WalkLook {

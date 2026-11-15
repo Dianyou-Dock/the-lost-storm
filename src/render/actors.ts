@@ -26,6 +26,8 @@ import { createSpinView } from './spin-view.ts';
 import type { ActorGuard } from './actor-guard.ts';
 import { createActorGuard } from './actor-guard.ts';
 import { warnInConsole } from '../backend/console-log.ts';
+import type { BodyChoice } from './body-choice.ts';
+import { bodyArrived, chooseBody } from './body-choice.ts';
 
 export const ACTORS = {
   monsterFlash: 1,
@@ -55,6 +57,7 @@ interface MonsterEntry {
   readonly spawnTime: number;
   readonly echo: EchoLook | null;
   readonly partial: boolean;
+  readonly standIn: boolean;
   checked: boolean;
 }
 
@@ -174,8 +177,14 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   const guard: ActorGuard = createActorGuard(warnInConsole);
   const waiting: Map<number, number> = new Map<number, number>();
 
-  const makeMonsterView = (def: MonsterDef, facing: number, echo: EchoLook | null, partial: boolean = false): ActorView | null => {
-    const rig: LoadedRig | undefined = library.rigs.get(def.rig);
+  const lateRigs: Set<string> = new Set<string>();
+  const warnLate = (rig: string, label: string): void => {
+    if (lateRigs.has(rig)) return;
+    lateRigs.add(rig);
+    warnInConsole(`Rig ${rig} has not loaded; ${label} and every other monster on it are drawn with a stand-in body until it does`);
+  };
+
+  const makeMonsterView = (def: MonsterDef, facing: number, echo: EchoLook | null, partial: boolean = false, rig: LoadedRig | undefined = library.rigs.get(def.rig)): ActorView | null => {
     if (rig === undefined || (!partial && !hasWear(library, rig.def.frame, wornWearables(content, def.rig, def.wear, null), def.gear))) return null;
     const view: ActorView = createActorView(instantiateRig(rig, library, { tint: echo === null ? def.tint : '#ffffff', glow: echo === null ? def.color : '#ffffff', ghost: echo?.ghost ?? null, feather }), def.scale, facing);
     view.rig.setGear(partial ? def.gear.filter((id: string): boolean => library.attachments.has(id)) : def.gear);
@@ -206,7 +215,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   };
 
   const retire = (entry: MonsterEntry): void => {
-    if (entry.echo === null && !entry.partial) keep(entry.def, entry.view);
+    if (entry.echo === null && !entry.partial && !entry.standIn) keep(entry.def, entry.view);
     else entry.view.dispose();
   };
 
@@ -218,22 +227,40 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   const entryFor = (current: World, monster: MonsterState): MonsterEntry | null => {
     const existing: MonsterEntry | undefined = monsters.get(monster.id);
     if (existing !== undefined) return existing;
-    const rig: LoadedRig | undefined = library.rigs.get(monster.def.rig);
-    const missing: string[] = rig === undefined ? [] : unloaded(monster.def, rig.def.frame);
+    const choice: BodyChoice<LoadedRig> = chooseBody(library.rigs, monster.def.rig, content.rigs.get(monster.def.rig)?.frame ?? null, playerView.rig.def.id);
+    if (choice.kind === 'none') return null;
+    const standIn: boolean = choice.kind === 'stand_in';
+    const missing: string[] = unloaded(monster.def, choice.rig.def.frame);
     const since: number = waiting.get(monster.id) ?? current.time;
     waiting.set(monster.id, since);
-    if (rig === undefined || (missing.length > 0 && current.time - since < ACTORS.wearWait)) return null;
+    if (!standIn && missing.length > 0 && current.time - since < ACTORS.wearWait) return null;
     waiting.delete(monster.id);
-    const partial: boolean = missing.length > 0;
-    if (partial) guard.missing(monster.id, monster.def.id, missing.join(', '));
+    const partial: boolean = standIn || missing.length > 0;
+    if (standIn) warnLate(monster.def.rig, `${monster.def.id} (#${monster.id})`);
+    else if (partial) guard.missing(monster.id, monster.def.id, missing.join(', '));
     const echo: EchoLook | null = echoLook(current, monster);
-    const view: ActorView | null = monsterView(monster.def, monster.facing, echo, partial);
+    const view: ActorView | null = standIn ? makeMonsterView(monster.def, monster.facing, echo, true, choice.rig) : monsterView(monster.def, monster.facing, echo, partial);
     if (view === null) return null;
     scene.add(view.rig.root);
-    const entry: MonsterEntry = { def: monster.def, view, spawnTime: Math.max(monster.spawnTime, 1e-3), echo, partial, checked: false };
+    const entry: MonsterEntry = { def: monster.def, view, spawnTime: Math.max(monster.spawnTime, 1e-3), echo, partial, standIn, checked: false };
     monsters.set(monster.id, entry);
     if (!monster.alive) view.die();
     return entry;
+  };
+
+  const rebuilt = (monster: MonsterState, entry: MonsterEntry): MonsterEntry => {
+    if (!entry.standIn && !entry.partial) return entry;
+    const own: LoadedRig | undefined = library.rigs.get(monster.def.rig);
+    if (own === undefined || !monster.alive) return entry;
+    const missing: string[] = unloaded(monster.def, own.def.frame);
+    if (!bodyArrived(entry, true, missing)) return entry;
+    const view: ActorView | null = makeMonsterView(monster.def, monster.facing, entry.echo, missing.length > 0, own);
+    if (view === null) return entry;
+    entry.view.dispose();
+    scene.add(view.rig.root);
+    const next: MonsterEntry = { ...entry, view, partial: missing.length > 0, standIn: false, checked: false };
+    monsters.set(monster.id, next);
+    return next;
   };
 
   const viewOf = (actorId: number): ActorView | null => {
@@ -291,8 +318,9 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       playerView.setEdge(current.zone.heroLight.rim);
       playerView.sync(dt, poseOf(current.player, null), { rise: 1, floor: floorAt(current.player.pos.x, current.player.pos.z), turnRate: ACTOR.turnRate, seen: true });
       for (const monster of current.monsters) {
-        const entry: MonsterEntry | null = entryFor(current, monster);
-        if (entry === null) continue;
+        const found: MonsterEntry | null = entryFor(current, monster);
+        if (found === null) continue;
+        const entry: MonsterEntry = rebuilt(monster, found);
         const turning: number = 1 - monster.spawnTime / entry.spawnTime;
         if (entry.echo !== null) {
           entry.echo.ghost.tint.value.copy(entry.echo.from).lerp(entry.echo.to, turning);

@@ -622,7 +622,7 @@ async function start(): Promise<void> {
   });
   void warmUp(stage, stage.scene, stage.camera, [...actors.standIns(world.zone), ...loot.standIns(world), ...rain.standIns()], zoneView.ready);
   const loadTheRest = async (): Promise<void> => {
-    await loadRemainingCharacters(loader, content, dresser, library);
+    await loadRemainingCharacters(loader, content, dresser, library, { timers: createBrowserTimers(), warn: warnInConsole });
     actors.refreshWear(world);
     await warmUp(stage, stage.scene, stage.camera, loot.standIns(world));
     hud.warm();

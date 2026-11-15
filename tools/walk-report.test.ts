@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { readWalk, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
+import { readWalk, slowLine, UNSLOWED, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
 
 void test('the walk takes a build address, a Chrome and a port, and falls back to a local dev server and the usual Chrome', (): void => {
-  assert.deepEqual(walkArgs([], {}), { url: null, chrome: WALK_DEFAULTS.chrome, port: WALK_DEFAULTS.port, hero: WALK_DEFAULTS.hero });
-  assert.deepEqual(walkArgs(['--url', 'http://localhost:5173/', '--port', '6001', '--hero', 'man'], { CHROME_PATH: '/opt/chrome' }), { url: 'http://localhost:5173', chrome: '/opt/chrome', port: 6001, hero: 'man' });
+  assert.deepEqual(walkArgs([], {}), { url: null, chrome: WALK_DEFAULTS.chrome, port: WALK_DEFAULTS.port, hero: WALK_DEFAULTS.hero, slow: UNSLOWED });
+  assert.deepEqual(walkArgs(['--url', 'http://localhost:5173/', '--port', '6001', '--hero', 'man'], { CHROME_PATH: '/opt/chrome' }), { url: 'http://localhost:5173', chrome: '/opt/chrome', port: 6001, hero: 'man', slow: UNSLOWED });
   assert.throws((): unknown => walkArgs(['--hero', 'Wo man'], {}));
   assert.equal(walkArgs(['--chrome', '/x/chrome'], { CHROME_PATH: '/opt/chrome' }).chrome, '/x/chrome');
   assert.throws((): unknown => walkArgs(['--port', 'abc'], {}));
@@ -18,4 +18,26 @@ void test('a walk report from the page is read strictly and printed one look per
   assert.equal(lines.at(-1), 'BODY WALK FAILED');
   assert.throws((): unknown => readWalk({ ok: 'yes', looks: [], problems: [] }));
   assert.throws((): unknown => readWalk({ ok: true, looks: [{ zone: 'x' }], problems: [] }));
+});
+
+void test('the slow mode throttles the CPU and the network, holds a file once and fails a file a number of times or always', (): void => {
+  const slow = walkArgs(['--cpu', '4', '--kbps', '1600', '--hold', 'Throw.glb=40000', '--hold', 'woman.glb=5000', '--fail', 'Zombie_Idle_Loop.glb=2', '--fail', 'scrap_javelin'], {}).slow;
+  assert.deepEqual(slow, {
+    cpuRate: 4,
+    kbps: 1600,
+    holds: [
+      { pattern: 'Throw.glb', ms: 40000 },
+      { pattern: 'woman.glb', ms: 5000 },
+    ],
+    fails: [
+      { pattern: 'Zombie_Idle_Loop.glb', times: 2 },
+      { pattern: 'scrap_javelin', times: Number.POSITIVE_INFINITY },
+    ],
+  });
+  assert.equal(slowLine(slow), 'slowed: cpu 4x slower, network 1600 kbps, hold Throw.glb 40000 ms, hold woman.glb 5000 ms, fail Zombie_Idle_Loop.glb 2 times, fail scrap_javelin always');
+  assert.equal(slowLine(UNSLOWED), null);
+  assert.throws((): unknown => walkArgs(['--cpu', '0'], {}));
+  assert.throws((): unknown => walkArgs(['--hold', 'Throw.glb'], {}));
+  assert.throws((): unknown => walkArgs(['--hold', '=40000'], {}));
+  assert.throws((): unknown => walkArgs(['--fail', 'x=-1'], {}));
 });

@@ -5,8 +5,8 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fields, items, text } from '../sim/content/read.ts';
 import type { Fields } from '../sim/content/read.ts';
-import type { WalkArgs, WalkSummary } from './walk-report.ts';
-import { readWalk, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
+import type { WalkArgs, WalkFail, WalkHold, WalkSlow, WalkSummary } from './walk-report.ts';
+import { readWalk, slowLine, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
 
 const WALK = {
   serverWaitMs: 60000,
@@ -20,10 +20,17 @@ const WALK = {
   portFile: 'DevToolsActivePort',
   steps: ['^enter$', '^(choose for me|take .+)$', '^enter$'],
   begin: '^(enter the storm|continue)$',
+  slowLatencyMs: 150,
+  bitsPerByte: 8,
+  bytesPerKilobyte: 1024,
+  warnedTypes: ['warning', 'error'],
 } as const;
+
+type CdpListener = (params: Fields) => void;
 
 interface Cdp {
   call(method: string, params: Readonly<Record<string, unknown>>, timeoutMs?: number): Promise<Fields>;
+  on(method: string, listener: CdpListener): void;
   close(): void;
 }
 
@@ -67,9 +74,15 @@ async function pageSocket(profile: string): Promise<string> {
 function connect(address: string): Promise<Cdp> {
   const socket: WebSocket = new WebSocket(address);
   const waiting: Map<number, { readonly resolve: (value: Fields) => void; readonly reject: (error: Error) => void }> = new Map();
+  const listeners: Map<string, CdpListener[]> = new Map<string, CdpListener[]>();
   let next: number = 1;
   socket.addEventListener('message', (event: MessageEvent): void => {
     const message: Fields = fields(JSON.parse(String(event.data)), 'cdp message');
+    const method: unknown = message['method'];
+    if (typeof method === 'string') {
+      for (const listener of listeners.get(method) ?? []) listener(fields(message['params'] ?? {}, 'cdp event'));
+      return;
+    }
     const id: unknown = message['id'];
     const pending = typeof id === 'number' ? waiting.get(id) : undefined;
     if (pending === undefined || typeof id !== 'number') return;
@@ -101,6 +114,9 @@ function connect(address: string): Promise<Cdp> {
             });
             socket.send(JSON.stringify({ id, method, params }));
           }),
+        on: (method: string, listener: CdpListener): void => {
+          listeners.set(method, [...(listeners.get(method) ?? []), listener]);
+        },
         close: (): void => socket.close(),
       }),
     );
@@ -117,31 +133,88 @@ function clickExpression(pattern: string): string {
   return `(() => { const wanted = new RegExp(${JSON.stringify(pattern)}, 'i'); const button = [...document.querySelectorAll('button')].find((candidate) => !candidate.disabled && candidate.offsetParent !== null && wanted.test((candidate.textContent ?? '').trim())); if (button === undefined) return false; button.click(); return true; })()`;
 }
 
-async function clickThrough(cdp: Cdp, steps: readonly string[]): Promise<void> {
+async function clickThrough(cdp: Cdp, steps: readonly string[], patienceMs: number): Promise<void> {
   const [step, ...later] = steps;
   if (step === undefined) return;
-  await until(`a button matching ${step}`, WALK.stepWaitMs, async (): Promise<boolean | null> => ((await evaluate(cdp, clickExpression(step))) === true ? true : null)).catch(async (error: unknown): Promise<never> => {
+  await until(`a button matching ${step}`, patienceMs, async (): Promise<boolean | null> => ((await evaluate(cdp, clickExpression(step))) === true ? true : null)).catch(async (error: unknown): Promise<never> => {
     const shown: unknown = await evaluate(cdp, "[...document.querySelectorAll('button')].filter((button) => button.offsetParent !== null).map((button) => (button.disabled ? '(off) ' : '') + (button.textContent ?? '').trim()).join(' | ')").catch((): string => 'unknown');
     throw new Error(`${error instanceof Error ? error.message : String(error)}; buttons shown: ${String(shown)}`);
   });
   await pause(WALK.settleMs);
-  await clickThrough(cdp, later);
+  await clickThrough(cdp, later, patienceMs);
 }
 
-async function enterPlay(cdp: Cdp, url: string, hero: string): Promise<void> {
+async function enterPlay(cdp: Cdp, url: string, hero: string, patienceMs: number): Promise<void> {
   await cdp.call('Storage.clearDataForOrigin', { origin: url, storageTypes: 'all' });
   await cdp.call('Network.clearBrowserCache', {});
   await cdp.call('Page.navigate', { url: `${url}/` });
   await pause(WALK.settleMs);
   await evaluate(cdp, `localStorage.setItem(${JSON.stringify(WALK.audioKey)}, JSON.stringify({ volumes: { master: 0, effects: 0, voice: 0, ambience: 0 }, muted: true })), true`);
   await cdp.call('Page.navigate', { url: `${url}/play/` });
-  await clickThrough(cdp, [...WALK.steps, `^${hero}`, WALK.begin]);
-  await until('the world to run', WALK.stepWaitMs, async (): Promise<boolean | null> => {
+  await clickThrough(cdp, [...WALK.steps, `^${hero}`, WALK.begin], patienceMs);
+  await until('the world to run', patienceMs, async (): Promise<boolean | null> => {
     const before: unknown = await evaluate(cdp, 'window.storm?.world.time ?? null');
     await pause(WALK.settleMs);
     const after: unknown = await evaluate(cdp, 'window.storm?.world.time ?? null');
     return typeof before === 'number' && typeof after === 'number' && after > before ? true : null;
   });
+}
+
+async function slowRequests(cdp: Cdp, holds: readonly WalkHold[], fails: readonly WalkFail[]): Promise<void> {
+  const held: Set<string> = new Set<string>();
+  const failed: Map<string, number> = new Map<string, number>();
+  const answer = (method: string, params: Readonly<Record<string, unknown>>): void => {
+    cdp.call(method, params).catch((error: unknown): void => console.error(`${method} failed: ${error instanceof Error ? error.message : String(error)}`));
+  };
+  cdp.on('Fetch.requestPaused', (params: Fields): void => {
+    const requestId: string = text(params, 'requestId', 'paused request');
+    const url: string = text(fields(params['request'], 'paused request'), 'url', 'paused request');
+    const fail: WalkFail | undefined = fails.find((candidate: WalkFail): boolean => url.includes(candidate.pattern) && (failed.get(candidate.pattern) ?? 0) < candidate.times);
+    if (fail !== undefined) {
+      failed.set(fail.pattern, (failed.get(fail.pattern) ?? 0) + 1);
+      console.log(`slowed: failed ${url}`);
+      answer('Fetch.failRequest', { requestId, errorReason: 'Failed' });
+      return;
+    }
+    const hold: WalkHold | undefined = holds.find((candidate: WalkHold): boolean => url.includes(candidate.pattern) && !held.has(candidate.pattern));
+    if (hold === undefined) {
+      answer('Fetch.continueRequest', { requestId });
+      return;
+    }
+    held.add(hold.pattern);
+    console.log(`slowed: holding ${url} for ${hold.ms} ms`);
+    setTimeout((): void => answer('Fetch.continueRequest', { requestId }), hold.ms);
+  });
+  const patterns: string[] = [...holds.map((hold: WalkHold): string => hold.pattern), ...fails.map((fail: WalkFail): string => fail.pattern)];
+  if (patterns.length === 0) return;
+  await cdp.call('Fetch.enable', { patterns: patterns.map((pattern: string): Readonly<Record<string, string>> => ({ urlPattern: `*${pattern}*`, requestStage: 'Request' })) });
+}
+
+async function slowDown(cdp: Cdp, slow: WalkSlow): Promise<void> {
+  const line: string | null = slowLine(slow);
+  if (line !== null) console.log(line);
+  if (slow.cpuRate !== 1) await cdp.call('Emulation.setCPUThrottlingRate', { rate: slow.cpuRate });
+  if (slow.kbps !== null) {
+    const bytesPerSecond: number = (slow.kbps * WALK.bytesPerKilobyte) / WALK.bitsPerByte;
+    await cdp.call('Network.enable', {});
+    await cdp.call('Network.emulateNetworkConditions', { offline: false, latency: WALK.slowLatencyMs, downloadThroughput: bytesPerSecond, uploadThroughput: bytesPerSecond });
+  }
+  await slowRequests(cdp, slow.holds, slow.fails);
+}
+
+function listenForWarnings(cdp: Cdp, into: string[]): Promise<Fields> {
+  cdp.on('Runtime.consoleAPICalled', (params: Fields): void => {
+    const type: string = text(params, 'type', 'console call');
+    if (!WALK.warnedTypes.some((wanted: string): boolean => wanted === type)) return;
+    const said: string = items(params['args'], 'console args')
+      .map((arg: unknown): string => {
+        const value: unknown = fields(arg, 'console arg')['value'];
+        return typeof value === 'string' ? value : JSON.stringify(value ?? null);
+      })
+      .join(' ');
+    into.push(`${type}: ${said}`);
+  });
+  return cdp.call('Runtime.enable', {});
 }
 
 async function main(): Promise<number> {
@@ -151,8 +224,12 @@ async function main(): Promise<number> {
   let cdp: Cdp | null = null;
   try {
     cdp = await connect(await pageSocket(chrome.profile));
-    await enterPlay(cdp, args.url ?? server?.url ?? '', args.hero);
-    const summary: WalkSummary = readWalk(await evaluate(cdp, 'window.storm === undefined ? Promise.reject(new Error("no window.storm: walk a dev build")) : window.storm.walk()', WALK.walkWaitMs));
+    const warnings: string[] = [];
+    await listenForWarnings(cdp, warnings);
+    await slowDown(cdp, args.slow);
+    await enterPlay(cdp, args.url ?? server?.url ?? '', args.hero, WALK.stepWaitMs * args.slow.cpuRate);
+    const summary: WalkSummary = readWalk(await evaluate(cdp, 'window.storm === undefined ? Promise.reject(new Error("no window.storm: walk a dev build")) : window.storm.walk()', WALK.walkWaitMs * args.slow.cpuRate));
+    for (const warning of warnings) console.log(`page ${warning}`);
     for (const line of walkLines(summary)) console.log(line);
     return summary.ok ? 0 : 1;
   } finally {
