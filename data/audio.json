@@ -50,7 +50,11 @@
     "thunderhead": [{ "sound": "sword_swing_heavy", "volume": 0.9, "maxVoices": 2 }],
     "static_brand": [{ "sound": "bolt_zap", "volume": 0.6, "maxVoices": 3 }],
     "living_wire": [{ "sound": "electric_crackle", "volume": 0.7, "maxVoices": 2 }],
-    "held_breath": [{ "sound": "hex_charge", "volume": 0.9, "maxVoices": 1 }]
+    "held_breath": [{ "sound": "hex_charge", "volume": 0.9, "maxVoices": 1 }],
+    "wisp_volley": [{ "sound": "wisp_whoosh", "volume": 0.85, "maxVoices": 2 }],
+    "ghost_wave": [{ "sound": "ghost_horn", "volume": 0.85, "maxVoices": 2 }],
+    "spell_strike": [{ "sound": "spell_flick", "volume": 0.8, "maxVoices": 3 }],
+    "fire_burst": [{ "sound": "fire_blast", "volume": 0.85, "maxVoices": 2 }]
   },
   "skillImpact": {
     "keeper_field": [{ "sound": "ground_boom", "volume": 0.8, "maxVoices": 2 }],
