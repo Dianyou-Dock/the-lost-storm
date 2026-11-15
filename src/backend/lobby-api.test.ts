@@ -4,7 +4,7 @@ import { createFakeClock, createFakeServer } from '../../test/backend-support.ts
 import type { FakeServer } from '../../test/backend-support.ts';
 import type { Leaderboard, LeaderboardResult, NameResult } from './api.ts';
 import { RANKINGS } from './api.ts';
-import { createLobbyApi, LOBBY_LIMITS, rankingPath, readLeaderboard } from './lobby-api.ts';
+import { createLobbyApi, LOBBY_LIMITS, rankingPath, readLeaderboard, readPresent } from './lobby-api.ts';
 
 const URL_A: string = 'http://localhost:8787';
 const ROW: Readonly<Record<string, unknown>> = { rank: 1, name: 'Grey Heron', level: 7, damage: 1234, life: 410, furthest: 'The Shallows', online: true, account: 'heron' };
@@ -91,7 +91,7 @@ void test('the board is read without a token, and with one the caller sees their
   const fake: FakeServer = server();
   const api = createLobbyApi(URL_A, fake.fetch);
   const anonymous: LeaderboardResult = await api.leaderboard(null, AbortSignal.timeout(1000));
-  assert.deepEqual(anonymous, { kind: 'ok', board: { by: 'level', top: [], you: null, online: 0, characters: 0, levelUps: [] } });
+  assert.deepEqual(anonymous, { kind: 'ok', board: { by: 'level', top: [], you: null, online: 0, present: null, characters: 0, levelUps: [] } });
   assert.equal(fake.requests[0]?.token, null);
   await fake.fetch(`${URL_A}/v1/guest`, { method: 'POST' });
   const named: NameResult = await api.rename('token-1', 'Grey Heron', AbortSignal.timeout(1000));
@@ -121,4 +121,16 @@ void test('a refused name comes back with its reason, and other failures as the 
   assert.deepEqual(await api.rename('token-2', 'Moth', AbortSignal.timeout(1000)), { kind: 'refused', status: 400 });
   fake.goDown();
   assert.deepEqual(await api.leaderboard(null, AbortSignal.timeout(1000)), { kind: 'retry', afterMs: null });
+});
+
+void test('the present list reads each online character, the rest and the visitors, and an older or broken answer reads as no list', (): void => {
+  const present: Record<string, unknown> = { characters: [{ name: 'Rook', level: 5, furthest: 'Stillhold', accountId: 'secret' }, { name: 'rook', level: 2, furthest: 'Duskway' }, { name: 'Wren', level: 3, furthest: 'Duskway' }], more: 2, visitors: 1 };
+  assert.deepEqual(readLeaderboard({ ...BOARD, present })?.present, { characters: [{ name: 'Rook', level: 5, furthest: 'Stillhold' }, { name: 'Wren', level: 3, furthest: 'Duskway' }], more: 2, visitors: 1 });
+  assert.equal(readLeaderboard(BOARD)?.present, null);
+  for (const broken of [null, [], { ...present, visitors: -1 }, { ...present, more: 1.5 }, { ...present, characters: [{ name: 'Rook', level: 0, furthest: 'Stillhold' }] }, { ...present, characters: 'Rook' }]) {
+    assert.equal(readPresent(broken), null);
+    assert.ok(readLeaderboard({ ...BOARD, present: broken }) !== null);
+  }
+  const many: readonly Record<string, unknown>[] = Array.from({ length: LOBBY_LIMITS.present + 5 }, (_: unknown, index: number): Record<string, unknown> => ({ name: `Name ${index}`, level: 1, furthest: 'Duskway' }));
+  assert.equal(readPresent({ characters: many, more: 0, visitors: 0 })?.characters.length, LOBBY_LIMITS.present);
 });

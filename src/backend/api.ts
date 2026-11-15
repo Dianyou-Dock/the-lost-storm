@@ -106,11 +106,24 @@ export interface LevelUpNote {
   readonly minutesAgo: number;
 }
 
+export interface OnlineCharacter {
+  readonly name: string;
+  readonly level: number;
+  readonly furthest: string;
+}
+
+export interface PresentList {
+  readonly characters: readonly OnlineCharacter[];
+  readonly more: number;
+  readonly visitors: number;
+}
+
 export interface Leaderboard {
   readonly by: Ranking;
   readonly top: readonly BoardRow[];
   readonly you: YourRow | null;
   readonly online: number;
+  readonly present: PresentList | null;
   readonly characters: number;
   readonly levelUps: readonly LevelUpNote[];
 }

@@ -1,4 +1,4 @@
-import type { BoardRow, Leaderboard, LevelUpNote, NameRefusal, Ranking } from '../backend/api.ts';
+import type { BoardRow, Leaderboard, LevelUpNote, NameRefusal, OnlineCharacter, PresentList, Ranking } from '../backend/api.ts';
 import { DAMAGE_EXPLAINED } from '../../sim/ladder.ts';
 
 export interface RankingTab {
@@ -85,6 +85,52 @@ export function onlineText(count: number): string {
   return `${count} online`;
 }
 
+export interface PresentRow extends OnlineCharacter {
+  readonly own: boolean;
+}
+
+export interface PresentView {
+  readonly rows: readonly PresentRow[];
+  readonly more: number;
+  readonly visitors: number;
+}
+
+export function presentView(board: Leaderboard): PresentView | null {
+  const present: PresentList | null = board.present;
+  if (present === null) return null;
+  const you: string | null = board.you !== null && board.you.chosen && board.you.online ? board.you.name : null;
+  const key: string | null = you === null ? null : you.toLowerCase();
+  const others: readonly PresentRow[] = present.characters
+    .filter((entry: OnlineCharacter): boolean => entry.name.toLowerCase() !== key)
+    .map((entry: OnlineCharacter): PresentRow => ({ name: entry.name, level: entry.level, furthest: entry.furthest, own: false }));
+  const listed: boolean = others.length < present.characters.length;
+  if (board.you === null || you === null) return { rows: others, more: present.more, visitors: present.visitors };
+  const own: PresentRow = { name: you, level: board.you.level, furthest: board.you.furthest, own: true };
+  return { rows: [own, ...others], more: listed ? present.more : Math.max(0, present.more - 1), visitors: present.visitors };
+}
+
+export function onlineTotal(board: Leaderboard): number {
+  const view: PresentView | null = presentView(board);
+  return view === null ? board.online : view.rows.length + view.more + view.visitors;
+}
+
+export function presentLevelText(level: number): string {
+  return `Lv ${level}`;
+}
+
+export function moreText(count: number): string {
+  return count === 1 ? '1 more' : `${count} more`;
+}
+
+export function arrivalsText(count: number): string {
+  return count === 1 ? '1 new arrival, not named yet' : `${count} new arrivals, not named yet`;
+}
+
+export function presentKey(view: PresentView | null): string {
+  if (view === null) return '';
+  return JSON.stringify([view.rows.map((row: PresentRow): (string | number | boolean)[] => [row.name, row.level, row.furthest, row.own]), view.more, view.visitors]);
+}
+
 export function charactersText(count: number): string {
   return count === 1 ? '1 character' : `${count} characters`;
 }
@@ -116,7 +162,7 @@ export function shownKey(board: Leaderboard, slots: number): string {
   const rows: readonly (string | number | boolean | null)[][] = board.top.slice(0, slots).map((row: BoardRow): (string | number | boolean | null)[] => [row.rank, row.name, row.furthest, rankValueText(row, board.by), row.online, row.account]);
   const you: readonly (string | number | boolean)[] | null = board.you === null ? null : [board.you.rank, board.you.name, board.you.furthest, rankValueText(board.you, board.by), board.you.chosen];
   const notes: readonly string[] = board.levelUps.map((note: LevelUpNote): string => `${levelUpText(note)} ${agoText(note.minutesAgo)}`);
-  return JSON.stringify([board.by, rows, you, onlineText(board.online), notes]);
+  return JSON.stringify([board.by, rows, you, onlineText(onlineTotal(board)), presentKey(presentView(board)), notes]);
 }
 
 export function asksForName(board: Leaderboard): boolean {

@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { BoardRow, Leaderboard } from '../backend/api.ts';
+import type { BoardRow, Leaderboard, PresentList } from '../backend/api.ts';
 import { RANKINGS } from '../backend/api.ts';
 import { DAMAGE_EXPLAINED } from '../../sim/ladder.ts';
-import { agoText, asksForName, charactersText, levelUpText, nameProblem, passedNames, RANKING_TABS, rankValueText, shownKey, spokenName, tabOf, tidyName, wholeText } from './lobby-model.ts';
+import { agoText, arrivalsText, asksForName, charactersText, levelUpText, moreText, nameProblem, onlineTotal, passedNames, presentView, RANKING_TABS, rankValueText, shownKey, spokenName, tabOf, tidyName, wholeText } from './lobby-model.ts';
 
 function row(rank: number, name: string, level: number): BoardRow {
   return { rank, name, level, damage: 0, life: 0, furthest: 'The Waystation', online: false, account: null };
@@ -11,7 +11,7 @@ function row(rank: number, name: string, level: number): BoardRow {
 
 function board(top: readonly BoardRow[], you: string | null, chosen: boolean = true): Leaderboard {
   const mine: BoardRow | undefined = top.find((entry: BoardRow): boolean => entry.name === you);
-  return { by: 'level', top, you: mine === undefined ? null : { ...mine, chosen }, online: 1, characters: top.length, levelUps: [] };
+  return { by: 'level', top, you: mine === undefined ? null : { ...mine, chosen }, online: 1, present: null, characters: top.length, levelUps: [] };
 }
 
 void test('passing someone names everyone who was ahead and now is behind', (): void => {
@@ -122,4 +122,62 @@ void test('a minute passing on a level-up note changes the shown key', (): void 
   const base: Leaderboard = { ...board([row(1, 'Ash', 6)], null), levelUps: [{ name: 'Ash', level: 6, minutesAgo: 3 }] };
   const later: Leaderboard = { ...base, levelUps: [{ name: 'Ash', level: 6, minutesAgo: 4 }] };
   assert.notEqual(shownKey(later, 10), shownKey(base, 10));
+});
+
+const PRESENT: PresentList = {
+  characters: [
+    { name: 'Rook', level: 5, furthest: 'Stillhold' },
+    { name: 'Me', level: 4, furthest: 'Duskway' },
+    { name: 'Wren', level: 3, furthest: 'Duskway' },
+  ],
+  more: 2,
+  visitors: 1,
+};
+
+void test('the online list puts the caller first, then the others in the order the server gave', (): void => {
+  const mine: Leaderboard = { ...board([row(1, 'Rook', 5), row(2, 'Me', 4)], 'Me'), you: { ...row(2, 'Me', 4), online: true, chosen: true }, present: PRESENT };
+  assert.deepEqual(presentView(mine), {
+    rows: [
+      { name: 'Me', level: 4, furthest: 'The Waystation', own: true },
+      { name: 'Rook', level: 5, furthest: 'Stillhold', own: false },
+      { name: 'Wren', level: 3, furthest: 'Duskway', own: false },
+    ],
+    more: 2,
+    visitors: 1,
+  });
+  assert.equal(onlineTotal(mine), 6);
+  const visitor: Leaderboard = { ...board([row(1, 'Rook', 5)], null), present: PRESENT };
+  assert.deepEqual(presentView(visitor)?.rows.map((entry) => entry.name), ['Rook', 'Me', 'Wren']);
+  assert.equal(presentView(visitor)?.rows.some((entry) => entry.own), false);
+});
+
+void test('a caller beyond the listed names comes first and leaves the rest count, an offline caller is left out, and an unnamed caller is only a visitor', (): void => {
+  const beyond: Leaderboard = { ...board([row(1, 'Moth', 7)], 'Moth'), you: { ...row(1, 'Moth', 7), online: true, chosen: true }, present: PRESENT };
+  const view = presentView(beyond);
+  assert.ok(view !== null);
+  assert.deepEqual(view.rows.map((entry) => [entry.name, entry.own]), [['Moth', true], ['Rook', false], ['Me', false], ['Wren', false]]);
+  assert.equal(view.more, 1);
+  assert.equal(onlineTotal(beyond), 6);
+  const away: Leaderboard = { ...beyond, you: { ...row(1, 'Moth', 7), online: false, chosen: true } };
+  assert.deepEqual(presentView(away)?.rows.map((entry) => entry.name), ['Rook', 'Me', 'Wren']);
+  assert.equal(presentView(away)?.more, 2);
+  const unnamed: Leaderboard = { ...board([row(1, 'Ashen Wolf', 2)], 'Ashen Wolf', false), present: PRESENT };
+  assert.deepEqual(presentView(unnamed)?.rows.map((entry) => entry.name), ['Rook', 'Me', 'Wren']);
+});
+
+void test('an older server has no list and the label keeps its plain count', (): void => {
+  const older: Leaderboard = { ...board([row(1, 'Rook', 5)], 'Rook'), online: 4 };
+  assert.equal(presentView(older), null);
+  assert.equal(onlineTotal(older), 4);
+});
+
+void test('the list lines read as short words, and a change in the list redraws the ladder', (): void => {
+  assert.equal(moreText(1), '1 more');
+  assert.equal(moreText(3), '3 more');
+  assert.equal(arrivalsText(1), '1 new arrival, not named yet');
+  assert.equal(arrivalsText(4), '4 new arrivals, not named yet');
+  const base: Leaderboard = { ...board([row(1, 'Rook', 5)], null), present: PRESENT };
+  assert.equal(shownKey(base, 10), shownKey({ ...base }, 10));
+  assert.notEqual(shownKey({ ...base, present: { ...PRESENT, visitors: 2 } }, 10), shownKey(base, 10));
+  assert.notEqual(shownKey({ ...base, present: { ...PRESENT, characters: PRESENT.characters.slice(1) } }, 10), shownKey(base, 10));
 });

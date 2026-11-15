@@ -89,6 +89,7 @@ export function mountGameBoard(hud: HTMLElement, lobby: Lobby, options: GameBoar
       void lobby.feed.refresh(false);
     },
     hide(): void {
+      panel.closeOnline();
       root.classList.remove('open');
       markOverlay(root, false);
     },

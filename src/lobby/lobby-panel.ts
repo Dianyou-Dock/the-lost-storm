@@ -3,7 +3,9 @@ import { el, label, setClass, setData, setText } from '../hud/dom.ts';
 import { createBoardView } from './board-view.ts';
 import type { BoardView } from './board-view.ts';
 import { ensureLobbyStyles } from './styles.ts';
-import { agoText, levelUpText, onlineText, shownKey } from './lobby-model.ts';
+import { agoText, levelUpText, onlineTotal, presentView, shownKey } from './lobby-model.ts';
+import { createOnlineList } from './online-list.ts';
+import type { OnlineList } from './online-list.ts';
 
 export type PanelState = 'loading' | 'ready' | 'unreachable';
 
@@ -12,6 +14,7 @@ export interface LobbyPanel {
   readonly head: HTMLElement;
   show(board: Leaderboard | null): void;
   stop(): void;
+  closeOnline(): boolean;
 }
 
 export interface LobbyPanelOptions {
@@ -93,9 +96,7 @@ export function createLobbyPanel(parent: HTMLElement, options: LobbyPanelOptions
   let drawn: string | null = null;
   const head: HTMLDivElement = el('div', 'lobby-head', root);
   label('lobby-title', options.title, head);
-  const online: HTMLSpanElement = el('span', 'lobby-online', head);
-  el('i', 'lobby-online-dot', online);
-  const onlineCount: HTMLSpanElement = el('span', 'lobby-online-count', online);
+  const online: OnlineList = createOnlineList(head, root);
   const list: HTMLOListElement = el('ol', 'lobby-board', root);
   const board: BoardView = createBoardView(list, options.rows);
   const note: HTMLDivElement = label('lobby-note', '', root);
@@ -118,13 +119,18 @@ export function createLobbyPanel(parent: HTMLElement, options: LobbyPanelOptions
       setData(root, 'state', 'ready');
       setClass(root, 'empty', next.top.length === 0);
       setText(note, LOBBY_PANEL.empty, false);
-      setClass(online, 'shown', next.online > 0);
-      setText(onlineCount, onlineText(next.online), true);
+      online.show(onlineTotal(next), presentView(next));
       board.render(next.top, next.you === null ? null : next.you.name, next.by);
       ticker?.show(next.levelUps);
     },
     stop(): void {
       ticker?.stop();
+      online.close();
+    },
+    closeOnline(): boolean {
+      if (!online.isOpen()) return false;
+      online.close();
+      return true;
     },
   };
 }

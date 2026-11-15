@@ -2,14 +2,14 @@ import type { Fields } from '../../sim/content/read.ts';
 import { isFields } from '../../sim/content/read.ts';
 import { exchange, failureOf, headers, succeeded } from './api.ts';
 import { RANKINGS } from './api.ts';
-import type { Answer, BoardRow, FetchFn, Leaderboard, LeaderboardResult, LevelUpNote, NameRefusal, NameResult, Ranking, YourRow } from './api.ts';
+import type { Answer, BoardRow, FetchFn, Leaderboard, LeaderboardResult, LevelUpNote, NameRefusal, NameResult, OnlineCharacter, PresentList, Ranking, YourRow } from './api.ts';
 
 export interface LobbyApi {
   leaderboard(token: string | null, signal: AbortSignal, by?: Ranking): Promise<LeaderboardResult>;
   rename(token: string, name: string, signal: AbortSignal): Promise<NameResult>;
 }
 
-export const LOBBY_LIMITS: { readonly rows: number; readonly levelUps: number; readonly nameChars: number } = { rows: 100, levelUps: 50, nameChars: 32 };
+export const LOBBY_LIMITS: { readonly rows: number; readonly levelUps: number; readonly present: number; readonly nameChars: number } = { rows: 100, levelUps: 50, present: 100, nameChars: 32 };
 
 const NAME_REFUSALS: readonly NameRefusal[] = ['name_length', 'name_characters', 'name_blocked', 'name_taken'];
 
@@ -49,6 +49,33 @@ function readLevelUp(value: unknown): LevelUpNote | null {
   return name === null || level === null || minutesAgo === null ? null : { name, level, minutesAgo };
 }
 
+function readOnline(value: unknown): OnlineCharacter | null {
+  if (!isFields(value)) return null;
+  const name: string | null = shortText(value, 'name');
+  const level: number | null = wholeNumber(value, 'level', 1);
+  const furthest: string | null = shortText(value, 'furthest');
+  return name === null || level === null || furthest === null ? null : { name, level, furthest };
+}
+
+function distinctOnline(characters: readonly OnlineCharacter[]): readonly OnlineCharacter[] {
+  const seen: Set<string> = new Set<string>();
+  return characters.filter((entry: OnlineCharacter): boolean => {
+    const key: string = entry.name.toLowerCase();
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+export function readPresent(value: unknown): PresentList | null {
+  if (!isFields(value)) return null;
+  const characters: readonly OnlineCharacter[] | null = readList(value['characters'], LOBBY_LIMITS.present, readOnline);
+  const more: number | null = wholeNumber(value, 'more', 0);
+  const visitors: number | null = wholeNumber(value, 'visitors', 0);
+  if (characters === null || more === null || visitors === null) return null;
+  return { characters: distinctOnline(characters), more, visitors };
+}
+
 function readList<T>(value: unknown, limit: number, read: (entry: unknown) => T | null): readonly T[] | null {
   if (!Array.isArray(value)) return null;
   const list: readonly unknown[] = value;
@@ -82,7 +109,7 @@ export function readLeaderboard(value: unknown): Leaderboard | null {
   const online: number | null = wholeNumber(value, 'online', 0);
   const characters: number | null = wholeNumber(value, 'characters', 0);
   if (top === null || levelUps === null || you === undefined || online === null || characters === null) return null;
-  return { by: readRanking(value['by']), top: distinctNames(top), you, online, characters, levelUps };
+  return { by: readRanking(value['by']), top: distinctNames(top), you, online, present: readPresent(value['present']), characters, levelUps };
 }
 
 function refusalOf(answer: Answer): NameRefusal | null {
