@@ -23,7 +23,7 @@ import { dressPiece } from './dress-piece.ts';
 import type { KeepLoadingDeps, NamedLoad } from './keep-loading.ts';
 import { loadAllKeepTrying } from './keep-loading.ts';
 import { fadeMaterials } from './body-swap.ts';
-import { seeThrough, shadeHeld, SHADOW_BODY, SHADOW_LIGHT, SHADOW_UNIFORMS, shadowRim } from './shadow-shade.ts';
+import { bindShade, seeThrough, shadeHeld, SHADOW_BODY, SHADOW_LIGHT, SHADOW_UNIFORMS, shadowRim } from './shadow-shade.ts';
 
 export interface ActionClip {
   readonly clip: AnimationClip;
@@ -101,7 +101,7 @@ export interface RigInstance {
   setHover(color: Color, amount: number): void;
   setOpacity(opacity: number): void;
   setFade(amount: number): void;
-  setShade(color: Color, amount: number, see: boolean): void;
+  setShade(color: Color, amount: number, see: boolean, wet: number): void;
   dispose(): void;
 }
 
@@ -439,8 +439,7 @@ function flashing(source: unknown, look: RigLook, glow: RigGlow, wakeLamps: numb
         shader.uniforms['uFlash'] = glow.flash;
         shader.uniforms['uFlashLift'] = glow.lift;
         shader.uniforms['uHover'] = glow.hover;
-        shader.uniforms['uShade'] = glow.shade;
-        shader.uniforms['uShadeMix'] = glow.shadeMix;
+        bindShade(shader.uniforms, glow);
         shader.uniforms['uRim'] = RIM_LIGHT;
         shader.uniforms['uWakeLamps'] = WAKE_LAMPS;
         shader.uniforms['uLampShare'] = { value: wakeLamps };
@@ -682,8 +681,9 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
       seeThrough([...materials, ...wornMaterials(), ...heldMaterials()], faded < 1 || shadeSees);
       fadeMaterials([...materials, ...wornMaterials(), ...heldMaterials()], amount);
     },
-    setShade(color: Color, amount: number, see: boolean): void {
+    setShade(color: Color, amount: number, see: boolean, wet: number): void {
       if (look.ghost !== null) return;
+      glow.shadeWet.value = wet;
       shadeSees = see && amount > 0;
       glow.shade.value.copy(color);
       glow.shadeMix.value = amount;

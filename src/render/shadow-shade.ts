@@ -1,4 +1,4 @@
-import type { Material, Object3D } from 'three';
+import type { IUniform, Material, Object3D } from 'three';
 import { Mesh, MeshStandardMaterial } from 'three';
 import type { RigGlow } from './ghost-material.ts';
 import type { VfxShadow } from '../../sim/content/vfx-types.ts';
@@ -14,22 +14,34 @@ export const SHADOW_SHADE = {
   stiffness: 600,
   damping: 46,
   settle: 0.002,
+  wetDark: 0.2,
+  wetGloss: 0.45,
+  wetRim: 0.15,
   programKey: 'storm-shade',
 } as const;
 
-export const SHADOW_UNIFORMS: string = 'uniform vec3 uShade;\nuniform float uShadeMix;';
+export const SHADOW_UNIFORMS: string = 'uniform vec3 uShade;\nuniform float uShadeMix;\nuniform float uShadeWet;';
 
 export const SHADOW_BODY: readonly string[] = [
   'float shadeLuma = dot( diffuseColor.rgb, vec3( 0.299, 0.587, 0.114 ) );',
   `diffuseColor.rgb = mix( diffuseColor.rgb, uShade * ( ${SHADOW_SHADE.floor.toFixed(2)} + shadeLuma * ${SHADOW_SHADE.luma.toFixed(2)} ), uShadeMix );`,
+  `diffuseColor.rgb *= 1.0 - uShadeWet * ${SHADOW_SHADE.wetDark.toFixed(2)};`,
   `diffuseColor.a *= 1.0 - uShadeMix * ${SHADOW_SHADE.see.toFixed(2)};`,
   'totalEmissiveRadiance *= 1.0 - uShadeMix;',
 ];
 
-export const SHADOW_LIGHT: string = 'reflectedLight.directSpecular *= 1.0 - uShadeMix;\nreflectedLight.indirectSpecular *= 1.0 - uShadeMix;';
+const SHADE_SHINE: string = `1.0 - uShadeMix + uShadeWet * ${SHADOW_SHADE.wetGloss.toFixed(2)}`;
+
+export const SHADOW_LIGHT: string = `reflectedLight.directSpecular *= ${SHADE_SHINE};\nreflectedLight.indirectSpecular *= ${SHADE_SHINE};`;
 
 export function shadowRim(facing: string): string {
-  return `uShade * pow( ${facing}, ${SHADOW_SHADE.rimPower.toFixed(2)} ) * ${SHADOW_SHADE.rim.toFixed(2)} * uShadeMix`;
+  return `uShade * pow( ${facing}, ${SHADOW_SHADE.rimPower.toFixed(2)} ) * ${SHADOW_SHADE.rim.toFixed(2)} * max( uShadeMix, uShadeWet * ${SHADOW_SHADE.wetRim.toFixed(2)} )`;
+}
+
+export function bindShade(uniforms: Record<string, IUniform>, glow: RigGlow): void {
+  uniforms['uShade'] = glow.shade;
+  uniforms['uShadeMix'] = glow.shadeMix;
+  uniforms['uShadeWet'] = glow.shadeWet;
 }
 
 export interface ShadeMotion {
@@ -71,8 +83,7 @@ export function shadeFragment(source: string): string {
 export function shadedCopy(source: MeshStandardMaterial, glow: RigGlow): MeshStandardMaterial {
   const material: MeshStandardMaterial = source.clone();
   material.onBeforeCompile = (shader): void => {
-    shader.uniforms['uShade'] = glow.shade;
-    shader.uniforms['uShadeMix'] = glow.shadeMix;
+    bindShade(shader.uniforms, glow);
     shader.fragmentShader = shadeFragment(shader.fragmentShader);
   };
   material.customProgramCacheKey = (): string => SHADOW_SHADE.programKey;

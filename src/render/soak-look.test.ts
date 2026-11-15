@@ -1,18 +1,18 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Soaking } from './soak-look.ts';
-import { dripsDue, SOAK_LOOK, soakDried, soakedFor, stepSoak } from './soak-look.ts';
+import { dripsDue, soakDried, soakedFor, stepSoak } from './soak-look.ts';
 
-void test('a soaked body eases toward the cool tint, holds it while wet, and eases back out once dry', (): void => {
+void test('a soaked body eases to fully wet, holds it while soaked, and eases back out once dry', (): void => {
   const soaks: Map<number, Soaking> = new Map<number, Soaking>();
   soakedFor(soaks, 7, 1);
   const soaking: Soaking | undefined = soaks.get(7);
   assert.ok(soaking !== undefined);
   const first: number = stepSoak(soaking, 1 / 60);
-  assert.ok(first > 0 && first < SOAK_LOOK.mix);
+  assert.ok(first > 0 && first < 1);
   let shown: number = first;
   for (let frame: number = 0; frame < 40; frame += 1) shown = stepSoak(soaking, 1 / 60);
-  assert.ok(Math.abs(shown - SOAK_LOOK.mix) < 0.02);
+  assert.ok(Math.abs(shown - 1) < 0.02);
   const before: number = shown;
   for (let frame: number = 0; frame < 20; frame += 1) shown = stepSoak(soaking, 1 / 60);
   assert.equal(soaking.left, 0);

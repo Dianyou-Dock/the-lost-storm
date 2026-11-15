@@ -4,7 +4,7 @@ import { stepShade } from './shadow-shade.ts';
 
 export const SOAK_LOOK = {
   color: 0x5f9fd8,
-  mix: 0.25,
+  tint: 0.12,
   dripRate: 9,
   dripSpread: 0.3,
   dripLow: 0.7,
@@ -32,7 +32,7 @@ export function soakedFor(soaks: Map<number, Soaking>, id: number, duration: num
 
 export function stepSoak(soaking: Soaking, dt: number): number {
   soaking.left = Math.max(0, soaking.left - dt);
-  stepShade(soaking.motion, soaking.left > 0 ? SOAK_LOOK.mix : 0, dt);
+  stepShade(soaking.motion, soaking.left > 0 ? 1 : 0, dt);
   return soaking.motion.value;
 }
 

@@ -65,7 +65,9 @@ void test('a held piece takes the shadow through its own shader without touching
   assert.ok(fragment.includes('uniform float uShadeMix;'));
   assert.ok(fragment.indexOf('uniform float uShadeMix;') < fragment.indexOf('void main() {'));
   assert.ok(fragment.includes('diffuseColor.a *= 1.0 - uShadeMix'));
-  assert.ok(fragment.includes('reflectedLight.directSpecular *= 1.0 - uShadeMix;'));
+  assert.ok(fragment.includes('reflectedLight.directSpecular *= 1.0 - uShadeMix + uShadeWet'));
+  assert.ok(fragment.includes('uniform float uShadeWet;'));
+  assert.ok(fragment.includes('diffuseColor.rgb *= 1.0 - uShadeWet'));
   const shared: MeshStandardMaterial = new MeshStandardMaterial();
   const template: Group = new Group();
   template.add(new Mesh(new BoxGeometry(), shared));
