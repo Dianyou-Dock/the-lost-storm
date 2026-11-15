@@ -120,6 +120,51 @@
   background: linear-gradient(180deg, rgba(56, 74, 104, 0.65), rgba(14, 18, 28, 0.7));
 }
 
+.skill-choice:focus-visible {
+  outline: none;
+  transform: scale(1.06);
+  background: linear-gradient(180deg, rgba(56, 74, 104, 0.65), rgba(14, 18, 28, 0.7));
+}
+
+.skill-clear {
+  grid-column: span 2;
+  aspect-ratio: auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 7px;
+  color: var(--text-dim);
+}
+
+.skill-clear-mark {
+  flex: none;
+  position: relative;
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  background: rgba(10, 13, 20, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(169, 226, 255, 0.16);
+}
+
+.skill-clear-mark::after {
+  content: "";
+  position: absolute;
+  inset: 6px 3px;
+  border-radius: 1px;
+  background: rgba(169, 226, 255, 0.34);
+}
+
+.skill-clear-name {
+  font-size: 10.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  transition: color var(--spring-smooth-ms) var(--spring-smooth);
+}
+
+.skill-clear.current .skill-clear-name {
+  color: #a9e2ff;
+}
+
 .skill-choice-icon {
   position: absolute;
   inset: 7px;

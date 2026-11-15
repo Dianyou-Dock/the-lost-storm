@@ -4,10 +4,13 @@ import { must, worldIn } from '../test/support.ts';
 import { loadContent } from './content/content.ts';
 import type { SkillUnlock } from './content/shape-types.ts';
 import type { Content } from './content/types.ts';
-import { grantXp } from './world/character.ts';
+import { grantXp, refreshPlayer } from './world/character.ts';
+import { generateItem } from './items.ts';
+import { createRng } from './rng.ts';
+import { createWorld } from './world/create.ts';
 import { placeLinks, xpToNextLevel } from './progression.ts';
 import { parseSaveText, toSave } from './save.ts';
-import { assignSlot, chartSkills, defaultBar, everySkill, placeLearned, placeOf, readBar, readLearned, startingSkills } from './skill-book.ts';
+import { assignSlot, chartSkills, defaultBar, everySkill, placeLearned, placeOf, pointerSlot, readBar, readLearned, startingSkills } from './skill-book.ts';
 import { stepWorld } from './world/step.ts';
 import type { World, WorldEvent } from './world/types.ts';
 
@@ -164,4 +167,33 @@ void test('no save brings back a skill without its place: an old kit on the bar 
   assert.deepEqual(readLearned(content, undefined, [must(placeOf(content, 'forkline'), 'fork').id]), ['cleave', 'forkline']);
   assert.deepEqual(readBar(content, ['cleave', 'thunderclap', 'storm_bolt', null, null, 'dodge_roll'], learned), ['cleave', null, null, null, null, 'dodge_roll']);
   assert.deepEqual(readBar(content, ['held_breath', 'cleave', 'cleave', 42, null, 'nonsense'], learned), [null, 'cleave', null, null, null, null]);
+});
+
+void test('a newly learned skill never fills an emptied mouse slot unless that slot is its home', (): void => {
+  assert.deepEqual(content.player.skillBar.map((_binding, slot: number): boolean => pointerSlot(content, slot)), [true, false, false, false, false, false]);
+  assert.deepEqual(placeLearned(content, [null, null, null, null, null, null], 'thunderclap'), [null, 'thunderclap', null, null, null, null]);
+  assert.deepEqual(placeLearned(content, [null, 'a', 'b', 'c', 'd', 'e'], 'thunderclap'), [null, 'a', 'b', 'c', 'd', 'e']);
+  assert.deepEqual(placeLearned(content, [null, null, null, null, null, null], 'cleave'), ['cleave', null, null, null, null, null]);
+});
+
+function firstSlot(world: World): string | null {
+  return world.player.skills[0]?.id ?? null;
+}
+
+void test('a slot emptied under a staff stays empty: the staff does not put Spell Strike back, and the empty slot survives a save and a reload', (): void => {
+  const world: World = worldIn(content, 'hall_of_time', 4);
+  world.player.equipped.weapon = must(generateItem(content, createRng(1), 1, 1, 'driftwood_staff', 'common'), 'staff');
+  refreshPlayer(world);
+  assert.equal(firstSlot(world), 'spell_strike');
+  stepWorld(world, [{ type: 'slot', slot: 0, skill: null }], 1 / 60);
+  assert.equal(world.player.bar[0], null);
+  assert.equal(firstSlot(world), null);
+  const saved = must(parseSaveText(content, JSON.stringify(toSave(world))), 'save');
+  assert.equal(saved.bar[0], null);
+  const reloaded: World = createWorld(content, { seed: 4, save: saved });
+  assert.equal(reloaded.player.bar[0], null);
+  assert.equal(firstSlot(reloaded), null);
+  assert.ok(reloaded.player.learned.includes('cleave'));
+  stepWorld(reloaded, [{ type: 'slot', slot: 0, skill: 'cleave' }], 1 / 60);
+  assert.equal(firstSlot(reloaded), 'spell_strike');
 });

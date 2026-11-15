@@ -4,6 +4,10 @@ import type { Content, SkillBinding, SkillTreeNodeDef } from './content/types.ts
 
 export type Bar = readonly (string | null)[];
 
+const BAR_RULES = {
+  pointerBinding: 'mouse_left',
+} as const;
+
 export function unlockLevel(content: Content, skill: string): number | null {
   return content.player.skillBook.find((entry: SkillUnlock): boolean => entry.skill === skill)?.level ?? null;
 }
@@ -36,6 +40,10 @@ export function homeSlot(content: Content, skill: string): number {
   return content.player.skillBar.findIndex((binding: SkillBinding): boolean => binding.skill === skill);
 }
 
+export function pointerSlot(content: Content, slot: number): boolean {
+  return content.player.skillBar[slot]?.bindings.includes(BAR_RULES.pointerBinding) ?? false;
+}
+
 export function defaultBar(content: Content): (string | null)[] {
   const known: readonly string[] = startingSkills(content);
   return content.player.skillBar.map((binding: SkillBinding): string | null => (binding.skill !== null && known.includes(binding.skill) ? binding.skill : null));
@@ -45,7 +53,7 @@ export function placeLearned(content: Content, bar: Bar, skill: string): (string
   const next: (string | null)[] = [...bar];
   if (next.includes(skill)) return next;
   const home: number = homeSlot(content, skill);
-  const slot: number = home >= 0 && next[home] === null ? home : next.indexOf(null);
+  const slot: number = home >= 0 && next[home] === null ? home : next.findIndex((entry: string | null, index: number): boolean => entry === null && !pointerSlot(content, index));
   if (slot >= 0) next[slot] = skill;
   return next;
 }

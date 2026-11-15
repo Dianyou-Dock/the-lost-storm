@@ -8,7 +8,7 @@ import type { HudContext } from './context.ts';
 import { clamp01, el, label, pulseClass, setText } from './dom.ts';
 import { iconSvg } from './icons.ts';
 import type { SkillPicker } from './skill-picker.ts';
-import { createSkillPicker, skillDetails } from './skill-picker.ts';
+import { clearDetails, createSkillPicker, pointerSlotOf, skillDetails } from './skill-picker.ts';
 import { promptText, use } from './prompts.ts';
 import { attachTooltip } from './tooltip.ts';
 import type { MomentumMeter } from './momentum-meter.ts';
@@ -51,11 +51,9 @@ export interface SkillBar {
   closePicker(): boolean;
 }
 
-function emptyTooltip(key: string, touch: boolean): HTMLElement {
-  const root: HTMLDivElement = el('div', 'tip', null);
-  label('tip-title', 'Empty slot', root);
-  label('tip-sub', key === '' ? 'Skill' : `Skill · ${key}`, root);
-  label('tip-line', `${promptText(touch, use('choose a skill for this slot'))}.`, root);
+function emptyTooltip(context: HudContext, index: number, key: string): HTMLElement {
+  const root: HTMLElement = clearDetails(pointerSlotOf(context, index), key === '' ? 'Empty slot' : `Empty slot · ${key}`);
+  label('tip-line', `${promptText(context.api.touch, use('choose a skill for this slot'))}.`, root);
   return root;
 }
 
@@ -97,7 +95,7 @@ export function createSkillBar(parent: HTMLElement, context: HudContext, track: 
     const cost: HTMLDivElement = el('div', 'slot-cost', root);
     const view: SlotView = { root, icon, cost, cooldown, keyNode, key: null, skill: null, empty: null, iconId: '', angle: -1, cooling: null, dim: null };
     paintKey(view, keyOf(index));
-    attachTooltip(context.tooltip, root, (): HTMLElement | null => (picker.slot !== null ? null : view.skill === null ? emptyTooltip(keyOf(index), context.api.touch) : skillDetails(view.skill, `Skill · ${keyOf(index)} · click to change`, null, weaponNeed(context.api.world.content, view.skill.weapons, context.api.world.player.wielding))));
+    attachTooltip(context.tooltip, root, (): HTMLElement | null => (picker.slot !== null ? null : view.skill === null ? emptyTooltip(context, index, keyOf(index)) : skillDetails(view.skill, `Skill · ${keyOf(index)} · click to change`, null, weaponNeed(context.api.world.content, view.skill.weapons, context.api.world.player.wielding))));
     return view;
   };
 

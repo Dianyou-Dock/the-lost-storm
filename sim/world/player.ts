@@ -147,7 +147,11 @@ function inEngageRange(player: PlayerState, target: Actor, skill: SkillDef): boo
 function useSkill(world: World, command: SkillCommand): void {
   const player: PlayerState = world.player;
   const skill: SkillDef | undefined = player.skills[command.slot] ?? undefined;
-  if (skill === undefined) return;
+  if (skill === undefined) {
+    const clicked: Actor | null = command.targetId === null ? null : findActor(world, command.targetId);
+    if (clicked !== null && clicked.alive) startMove(world, clicked.pos, false, false);
+    return;
+  }
   if (skill.delivery.type === 'dash') {
     if (canDash(player)) fire(world, skill, dashAim(player, command.aim, player.path), command.slot);
     return;

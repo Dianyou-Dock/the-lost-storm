@@ -4,11 +4,12 @@ import type { PlayerState } from '../../sim/world/types.ts';
 import { everySkill } from '../../sim/skill-book.ts';
 import { weaponNeed } from '../../sim/weapons.ts';
 import type { HudContext } from './context.ts';
-import { el, label } from './dom.ts';
+import { el, label, setClass, setText } from './dom.ts';
 import { iconSvg } from './icons.ts';
 import { markOverlay } from './overlay-mark.ts';
 import { promptText, use } from './prompts.ts';
 import { attachTooltip } from './tooltip.ts';
+import { slotAction } from '../settings/bindings.ts';
 
 export interface SkillPicker {
   readonly element: HTMLElement;
@@ -17,6 +18,14 @@ export interface SkillPicker {
   close(): boolean;
   refresh(player: PlayerState): void;
 }
+
+const CLEAR = {
+  pointerBinding: 'mouse_left',
+  pointerName: 'Move only',
+  keyName: 'Empty',
+  pointerLine: 'A left click only moves, talks, opens and picks up. It never attacks.',
+  keyLine: 'The key does nothing until you choose a skill for it.',
+} as const;
 
 interface Choice {
   readonly root: HTMLElement;
@@ -40,6 +49,18 @@ export function skillDetails(skill: SkillDef, sub: string, unlock: number | null
   return root;
 }
 
+export function pointerSlotOf(context: HudContext, slot: number): boolean {
+  return context.api.settings.keys().bindingsOf(slotAction(slot)).includes(CLEAR.pointerBinding);
+}
+
+export function clearDetails(pointer: boolean, sub: string): HTMLElement {
+  const root: HTMLDivElement = el('div', 'tip', null);
+  label('tip-title', pointer ? CLEAR.pointerName : CLEAR.keyName, root);
+  label('tip-sub', sub, root);
+  label('tip-line', pointer ? CLEAR.pointerLine : CLEAR.keyLine, root);
+  return root;
+}
+
 export function createSkillPicker(parent: HTMLElement, context: HudContext, track: (element: HTMLElement) => void): SkillPicker {
   const element: HTMLDivElement = el('div', 'skill-picker', parent);
   track(element);
@@ -48,6 +69,17 @@ export function createSkillPicker(parent: HTMLElement, context: HudContext, trac
   const choices: Choice[] = [];
   let slot: number | null = null;
   const content = context.api.world.content;
+  const clear: HTMLButtonElement = el('button', 'skill-choice skill-clear', grid);
+  clear.type = 'button';
+  el('span', 'skill-clear-mark', clear);
+  const clearName: HTMLDivElement = label('skill-clear-name', CLEAR.keyName, clear);
+  attachTooltip(context.tooltip, clear, (): HTMLElement | null => (slot === null ? null : clearDetails(pointerSlotOf(context, slot), promptText(context.api.touch, use('empty this slot')))));
+  clear.addEventListener('click', (event: MouseEvent): void => {
+    event.stopPropagation();
+    if (slot === null) return;
+    context.api.send({ type: 'slot', slot, skill: null });
+    picker.close();
+  });
   for (const entry of everySkill(content)) {
     const skill: SkillDef | undefined = content.skills.get(entry.skill);
     if (skill === undefined) continue;
@@ -91,6 +123,8 @@ export function createSkillPicker(parent: HTMLElement, context: HudContext, trac
     refresh(player: PlayerState): void {
       if (slot === null) return;
       const current: string | null = player.bar[slot] ?? null;
+      setText(clearName, pointerSlotOf(context, slot) ? CLEAR.pointerName : CLEAR.keyName, true);
+      setClass(clear, 'current', current === null);
       for (const choice of choices) {
         const state: string = choice.entry.level > player.level || !player.learned.includes(choice.entry.skill) ? 'locked' : choice.entry.skill === current ? 'current' : player.bar.includes(choice.entry.skill) ? 'elsewhere' : 'free';
         if (state === choice.state) continue;

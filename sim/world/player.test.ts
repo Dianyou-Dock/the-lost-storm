@@ -12,9 +12,10 @@ import { blockerGap, buildNavGrid, isWalkable, moveWithCollision, nearestWalkabl
 import type { Blocker, NavGrid } from '../nav/grid.ts';
 import { GAIT } from '../gait.ts';
 import { HERO } from '../hero.ts';
+import { spawnPacks } from './monsters.ts';
 import { stepStride } from './player.ts';
 import { stepWorld } from './step.ts';
-import type { Command, World } from './types.ts';
+import type { Command, MonsterState, World } from './types.ts';
 import { enterZone } from './zones.ts';
 
 const content: Content = loadContent();
@@ -432,4 +433,43 @@ void test('a change of gait starts the step count again, as the clip starts agai
   assert.equal(world.player.strideGait, 1);
   assert.ok(events.filter((event): boolean => event.type === 'hero_step').length <= 1);
   assert.ok(world.player.stridePhase < 0.2 || world.player.stridePhase >= 0.95);
+});
+
+const EMPTY_POINTER = { hero: { x: 6, z: 14 }, target: { x: 16, z: 14 }, ticks: 90, clickEvery: 15, closeIn: 2 } as const;
+
+function emptyPointerScene(): { readonly world: World; readonly target: MonsterState } {
+  const world: World = worldIn(content, content.world.start, 5);
+  enterZone(world, sceneZone(base, 'test_empty_pointer', { tiles: Array.from({ length: 8 }, (): string => '........'), props: [], start: EMPTY_POINTER.hero }), { type: 'start' });
+  world.monsters = [];
+  world.moments = [];
+  world.zone = { ...world.zone, packs: [{ x: EMPTY_POINTER.target.x, z: EMPTY_POINTER.target.z, members: [{ monster: 'unfinished_thrower', count: 1, mods: [] }], when: [] }] };
+  spawnPacks(world);
+  const target: MonsterState = must(world.monsters.at(-1), 'thrower');
+  target.spawnTime = 0;
+  stepWorld(world, [{ type: 'slot', slot: 0, skill: null }], MOTION_DT);
+  return { world, target };
+}
+
+void test('with the mouse slot emptied, clicking a monster walks the hero to it and never starts an attack', (): void => {
+  const { world, target } = emptyPointerScene();
+  assert.equal(world.player.skills[0], null);
+  const life: number = target.life;
+  const start: number = distance(world.player.pos, EMPTY_POINTER.target);
+  for (let tick: number = 0; tick < EMPTY_POINTER.ticks; tick += 1) {
+    target.pos = { x: EMPTY_POINTER.target.x, z: EMPTY_POINTER.target.z };
+    stepWorld(world, tick % EMPTY_POINTER.clickEvery === 0 ? [{ type: 'skill', slot: 0, aim: { x: target.pos.x, z: target.pos.z }, targetId: target.id }] : [], MOTION_DT);
+    assert.equal(world.player.action, null, `an action started at tick ${String(tick)}`);
+    assert.notEqual(world.player.intent.type, 'attack');
+  }
+  assert.equal(target.life, life);
+  assert.ok(distance(world.player.pos, EMPTY_POINTER.target) < start - EMPTY_POINTER.closeIn, `only closed to ${distance(world.player.pos, EMPTY_POINTER.target).toFixed(2)} from ${start.toFixed(2)}`);
+});
+
+void test('an empty key slot does nothing when pressed, aimed at the ground or at nothing', (): void => {
+  const { world } = emptyPointerScene();
+  const at: Vec2 = { x: world.player.pos.x, z: world.player.pos.z };
+  for (const slot of [0, 2]) stepWorld(world, [{ type: 'skill', slot, aim: { x: at.x + 5, z: at.z }, targetId: null }], MOTION_DT);
+  assert.equal(world.player.action, null);
+  assert.equal(world.player.intent.type, 'idle');
+  assert.ok(distance(world.player.pos, at) < 0.01);
 });
