@@ -493,8 +493,6 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
           case 'skill_interrupt':
             cancelOwned(event.actorId);
             break;
-          case 'revive':
-            break;
           case 'hazard':
             onHazard(event);
             break;
@@ -570,7 +568,9 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
           case 'aggro':
           case 'drop':
           case 'area':
+          case 'revive':
           case 'burn':
+          case 'soak':
           case 'chain':
           case 'beam':
           case 'blink':

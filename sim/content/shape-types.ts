@@ -75,6 +75,11 @@ export interface MomentumDef {
   readonly tiers: readonly MomentumTier[];
 }
 
+export interface SoakDef {
+  readonly tempo: number;
+  readonly duration: number;
+}
+
 export interface BurnDef {
   readonly duration: number;
   readonly tick: number;
@@ -89,6 +94,7 @@ export interface SkillShape {
   readonly brand: BrandDef | null;
   readonly momentum: MomentumDef | null;
   readonly burn: BurnDef | null;
+  readonly soak: SoakDef | null;
 }
 
 export interface SkillUnlock {

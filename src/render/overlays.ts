@@ -445,6 +445,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           case 'beam':
           case 'blink':
           case 'burn':
+          case 'soak':
           case 'brand':
           case 'skill_unlocked':
           case 'chart_point':

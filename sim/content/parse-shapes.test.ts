@@ -23,14 +23,22 @@ void test('a field that pulses less often than it lasts, a fractional jump count
 });
 
 void test('hold and brand are optional and read as charge, channel or a burst skill', (): void => {
-  assert.deepEqual(skillPress({}, 'x'), { press: null, brand: null, momentum: null, burn: null });
+  assert.deepEqual(skillPress({}, 'x'), { press: null, brand: null, momentum: null, burn: null, soak: null });
   assert.deepEqual(skillPress({ press: { type: 'channel', interval: 0.2, max: 3 } }, 'x').press, { type: 'channel', interval: 0.2, max: 3, move: 0 });
   assert.deepEqual(skillPress({ press: { type: 'charge', max: 1, damageScale: 3, areaScale: 1.4 }, brand: { duration: 6, burst: 'pop' } }, 'x'), {
     press: { type: 'charge', max: 1, damageScale: 3, areaScale: 1.4 },
     brand: { duration: 6, burst: 'pop' },
     momentum: null,
     burn: null,
+    soak: null,
   });
+});
+
+void test('a soak reads as the share of speed a struck target keeps and how long it lasts', (): void => {
+  assert.deepEqual(skillPress({ soak: { tempo: 0.7, duration: 2 } }, 'x').soak, { tempo: 0.7, duration: 2 });
+  assert.throws(() => skillPress({ soak: { tempo: 0, duration: 2 } }, 'x'), ContentError);
+  assert.throws(() => skillPress({ soak: { tempo: 1.2, duration: 2 } }, 'x'), ContentError);
+  assert.throws(() => skillPress({ soak: { tempo: 0.7, duration: 0 } }, 'x'), ContentError);
 });
 
 void test('a burn reads as a duration, a tick no longer than it and a share of the hit', (): void => {

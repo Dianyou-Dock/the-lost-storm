@@ -101,7 +101,7 @@ export interface RigInstance {
   setHover(color: Color, amount: number): void;
   setOpacity(opacity: number): void;
   setFade(amount: number): void;
-  setShade(color: Color, amount: number): void;
+  setShade(color: Color, amount: number, see: boolean): void;
   dispose(): void;
 }
 
@@ -499,6 +499,7 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
   root.add(model);
   const glow: RigGlow = createRigGlow();
   let faded: number = 1;
+  let shadeSees: boolean = false;
   const materials: MeshStandardMaterial[] = [];
   model.traverse((object: Object3D): void => dress(object, look, glow, materials));
   for (const name of def.hiddenNodes) {
@@ -527,7 +528,7 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
   };
   const fade = (piece: WornPiece, value: number): void => {
     piece.value = value;
-    seeThrough(piece.materials, value < 1 || look.ghost !== null || glow.shadeMix.value > 0);
+    seeThrough(piece.materials, value < 1 || look.ghost !== null || shadeSees);
     if (look.ghost === null) for (const material of piece.materials) material.opacity = value;
   };
   const drop = (piece: WornPiece): void => {
@@ -678,14 +679,15 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
     setFade(amount: number): void {
       if (look.ghost !== null) return;
       faded = amount;
-      seeThrough([...materials, ...wornMaterials(), ...heldMaterials()], faded < 1 || glow.shadeMix.value > 0);
+      seeThrough([...materials, ...wornMaterials(), ...heldMaterials()], faded < 1 || shadeSees);
       fadeMaterials([...materials, ...wornMaterials(), ...heldMaterials()], amount);
     },
-    setShade(color: Color, amount: number): void {
+    setShade(color: Color, amount: number, see: boolean): void {
       if (look.ghost !== null) return;
+      shadeSees = see && amount > 0;
       glow.shade.value.copy(color);
       glow.shadeMix.value = amount;
-      seeThrough([...materials, ...wornMaterials(), ...heldMaterials()], faded < 1 || amount > 0);
+      seeThrough([...materials, ...wornMaterials(), ...heldMaterials()], faded < 1 || (see && amount > 0));
     },
     dispose(): void {
       mixer.stopAllAction();

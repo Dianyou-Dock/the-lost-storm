@@ -1,7 +1,7 @@
 import { conditions } from './parse-conditions.ts';
 import type { Fields } from './read.ts';
 import { choice, ContentError, each, fields, flag, fraction, nonNegative, positive, share, text } from './read.ts';
-import type { BeamDelivery, BlinkDelivery, BrandDef, BurnDef, ChainDelivery, AreaDelivery, MomentumDef, MomentumTier, PressDef, SkillUnlock } from './shape-types.ts';
+import type { BeamDelivery, BlinkDelivery, BrandDef, BurnDef, ChainDelivery, AreaDelivery, MomentumDef, MomentumTier, PressDef, SkillUnlock, SoakDef } from './shape-types.ts';
 import { AREA_ANCHORS } from './shape-types.ts';
 import type { Content, SkillBinding, SkillDef, SkillTreeNodeDef } from './types.ts';
 
@@ -110,15 +110,22 @@ function burn(value: unknown, where: string): BurnDef | null {
   return { duration, tick, share: fraction(source, 'share', where) };
 }
 
+function soak(value: unknown, where: string): SoakDef | null {
+  if (value === undefined || value === null) return null;
+  const source: Fields = fields(value, where);
+  return { tempo: fraction(source, 'tempo', where), duration: positive(source, 'duration', where) };
+}
+
 export interface SkillPress {
   readonly press: PressDef | null;
   readonly brand: BrandDef | null;
   readonly momentum: MomentumDef | null;
   readonly burn: BurnDef | null;
+  readonly soak: SoakDef | null;
 }
 
 export function skillPress(source: Fields, where: string): SkillPress {
-  return { press: press(source['press'], `${where}.press`), brand: brand(source['brand'], `${where}.brand`), momentum: momentum(source['momentum'], `${where}.momentum`), burn: burn(source['burn'], `${where}.burn`) };
+  return { press: press(source['press'], `${where}.press`), brand: brand(source['brand'], `${where}.brand`), momentum: momentum(source['momentum'], `${where}.momentum`), burn: burn(source['burn'], `${where}.burn`), soak: soak(source['soak'], `${where}.soak`) };
 }
 
 export function shapeProblems(content: Content): string[] {

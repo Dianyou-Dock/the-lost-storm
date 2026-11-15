@@ -30,6 +30,8 @@ import type { BodyChoice } from './body-choice.ts';
 import { bodyArrived, chooseBody } from './body-choice.ts';
 import type { ShadeMotion } from './shadow-shade.ts';
 import { shadowOf, stepShade } from './shadow-shade.ts';
+import type { Soaking } from './soak-look.ts';
+import { SOAK_COLOR, soakDried, soakedFor, stepSoak } from './soak-look.ts';
 import type { VfxShadow } from '../../sim/content/vfx-types.ts';
 import type { BodySwap, SwapMix } from './body-swap.ts';
 import { startSwap, stepSwap } from './body-swap.ts';
@@ -155,6 +157,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   let playerView: ActorView = heroView(playerRig, world);
   const shade: ShadeMotion = { value: 0, speed: 0 };
   const shadeColor: Color = new Color();
+  const soaks: Map<number, Soaking> = new Map<number, Soaking>();
   const standChosen = (current: World): void => {
     const wanted: string = heroRig(content, current.player.hero);
     if (playerView.rig.def.id === wanted) return;
@@ -349,7 +352,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       const shadow: VfxShadow | null = shadowOf(current.player);
       if (shadow !== null) shadeColor.set(shadow.color);
       stepShade(shade, shadow?.strength ?? 0, dt);
-      playerView.rig.setShade(shadeColor, shade.value);
+      playerView.rig.setShade(shadeColor, shade.value, true);
       playerView.sync(dt, poseOf(current.player, null), { rise: 1, floor: floorAt(current.player.pos.x, current.player.pos.z), turnRate: ACTOR.turnRate, seen: true });
       for (const monster of current.monsters) {
         const found: MonsterEntry | null = entryFor(current, monster);
@@ -362,6 +365,9 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           const fade: number = echoFade(current, monster.id);
           if (fade > 0) fadeEcho(entry.view, entry.echo.ghost, fade);
         }
+        const soaking: Soaking | undefined = soaks.get(monster.id);
+        if (soaking !== undefined) entry.view.rig.setShade(SOAK_COLOR, stepSoak(soaking, dt), false);
+        if (soaking !== undefined && soakDried(soaking)) soaks.delete(monster.id);
         entry.view.setHover(monster.id === hoveredId);
         draw(entry.view, monster.pos.x, monster.pos.z);
         if (monster.alive) guard.keep(monster.id, entry.view.rig.root, scene, monster.def.id);
@@ -437,6 +443,9 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
             break;
           case 'skill_interrupt':
             viewOf(event.actorId)?.interrupt();
+            break;
+          case 'soak':
+            soakedFor(soaks, event.targetId, event.duration);
             break;
           case 'damage': {
             const isPlayer: boolean = event.targetTeam === 'player';

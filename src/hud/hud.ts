@@ -468,6 +468,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
           case 'beam':
           case 'blink':
           case 'burn':
+          case 'soak':
           case 'brand':
           case 'surge_cleared':
           case 'portal':

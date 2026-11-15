@@ -218,7 +218,10 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
     burn: false,
   });
   if (killed) kill(world, target, direction);
-  else ignite(world, offence, target, skill, amount);
+  else {
+    ignite(world, offence, target, skill, amount);
+    drench(world, target, skill);
+  }
   if (offence.sourceId === world.player.id && target.kind === 'monster') powersOnHit(world, target, skill, killed);
   brandStrike(world, offence, target, skill);
   return true;
@@ -241,6 +244,12 @@ export function ignite(world: World, offence: Offence, target: Actor, skill: Ski
     target.burn = { source: skill.id, skill, offence, perTick, tickLeft: skill.burn.tick, ticksLeft: ticks };
   }
   world.events.push({ type: 'burn', targetId: target.id, skill, pos: { x: target.pos.x, z: target.pos.z }, duration: ticks * skill.burn.tick });
+}
+
+export function drench(world: World, target: Actor, skill: SkillDef): void {
+  if (skill.soak === null || !target.alive) return;
+  setTempo(target, skill.soak.tempo, skill.soak.duration);
+  world.events.push({ type: 'soak', targetId: target.id, skill, pos: { x: target.pos.x, z: target.pos.z }, duration: skill.soak.duration });
 }
 
 function powersOnHit(world: World, target: Actor, skill: SkillDef, killed: boolean): void {

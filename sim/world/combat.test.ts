@@ -1,13 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ARENA_CENTRE, ARENA_CONTENT, arena, place } from '../../test/arena-support.ts';
-import { cast, damageTo, dummy, offset, run, shapeArena } from '../../test/shape-support.ts';
+import { cast, damageTo, dummy, offset, run, shapeArena, shapeSkill } from '../../test/shape-support.ts';
 import { must } from '../../test/support.ts';
 import type { SkillCommit } from '../content/combat-types.ts';
 import type { SkillDef } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { distance } from '../math.ts';
-import { applyHit, guardOutcome, offenceOf } from './combat.ts';
+import { applyHit, drench, guardOutcome, offenceOf } from './combat.ts';
 import { startSkill } from './skills.ts';
 import { stepWorld } from './step.ts';
 import type { ActionState, Command, MonsterState, World, WorldEvent } from './types.ts';
@@ -282,4 +282,20 @@ void test('a skill with life on hit heals its striker for each enemy it strikes,
   world.player.life = before;
   applyHit(world, offenceOf(world.player), first, light, { x: 0, z: 1 });
   assert.equal(world.player.life, before);
+});
+
+void test('a soaking hit slows the enemy for its time and says so, and a hit that does not soak leaves its pace alone', (): void => {
+  const world: World = shapeArena(['cleave']);
+  const target: MonsterState = dummy(world, offset(0, 1.2));
+  const cleave: SkillDef = shapeSkill('cleave');
+  drench(world, target, cleave);
+  assert.equal(target.tempoTime, 0);
+  const soaking: SkillDef = { ...cleave, soak: { tempo: 0.6, duration: 2 } };
+  drench(world, target, soaking);
+  assert.equal(target.tempo, 0.6);
+  assert.equal(target.tempoTime, 2);
+  assert.deepEqual(world.events.filter((event: WorldEvent): boolean => event.type === 'soak').map((event: WorldEvent): number => (event.type === 'soak' ? event.duration : 0)), [2]);
+  target.alive = false;
+  drench(world, target, soaking);
+  assert.equal(world.events.filter((event: WorldEvent): boolean => event.type === 'soak').length, 1);
 });

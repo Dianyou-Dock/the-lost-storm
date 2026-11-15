@@ -12,6 +12,7 @@ import { glow, groundArcs, lightningLine, skyBolt } from './effect-shapes.ts';
 import type { GroundLight } from './ground-light.ts';
 import { createGroundLight, GROUND_LIGHT } from './ground-light.ts';
 import { STRAND } from './strand-shape.ts';
+import { dripsDue, SOAK_COLOR, SOAK_LOOK } from './soak-look.ts';
 import type { BurstOptions } from './particles.ts';
 import type { EffectKit } from './effect-kit.ts';
 import { floorUp } from './terrain-lift.ts';
@@ -143,6 +144,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
   const areas: Map<number, AreaView> = new Map<number, AreaView>();
   const fading: GroundLight[] = [];
   const brands: Map<number, BrandView> = new Map<number, BrandView>();
+  const wet: Map<number, number> = new Map<number, number>();
   const at: Vector3 = new Vector3();
   const chargeGlow: PointLight = new PointLight(0xffffff, 0, STORM_EFFECTS.chargeLightRange, STORM_EFFECTS.chargeLightDecay);
   kit.addObject(chargeGlow);
@@ -411,6 +413,23 @@ export function createStormEffects(kit: StormKit): StormEffects {
     }
   };
 
+  const drip = (dt: number, world: World): void => {
+    for (const [id, left] of wet) {
+      const target: MonsterState | undefined = world.monsters.find((monster: MonsterState): boolean => monster.id === id && monster.alive);
+      if (target === undefined || left <= dt) {
+        wet.delete(id);
+        continue;
+      }
+      wet.set(id, left - dt);
+      for (let drop: number = dripsDue(SOAK_LOOK.dripRate, dt, Math.random()); drop > 0; drop -= 1) {
+        const angle: number = Math.random() * Math.PI * 2;
+        const reach: number = Math.random() * SOAK_LOOK.dripSpread;
+        const height: number = SOAK_LOOK.dripLow + Math.random() * (SOAK_LOOK.dripHigh - SOAK_LOOK.dripLow);
+        kit.spray(target.pos.x + Math.sin(angle) * reach, height, target.pos.z + Math.cos(angle) * reach, SOAK_COLOR, 1, { speed: { min: 0, max: 0.2 }, lift: { min: -SOAK_LOOK.dripFall, max: 0 }, life: { min: SOAK_LOOK.dripLifeMin, max: SOAK_LOOK.dripLifeMax }, size: { min: SOAK_LOOK.dripSizeMin, max: SOAK_LOOK.dripSizeMax }, gravity: SOAK_LOOK.dripGravity, drag: 0, jitter: 0 });
+      }
+    }
+  };
+
   const updateBrands = (dt: number, world: World): void => {
     for (const monster of world.monsters) {
       const brand = monster.alive ? monster.brand : null;
@@ -469,10 +488,12 @@ export function createStormEffects(kit: StormKit): StormEffects {
       else if (event.type === 'area') onArea(event);
       else if (event.type === 'skill_impact') onRelease(event);
       else if (event.type === 'damage') onLash(event);
+      else if (event.type === 'soak') wet.set(event.targetId, Math.max(wet.get(event.targetId) ?? 0, event.duration));
     },
     update(dt: number, world: World): void {
       updateAreas(dt, world);
       updateBrands(dt, world);
+      drip(dt, world);
       updateCharge(world);
     },
     clear(): void {
@@ -481,6 +502,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
       for (const light of fading.splice(0, fading.length)) light.dispose();
       for (const view of brands.values()) view.mark.dispose();
       brands.clear();
+      wet.clear();
       chargeGlow.intensity = 0;
     },
   };
