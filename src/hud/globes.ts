@@ -2,6 +2,7 @@ import { tagPart } from './hud-gate.ts';
 import type { FlaskResource } from '../../sim/content/flasks.ts';
 import type { PlayerState } from '../../sim/world/types.ts';
 import { approach, clamp01, el, label, pulseClass, setText } from './dom.ts';
+import { globeReadout } from './globe-readout.ts';
 import { iconSvg } from './icons.ts';
 import type { BoltPoint, FlashPhase, FlickerFrame, FlickerState } from './storm-flicker.ts';
 import { boltPoints, manaStrength, startFlicker, stepFlicker } from './storm-flicker.ts';
@@ -114,7 +115,7 @@ function updateGlobe(view: GlobeView, value: number, max: number, dt: number): v
   view.globe.classList.toggle('low', fraction < GLOBES.low);
   view.globe.classList.toggle('empty', fraction <= 0);
   if (view.storm !== null) updateStorm(view.storm, fraction, dt);
-  setText(view.readout, `${Math.ceil(value)} / ${Math.round(max)}`, false);
+  setText(view.readout, globeReadout(value, max), false);
 }
 
 export function createGlobes(root: HTMLElement): Globes {
