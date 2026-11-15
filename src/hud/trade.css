@@ -44,6 +44,11 @@ body:not(.touch) .trade-head {
   grid-template-columns: repeat(12, 44px);
 }
 
+.hud.fit-sheets .stash-grid {
+  grid-template-columns: repeat(auto-fill, 44px);
+  justify-content: space-between;
+}
+
 .cell-price {
   position: absolute;
   right: 3px;
