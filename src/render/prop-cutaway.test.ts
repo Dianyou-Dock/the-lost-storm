@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, ShaderLib, Vector2, Vector3 } from 'three';
 import type { CutHero, CutSpring } from './prop-cutaway.ts';
-import { aimCutaway, claimCutaway, clickThrough, CUTAWAY, CUTAWAY_UNIFORMS, cutawayChunk, frontWeight, ghostKeep, heroBehind, highWeight, isTall, patchCutawayShader, resetCutaway, ringWeight, setOccluders, setTerrainSight, springCut, throughWindow, windowMetres, withCutaway } from './prop-cutaway.ts';
+import { aimCutaway, claimCutaway, clickThrough, CUTAWAY, CUTAWAY_UNIFORMS, cutawayChunk, cutawayCompany, frontWeight, ghostKeep, heroBehind, highWeight, isTall, patchCutawayShader, radiusFor, resetCutaway, ringWeight, setCutawayCompany, setOccluders, setTerrainSight, springCut, throughWindow, windowMetres, withCutaway } from './prop-cutaway.ts';
 import type { TerrainSight } from './terrain-sight.ts';
 
 function rock(x: number, z: number, height: number, floor: number = 0): Mesh {
@@ -116,7 +116,7 @@ void test('the window centres on a hero standing on a raised terrace and the wai
   aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
 });
 
-void test('a prop narrower than the window keeps a faint ghost through its core, and a wide prop opens fully', (): void => {
+void test('a prop narrower than the window has its remaining edge dimmed as a ghost, and a wide prop keeps its own colour', (): void => {
   assert.equal(ghostKeep(1.6, 3), CUTAWAY.ghost);
   assert.equal(ghostKeep(6, 3), 0);
   assert.equal(ghostKeep(Infinity, 3), 0);
@@ -187,7 +187,7 @@ void test('a click passes the rock only inside an open window, in front of the h
   camera.lookAt(0, 1, 0);
   camera.updateMatrixWorld(true);
   const depth: number = -new Vector3(0, CUTAWAY.heroHeight, 0).applyMatrix4(camera.matrixWorldInverse).z;
-  const view = { level: 1, depth, floor: 0, across: 0, up: 0, inverse: camera.matrixWorldInverse };
+  const view = { level: 1, depth, floor: 0, across: 0, up: 0, radius: CUTAWAY.radius, inverse: camera.matrixWorldInverse };
   const pass = throughWindow(view);
   assert.ok(pass !== null);
   assert.equal(pass(8, 8, 8), true);
@@ -203,5 +203,55 @@ void test('a click passes the rock only inside an open window, in front of the h
   const centre: Vector3 = new Vector3(0, CUTAWAY.heroHeight, 0).project(camera);
   assert.ok(clickThrough(new Vector2(centre.x, centre.y)) !== null);
   assert.equal(clickThrough(new Vector2(centre.x + 0.9, centre.y)), null);
+  resetCutaway();
+});
+
+void test('the window edge is a noise-broken line with a one-pixel ordered step, never scattered random dither', (): void => {
+  const chunk: string = cutawayChunk();
+  assert.doesNotMatch(chunk, /1664525u|cutDither|43758/);
+  assert.match(chunk, /vec2 cutSpot = \( gl_FragCoord\.xy - uCutCentre \) \/ uCutRadius/);
+  assert.match(chunk, /\* \( 1\.0 \+ \( cutOutline\( cutSpot \) - 0\.5 \)/);
+  assert.match(chunk, /\( float\( cutOrder \) \+ 0\.5 \) \/ 16\.0/);
+  assert.ok(CUTAWAY.open - CUTAWAY.noiseDepth / 2 - CUTAWAY.soft >= 0);
+  assert.ok(CUTAWAY.cleared >= CUTAWAY.open + CUTAWAY.noiseDepth / 2 + CUTAWAY.band / 2);
+});
+
+void test('only living enemies within the company reach of the hero are counted, each on its own floor', (): void => {
+  const hero: CutHero = { x: 0, z: 0, floor: 0 };
+  const company: CutHero[] = cutawayCompany(hero, [
+    { pos: { x: 3, z: 1 }, alive: true },
+    { pos: { x: 3, z: 1 }, alive: false },
+    { pos: { x: CUTAWAY.company + 0.5, z: 0 }, alive: true },
+  ], (x: number): number => x);
+  assert.deepEqual(company, [{ x: 3, z: 1, floor: 3 }]);
+});
+
+void test('a hidden enemy beside a hidden hero springs the window wide enough to clear him, and it springs back when he is gone', (): void => {
+  const camera: PerspectiveCamera = new PerspectiveCamera(30, 16 / 9, 1, 220);
+  camera.position.set(20, 21, 20);
+  camera.lookAt(0, 1, 0);
+  camera.updateMatrixWorld(true);
+  const height: number = 720;
+  const width: number = 1280;
+  const base: number = CUTAWAY.radius * height;
+  const enemy: CutHero = { x: 2.8, z: -2.8, floor: 0 };
+  claimCutaway([], sightBlocking(true));
+  setCutawayCompany([enemy]);
+  aimCutaway(camera, { x: 0, z: 0, floor: 0 }, width, height, 1 / 60);
+  const first: number = CUTAWAY_UNIFORMS.uCutRadius.value;
+  assert.ok(first > base && first < base * 1.2);
+  for (let frame: number = 0; frame < 120; frame += 1) aimCutaway(camera, { x: 0, z: 0, floor: 0 }, width, height, 1 / 60);
+  const open: number = CUTAWAY_UNIFORMS.uCutRadius.value / height;
+  assert.ok(open > CUTAWAY.radius * 2);
+  const hero: Vector3 = new Vector3(0, CUTAWAY.heroHeight, 0).project(camera);
+  const seen: Vector3 = new Vector3(enemy.x, CUTAWAY.heroHeight, enemy.z).project(camera);
+  const across: number = ((seen.x - hero.x) / 2) * (width / height);
+  const up: number = (seen.y - hero.y) / 2;
+  assert.ok(ringWeight(across, up, open) >= CUTAWAY.cleared);
+  assert.ok(Math.abs(radiusFor(across, up) - open) < 0.01);
+  setCutawayCompany([]);
+  for (let frame: number = 0; frame < 120; frame += 1) aimCutaway(camera, { x: 0, z: 0, floor: 0 }, width, height, 1 / 60);
+  assert.ok(Math.abs(CUTAWAY_UNIFORMS.uCutRadius.value - base) < 1);
+  assert.ok(radiusFor(10, 10) === CUTAWAY.widest);
   resetCutaway();
 });

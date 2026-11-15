@@ -145,7 +145,7 @@ export function clickMiss(sight: TerrainSight, zone: ZoneDef, x: number, z: numb
   centre.set(x, floor + CUTAWAY.heroHeight, z).project(view);
   projected.set(x, floor, z).project(view);
   const through: PassThrough | null = opened
-    ? throughWindow({ level: 1, depth: depthOf(x, floor + CUTAWAY.heroHeight, z), floor, across: ((projected.x - centre.x) / 2) * TERRAIN_SIGHT.aspect, up: (projected.y - centre.y) / 2, inverse: view.matrixWorldInverse })
+    ? throughWindow({ level: 1, depth: depthOf(x, floor + CUTAWAY.heroHeight, z), floor, across: ((projected.x - centre.x) / 2) * TERRAIN_SIGHT.aspect, up: (projected.y - centre.y) / 2, radius: CUTAWAY.radius, inverse: view.matrixWorldInverse })
     : null;
   clickRay.origin.copy(eye);
   clickRay.direction.set(x - eye.x, floor - eye.y, z - eye.z).normalize();

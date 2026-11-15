@@ -1,17 +1,22 @@
 import type { IUniform, Material, PerspectiveCamera, WebGLProgramParametersWithUniforms, WebGLRenderer } from 'three';
 import type { Object3D } from 'three';
+import type { Vec2 } from '../../sim/math.ts';
 import type { PassThrough } from './terrain-lift.ts';
 import type { Point3, TerrainSight } from './terrain-sight.ts';
 import { Matrix4, MeshStandardMaterial, Raycaster, Vector2, Vector3 } from 'three';
 
 export const CUTAWAY = {
   radius: 0.115,
+  widest: 0.5,
+  company: 4,
+  body: 0.06,
+  core: 0.8,
   narrow: 1.2,
   deepest: 1,
   ghost: 0.2,
   waist: 0.95,
   waistFeather: 0.45,
-  feather: 0.55,
+  feather: 0.3,
   margin: 0.6,
   depthFeather: 1.2,
   heroHeight: 1,
@@ -24,11 +29,17 @@ export const CUTAWAY = {
   damping: 18,
   rest: 0.002,
   longestStep: 1 / 30,
-  ditherLift: 0,
+  open: 0.45,
+  band: 0.06,
+  noiseDepth: 0.2,
+  noiseScale: 2.4,
+  outline: 0.35,
+  lineShift: 3.7,
+  soft: 0.3,
+  edgeShade: 0.55,
   ghostCap: 0.22,
   ghostShade: 0.8,
-  cleared: 0.9,
-  clickThrough: 0.5,
+  cleared: 0.6,
 } as const;
 
 export interface CutawayUniforms {
@@ -92,21 +103,34 @@ export function springCut(state: CutSpring, target: number, dt: number): CutSpri
   return { level, velocity };
 }
 
+export function cutawayPreamble(): string {
+  return [
+    'uniform vec2 uCutCentre;',
+    'uniform float uCutRadius;',
+    'uniform float uCutDepth;',
+    'uniform float uCutLevel;',
+    'uniform mat4 uCutWorld;',
+    'uniform float uCutFloor;',
+    'uniform float uCutKeep;',
+    'float cutValueHash( vec2 p ) { return fract( sin( dot( p, vec2( 127.1, 311.7 ) ) ) * 43758.5453 ); }',
+    'float cutValueNoise( vec2 p ) { vec2 i = floor( p ); vec2 f = fract( p ); f = f * f * ( 3.0 - 2.0 * f ); return mix( mix( cutValueHash( i ), cutValueHash( i + vec2( 1.0, 0.0 ) ), f.x ), mix( cutValueHash( i + vec2( 0.0, 1.0 ) ), cutValueHash( i + vec2( 1.0, 1.0 ) ), f.x ), f.y ); }',
+    'float cutOutline( vec2 p ) { return cutValueNoise( p ) * 0.6 + cutValueNoise( p * 2.3 + 7.1 ) * 0.4; }',
+  ].join('\n');
+}
+
 export function cutawayChunk(): string {
   return [
-    `float cutRing = 1.0 - smoothstep( uCutRadius * ${(1 - CUTAWAY.feather).toFixed(3)}, uCutRadius, length( ( gl_FragCoord.xy - uCutCentre ) * vec2( ${CUTAWAY.narrow.toFixed(3)}, 1.0 ) ) );`,
+    `vec2 cutSpot = ( gl_FragCoord.xy - uCutCentre ) / uCutRadius * ${CUTAWAY.noiseScale.toFixed(3)};`,
+    `float cutRing = 1.0 - smoothstep( uCutRadius * ${(1 - CUTAWAY.feather).toFixed(3)}, uCutRadius, length( ( gl_FragCoord.xy - uCutCentre ) * vec2( ${CUTAWAY.narrow.toFixed(3)}, 1.0 ) ) * ( 1.0 + ( cutOutline( cutSpot ) - 0.5 ) * ${CUTAWAY.outline.toFixed(3)} ) );`,
     `float cutFront = 1.0 - smoothstep( uCutDepth - ${(CUTAWAY.margin + CUTAWAY.depthFeather).toFixed(3)}, uCutDepth - ${CUTAWAY.margin.toFixed(3)}, vViewPosition.z );`,
     `float cutHigh = smoothstep( ${CUTAWAY.waist.toFixed(3)}, ${(CUTAWAY.waist + CUTAWAY.waistFeather).toFixed(3)}, ( uCutWorld * vec4( -vViewPosition, 1.0 ) ).y - uCutFloor );`,
-    'uvec2 cutPixel = uvec2( gl_FragCoord.xy );',
-    'uint cutHash = cutPixel.x * 1664525u + cutPixel.y * 1013904223u;',
-    'cutHash ^= cutHash >> 16u;',
-    'cutHash *= 2246822519u;',
-    'cutHash ^= cutHash >> 13u;',
-    'cutHash *= 3266489917u;',
-    'cutHash ^= cutHash >> 16u;',
-    'float cutDither = float( cutHash >> 8u ) / 16777216.0;',
-    'float cutWeight = cutRing * cutFront * cutHigh * uCutLevel;',
-    `if ( cutWeight * ( ${CUTAWAY.deepest.toFixed(3)} - uCutKeep ) > cutDither + ${CUTAWAY.ditherLift.toFixed(3)} ) discard;`,
+    `float cutLine = ${CUTAWAY.open.toFixed(3)} + ( cutOutline( cutSpot + ${CUTAWAY.lineShift.toFixed(3)} ) - 0.5 ) * ${CUTAWAY.noiseDepth.toFixed(3)};`,
+    'uvec2 cutPixel = uvec2( gl_FragCoord.xy ) & 3u;',
+    'uint cutCross = cutPixel.x ^ cutPixel.y;',
+    'uint cutOrder = ( ( cutCross & 1u ) << 3u ) | ( ( cutPixel.y & 1u ) << 2u ) | ( cutCross & 2u ) | ( ( cutPixel.y & 2u ) >> 1u );',
+    `float cutWeight = cutRing * cutFront * cutHigh * uCutLevel * ( ${CUTAWAY.deepest.toFixed(3)} - uCutKeep );`,
+    `if ( clamp( ( cutWeight - cutLine ) / ${CUTAWAY.band.toFixed(3)} + 0.5, 0.0, 1.0 ) > ( float( cutOrder ) + 0.5 ) / 16.0 ) discard;`,
+    `gl_FragColor.rgb *= 1.0 - ${CUTAWAY.edgeShade.toFixed(3)} * smoothstep( cutLine - ${CUTAWAY.soft.toFixed(3)}, cutLine, cutWeight );`,
     `gl_FragColor.rgb = mix( gl_FragColor.rgb, min( gl_FragColor.rgb, vec3( ${CUTAWAY.ghostCap.toFixed(3)} ) ) * ${CUTAWAY.ghostShade.toFixed(3)}, cutWeight * step( 0.0001, uCutKeep ) );`,
   ].join('\n');
 }
@@ -122,7 +146,7 @@ export function patchCutawayShader(shader: Pick<WebGLProgramParametersWithUnifor
   shader.uniforms['uCutWorld'] = CUTAWAY_UNIFORMS.uCutWorld;
   shader.uniforms['uCutFloor'] = CUTAWAY_UNIFORMS.uCutFloor;
   shader.fragmentShader = shader.fragmentShader
-    .replace('void main() {', 'uniform vec2 uCutCentre;\nuniform float uCutRadius;\nuniform float uCutDepth;\nuniform float uCutLevel;\nuniform mat4 uCutWorld;\nuniform float uCutFloor;\nuniform float uCutKeep;\nvoid main() {')
+    .replace('void main() {', `${cutawayPreamble()}\nvoid main() {`)
     .replace('#include <dithering_fragment>', `#include <dithering_fragment>\n${cutawayChunk()}`);
 }
 
@@ -137,8 +161,8 @@ export function ghostKeep(propWidth: number, windowWidth: number): number {
   return propWidth < windowWidth ? CUTAWAY.ghost : 0;
 }
 
-export function windowMetres(camera: PerspectiveCamera, depth: number): number {
-  return (2 * CUTAWAY.radius * depth * Math.tan((camera.fov * Math.PI) / 360) * 2) / CUTAWAY.narrow;
+export function windowMetres(camera: PerspectiveCamera, depth: number, radius: number = CUTAWAY.radius): number {
+  return (2 * radius * depth * Math.tan((camera.fov * Math.PI) / 360) * 2) / CUTAWAY.narrow;
 }
 
 export function withCutaway(material: Material, width: number = Infinity): Material {
@@ -169,8 +193,23 @@ export function highWeight(aboveFloor: number): number {
   return smoothstep(CUTAWAY.waist, CUTAWAY.waist + CUTAWAY.waistFeather, aboveFloor);
 }
 
-export function ringWeight(across: number, up: number): number {
-  return 1 - smoothstep(CUTAWAY.radius * (1 - CUTAWAY.feather), CUTAWAY.radius, Math.hypot(across * CUTAWAY.narrow, up));
+export function ringWeight(across: number, up: number, radius: number = CUTAWAY.radius): number {
+  return 1 - smoothstep(radius * (1 - CUTAWAY.feather), radius, Math.hypot(across * CUTAWAY.narrow, up) * (1 + CUTAWAY.outline / 2));
+}
+
+export function radiusFor(across: number, up: number): number {
+  return Math.min(CUTAWAY.widest, Math.max(CUTAWAY.radius, ((Math.hypot(across * CUTAWAY.narrow, up) + CUTAWAY.body) * (1 + CUTAWAY.outline / 2)) / CUTAWAY.core));
+}
+
+export interface CutOther {
+  readonly pos: Vec2;
+  readonly alive: boolean;
+}
+
+export function cutawayCompany(hero: CutHero, others: readonly CutOther[], floorAt: (x: number, z: number) => number): CutHero[] {
+  return others
+    .filter((other: CutOther): boolean => other.alive && Math.hypot(other.pos.x - hero.x, other.pos.z - hero.z) <= CUTAWAY.company)
+    .map((other: CutOther): CutHero => ({ x: other.pos.x, z: other.pos.z, floor: floorAt(other.pos.x, other.pos.z) }));
 }
 
 export function terrainHides(sight: TerrainSight, hero: CutHero, eye: Point3): boolean {
@@ -183,17 +222,18 @@ export interface CutView {
   readonly floor: number;
   readonly across: number;
   readonly up: number;
+  readonly radius: number;
   readonly inverse: Matrix4;
 }
 
 const viewPoint3: Vector3 = new Vector3();
 
 export function throughWindow(view: CutView): PassThrough | null {
-  const ring: number = ringWeight(view.across, view.up) * view.level;
-  if (ring < CUTAWAY.clickThrough) return null;
+  const ring: number = ringWeight(view.across, view.up, view.radius) * view.level;
+  if (ring < CUTAWAY.open) return null;
   return (x: number, y: number, z: number): boolean => {
     const depth: number = -viewPoint3.set(x, y, z).applyMatrix4(view.inverse).z;
-    return ring * frontWeight(view.depth, depth) * highWeight(y - view.floor) >= CUTAWAY.clickThrough;
+    return ring * frontWeight(view.depth, depth) * highWeight(y - view.floor) >= CUTAWAY.open;
   };
 }
 
@@ -211,6 +251,28 @@ const windowCentre: Vector2 = new Vector2(CUTAWAY.far, CUTAWAY.far);
 const lastInverse: Matrix4 = new Matrix4();
 let lastAspect: number = 1;
 let spring: CutSpring = { level: 0, velocity: 0 };
+let reach: CutSpring = { level: 0, velocity: 0 };
+let company: readonly CutHero[] = [];
+let radius: number = CUTAWAY.radius;
+const otherPoint: Vector3 = new Vector3();
+
+export function setCutawayCompany(list: readonly CutHero[]): void {
+  company = list;
+}
+
+function hidden(hero: CutHero): boolean {
+  return heroBehind(hero, eye, occluders) || (terrain !== null && terrainHides(terrain, hero, eye));
+}
+
+function neededRadius(camera: PerspectiveCamera, centre: Vector3, aspect: number): number {
+  let needed: number = CUTAWAY.radius;
+  for (const other of company) {
+    if (!hidden(other)) continue;
+    otherPoint.set(other.x, other.floor + CUTAWAY.heroHeight, other.z).project(camera);
+    needed = Math.max(needed, radiusFor(((otherPoint.x - centre.x) / 2) * aspect, (otherPoint.y - centre.y) / 2));
+  }
+  return needed;
+}
 
 export function setOccluders(list: readonly Object3D[]): void {
   occluders = list;
@@ -232,6 +294,7 @@ export function resetCutaway(claim: symbol | null = null): void {
   owner = null;
   occluders = [];
   terrain = null;
+  company = [];
   ghosts = [];
 }
 
@@ -239,7 +302,7 @@ export function aimCutaway(camera: PerspectiveCamera, hero: CutHero, width: numb
   camera.updateMatrixWorld();
   camera.getWorldPosition(eye);
   CUTAWAY_UNIFORMS.uCutWorld.value.copy(camera.matrixWorld);
-  const behind: boolean = heroBehind(hero, eye, occluders) || (terrain !== null && terrainHides(terrain, hero, eye));
+  const behind: boolean = hidden(hero);
   spring = springCut(spring, behind ? 1 : 0, dt);
   CUTAWAY_UNIFORMS.uCutLevel.value = spring.level;
   CUTAWAY_UNIFORMS.uCutFloor.value = hero.floor;
@@ -249,10 +312,13 @@ export function aimCutaway(camera: PerspectiveCamera, hero: CutHero, width: numb
   windowCentre.set(heroPoint.x, heroPoint.y);
   lastInverse.copy(camera.matrixWorldInverse);
   lastAspect = height > 0 ? width / height : 1;
+  const needed: number = behind ? neededRadius(camera, heroPoint, lastAspect) : CUTAWAY.radius;
+  reach = springCut(reach, (needed - CUTAWAY.radius) / (CUTAWAY.widest - CUTAWAY.radius), dt);
+  radius = CUTAWAY.radius + (CUTAWAY.widest - CUTAWAY.radius) * reach.level;
   CUTAWAY_UNIFORMS.uCutCentre.value.set((heroPoint.x * 0.5 + 0.5) * width, (heroPoint.y * 0.5 + 0.5) * height);
-  CUTAWAY_UNIFORMS.uCutRadius.value = CUTAWAY.radius * height;
+  CUTAWAY_UNIFORMS.uCutRadius.value = radius * height;
   CUTAWAY_UNIFORMS.uCutDepth.value = -viewPoint.z;
-  const across: number = windowMetres(camera, -viewPoint.z);
+  const across: number = windowMetres(camera, -viewPoint.z, radius);
   for (const ghost of ghosts) ghost.keep.value = ghostKeep(ghost.width, across);
 }
 
@@ -263,6 +329,7 @@ export function clickThrough(pointer: Vector2): PassThrough | null {
     floor: CUTAWAY_UNIFORMS.uCutFloor.value,
     across: ((pointer.x - windowCentre.x) / 2) * lastAspect,
     up: (pointer.y - windowCentre.y) / 2,
+    radius,
     inverse: lastInverse,
   });
 }

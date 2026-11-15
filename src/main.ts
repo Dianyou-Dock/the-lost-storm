@@ -115,6 +115,7 @@ import type { Ward } from './render/ward.ts';
 import { createWard } from './render/ward.ts';
 import type { IsoCamera } from './render/iso-camera.ts';
 import { createIsoCamera, liftAt } from './render/iso-camera.ts';
+import { cutawayCompany, setCutawayCompany } from './render/prop-cutaway.ts';
 import { cameraSight } from './render/sight.ts';
 import type { ItemPictures } from './render/item-pictures.ts';
 import { startItemPictures } from './render/item-pictures-start.ts';
@@ -574,6 +575,7 @@ async function start(): Promise<void> {
       effects.update(dt, world);
       ward.update(dt, world);
       stage.follow(world.player.pos.x, world.player.pos.z, world.zone.floorHeight + liftAt(world.zone, world.player.pos.x, world.player.pos.z), dt);
+      setCutawayCompany(cutawayCompany({ x: world.player.pos.x, z: world.player.pos.z, floor: 0 }, world.monsters, (x: number, z: number): number => world.zone.floorHeight + liftAt(world.zone, x, z)));
       overlays.update(dt, world, input.hoveredId);
       weather.update(dt, world.player.pos.x, world.player.pos.z, glitchSettings.get().reduceFlashes);
       rain.update(dt, world.player.pos.x, world.player.pos.z, weather.flash, zoneView);
