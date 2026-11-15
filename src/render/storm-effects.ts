@@ -17,6 +17,8 @@ import { floorUp } from './terrain-lift.ts';
 
 export const STORM_EFFECTS = {
   handHeight: 1.35,
+  handSide: 0.2,
+  handReach: 0.5,
   bodyHeight: 1.1,
   arcsHeight: 0.15,
   linkTime: 0.24,
@@ -113,6 +115,16 @@ function placed(target: Spot, at: Vec2, y: number): Spot {
   return target;
 }
 
+function inHand(target: Spot, at: Vec2, toward: Vec2, reach: number): Spot {
+  const dx: number = toward.x - at.x;
+  const dz: number = toward.z - at.z;
+  const length: number = Math.max(1e-4, Math.hypot(dx, dz));
+  target.x = at.x + (dz * STORM_EFFECTS.handSide + dx * reach) / length;
+  target.y = STORM_EFFECTS.handHeight;
+  target.z = at.z + (dz * reach - dx * STORM_EFFECTS.handSide) / length;
+  return target;
+}
+
 function missed(impact: VfxImpact, hits: number): VfxImpact {
   return hits > 0 ? impact : { sparks: Math.round(impact.sparks * STORM_EFFECTS.missShare), flash: impact.flash * STORM_EFFECTS.missShare };
 }
@@ -146,7 +158,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
         const next: Vec2 | undefined = event.points[index + 1];
         if (next === undefined) return;
         const delay: number = index * STORM_EFFECTS.hop;
-        kit.kit.strike({ x: point.x, y: index === 0 ? STORM_EFFECTS.handHeight : STORM_EFFECTS.bodyHeight, z: point.z }, { x: next.x, y: STORM_EFFECTS.bodyHeight, z: next.z }, color, lightning, delay);
+        kit.kit.strike(index === 0 ? inHand(START, point, next, STORM_EFFECTS.handReach) : placed(START, point, STORM_EFFECTS.bodyHeight), placed(END, next, STORM_EFFECTS.bodyHeight), color, lightning, delay);
         if (impact !== null) kit.kit.impact(next.x, next.z, color, impact, event.skill.vfx.light, delay + STRAND.lead);
       });
       return;
@@ -166,7 +178,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
     const color: Color = kit.colorOf(event.skill.vfx.color);
     const lightning = event.skill.vfx.lightning;
     if (lightning !== null) {
-      placed(START, event.from, STORM_EFFECTS.handHeight);
+      inHand(START, event.from, event.to, 0);
       placed(END, event.to, STORM_EFFECTS.bodyHeight);
       if (event.skill.press?.type === 'channel') kit.kit.channel(event.actorId, START, END, color, lightning, STORM_EFFECTS.beamHold);
       else kit.kit.strike(START, END, color, lightning, 0);

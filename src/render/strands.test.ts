@@ -4,7 +4,7 @@ import { Color, Group, Mesh, ShaderMaterial } from 'three';
 import { unsafeGlsl } from '../../test/glsl-support.ts';
 import { strandSpan } from './strand-shape.ts';
 import type { StrandHandle, StrandLook } from './strands.ts';
-import { createStrands, STRAND_FRAGMENT, STRAND_VERTEX, STRANDS } from './strands.ts';
+import { createStrands, sheathColor, STRAND_FRAGMENT, STRAND_VERTEX, STRANDS } from './strands.ts';
 
 const LOOK: StrandLook = { forks: 2, glow: 0.5, afterglow: 0.2, jitter: 0.5, width: 1, core: 1 };
 const BLUE: Color = new Color(0x9be1ff);
@@ -67,4 +67,47 @@ void test('a look widens its strand and softens its core through the material', 
   assert.ok(material instanceof ShaderMaterial);
   assert.equal(material.uniforms['uWidth']?.value, STRANDS.width * 2);
   assert.equal(material.uniforms['uCore']?.value, 0.25);
+});
+
+void test('a blue bolt gets a sheath that leans violet and is more saturated, while a gold one keeps its hue', (): void => {
+  const blue: { h: number; s: number; l: number } = { h: 0, s: 0, l: 0 };
+  const sheath: { h: number; s: number; l: number } = { h: 0, s: 0, l: 0 };
+  BLUE.getHSL(blue);
+  sheathColor(BLUE, new Color()).getHSL(sheath);
+  assert.ok(sheath.h > blue.h + 0.03);
+  assert.ok(sheath.s >= STRANDS.sheathSaturation - 1e-6);
+  const gold: Color = new Color(0xf2e08a);
+  const goldHsl: { h: number; s: number; l: number } = { h: 0, s: 0, l: 0 };
+  const goldSheath: { h: number; s: number; l: number } = { h: 0, s: 0, l: 0 };
+  gold.getHSL(goldHsl);
+  sheathColor(gold, new Color()).getHSL(goldSheath);
+  assert.ok(Math.abs(goldSheath.h - goldHsl.h) < 1e-3);
+});
+
+void test('a held strand crackles: its light flickers between reshapes but never goes dark or runs away', (): void => {
+  const parent: Group = new Group();
+  let roll: number = 0;
+  const strands = createStrands(parent, 1, (): number => {
+    roll = (roll * 9301 + 49297) % 233280;
+    return roll / 233280;
+  });
+  const handle: StrandHandle | null = strands.hold(BLUE, LOOK);
+  assert.ok(handle !== null);
+  const child: unknown = parent.children[0];
+  assert.ok(child instanceof Mesh);
+  const material: unknown = child.material;
+  assert.ok(material instanceof ShaderMaterial);
+  const seen: number[] = [];
+  for (let frame: number = 0; frame < 120; frame += 1) {
+    if (frame % 3 === 0) handle.shape(A, B, Math.random);
+    handle.light(0.8);
+    strands.update(1 / 60);
+    const value: unknown = material.uniforms['uStrength']?.value;
+    assert.ok(typeof value === 'number');
+    seen.push(value);
+  }
+  assert.ok(Math.min(...seen) >= 0.8 * STRANDS.crackleMin - 1e-9);
+  assert.ok(Math.max(...seen) <= 0.8 * (1 + STRANDS.crackleFlash) + 1e-9);
+  assert.ok(Math.max(...seen) - Math.min(...seen) > 0.1);
+  assert.equal(material.uniforms['uGrow']?.value, 1);
 });

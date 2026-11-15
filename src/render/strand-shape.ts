@@ -1,25 +1,39 @@
 export const STRAND = {
-  trunkPoints: 20,
-  forkPoints: 5,
-  maxForks: 2,
-  step: 0.6,
-  wander: 0.3,
-  sideShare: 0.6,
-  forkFrom: 0.2,
-  forkSpan: 0.55,
-  forkReach: 0.32,
-  forkReachMax: 1.5,
-  forkTurn: 0.75,
-  forkWeight: 0.65,
+  trunkLevels: 5,
+  forkLevels: 3,
+  maxForks: 4,
+  forkScale: 1.5,
+  kinkShare: 0.15,
+  kinkReach: 1.1,
+  roughness: 0.5,
+  kinkSpacing: 0.3,
+  riseShare: 0.55,
+  taperReach: 0.45,
+  taperShareMax: 0.22,
+  widthVary: 0.4,
+  varyEvery: 6,
+  hotShare: 0.22,
+  forkFrom: 0.25,
+  forkSpan: 0.7,
+  forkReach: 0.28,
+  forkReachMax: 1.6,
+  forkLengthMin: 0.45,
+  forkTurnMin: 0.3,
+  forkTurnSpan: 0.35,
+  forkKink: 0.22,
+  forkWeight: 0.6,
   lead: 0.05,
-  strikeFall: 0.22,
-  afterimage: 0.4,
-  restrikeAt: 0.42,
-  restrikeWidth: 0.1,
-  restrike: 0.45,
+  leaderLight: 0.5,
+  strikeFall: 0.16,
+  afterimage: 0.3,
+  restrikeAt: 0.4,
+  restrikeFall: 0.06,
+  restrike: 0.6,
 } as const;
 
-export const STRAND_POINTS: number = STRAND.trunkPoints + STRAND.maxForks * STRAND.forkPoints;
+export const TRUNK_POINTS: number = 2 ** STRAND.trunkLevels + 1;
+export const FORK_POINTS: number = 2 ** STRAND.forkLevels + 1;
+export const STRAND_POINTS: number = TRUNK_POINTS + STRAND.maxForks * FORK_POINTS;
 
 export interface StrandEnds {
   readonly x: number;
@@ -35,15 +49,17 @@ export interface StrandForm {
 export interface StrandBuffers {
   readonly points: Float32Array;
   readonly weights: Float32Array;
+  readonly heats: Float32Array;
+  readonly alongs: Float32Array;
 }
 
 export function createStrandBuffers(): StrandBuffers {
-  return { points: new Float32Array(STRAND_POINTS * 3), weights: new Float32Array(STRAND_POINTS) };
+  return { points: new Float32Array(STRAND_POINTS * 3), weights: new Float32Array(STRAND_POINTS), heats: new Float32Array(STRAND_POINTS), alongs: new Float32Array(STRAND_POINTS) };
 }
 
 export function strandStrips(): readonly (readonly [number, number])[] {
-  const strips: [number, number][] = [[0, STRAND.trunkPoints]];
-  for (let fork: number = 0; fork < STRAND.maxForks; fork += 1) strips.push([STRAND.trunkPoints + fork * STRAND.forkPoints, STRAND.forkPoints]);
+  const strips: [number, number][] = [[0, TRUNK_POINTS]];
+  for (let fork: number = 0; fork < STRAND.maxForks; fork += 1) strips.push([TRUNK_POINTS + fork * FORK_POINTS, FORK_POINTS]);
   return strips;
 }
 
@@ -52,17 +68,18 @@ function smooth(t: number): number {
   return clamped * clamped * (3 - 2 * clamped);
 }
 
-function put(out: StrandBuffers, index: number, x: number, y: number, z: number, weight: number): void {
-  out.points[index * 3] = x;
-  out.points[index * 3 + 1] = y;
-  out.points[index * 3 + 2] = z;
-  out.weights[index] = weight;
+interface Frame {
+  readonly ax: number;
+  readonly ay: number;
+  readonly az: number;
+  readonly sx: number;
+  readonly sz: number;
+  readonly ux: number;
+  readonly uy: number;
+  readonly uz: number;
 }
 
-export function writeStrand(from: StrandEnds, to: StrandEnds, form: StrandForm, random: () => number, out: StrandBuffers): number {
-  const dx: number = to.x - from.x;
-  const dy: number = to.y - from.y;
-  const dz: number = to.z - from.z;
+function frameOf(dx: number, dy: number, dz: number): Frame {
   const length: number = Math.max(1e-4, Math.hypot(dx, dy, dz));
   const ax: number = dx / length;
   const ay: number = dy / length;
@@ -70,41 +87,103 @@ export function writeStrand(from: StrandEnds, to: StrandEnds, form: StrandForm, 
   const flat: number = Math.hypot(ax, az);
   const sx: number = flat > 1e-3 ? az / flat : 1;
   const sz: number = flat > 1e-3 ? -ax / flat : 0;
-  const ux: number = ay * sz;
-  const uy: number = az * sx - ax * sz;
-  const uz: number = -ay * sx;
-  const steps: number = Math.min(STRAND.trunkPoints - 1, Math.max(2, Math.ceil(length / STRAND.step)));
-  let side: number = 0;
-  let rise: number = 0;
-  for (let point: number = 0; point < STRAND.trunkPoints; point += 1) {
-    const at: number = Math.min(point, steps);
-    const t: number = at / steps;
-    side = side * STRAND.wander + (random() - 0.5) * 2 * (1 - STRAND.wander);
-    rise = rise * STRAND.wander + (random() - 0.5) * 2 * (1 - STRAND.wander);
-    const envelope: number = Math.sin(Math.PI * t) * form.jitter;
-    const offset: number = side * envelope;
-    const lift: number = rise * envelope * STRAND.sideShare;
-    put(out, point, from.x + dx * t + sx * offset + ux * lift, from.y + dy * t + uy * lift, from.z + dz * t + sz * offset + uz * lift, point <= steps ? 1 : 0);
+  return { ax, ay, az, sx, sz, ux: ay * sz, uy: az * sx - ax * sz, uz: -ay * sx };
+}
+
+const SIDE: Float32Array = new Float32Array(TRUNK_POINTS);
+const VARY: Float32Array = new Float32Array(Math.ceil((TRUNK_POINTS - 1) / STRAND.varyEvery) + 1);
+const RISE: Float32Array = new Float32Array(TRUNK_POINTS);
+
+function displace(count: number, amplitude: number, spacing: number, random: () => number): void {
+  SIDE.fill(0, 0, count);
+  RISE.fill(0, 0, count);
+  let size: number = count - 1;
+  let reach: number = amplitude;
+  while (size > 1) {
+    const half: number = size / 2;
+    for (let mid: number = half; mid < count - 1; mid += size) {
+      const kink: number = size * spacing >= STRAND.kinkSpacing ? reach : 0;
+      SIDE[mid] = ((SIDE[mid - half] ?? 0) + (SIDE[mid + half] ?? 0)) / 2 + (random() - 0.5) * 2 * kink;
+      RISE[mid] = ((RISE[mid - half] ?? 0) + (RISE[mid + half] ?? 0)) / 2 + (random() - 0.5) * 2 * kink * STRAND.riseShare;
+    }
+    size = half;
+    reach *= STRAND.roughness;
   }
-  const forks: number = Math.max(0, Math.min(STRAND.maxForks, Math.floor(form.forks)));
-  const reach: number = Math.min(length * STRAND.forkReach, STRAND.forkReachMax);
+}
+
+function put(out: StrandBuffers, index: number, x: number, y: number, z: number, weight: number, heat: number, along: number): void {
+  out.points[index * 3] = x;
+  out.points[index * 3 + 1] = y;
+  out.points[index * 3 + 2] = z;
+  out.weights[index] = weight;
+  out.heats[index] = heat;
+  out.alongs[index] = along;
+}
+
+function heatOf(random: () => number): number {
+  const roll: number = random();
+  if (roll > STRAND.hotShare) return 0;
+  return (random() < 0.5 ? -1 : 1) * (1 - roll / STRAND.hotShare);
+}
+
+export function strandTaper(t: number, share: number): number {
+  return smooth(t / share) * smooth((1 - t) / share);
+}
+
+export function drawnForks(forks: number): number {
+  return Math.max(0, Math.min(STRAND.maxForks, Math.round(Math.floor(forks) * STRAND.forkScale)));
+}
+
+export function writeStrand(from: StrandEnds, to: StrandEnds, form: StrandForm, random: () => number, out: StrandBuffers): number {
+  const dx: number = to.x - from.x;
+  const dy: number = to.y - from.y;
+  const dz: number = to.z - from.z;
+  const length: number = Math.max(1e-4, Math.hypot(dx, dy, dz));
+  const frame: Frame = frameOf(dx, dy, dz);
+  const jitter: number = Math.max(0, form.jitter);
+  displace(TRUNK_POINTS, Math.min(length * STRAND.kinkShare, STRAND.kinkReach) * jitter, length / (TRUNK_POINTS - 1), random);
+  const share: number = Math.min(STRAND.taperShareMax, STRAND.taperReach / length);
+  for (let knot: number = 0; knot < VARY.length; knot += 1) VARY[knot] = 1 - STRAND.widthVary * random();
+  for (let point: number = 0; point < TRUNK_POINTS; point += 1) {
+    const t: number = point / (TRUNK_POINTS - 1);
+    const side: number = SIDE[point] ?? 0;
+    const rise: number = RISE[point] ?? 0;
+    const knot: number = Math.floor(point / STRAND.varyEvery);
+    const mix: number = (point % STRAND.varyEvery) / STRAND.varyEvery;
+    const vary: number = (VARY[knot] ?? 1) * (1 - mix) + (VARY[knot + 1] ?? 1) * mix;
+    put(out, point, from.x + dx * t + frame.sx * side + frame.ux * rise, from.y + dy * t + frame.uy * rise, from.z + dz * t + frame.sz * side + frame.uz * rise, strandTaper(t, share) * vary, heatOf(random), t);
+  }
+  const forks: number = drawnForks(form.forks);
+  const reachMax: number = Math.min(length * STRAND.forkReach, STRAND.forkReachMax);
   for (let fork: number = 0; fork < STRAND.maxForks; fork += 1) {
-    const base: number = STRAND.trunkPoints + fork * STRAND.forkPoints;
-    const root: number = Math.min(steps - 1, Math.max(1, Math.floor(steps * (STRAND.forkFrom + STRAND.forkSpan * random()))));
+    const base: number = TRUNK_POINTS + fork * FORK_POINTS;
+    const root: number = Math.min(TRUNK_POINTS - 2, Math.max(1, Math.round((TRUNK_POINTS - 1) * (STRAND.forkFrom + STRAND.forkSpan * Math.sqrt(random())))));
     const rx: number = out.points[root * 3] ?? from.x;
     const ry: number = out.points[root * 3 + 1] ?? from.y;
     const rz: number = out.points[root * 3 + 2] ?? from.z;
-    const turn: number = STRAND.forkTurn * (0.6 + 0.4 * random()) * (random() < 0.5 ? -1 : 1);
-    const tilt: number = (random() - 0.5) * STRAND.forkTurn;
-    const fx: number = ax * Math.cos(turn) + sx * Math.sin(turn) + ux * tilt;
-    const fy: number = ay * Math.cos(turn) + uy * tilt;
-    const fz: number = az * Math.cos(turn) + sz * Math.sin(turn) + uz * tilt;
-    const norm: number = Math.max(1e-4, Math.hypot(fx, fy, fz));
-    for (let point: number = 0; point < STRAND.forkPoints; point += 1) {
-      const t: number = point / (STRAND.forkPoints - 1);
-      const wiggle: number = (random() - 0.5) * form.jitter * t;
-      const drawn: boolean = fork < forks;
-      put(out, base + point, rx + (fx / norm) * reach * t + sx * wiggle, ry + (fy / norm) * reach * t, rz + (fz / norm) * reach * t + sz * wiggle, drawn ? STRAND.forkWeight * (1 - t) : 0);
+    const ahead: number = Math.min(TRUNK_POINTS - 1, root + 1);
+    const local: Frame = frameOf((out.points[ahead * 3] ?? to.x) - rx, (out.points[ahead * 3 + 1] ?? to.y) - ry, (out.points[ahead * 3 + 2] ?? to.z) - rz);
+    const turn: number = (STRAND.forkTurnMin + STRAND.forkTurnSpan * random()) * (random() < 0.5 ? -1 : 1);
+    const tilt: number = (random() - 0.5) * STRAND.forkTurnMin;
+    const fx: number = frame.ax * 0.5 + local.ax * 0.5;
+    const fy: number = frame.ay * 0.5 + local.ay * 0.5;
+    const fz: number = frame.az * 0.5 + local.az * 0.5;
+    const hx: number = fx * Math.cos(turn) + frame.sx * Math.sin(turn) + frame.ux * tilt;
+    const hy: number = fy * Math.cos(turn) + frame.uy * tilt;
+    const hz: number = fz * Math.cos(turn) + frame.sz * Math.sin(turn) + frame.uz * tilt;
+    const norm: number = Math.max(1e-4, Math.hypot(hx, hy, hz));
+    const reach: number = reachMax * (STRAND.forkLengthMin + (1 - STRAND.forkLengthMin) * random());
+    const branch: Frame = frameOf(hx, hy, hz);
+    const drawn: boolean = fork < forks;
+    const rootWeight: number = drawn ? (out.weights[root] ?? 0) * STRAND.forkWeight : 0;
+    const rootAlong: number = root / (TRUNK_POINTS - 1);
+    displace(FORK_POINTS, reach * STRAND.forkKink * Math.max(0.4, jitter), reach / (FORK_POINTS - 1), random);
+    for (let point: number = 0; point < FORK_POINTS; point += 1) {
+      const t: number = point / (FORK_POINTS - 1);
+      const side: number = SIDE[point] ?? 0;
+      const rise: number = RISE[point] ?? 0;
+      const fade: number = 1 - t;
+      put(out, base + point, rx + (hx / norm) * reach * t + branch.sx * side + branch.ux * rise, ry + (hy / norm) * reach * t + branch.uy * rise, rz + (hz / norm) * reach * t + branch.sz * side + branch.uz * rise, rootWeight * fade * fade, 0, rootAlong + (reach / length) * t);
     }
   }
   return forks;
@@ -132,12 +211,20 @@ export function strandSpan(afterglow: number): number {
   return STRAND.lead + afterglow;
 }
 
+export function strandGrow(age: number): number {
+  return Math.min(1, Math.max(0, age / STRAND.lead));
+}
+
+export function restrikeAge(afterglow: number): number {
+  return STRAND.lead + STRAND.restrikeAt * afterglow;
+}
+
 export function strandLight(age: number, afterglow: number, restrike: boolean): number {
   if (!(age > 0) || age >= strandSpan(afterglow)) return 0;
-  if (age < STRAND.lead) return smooth(age / STRAND.lead);
+  if (age < STRAND.lead) return STRAND.leaderLight;
   const since: number = (age - STRAND.lead) / afterglow;
   const strike: number = STRAND.afterimage + (1 - STRAND.afterimage) * Math.exp(-since / STRAND.strikeFall);
-  const off: number = (since - STRAND.restrikeAt) / STRAND.restrikeWidth;
-  const again: number = restrike ? STRAND.restrike * Math.exp(-off * off) : 0;
+  const off: number = since - STRAND.restrikeAt;
+  const again: number = restrike && off >= 0 ? STRAND.restrike * Math.exp(-off / STRAND.restrikeFall) : 0;
   return Math.min(1, strike + again) * (1 - smooth(since));
 }

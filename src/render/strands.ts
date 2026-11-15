@@ -1,37 +1,83 @@
 import type { Object3D } from 'three';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, Color, DoubleSide, DynamicDrawUsage, Mesh, ShaderMaterial } from 'three';
 import type { StrandBuffers, StrandEnds, StrandForm } from './strand-shape.ts';
-import { createStrandBuffers, STRAND_POINTS, strandLight, strandSpan, strandStrips, writeStrand } from './strand-shape.ts';
+import { createStrandBuffers, restrikeAge, STRAND_POINTS, strandGrow, strandLight, strandSpan, strandStrips, TRUNK_POINTS, writeStrand } from './strand-shape.ts';
 
 export const STRANDS = {
-  width: 0.3,
-  coreSharp: 40,
-  haloSharp: 3,
-  coreBoost: 1.3,
-  haloBoost: 0.5,
-  whiten: 0.7,
+  width: 0.21,
+  coreWidth: 0.17,
+  coreAa: 0.9,
+  sheathWidth: 0.46,
+  sheathAa: 1.6,
+  haloSharp: 2.5,
+  coreBoost: 1.7,
+  sheathBoost: 1.05,
+  haloBoost: 0.8,
+  hotMix: 0.75,
+  leaderSoft: 0.04,
+  knot: 0.27,
+  knotStart: 1,
+  knotEnd: 0.7,
+  knotSharp: 5,
+  knotHeartSharp: 26,
+  knotGlow: 0.9,
+  knotHeart: 1.5,
+  knotEdgeFrom: 0.45,
+  sheathHueFrom: 0.45,
+  sheathHueTo: 0.75,
+  sheathHue: 0.07,
+  sheathSaturation: 0.78,
+  sheathLightness: 0.62,
+  magenta: 0xff6fd2,
+  gold: 0xffd27a,
+  crackleMin: 0.55,
+  crackleFlash: 0.75,
+  crackleChance: 0.14,
+  crackleFall: 0.05,
   order: 9,
   fadeShare: 1,
 } as const;
 
+const KNOT_VERTICES: number = 8;
+const RIBBON_VERTICES: number = STRAND_POINTS * 2;
+const VERTICES: number = RIBBON_VERTICES + KNOT_VERTICES;
+
 const glsl = (value: number): string => value.toFixed(4);
+
+function glslColor(hex: number): string {
+  const color: Color = new Color(hex);
+  return `vec3(${glsl(color.r)}, ${glsl(color.g)}, ${glsl(color.b)})`;
+}
 
 export const STRAND_VERTEX: string = [
   'attribute vec3 heading;',
   'attribute float side;',
   'attribute float weight;',
+  'attribute float heat;',
+  'attribute float along;',
+  'attribute vec2 corner;',
   'uniform float uWidth;',
+  'uniform float uKnot;',
   'varying float vSide;',
   'varying float vWeight;',
+  'varying float vHeat;',
+  'varying float vAlong;',
+  'varying vec2 vCorner;',
+  'varying float vKnot;',
   'void main() {',
   '  vec4 view = modelViewMatrix * vec4(position, 1.0);',
+  '  float knot = step(0.5, abs(corner.x));',
   '  vec3 facing = (modelViewMatrix * vec4(heading, 0.0)).xyz;',
   '  vec2 flat2 = facing.xy;',
   '  float span = length(flat2);',
   '  vec2 across = span > 0.0001 ? vec2(-flat2.y, flat2.x) / span : vec2(0.0, 1.0);',
-  '  view.xy += across * side * uWidth * weight;',
+  '  view.xy += mix(across * side * uWidth, corner * uKnot, knot) * weight;',
   '  vSide = side;',
   '  vWeight = weight;',
+  '  vHeat = heat;',
+  '  vAlong = along;',
+  '  vCorner = corner;',
+  '  vKnot = knot;',
   '  gl_Position = projectionMatrix * view;',
   '}',
 ].join('\n');
@@ -41,15 +87,35 @@ export const STRAND_FRAGMENT: string = [
   'uniform float uStrength;',
   'uniform float uGlow;',
   'uniform float uCore;',
+  'uniform float uGrow;',
   'varying float vSide;',
   'varying float vWeight;',
+  'varying float vHeat;',
+  'varying float vAlong;',
+  'varying vec2 vCorner;',
+  'varying float vKnot;',
   'void main() {',
-  '  float x2 = vSide * vSide;',
-  `  float core = exp(-x2 * ${glsl(STRANDS.coreSharp)}) * uCore;`,
-  `  float halo = exp(-x2 * ${glsl(STRANDS.haloSharp)}) * uGlow;`,
-  `  float energy = (core * ${glsl(STRANDS.coreBoost)} + halo * ${glsl(STRANDS.haloBoost)}) * uStrength * vWeight;`,
-  `  vec3 tint = mix(uColor, vec3(1.0), core * ${glsl(STRANDS.whiten)});`,
-  '  gl_FragColor = vec4(tint * energy, 1.0);',
+  `  float reach = 1.0 - smoothstep(0.0, ${glsl(STRANDS.leaderSoft)}, vAlong - uGrow);`,
+  `  vec3 hot = vHeat > 0.0 ? ${glslColor(STRANDS.gold)} : ${glslColor(STRANDS.magenta)};`,
+  `  vec3 sheath = mix(uColor, hot, abs(vHeat) * ${glsl(STRANDS.hotMix)});`,
+  '  vec3 light;',
+  '  if (vKnot > 0.5) {',
+  '    float r = length(vCorner);',
+  `    float edge = 1.0 - smoothstep(${glsl(STRANDS.knotEdgeFrom)}, 1.0, r);`,
+  `    float body = exp(-r * r * ${glsl(STRANDS.knotSharp)}) * edge;`,
+  `    float heart = exp(-r * r * ${glsl(STRANDS.knotHeartSharp)}) * edge;`,
+  `    light = uColor * body * ${glsl(STRANDS.knotGlow)} + vec3(1.0) * heart * uCore * ${glsl(STRANDS.knotHeart)};`,
+  '  } else {',
+  '    float x = abs(vSide);',
+  '    float aa = fwidth(vSide);',
+  `    float coreWidth = max(${glsl(STRANDS.coreWidth)}, aa * ${glsl(STRANDS.coreAa)});`,
+  `    float sheathWidth = max(${glsl(STRANDS.sheathWidth)}, aa * ${glsl(STRANDS.sheathAa)});`,
+  '    float core = exp(-(x * x) / (coreWidth * coreWidth));',
+  '    float body = exp(-(x * x) / (sheathWidth * sheathWidth));',
+  `    float halo = exp(-x * x * ${glsl(STRANDS.haloSharp)}) * (1.0 - x);`,
+  `    light = vec3(1.0) * core * uCore * ${glsl(STRANDS.coreBoost)} + sheath * body * ${glsl(STRANDS.sheathBoost)} + uColor * halo * uGlow * ${glsl(STRANDS.haloBoost)};`,
+  '  }',
+  '  gl_FragColor = vec4(light * uStrength * vWeight * reach, 1.0);',
   '}',
 ].join('\n');
 
@@ -77,26 +143,42 @@ export interface Strands {
   readonly capacity: number;
 }
 
+interface Point {
+  x: number;
+  y: number;
+  z: number;
+}
+
 interface Slot {
   readonly mesh: Mesh<BufferGeometry, ShaderMaterial>;
   readonly buffers: StrandBuffers;
   readonly positions: BufferAttribute;
   readonly tangents: BufferAttribute;
   readonly weights: BufferAttribute;
+  readonly heats: BufferAttribute;
+  readonly alongs: BufferAttribute;
   readonly positionData: Float32Array;
   readonly tangentData: Float32Array;
   readonly weightData: Float32Array;
+  readonly heatData: Float32Array;
+  readonly alongData: Float32Array;
   readonly color: Color;
   readonly strength: { value: number };
   readonly glow: { value: number };
   readonly width: { value: number };
   readonly core: { value: number };
+  readonly grow: { value: number };
+  readonly from: Point;
+  readonly to: Point;
   mode: StrandMode;
   age: number;
   delay: number;
   afterglow: number;
   restrike: boolean;
+  restruck: boolean;
   held: number;
+  flicker: number;
+  flash: number;
   form: StrandForm;
 }
 
@@ -110,14 +192,36 @@ function stripIndices(): number[] {
       indices.push(a, a + 1, a + 2, a + 1, a + 3, a + 2);
     }
   }
+  for (let knot: number = 0; knot < 2; knot += 1) {
+    const a: number = RIBBON_VERTICES + knot * 4;
+    indices.push(a, a + 1, a + 2, a, a + 2, a + 3);
+  }
   return indices;
+}
+
+const SHEATH_HSL: { h: number; s: number; l: number } = { h: 0, s: 0, l: 0 };
+
+export function sheathColor(color: Color, out: Color): Color {
+  color.getHSL(SHEATH_HSL);
+  const cool: boolean = SHEATH_HSL.h >= STRANDS.sheathHueFrom && SHEATH_HSL.h <= STRANDS.sheathHueTo;
+  const hue: number = cool ? SHEATH_HSL.h + STRANDS.sheathHue : SHEATH_HSL.h;
+  return out.setHSL(hue, Math.max(SHEATH_HSL.s, STRANDS.sheathSaturation), Math.min(SHEATH_HSL.l, STRANDS.sheathLightness));
+}
+
+function knotAt(slot: Slot, knot: number, point: number, weight: number, along: number): void {
+  const points: Float32Array = slot.buffers.points;
+  for (let corner: number = 0; corner < 4; corner += 1) {
+    const vertex: number = RIBBON_VERTICES + knot * 4 + corner;
+    for (let axis: number = 0; axis < 3; axis += 1) slot.positionData[vertex * 3 + axis] = points[point * 3 + axis] ?? 0;
+    slot.weightData[vertex] = weight;
+    slot.alongData[vertex] = along;
+  }
 }
 
 function expand(slot: Slot): void {
   const points: Float32Array = slot.buffers.points;
   const positions: Float32Array = slot.positionData;
   const tangents: Float32Array = slot.tangentData;
-  const weights: Float32Array = slot.weightData;
   for (const [start, count] of STRIPS) {
     for (let point: number = start; point < start + count; point += 1) {
       const before: number = Math.max(start, point - 1);
@@ -130,43 +234,70 @@ function expand(slot: Slot): void {
         tangents[point * 6 + axis] = toward;
         tangents[point * 6 + 3 + axis] = toward;
       }
-      const weight: number = slot.buffers.weights[point] ?? 0;
-      weights[point * 2] = weight;
-      weights[point * 2 + 1] = weight;
+      for (let edge: number = 0; edge < 2; edge += 1) {
+        slot.weightData[point * 2 + edge] = slot.buffers.weights[point] ?? 0;
+        slot.heatData[point * 2 + edge] = slot.buffers.heats[point] ?? 0;
+        slot.alongData[point * 2 + edge] = slot.buffers.alongs[point] ?? 0;
+      }
     }
   }
+  knotAt(slot, 0, 0, STRANDS.knotStart, 0);
+  knotAt(slot, 1, TRUNK_POINTS - 1, STRANDS.knotEnd, 1);
   slot.positions.needsUpdate = true;
   slot.tangents.needsUpdate = true;
   slot.weights.needsUpdate = true;
+  slot.heats.needsUpdate = true;
+  slot.alongs.needsUpdate = true;
 }
+
+const CORNERS: readonly (readonly [number, number])[] = [
+  [-1, -1],
+  [1, -1],
+  [1, 1],
+  [-1, 1],
+];
 
 function createSlot(indices: readonly number[]): Slot {
   const geometry: BufferGeometry = new BufferGeometry();
-  const positionData: Float32Array = new Float32Array(STRAND_POINTS * 6);
-  const tangentData: Float32Array = new Float32Array(STRAND_POINTS * 6);
-  const weightData: Float32Array = new Float32Array(STRAND_POINTS * 2);
+  const positionData: Float32Array = new Float32Array(VERTICES * 3);
+  const tangentData: Float32Array = new Float32Array(VERTICES * 3);
+  const weightData: Float32Array = new Float32Array(VERTICES);
+  const heatData: Float32Array = new Float32Array(VERTICES);
+  const alongData: Float32Array = new Float32Array(VERTICES);
   const positions: BufferAttribute = new BufferAttribute(positionData, 3).setUsage(DynamicDrawUsage);
   const tangents: BufferAttribute = new BufferAttribute(tangentData, 3).setUsage(DynamicDrawUsage);
   const weights: BufferAttribute = new BufferAttribute(weightData, 1).setUsage(DynamicDrawUsage);
-  const sides: Float32Array = new Float32Array(STRAND_POINTS * 2);
+  const heats: BufferAttribute = new BufferAttribute(heatData, 1).setUsage(DynamicDrawUsage);
+  const alongs: BufferAttribute = new BufferAttribute(alongData, 1).setUsage(DynamicDrawUsage);
+  const sides: Float32Array = new Float32Array(VERTICES);
+  const corners: Float32Array = new Float32Array(VERTICES * 2);
   for (let point: number = 0; point < STRAND_POINTS; point += 1) {
     sides[point * 2] = -1;
     sides[point * 2 + 1] = 1;
   }
+  for (let vertex: number = 0; vertex < KNOT_VERTICES; vertex += 1) {
+    const corner: readonly [number, number] = CORNERS[vertex % 4] ?? [0, 0];
+    corners[(RIBBON_VERTICES + vertex) * 2] = corner[0];
+    corners[(RIBBON_VERTICES + vertex) * 2 + 1] = corner[1];
+  }
   geometry.setAttribute('position', positions);
   geometry.setAttribute('heading', tangents);
   geometry.setAttribute('weight', weights);
+  geometry.setAttribute('heat', heats);
+  geometry.setAttribute('along', alongs);
   geometry.setAttribute('side', new BufferAttribute(sides, 1));
+  geometry.setAttribute('corner', new BufferAttribute(corners, 2));
   geometry.setIndex([...indices]);
   const color: Color = new Color();
   const strength: { value: number } = { value: 0 };
   const glow: { value: number } = { value: 0 };
   const width: { value: number } = { value: STRANDS.width };
   const core: { value: number } = { value: 1 };
+  const grow: { value: number } = { value: 1 };
   const material: ShaderMaterial = new ShaderMaterial({
     vertexShader: STRAND_VERTEX,
     fragmentShader: STRAND_FRAGMENT,
-    uniforms: { uColor: { value: color }, uStrength: strength, uGlow: glow, uWidth: width, uCore: core },
+    uniforms: { uColor: { value: color }, uStrength: strength, uGlow: glow, uWidth: width, uCore: core, uGrow: grow, uKnot: { value: STRANDS.knot } },
     transparent: true,
     depthWrite: false,
     side: DoubleSide,
@@ -177,7 +308,44 @@ function createSlot(indices: readonly number[]): Slot {
   mesh.frustumCulled = false;
   mesh.renderOrder = STRANDS.order;
   mesh.visible = false;
-  return { mesh, buffers: createStrandBuffers(), positions, tangents, weights, positionData, tangentData, weightData, color, strength, glow, width, core, mode: 'free', age: 0, delay: 0, afterglow: 0, restrike: false, held: 0, form: { forks: 0, jitter: 0 } };
+  return {
+    mesh,
+    buffers: createStrandBuffers(),
+    positions,
+    tangents,
+    weights,
+    heats,
+    alongs,
+    positionData,
+    tangentData,
+    weightData,
+    heatData,
+    alongData,
+    color,
+    strength,
+    glow,
+    width,
+    core,
+    grow,
+    from: { x: 0, y: 0, z: 0 },
+    to: { x: 0, y: 0, z: 0 },
+    mode: 'free',
+    age: 0,
+    delay: 0,
+    afterglow: 0,
+    restrike: false,
+    restruck: false,
+    held: 0,
+    flicker: 1,
+    flash: 0,
+    form: { forks: 0, jitter: 0 },
+  };
+}
+
+function keep(target: Point, from: StrandEnds): void {
+  target.x = from.x;
+  target.y = from.y;
+  target.z = from.z;
 }
 
 export function createStrands(parent: Object3D, capacity: number, random: () => number = Math.random): Strands {
@@ -205,7 +373,7 @@ export function createStrands(parent: Object3D, capacity: number, random: () => 
   };
 
   const dress = (slot: Slot, color: Color, look: StrandLook): void => {
-    slot.color.copy(color);
+    sheathColor(color, slot.color);
     slot.glow.value = look.glow;
     slot.width.value = STRANDS.width * look.width;
     slot.core.value = look.core;
@@ -213,7 +381,11 @@ export function createStrands(parent: Object3D, capacity: number, random: () => 
     slot.form = look;
     slot.age = 0;
     slot.delay = 0;
+    slot.flicker = 1;
+    slot.flash = 0;
   };
+
+  const heldLight = (slot: Slot): number => slot.held * (slot.flicker + slot.flash);
 
   return {
     get capacity(): number {
@@ -231,7 +403,11 @@ export function createStrands(parent: Object3D, capacity: number, random: () => 
       slot.mode = 'strike';
       slot.delay = Math.max(0, delay);
       slot.restrike = restrike;
+      slot.restruck = false;
       slot.strength.value = 0;
+      slot.grow.value = 0;
+      keep(slot.from, from);
+      keep(slot.to, to);
       writeStrand(from, to, look, random, slot.buffers);
       expand(slot);
       slot.mesh.visible = true;
@@ -244,20 +420,25 @@ export function createStrands(parent: Object3D, capacity: number, random: () => 
       slot.mode = 'held';
       slot.held = 0;
       slot.strength.value = 0;
+      slot.grow.value = 0;
       return {
         shape(from: StrandEnds, to: StrandEnds, pick: () => number): void {
           if (slot.mode !== 'held') return;
           writeStrand(from, to, slot.form, pick, slot.buffers);
           expand(slot);
+          slot.flicker = STRANDS.crackleMin + (1 - STRANDS.crackleMin) * random();
+          if (random() < STRANDS.crackleChance) slot.flash = STRANDS.crackleFlash;
+          slot.strength.value = heldLight(slot);
           slot.mesh.visible = true;
         },
         light(strength: number): void {
           if (slot.mode !== 'held') return;
           slot.held = Math.max(0, strength);
-          slot.strength.value = slot.held;
+          slot.strength.value = heldLight(slot);
         },
         fade(): void {
           if (slot.mode !== 'held') return;
+          slot.held = heldLight(slot);
           slot.mode = 'fading';
           slot.age = 0;
         },
@@ -268,8 +449,19 @@ export function createStrands(parent: Object3D, capacity: number, random: () => 
         if (slot.mode === 'strike') {
           slot.age += dt;
           const age: number = slot.age - slot.delay;
+          if (slot.restrike && !slot.restruck && age >= restrikeAge(slot.afterglow)) {
+            slot.restruck = true;
+            writeStrand(slot.from, slot.to, slot.form, random, slot.buffers);
+            expand(slot);
+          }
+          slot.grow.value = strandGrow(age);
           slot.strength.value = strandLight(age, slot.afterglow, slot.restrike);
           if (age >= strandSpan(slot.afterglow)) free(slot);
+        } else if (slot.mode === 'held') {
+          slot.age += dt;
+          slot.grow.value = strandGrow(slot.age);
+          slot.flash *= Math.exp(-dt / STRANDS.crackleFall);
+          slot.strength.value = heldLight(slot);
         } else if (slot.mode === 'fading') {
           slot.age += dt;
           const share: number = Math.min(1, slot.age / (slot.afterglow * STRANDS.fadeShare));

@@ -5,6 +5,7 @@ import type { VfxImpact, VfxLightning } from '../../sim/content/types.ts';
 import type { QualityName } from '../mobile/quality.ts';
 import type { GroundLight } from './ground-light.ts';
 import { createGroundLight, flare, GROUND_LIGHT, spread } from './ground-light.ts';
+import { sheathColor } from './strands.ts';
 import type { BurstOptions, ParticleSystem } from './particles.ts';
 import type { Dice, StrandEnds } from './strand-shape.ts';
 import { createDice, STRAND } from './strand-shape.ts';
@@ -41,7 +42,6 @@ export const KIT = {
   groundHeight: GROUND_LIGHT.height + 0.045,
   bodyLength: 2.2,
   bodyStart: 0.35,
-  bodyLead: 0.06,
   bodyStrength: 0.9,
   bodyReshape: 1 / 30,
   trailLifeMin: 0.25,
@@ -52,8 +52,28 @@ export const KIT = {
   trailJitter: 0.18,
   trailPerFrame: 6,
   reducedSparks: 0.5,
-  channelLead: 0.06,
   channelStrength: 0.8,
+  strikeLight: 16,
+  channelLight: 9,
+  laneHalf: 0.32,
+  laneLength: 13,
+  laneFill: 0.6,
+  laneWidth: 0.4,
+  laneWobble: 0.18,
+  laneGlow: 0.32,
+  laneFade: 0.08,
+  laneGoneBelow: 0.004,
+  handSparks: 3,
+  handSparkSpeedMin: 0.8,
+  handSparkSpeedMax: 2.6,
+  handSparkLiftMin: 0.2,
+  handSparkLiftMax: 1.4,
+  handSparkLifeMin: 0.08,
+  handSparkLifeMax: 0.2,
+  handSparkSizeMin: 0.06,
+  handSparkSizeMax: 0.14,
+  handSparkGravity: 4,
+  handSparkDrag: 3,
   channelReshape: 1 / 20,
   skyHeight: 9,
   skyLean: 1.6,
@@ -74,11 +94,12 @@ export interface KitBudget {
   readonly trailScale: number;
   readonly restrike: boolean;
   readonly arcs: number;
+  readonly lanes: number;
 }
 
 export const KIT_BUDGETS: Readonly<Record<QualityName, KitBudget>> = {
-  desktop: { strands: 14, groundFlashes: 6, pending: 16, sparkScale: 1, trailScale: 1, restrike: true, arcs: 3 },
-  mobile: { strands: 6, groundFlashes: 3, pending: 8, sparkScale: 0.5, trailScale: 0.4, restrike: true, arcs: 1 },
+  desktop: { strands: 14, groundFlashes: 6, pending: 16, sparkScale: 1, trailScale: 1, restrike: true, arcs: 3, lanes: 2 },
+  mobile: { strands: 6, groundFlashes: 3, pending: 8, sparkScale: 0.5, trailScale: 0.4, restrike: true, arcs: 1, lanes: 1 },
 };
 
 export function kitBudget(tier: QualityName, reducedMotion: boolean): KitBudget {
@@ -171,11 +192,19 @@ interface Point {
   z: number;
 }
 
+interface Lane {
+  readonly light: GroundLight;
+  readonly color: Color;
+  level: number;
+  owner: number | null;
+}
+
 interface Channel {
   readonly handle: StrandHandle;
   readonly dice: Dice;
   readonly from: Point;
   readonly to: Point;
+  readonly lane: Lane | null;
   idle: number;
   hold: number;
   age: number;
@@ -222,6 +251,13 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
   range(sparks.size, KIT.sparkSizeMin, KIT.sparkSizeMax);
   sparks.gravity = KIT.sparkGravity;
   sparks.drag = KIT.sparkDrag;
+  const crackle: Burst = burstOf();
+  range(crackle.speed, KIT.handSparkSpeedMin, KIT.handSparkSpeedMax);
+  range(crackle.lift, KIT.handSparkLiftMin, KIT.handSparkLiftMax);
+  range(crackle.life, KIT.handSparkLifeMin, KIT.handSparkLifeMax);
+  range(crackle.size, KIT.handSparkSizeMin, KIT.handSparkSizeMax);
+  crackle.gravity = KIT.handSparkGravity;
+  crackle.drag = KIT.handSparkDrag;
   const pop: Burst = burstOf();
   range(pop.life, KIT.popLifeMin, KIT.popLifeMax);
   range(pop.size, KIT.popSizeMin, KIT.popSizeMax);
@@ -242,6 +278,14 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
   }
   const pending: Pending[] = [];
   for (let index: number = 0; index < start.pending; index += 1) pending.push({ color: new Color(), x: 0, z: 0, due: 0, sparks: 0, flash: 0, light: 0, live: false });
+  const lanes: Lane[] = [];
+  for (let index: number = 0; index < start.lanes; index += 1) {
+    const light: GroundLight = createGroundLight(new Color(), { kind: 'lane', halfWidth: KIT.laneHalf, start: 0, length: KIT.laneLength }, { fill: KIT.laneFill, band: 0, width: KIT.laneWidth, wobble: KIT.laneWobble });
+    light.mesh.visible = false;
+    parent.add(light.mesh);
+    lanes.push({ light, color: new Color(), level: 0, owner: null });
+  }
+  const handTint: Color = new Color();
   const bodies: Map<number, Body> = new Map<number, Body>();
   const channels: Map<number, Channel> = new Map<number, Channel>();
   const tail: Point = { x: 0, y: 0, z: 0 };
@@ -291,6 +335,34 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
     channel.handle.shape(channel.from, channel.to, channel.dice.next);
   };
 
+  const claimLane = (id: number, color: Color): Lane | null => {
+    const lane: Lane | undefined = lanes.find((entry: Lane): boolean => entry.owner === null && entry.level < KIT.laneGoneBelow) ?? lanes.find((entry: Lane): boolean => entry.owner === null);
+    if (lane === undefined) return null;
+    lane.owner = id;
+    sheathColor(color, lane.color);
+    const uniform: unknown = lane.light.mesh.material.uniforms['uColor']?.value;
+    if (uniform instanceof Color) uniform.copy(lane.color);
+    return lane;
+  };
+
+  const layLane = (lane: Lane, from: Point, to: Point): void => {
+    const dx: number = to.x - from.x;
+    const dz: number = to.z - from.z;
+    const span: number = Math.min(KIT.laneLength, Math.hypot(dx, dz));
+    lane.light.mesh.position.set(from.x, floorUp(from.x, KIT.groundHeight, from.z), from.z);
+    lane.light.mesh.rotation.z = Math.atan2(-dx, -dz);
+    const uniform = lane.light.mesh.material.uniforms['uLaneSpan'];
+    if (uniform !== undefined) uniform.value = span;
+    lane.light.mesh.visible = true;
+  };
+
+  const handFlash = (at: Point, color: Color, intensity: number): void => {
+    sheathColor(color, handTint);
+    flash(at.x, at.y, at.z, handTint, intensity, KIT.flashRise);
+    const count: number = sparkCount(KIT.handSparks, budget().sparkScale);
+    if (count > 0) particles.burst(aim(crackle, at.x, at.y, at.z, count, handTint));
+  };
+
   const later = (x: number, z: number, color: Color, sparksWanted: number, radius: number, light: number, delay: number): void => {
     if (delay <= 0) {
       fire(x, z, color, sparksWanted, radius, light);
@@ -330,6 +402,7 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
     },
     strike(from: StrandEnds, to: StrandEnds, color: Color, look: VfxLightning, delay: number): void {
       strands.strike(place(strikeFrom, from), place(strikeTo, to), color, look, delay, budget().restrike);
+      if (delay <= 0) handFlash(strikeFrom, color, KIT.strikeLight);
     },
     skyStrike(x: number, z: number, color: Color, look: VfxLightning, radius: number, impact: VfxImpact | null, light: number, delay: number): void {
       const allowed: KitBudget = budget();
@@ -360,7 +433,7 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
       if (channel === undefined) {
         const handle: StrandHandle | null = strands.hold(color, look);
         if (handle === null) return;
-        channel = { handle, dice: createDice(), from: { x: 0, y: 0, z: 0 }, to: { x: 0, y: 0, z: 0 }, idle: 0, hold, age: 0, reshape: KIT.channelReshape, seed: random() };
+        channel = { handle, dice: createDice(), from: { x: 0, y: 0, z: 0 }, to: { x: 0, y: 0, z: 0 }, lane: claimLane(id, color), idle: 0, hold, age: 0, reshape: KIT.channelReshape, seed: random() };
         channels.set(id, channel);
       }
       place(channel.from, from);
@@ -369,7 +442,9 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
       channel.hold = hold;
       channel.seed = random();
       shapeChannel(channel);
-      channel.handle.light(KIT.channelStrength * smooth(channel.age / KIT.channelLead));
+      channel.handle.light(KIT.channelStrength);
+      if (channel.lane !== null) layLane(channel.lane, channel.from, channel.to);
+      handFlash(channel.from, color, KIT.channelLight);
     },
     ground(x: number, z: number, radius: number, color: Color): void {
       groundFlash(x, z, radius, color);
@@ -397,7 +472,7 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
       if (body.handle !== null) {
         body.dice.reset(body.seed);
         body.handle.shape(tail, head, body.dice.next);
-        body.handle.light(KIT.bodyStrength * smooth(body.age / KIT.bodyLead));
+        body.handle.light(KIT.bodyStrength);
       }
       const moved: number = Math.hypot(x - body.lastX, z - body.lastZ);
       body.owed += moved * trail * budget().trailScale;
@@ -420,6 +495,7 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
         channel.idle += dt;
         if (channel.idle >= channel.hold) {
           channel.handle.fade();
+          if (channel.lane !== null) channel.lane.owner = null;
           channels.delete(id);
           continue;
         }
@@ -429,7 +505,16 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
           channel.seed = random();
           shapeChannel(channel);
         }
-        channel.handle.light(KIT.channelStrength * smooth(channel.age / KIT.channelLead));
+        channel.handle.light(KIT.channelStrength);
+      }
+      for (const lane of lanes) {
+        const target: number = lane.owner === null ? 0 : KIT.laneGlow;
+        lane.level = target + (lane.level - target) * Math.exp(-dt / KIT.laneFade);
+        if (lane.owner === null && lane.level < KIT.laneGoneBelow) {
+          lane.level = 0;
+          lane.light.mesh.visible = false;
+        }
+        lane.light.pose(lane.level * (0.7 + 0.3 * random()), clock);
       }
       strands.update(dt);
       for (const entry of pending) {
@@ -454,6 +539,12 @@ export function createEffectKit(parent: Object3D, particles: ParticleSystem, fla
     clear(): void {
       for (const id of bodies.keys()) drop(id);
       channels.clear();
+      for (const lane of lanes) {
+        lane.owner = null;
+        lane.level = 0;
+        lane.light.pose(0, 0);
+        lane.light.mesh.visible = false;
+      }
       strands.clear();
       for (const entry of pending) entry.live = false;
       for (const slot of ground) {
