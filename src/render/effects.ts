@@ -329,9 +329,11 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
       case 'dash':
         if (event.skill.vfx.style === 'roll') dashTrails.land(event.origin, event.direction, color);
         break;
+      case 'chain':
+        if (event.skill.vfx.gather !== null) orbs.release(launchPoint(event.origin, event.direction), EFFECTS.projectileHeight, event.direction, event.skill.vfx.gather, color);
+        break;
       case 'revive':
       case 'area':
-      case 'chain':
       case 'beam':
       case 'blink':
         break;

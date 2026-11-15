@@ -13,6 +13,7 @@ export const PUNCH = {
   dustSizeMax: 0.3,
   dustDrag: 6,
   dustSlowest: 0.55,
+  closeShare: 0.5,
 } as const;
 
 export interface PunchRoll {
@@ -37,6 +38,13 @@ export function dustHeadings(count: number, turn: number): Vec2[] {
     headings.push({ x: Math.sin(angle), z: Math.cos(angle) });
   }
   return headings;
+}
+
+export function reachedFrom(from: Vec2, to: Vec2, reach: number): Vec2 {
+  const length: number = Math.hypot(to.x - from.x, to.z - from.z);
+  if (length <= 0) return { x: from.x, z: from.z };
+  const share: number = Math.min(reach, length * PUNCH.closeShare) / length;
+  return { x: from.x + (to.x - from.x) * share, z: from.z + (to.z - from.z) * share };
 }
 
 export function swungFrom(from: Vec2, to: Vec2, swing: number): Vec2 {
