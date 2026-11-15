@@ -33,6 +33,7 @@ const GLYPHS: ReadonlyMap<string, string> = new Map<string, string>([
   ['staff', '<path d="M6 21 16.5 6.5"/><circle cx="17.6" cy="5" r="2.6" fill="currentColor"/><path d="M13.4 8.4l3.2 2.2" opacity="0.6"/>'],
   ['boots', '<path d="M8 3h6v10l5 3.2V20H8z"/><path d="M8 17h11" opacity="0.6"/><path d="M8 7h6" opacity="0.6"/>'],
   ['book', '<path d="M5 4.5h9.5a3 3 0 0 1 3 3V20H8a3 3 0 0 1-3-3z"/><path d="M5 17a3 3 0 0 1 3-3h9.5"/><path d="M9 8h5"/>'],
+  ['portal', '<path d="M12 2.5c-1.6 3.2 1.8 5.4 0 8.6s1.9 5.6 0 9.4"/><path d="M8 21h8" opacity="0.6"/><path d="M8.2 7.5 6.6 6.4M15.8 14.5l1.6 1.1M7.6 15l-1.5.8" opacity="0.6"/>'],
   ['charm', '<path d="M8 3c0 6 2 8 4 8s4-2 4-8"/><circle cx="12" cy="16" r="5"/><path d="M12 13l2 3-2 3-2-3z" fill="currentColor"/>'],
   ['life', '<path d="M12 21C5 16 3 11.5 3 8.5a4.5 4.5 0 0 1 9-1.5 4.5 4.5 0 0 1 9 1.5c0 3-2 7.5-9 12.5z"/>'],
   ['mana', '<path d="M12 3S5 11 5 15a7 7 0 0 0 14 0c0-4-7-12-7-12z"/><path d="M9 15a3 3 0 0 0 3 3" opacity="0.6"/>'],

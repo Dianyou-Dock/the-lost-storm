@@ -1,3 +1,4 @@
+import type { ParticleSystem } from './particles.ts';
 import type { AnimationAction, AnimationClip, Camera, IUniform, Material, MeshBasicMaterial, Object3D, Scene, Texture, WebGLRenderer } from 'three';
 import { AdditiveBlending, BufferAttribute, BufferGeometry, CircleGeometry, Color, Group, LoopRepeat, Mesh, MeshStandardMaterial, PointLight, ShaderMaterial, SphereGeometry, Vector2 } from 'three';
 import type { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
@@ -158,6 +159,7 @@ export interface MomentViewDeps {
   readonly library: CharacterLibrary;
   readonly dresser: Dresser;
   readonly tier: QualityTier;
+  readonly particles: ParticleSystem;
   readonly flash: (power: number) => void;
   readonly trauma: (amount: number) => void;
 }

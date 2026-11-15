@@ -1,7 +1,8 @@
+import type { TradeGood } from '../../sim/content/trade-types.ts';
 import type { NpcDef } from '../../sim/content/types.ts';
 import { itemName, rarityOf } from '../../sim/items.ts';
 import { shownTitle } from './npc-title.ts';
-import { buyPrice, sellPrice } from '../../sim/world/trade.ts';
+import { buyPrice, goodItem, sellPrice } from '../../sim/world/trade.ts';
 import type { Command, ItemInstance, VendorStock, World } from '../../sim/world/types.ts';
 import type { HudContext, PanelView } from './context.ts';
 import { el, label, retrigger, setText } from './dom.ts';
@@ -49,6 +50,7 @@ export function createVendorPanel(parent: HTMLElement, context: HudContext): Pan
   const purse: HTMLDivElement = el('div', 'trade-gold', head);
   el('span', 'gold-icon', purse).innerHTML = iconSvg('coin');
   const gold: HTMLSpanElement = el('span', 'gold-text', purse);
+  const goodsGrid: HTMLDivElement = el('div', 'inv-grid trade-goods', element);
   const stockGrid: HTMLDivElement = el('div', 'inv-grid', element);
   label('panel-subtitle', 'Buy back', element);
   const backGrid: HTMLDivElement = el('div', 'inv-grid', element);
@@ -75,10 +77,12 @@ export function createVendorPanel(parent: HTMLElement, context: HudContext): Pan
     context.api.send(command);
   });
 
-  const send = (action: { readonly type: 'buy' | 'buy_back'; readonly index: number }): void => {
+  const send = (action: { readonly type: 'buy' | 'buy_back' | 'buy_good'; readonly index: number }): void => {
     context.api.send({ type: 'trade', action });
   };
   const content = context.api.world.content;
+  const goods: readonly (ItemInstance | null)[] = content.trade.goods.map((_good: TradeGood, index: number): ItemInstance | null => goodItem(content, index));
+  const goodCells: PricedCell[] = content.trade.goods.map((good: TradeGood, index: number): PricedCell => pricedCell(context, goodsGrid, 'buy', (): number => good.price, (): void => send({ type: 'buy_good', index })));
   const stockCells: PricedCell[] = Array.from({ length: content.trade.stockSize }, (_: unknown, index: number): PricedCell =>
     pricedCell(context, stockGrid, 'buy', (item: ItemInstance): number => buyPrice(content, item), (): void => send({ type: 'buy', index })),
   );
@@ -100,6 +104,9 @@ export function createVendorPanel(parent: HTMLElement, context: HudContext): Pan
       const coins: number = world.player.gold;
       setText(gold, String(coins), true);
       let changed: boolean = false;
+      for (const [index, cell] of goodCells.entries()) {
+        if (showPriced(context, cell, goods[index] ?? null, content.trade.goods[index]?.price ?? 0, coins)) changed = true;
+      }
       for (const [index, cell] of stockCells.entries()) {
         const item: ItemInstance | null = stock?.stock[index] ?? null;
         if (showPriced(context, cell, item, item === null ? 0 : buyPrice(world.content, item), coins)) changed = true;

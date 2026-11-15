@@ -114,3 +114,16 @@ void test('a story item is never called unsellable, even unrecorded', (): void =
   assert.equal(unsellable(world, { ...sword(4007), ledger: null }, true), true);
   assert.equal(unsellable(world, { ...sword(4007), ledger: null }, false), false);
 });
+
+void test('a bag click uses a usable good, and the trader is never offered it', (): void => {
+  const good: ItemInstance = { ...must(generateItem(content, createRng(4100), 4100, 1, 'folded_hour', null), 'good'), uid: 4100 };
+  const world: World = holding({ 2: good });
+  assert.deepEqual(bagAction(world, 2, 'click'), { kind: 'send', command: { type: 'use_item', inventoryIndex: 2 } });
+  assert.deepEqual(bagAction(world, 2, 'right'), { kind: 'send', command: { type: 'drop', inventoryIndex: 2 } });
+  assert.equal(inventoryHint(world, good, false, false), 'Click to use · Right click to drop');
+  atVendor(world);
+  assert.deepEqual(bagAction(world, 2, 'click'), { kind: 'send', command: { type: 'use_item', inventoryIndex: 2 } });
+  assert.deepEqual(bagAction(world, 2, 'right'), { kind: 'deny' });
+  assert.equal(offeredItem(world, good.uid), null);
+  assert.equal(inventoryHint(world, good, false, false), 'Click to use');
+});

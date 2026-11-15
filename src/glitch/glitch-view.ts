@@ -9,7 +9,7 @@ import type { SeamMoment } from '../../sim/world/seam.ts';
 import type { SeamPass } from '../render/seam-pass.ts';
 import type { SeamAudio } from './seam-audio.ts';
 import type { SeamLook } from './seam-look.ts';
-import { CALM_LOOK, hudTear, seamLook } from './seam-look.ts';
+import { CALM_LOOK, hudTear, portalTear, seamLook } from './seam-look.ts';
 import type { HudTearView } from './hud-tear.ts';
 import { createHudTear } from './hud-tear.ts';
 import type { Silhouette } from '../../sim/world/glitch-types.ts';
@@ -41,6 +41,7 @@ export const GLITCH_VIEW = {
   shadeOpacity: 0.2,
   historySeconds: 1.2,
   calledOffFade: 0.35,
+  portalFade: 0.9,
   mistHoldAt: 0.94,
   whiteVar: '--seam-white',
   mistClass: 'glitch-mist',
@@ -85,6 +86,7 @@ type SeamHold = 'none' | 'tear' | 'mist_end';
 
 interface SeamFade {
   readonly look: SeamLook;
+  readonly span: number;
   left: number;
 }
 
@@ -238,7 +240,7 @@ export function createGlitchView(deps: GlitchViewDeps): GlitchView {
   const showFade = (dt: number, now: number): void => {
     if (fade === null) return;
     fade.left -= dt;
-    const share: number = Math.max(0, fade.left / GLITCH_VIEW.calledOffFade);
+    const share: number = Math.max(0, fade.left / fade.span);
     const look: SeamLook = { ...fade.look, split: fade.look.split * share, slip: fade.look.slip * share, density: fade.look.density, blocks: fade.look.blocks * share, tear: fade.look.tear * share, white: fade.look.white * share };
     deps.seamPass.show(look, now);
     tear.show(hudTear(look), now);
@@ -335,11 +337,12 @@ export function createGlitchView(deps: GlitchViewDeps): GlitchView {
         } else if (event.type === 'glitch_start' && event.kind === 'quiet_pass') enter(event.kind, event.silhouettes);
         else if (event.type === 'glitch_start' && event.kind === 'hard_cut') fade = null;
         else if (event.type === 'glitch_start' && event.kind === 'stutter') startStutter(event.duration);
+        else if (event.type === 'portal' && event.stage === 'entered' && world.glitch.active === null) fade = { look: portalTear(gentleNow()), span: GLITCH_VIEW.portalFade, left: GLITCH_VIEW.portalFade };
         else if (event.type === 'glitch_phase') {
           deps.seamAudio.phase(event.phase);
           if (event.phase === 'settle') resumeSeam();
         } else if (event.type === 'glitch_end' && event.kind === 'hard_cut') {
-          if (event.calledOff) fade = { look: lastLook, left: GLITCH_VIEW.calledOffFade };
+          if (event.calledOff) fade = { look: lastLook, span: GLITCH_VIEW.calledOffFade, left: GLITCH_VIEW.calledOffFade };
           else {
             deps.seamPass.show(CALM_LOOK, clock);
             document.body.style.setProperty(GLITCH_VIEW.whiteVar, '0');

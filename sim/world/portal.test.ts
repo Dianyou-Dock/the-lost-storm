@@ -16,7 +16,7 @@ import { PORTAL_KEEP } from './portal-keep.ts';
 import type { PortalEnd, PortalState } from './portal-types.ts';
 import { stepWorld } from './step.ts';
 import { findExit, travelThrough } from './zones.ts';
-import { handleTrade, meetNpc } from './trade.ts';
+import { goodItem, handleTrade, meetNpc } from './trade.ts';
 import type { ItemInstance, MonsterState, NpcState, World, WorldEvent } from './types.ts';
 
 const content: Content = loadContent();
@@ -273,4 +273,11 @@ void test('a full Hourfall Caves kept in the save stays small and capped', (): v
   const kept: string = JSON.stringify(toSave(world).portal);
   assert.ok(living(wild()).length <= PORTAL_KEEP.monsters);
   assert.ok(kept.length < 16_000, `kept zone is ${kept.length} bytes`);
+});
+
+void test('the trader shows each good as one steady item of its base', (): void => {
+  const shown: ItemInstance = must(goodItem(content, 0), 'shown good');
+  assert.equal(shown.base, PORTAL_BASE);
+  assert.deepEqual(goodItem(content, 0), shown);
+  assert.equal(goodItem(content, content.trade.goods.length), null);
 });

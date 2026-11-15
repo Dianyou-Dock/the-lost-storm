@@ -22,6 +22,8 @@ export const SEAM_LOOK = {
   settleDensity: 0.2,
   hudSplitPixels: 6,
   hudTearPixels: 46,
+  portalWhite: 0.45,
+  portalGentleWhite: 0.35,
 } as const;
 
 export interface SeamLook {
@@ -81,6 +83,10 @@ const GENTLE: Readonly<Record<SeamPhase, (p: number) => SeamLook>> = {
 
 export function seamLook(moment: SeamMoment, soft: boolean): SeamLook {
   return (soft ? GENTLE : TORN)[moment.phase](moment.progress);
+}
+
+export function portalTear(gentle: boolean): SeamLook {
+  return gentle ? whiteOnly(SEAM_LOOK.portalGentleWhite, false, false) : { split: SEAM_LOOK.tearSplit, slip: SEAM_LOOK.tearSlip, density: SEAM_LOOK.tearDensity, tear: SEAM_LOOK.tearStrength, blocks: SEAM_LOOK.tearBlocksPeak, white: SEAM_LOOK.portalWhite, banded: true, held: false, swapped: false };
 }
 
 export function hudTear(look: SeamLook): HudTear {

@@ -1,4 +1,4 @@
-import type { ArmourMaterial, Content, ItemBaseDef, ItemSlot, RarityDef } from '../../sim/content/types.ts';
+import type { ArmourMaterial, Content, ItemBaseDef, ItemSlot, ItemUse, RarityDef } from '../../sim/content/types.ts';
 import { itemVerdict, readItem, readingLines, verdictParts } from '../../sim/item-reading.ts';
 import type { Headline, ItemReading, ReadingRow, Verdict, VerdictKind } from '../../sim/item-reading.ts';
 import { baseOf, itemName, rarityOf, slotOf } from '../../sim/items.ts';
@@ -26,6 +26,10 @@ const MATERIAL_NAMES: Readonly<Record<ArmourMaterial, string>> = {
   leather: 'Leather',
   mail: 'Mail',
   plate: 'Plate',
+};
+
+export const USE_WORDS: Readonly<Record<ItemUse['type'], string>> = {
+  portal: 'Opens a way to the Hideout. Step through it again to come back here.',
 };
 
 const VERDICT_WORDS: Readonly<Record<VerdictKind, string>> = {
@@ -103,6 +107,8 @@ function itemCard(api: HudApi, item: ItemInstance, equipped: ItemInstance | null
   if (api.unverified(item)) label('tip-sub tip-unverified', TOOLTIP_WORDS.unverified, heading);
   el('div', 'tip-sep', root);
   appendReading(root, readItem(content, item, equipped));
+  const use: ItemUse | null = base?.use ?? null;
+  if (use !== null) label('tip-line use', USE_WORDS[use.type], root);
   const family: FamilyReading | null = familyReading(content, item, api.world.player.equipped);
   if (family !== null) appendPower(root, family);
   if (compare) {

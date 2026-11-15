@@ -4,7 +4,7 @@ import { loadGlitches } from '../../sim/content/glitches.ts';
 import type { SeamPlan } from '../../sim/world/seam.ts';
 import { seamAt, seamLength } from '../../sim/world/seam.ts';
 import type { SeamLook } from './seam-look.ts';
-import { hudTear, seamLook } from './seam-look.ts';
+import { hudTear, portalTear, seamLook } from './seam-look.ts';
 
 const PLAN: SeamPlan = { times: loadGlitches().seam, mist: 2 };
 const FRAME: number = 1 / 60;
@@ -60,4 +60,13 @@ void test('the HUD tears with the picture and is still at rest', (): void => {
   const torn = hudTear(seamLook(seamAt(PLAN, PLAN.times.buildUp + PLAN.times.tear / 2), false));
   assert.ok(torn.tear > 0 && torn.split > 0);
   assert.deepEqual(hudTear(seamLook(seamAt(PLAN, 0), false)), { split: 0, tear: 0 });
+});
+
+void test('going through a portal tears the screen hard, and only whitens it when glitches are gentle', (): void => {
+  const torn: SeamLook = portalTear(false);
+  assert.ok(torn.tear > 0 && torn.split > 0 && torn.blocks > 0);
+  const gentle: SeamLook = portalTear(true);
+  assert.equal(gentle.tear, 0);
+  assert.equal(gentle.split, 0);
+  assert.ok(gentle.white > 0 && gentle.white < 1);
 });

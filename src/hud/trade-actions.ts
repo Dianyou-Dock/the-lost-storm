@@ -1,7 +1,7 @@
 import { bookOf } from '../../sim/content/story.ts';
 import type { ServiceKind } from '../../sim/content/trade-types.ts';
 import { baseOf, isStoryItem } from '../../sim/items.ts';
-import { sellPrice } from '../../sim/world/trade.ts';
+import { buysBack, sellPrice } from '../../sim/world/trade.ts';
 import type { Command, ItemInstance, World } from '../../sim/world/types.ts';
 import { UNSELLABLE_HINT } from '../auction/auction-model.ts';
 import type { Prompt } from './prompts.ts';
@@ -15,8 +15,9 @@ export type BagAction =
   | { readonly kind: 'pick' }
   | { readonly kind: 'deny' };
 
-export const INVENTORY_HINTS: Readonly<Record<'equip' | 'stash' | 'read', readonly Prompt[]>> = {
+export const INVENTORY_HINTS: Readonly<Record<'equip' | 'stash' | 'read' | 'use', readonly Prompt[]>> = {
   equip: [use('equip'), alternate('drop')],
+  use: [use('use'), alternate('drop')],
   stash: [use('stash')],
   read: [use('read')],
 };
@@ -47,7 +48,11 @@ export function picksForSale(world: World): boolean {
 }
 
 function sellable(world: World, item: ItemInstance): boolean {
-  return !isStoryItem(world.content, item);
+  return buysBack(world, item);
+}
+
+function usable(world: World, item: ItemInstance): boolean {
+  return (baseOf(world.content, item)?.use ?? null) !== null;
 }
 
 export function bagAction(world: World, inventoryIndex: number, click: InventoryClick): BagAction {
@@ -57,7 +62,7 @@ export function bagAction(world: World, inventoryIndex: number, click: Inventory
   const kind: ServiceKind | null = serviceOf(world);
   if (kind === 'stash') return send({ type: 'trade', action: { type: 'stash', inventoryIndex } });
   if (kind === 'auction') return click === 'right' ? { kind: 'deny' } : { kind: 'pick' };
-  if (click !== 'right') return send({ type: 'equip', inventoryIndex });
+  if (click !== 'right') return send(usable(world, item) ? { type: 'use_item', inventoryIndex } : { type: 'equip', inventoryIndex });
   if (kind === 'vendor') return sellable(world, item) ? { kind: 'offer', uid: item.uid } : { kind: 'deny' };
   return story ? { kind: 'deny' } : send({ type: 'drop', inventoryIndex });
 }
@@ -75,7 +80,8 @@ export function saleCommand(world: World, uid: number | null): Command | null {
 }
 
 function vendorPrompts(world: World, item: ItemInstance): readonly Prompt[] {
-  return sellable(world, item) ? [use('equip'), alternate(SALE_WORDS.offer(sellPrice(world.content, item)))] : [use('equip')];
+  const verb: Prompt = use(usable(world, item) ? 'use' : 'equip');
+  return sellable(world, item) ? [verb, alternate(SALE_WORDS.offer(sellPrice(world.content, item)))] : [verb];
 }
 
 const SERVICE_HINTS: Readonly<Record<ServiceKind, (world: World, item: ItemInstance) => readonly Prompt[]>> = {
@@ -87,7 +93,8 @@ const SERVICE_HINTS: Readonly<Record<ServiceKind, (world: World, item: ItemInsta
 function inventoryPrompts(world: World, item: ItemInstance): readonly Prompt[] {
   if (bookOf(world.content, baseOf(world.content, item)) !== null) return INVENTORY_HINTS.read;
   const kind: ServiceKind | null = serviceOf(world);
-  return kind === null ? INVENTORY_HINTS.equip : SERVICE_HINTS[kind](world, item);
+  if (kind === null) return usable(world, item) ? INVENTORY_HINTS.use : INVENTORY_HINTS.equip;
+  return SERVICE_HINTS[kind](world, item);
 }
 
 export function unsellable(world: World, item: ItemInstance, unverified: boolean): boolean {

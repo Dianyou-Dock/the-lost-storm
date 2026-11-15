@@ -3225,10 +3225,10 @@
     },
     {
       "id": "folded_hour",
-      "name": "Folded Hour",
+      "name": "Return Thread",
       "slot": null,
       "material": null,
-      "icon": "charm",
+      "icon": "portal",
       "dropWeight": 0,
       "minLevel": 1,
       "visual": null,

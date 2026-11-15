@@ -4,7 +4,7 @@ import { baseOf, generateItem, isStoryItem } from '../items.ts';
 import type { TradeGood } from '../content/trade-types.ts';
 import type { Vec2 } from '../math.ts';
 import { distance, facingOf } from '../math.ts';
-import { pickWeighted } from '../rng.ts';
+import { createRng, pickWeighted } from '../rng.ts';
 import { allHold } from './conditions.ts';
 import { hasNews, nextTalk, openDialogue } from './dialogue.ts';
 import type { ItemInstance, NoticeReason, NpcState, PlayerState, TradeAction, VendorStock, World } from './types.ts';
@@ -153,6 +153,16 @@ function buy(world: World, vendor: VendorStock, index: number): void {
 
 export function buysBack(world: World, item: ItemInstance): boolean {
   return !isStoryItem(world.content, item) && baseOf(world.content, item)?.unsellable !== true;
+}
+
+export const GOOD_SHOWN = {
+  seed: 1,
+  uid: 0,
+} as const;
+
+export function goodItem(content: Content, index: number): ItemInstance | null {
+  const good: TradeGood | undefined = content.trade.goods[index];
+  return good === undefined ? null : generateItem(content, createRng(GOOD_SHOWN.seed), GOOD_SHOWN.uid, 1, good.base, content.rarities[0]?.id ?? null);
 }
 
 function buyGood(world: World, index: number): void {

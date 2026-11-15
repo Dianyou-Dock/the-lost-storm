@@ -529,6 +529,11 @@ body.touch .hud-gold-waiting.shown {
   color: #8fb8ff;
 }
 
+.tip-line.use {
+  max-width: 240px;
+  color: #c9c0ff;
+}
+
 .tip-line.cost {
   color: #8fd0ff;
 }
