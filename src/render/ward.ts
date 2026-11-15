@@ -1,6 +1,8 @@
-import type { BufferGeometry, IUniform, Scene } from 'three';
-import { AdditiveBlending, Color, Mesh, PlaneGeometry, ShaderMaterial } from 'three';
+import type { BoxGeometry, IUniform, Scene } from 'three';
+import { AdditiveBlending, BackSide, Color, Mesh, ShaderMaterial } from 'three';
 import type { World } from '../../sim/world/types.ts';
+import { GROUND_DECAL_FRAGMENT, GROUND_DECAL_VERTEX, groundDecalBox, groundDecalUniforms, layOnGround } from './ground-decal.ts';
+import { floorUp } from './terrain-lift.ts';
 
 export const WARD = {
   color: 0xf4efe2,
@@ -19,7 +21,7 @@ export const WARD = {
   longestStep: 1 / 30,
 } as const;
 
-export const WARD_GLOW_VERTEX: string = ['varying vec2 vSpot;', 'void main() {', '  vSpot = position.xy;', '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);', '}'].join('\n');
+export const WARD_GLOW_VERTEX: string = GROUND_DECAL_VERTEX;
 
 export const WARD_GLOW_FRAGMENT: string = [
   'uniform vec3 uColor;',
@@ -29,15 +31,17 @@ export const WARD_GLOW_FRAGMENT: string = [
   'uniform float uSpread;',
   'uniform float uBreakupScale;',
   'uniform float uBreakupDepth;',
-  'varying vec2 vSpot;',
+  ...GROUND_DECAL_FRAGMENT,
   'float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
   'float noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);',
   '  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y); }',
   'void main() {',
+  '  vec2 vSpot;',
+  '  float share = onGround(vSpot);',
   '  float d = length(vSpot) / uReach;',
   '  float pool = exp(-(d * d) / (uSpread * uSpread)) * (1.0 - smoothstep(0.7, 1.0, d));',
   '  float n = noise(vSpot * uBreakupScale + vec2(uTime, -uTime * 0.7));',
-  '  float alpha = max(pool * (1.0 - uBreakupDepth * n) * uStrength, 0.0);',
+  '  float alpha = max(pool * (1.0 - uBreakupDepth * n) * uStrength * share, 0.0);',
   '  gl_FragColor = vec4(uColor * alpha, alpha);',
   '}',
 ].join('\n');
@@ -61,10 +65,9 @@ export interface Ward {
 
 export function createWard(scene: Scene): Ward {
   const uniforms: WardUniforms = { uColor: { value: new Color(WARD.color) }, uStrength: { value: 0 }, uTime: { value: 0 }, uReach: { value: WARD.reach }, uSpread: { value: WARD.spread }, uBreakupScale: { value: WARD.breakupScale }, uBreakupDepth: { value: WARD.breakupDepth } };
-  const geometry: BufferGeometry = new PlaneGeometry(WARD.reach * 2, WARD.reach * 2);
-  const glow: Mesh<BufferGeometry, ShaderMaterial> = new Mesh(geometry, new ShaderMaterial({ vertexShader: WARD_GLOW_VERTEX, fragmentShader: WARD_GLOW_FRAGMENT, uniforms, transparent: true, depthWrite: false, blending: AdditiveBlending }));
+  const glow: Mesh<BoxGeometry, ShaderMaterial> = new Mesh(groundDecalBox(WARD.reach), new ShaderMaterial({ vertexShader: WARD_GLOW_VERTEX, fragmentShader: WARD_GLOW_FRAGMENT, uniforms: { ...groundDecalUniforms(WARD.reach), ...uniforms }, transparent: true, depthWrite: false, depthTest: false, side: BackSide, blending: AdditiveBlending }));
   glow.rotation.x = -Math.PI / 2;
-  glow.position.y = WARD.lift;
+  layOnGround(glow);
   glow.visible = false;
   scene.add(glow);
   let level: number = 0;
@@ -85,7 +88,7 @@ export function createWard(scene: Scene): Ward {
         velocity = 0;
         return;
       }
-      glow.position.set(player.pos.x, WARD.lift, player.pos.z);
+      glow.position.set(player.pos.x, floorUp(player.pos.x, WARD.lift, player.pos.z), player.pos.z);
       uniforms.uStrength.value = wardStrength(level, player.invulnerable, world.content.player.respawnInvulnerability, clock) * WARD.alpha;
       uniforms.uTime.value = clock * WARD.drift;
     },

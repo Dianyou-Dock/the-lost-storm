@@ -1,9 +1,10 @@
 import type { Color, IUniform } from 'three';
-import { CustomBlending, DoubleSide, Mesh, NormalBlending, OneFactor, OneMinusSrcAlphaFactor, PlaneGeometry, ShaderMaterial } from 'three';
+import type { BoxGeometry } from 'three';
+import { BackSide, CustomBlending, Mesh, NormalBlending, OneFactor, OneMinusSrcAlphaFactor, ShaderMaterial } from 'three';
 import type { Spring } from '../hud/character-spring.ts';
 import { springTo, stepSpring } from '../hud/character-spring.ts';
-import type { LiftUniforms } from './terrain-lift.ts';
-import { LIFT_FRAGMENT, LIFT_UNIFORMS, LIFT_VERTEX, TERRAIN_LIFT } from './terrain-lift.ts';
+import type { GroundDecalUniforms } from './ground-decal.ts';
+import { GROUND_DECAL_FRAGMENT, GROUND_DECAL_VERTEX, groundDecalBox, groundDecalUniforms, layOnGround, liftOffGround } from './ground-decal.ts';
 
 export const GROUND_LIGHT = {
   reachWidths: 3.2,
@@ -33,7 +34,6 @@ export const GROUND_LIGHT = {
   holdRise: 0.18,
   holdFall: 0.3,
   hollowFloor: 0.3,
-  segments: 24,
 } as const;
 
 function smooth(t: number): number {
@@ -69,7 +69,7 @@ export interface GroundLightLook {
 }
 
 export interface GroundLight {
-  readonly mesh: Mesh<PlaneGeometry, ShaderMaterial>;
+  readonly mesh: Mesh<BoxGeometry, ShaderMaterial>;
   show(strength: number): void;
   front(share: number): void;
   step(dt: number, time: number): void;
@@ -79,8 +79,7 @@ export interface GroundLight {
   dispose(): void;
 }
 
-interface GroundUniforms {
-  readonly [name: string]: IUniform<unknown>;
+interface GroundUniforms extends GroundDecalUniforms {
   readonly uColor: IUniform<Color>;
   readonly uStrength: IUniform<number>;
   readonly uTime: IUniform<number>;
@@ -100,14 +99,13 @@ interface GroundUniforms {
   readonly uShade: IUniform<number>;
   readonly uHollow: IUniform<number>;
   readonly uGrain: IUniform<number>;
-  readonly uLiftMap: LiftUniforms['uLiftMap'];
-  readonly uLiftArea: LiftUniforms['uLiftArea'];
-  readonly uLiftOn: LiftUniforms['uLiftOn'];
 }
 
 const glsl = (value: number): string => value.toFixed(4);
 
-export const GROUND_LIGHT_VERTEX: string = ['uniform float uExtent;', 'varying vec2 vSpot;', ...LIFT_VERTEX, 'void main() {', '  vSpot = position.xy * 2.0 * uExtent;', '  gl_Position = projectionMatrix * viewMatrix * liftedWorld(position);', '}'].join('\n');
+export const GROUND_LIGHT_VERTEX: string = GROUND_DECAL_VERTEX;
+
+const DECAL_BOX: BoxGeometry = groundDecalBox(0.5);
 
 export const GROUND_LIGHT_FRAGMENT: string = [
   'uniform vec3 uColor;',
@@ -128,14 +126,17 @@ export const GROUND_LIGHT_FRAGMENT: string = [
   'uniform float uShade;',
   'uniform float uHollow;',
   'uniform float uGrain;',
-  'varying vec2 vSpot;',
-  ...LIFT_FRAGMENT,
+  'uniform float uExtent;',
+  ...GROUND_DECAL_FRAGMENT,
   'float groundHash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
   'float groundNoise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);',
   '  return mix(mix(groundHash(i), groundHash(i + vec2(1.0, 0.0)), u.x), mix(groundHash(i + vec2(0.0, 1.0)), groundHash(i + vec2(1.0, 1.0)), u.x), u.y); }',
   'float groundFbm(vec2 p) { return groundNoise(p) * 0.55 + groundNoise(p * 2.07 + 17.3) * 0.3 + groundNoise(p * 4.13 + 41.9) * 0.15; }',
   'float soft(float edge, float width, float x) { return 1.0 - smoothstep(edge - width, edge + width, x); }',
   'void main() {',
+  '  vec2 local;',
+  '  float floorShare = onGround(local);',
+  '  vec2 vSpot = local * 2.0 * uExtent;',
   '  float r = length(vSpot);',
   '  vec2 dir = vSpot / max(r, 0.001);',
   '  vec2 scaled = vSpot / max(uRadius, 0.5);',
@@ -164,7 +165,6 @@ export const GROUND_LIGHT_FRAGMENT: string = [
   `  float broken = smoothstep(0.2, 0.8, groundFbm(breakAt + vec2(uSeed * 0.3, uTime * ${glsl(GROUND_LIGHT.bandBreakSpeed)})));`,
   `  float band = mix(roundBand * sector, laneBand, uLane) * mix(1.0, broken * 1.5, ${glsl(GROUND_LIGHT.bandBreakDepth)});`,
   '  float life = 1.0 - uGrain * inside;',
-  `  float floorShare = liftFade(groundNoise(vLiftWorld.xz * ${glsl(TERRAIN_LIFT.breakScale)}));`,
   '  float glow = max((fill * uFill + band * uBand) * life * uStrength * floorShare, 0.0);',
   '  vec3 lit = uColor * glow;',
   `  lit /= max(1.0, max(lit.r, max(lit.g, lit.b)) / ${glsl(GROUND_LIGHT.peak)});`,
@@ -181,6 +181,7 @@ export function groundLightExtent(form: GroundLightForm, look: GroundLightLook):
 export function groundLightMaterial(color: Color, form: GroundLightForm, look: GroundLightLook, tone: GroundTone): ShaderMaterial {
   const lane: boolean = form.kind === 'lane';
   const uniforms: GroundUniforms = {
+    ...groundDecalUniforms(0.5),
     uColor: { value: color.clone() },
     uStrength: { value: 0 },
     uTime: { value: 0 },
@@ -200,11 +201,8 @@ export function groundLightMaterial(color: Color, form: GroundLightForm, look: G
     uShade: { value: tone === 'shade' ? 1 : 0 },
     uHollow: { value: look.hollow ?? 0 },
     uGrain: { value: look.grain ?? GROUND_LIGHT.insideDepth },
-    uLiftMap: LIFT_UNIFORMS.uLiftMap,
-    uLiftArea: LIFT_UNIFORMS.uLiftArea,
-    uLiftOn: LIFT_UNIFORMS.uLiftOn,
   };
-  return new ShaderMaterial({ uniforms, vertexShader: GROUND_LIGHT_VERTEX, fragmentShader: GROUND_LIGHT_FRAGMENT, transparent: true, depthWrite: false, blending: tone === 'shade' ? NormalBlending : CustomBlending, blendSrc: OneFactor, blendDst: OneMinusSrcAlphaFactor, side: DoubleSide, forceSinglePass: true });
+  return new ShaderMaterial({ uniforms, vertexShader: GROUND_LIGHT_VERTEX, fragmentShader: GROUND_LIGHT_FRAGMENT, transparent: true, depthWrite: false, blending: tone === 'shade' ? NormalBlending : CustomBlending, blendSrc: OneFactor, blendDst: OneMinusSrcAlphaFactor, side: BackSide, depthTest: false, forceSinglePass: true });
 }
 
 function setUniform(material: ShaderMaterial, name: string, value: number): void {
@@ -214,11 +212,11 @@ function setUniform(material: ShaderMaterial, name: string, value: number): void
 
 export function createGroundLight(color: Color, form: GroundLightForm, look: GroundLightLook, tone: GroundTone = 'light'): GroundLight {
   const material: ShaderMaterial = groundLightMaterial(color, form, look, tone);
-  const mesh: Mesh<PlaneGeometry, ShaderMaterial> = new Mesh(new PlaneGeometry(1, 1, GROUND_LIGHT.segments, GROUND_LIGHT.segments), material);
+  const mesh: Mesh<BoxGeometry, ShaderMaterial> = new Mesh(DECAL_BOX, material);
   mesh.rotation.x = -Math.PI / 2;
   mesh.scale.setScalar(groundLightExtent(form, look) * 2);
   mesh.renderOrder = tone === 'shade' ? GROUND_LIGHT.shadeOrder : GROUND_LIGHT.order;
-  mesh.frustumCulled = false;
+  layOnGround(mesh);
   const level: Spring = { value: 0, velocity: 0, target: 0 };
   return {
     mesh,
@@ -247,7 +245,7 @@ export function createGroundLight(color: Color, form: GroundLightForm, look: Gro
       setUniform(material, 'uTime', time);
     },
     dispose(): void {
-      mesh.geometry.dispose();
+      liftOffGround(mesh);
       material.dispose();
       mesh.removeFromParent();
     },

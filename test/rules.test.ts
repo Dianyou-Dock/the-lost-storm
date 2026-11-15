@@ -90,6 +90,39 @@ void test('ground effects are light from the ground-light shader, never flat rin
   assert.deepEqual(found, [], 'draw ground effects with createGroundLight in src/render/ground-light.ts');
 });
 
+const LAID_FLAT: RegExp = /(\.rotation\.x = |\.rotateX\()-Math\.PI \/ 2/;
+const LAID_FLAT_ALLOWED: Readonly<Record<string, string>> = {
+  'src/render/void-view.ts': 'the ground and mist sheets of the void, which has no terrain, not an effect',
+  'src/render/void-light.ts': 'the light pools of the void, which has no terrain',
+  'src/render/zone-view.ts': 'the abyss under a zone, not an effect',
+  'src/render/moment-view.ts': 'the floor of a moment bubble, dressed in a surface, not an effect',
+  'src/render/shore-rock.ts': 'rock geometry, not an effect',
+  'src/render/contact-shadow.ts': 'the soft shadow under an actor, not an effect',
+};
+
+void test('every ground effect lies on the surface under it as a decal, never as a plane laid at a height', (): void => {
+  const found: string[] = [];
+  for (const source of typescript) {
+    if (!source.path.startsWith('src') || source.path.endsWith('.test.ts') || LAID_FLAT_ALLOWED[source.path] !== undefined) continue;
+    if (source.lines.some((line: string): boolean => line.includes('layOnGround('))) continue;
+    source.lines.forEach((line: string, index: number): void => {
+      if (LAID_FLAT.test(line)) found.push(`${source.path}:${index + 1}`);
+    });
+  }
+  assert.deepEqual(found, [], 'draw a ground effect with createGroundLight, or with layOnGround and the decal shaders of src/render/ground-decal.ts');
+});
+
+void test('only the decal pass decides the floor a ground effect stands on', (): void => {
+  const found: string[] = [];
+  for (const source of typescript) {
+    if (!source.path.startsWith('src') || source.path.endsWith('.test.ts') || source.path === 'src/render/ground-decal.ts') continue;
+    source.lines.forEach((line: string, index: number): void => {
+      if (line.includes('uDecalLevel')) found.push(`${source.path}:${index + 1}`);
+    });
+  }
+  assert.deepEqual(found, [], 'a ground effect takes its floor from the terrain under it, set by setLevel in src/render/ground-decal.ts');
+});
+
 void test('every test file sits beside the file it tests', (): void => {
   for (const { path } of typescript.filter((source: SourceFile): boolean => source.path.endsWith('.test.ts') && !source.path.startsWith('test'))) {
     assert.ok(statSync(path.replace('.test.ts', '.ts')).isFile(), `${path} has no source file`);

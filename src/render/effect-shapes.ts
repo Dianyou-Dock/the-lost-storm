@@ -1,8 +1,9 @@
-import type { Color, IUniform, Material } from 'three';
-import { AdditiveBlending, BufferAttribute, BufferGeometry, CylinderGeometry, DoubleSide, Group, IcosahedronGeometry, Mesh, MeshBasicMaterial, NormalBlending, PlaneGeometry, ShaderMaterial, Vector3 } from 'three';
+import type { BoxGeometry, Color, IUniform, Material } from 'three';
+import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry, CylinderGeometry, DoubleSide, Group, IcosahedronGeometry, Mesh, MeshBasicMaterial, NormalBlending, ShaderMaterial, Vector3 } from 'three';
 import type { Delivery } from '../../sim/content/types.ts';
 import { SKILLS } from '../../sim/world/skills.ts';
 import type { GroundLight, GroundLightLook } from './ground-light.ts';
+import { GROUND_DECAL_FRAGMENT, GROUND_DECAL_VERTEX, groundDecalBox, groundDecalUniforms, layOnGround } from './ground-decal.ts';
 import { createGroundLight } from './ground-light.ts';
 
 export const SHAPES = {
@@ -75,16 +76,7 @@ void main() {
 }
 `;
 
-const PLANE_VERTEX: string = `
-varying vec2 vUv;
-void main() {
-  vUv = uv;
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-}
-`;
-
 const NOISE: string = `
-varying vec2 vUv;
 float hash(vec2 p) {
   return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
 }
@@ -104,7 +96,8 @@ uniform vec3 uColor;
 uniform float uFade;
 uniform float uSeed;
 void main() {
-  vec2 p = vUv * 2.0 - 1.0;
+  vec2 p;
+  float share = onGround(p);
   float r = length(p);
   vec2 dir = p / max(r, 0.0001);
   float edge = 0.7 + (fbm(dir * 3.0 + uSeed) - 0.5) * 0.4;
@@ -114,7 +107,7 @@ void main() {
   float ember = crack * burn * smoothstep(0.08, 0.4, r) * uFade * uFade * uFade;
   vec3 color = mix(vec3(0.015, 0.015, 0.02), uColor * 3.0, clamp(ember, 0.0, 1.0));
   float alpha = clamp(soot * 0.62 * uFade + ember * 0.8, 0.0, 1.0);
-  gl_FragColor = vec4(color, alpha);
+  gl_FragColor = vec4(color, alpha * share);
 }
 `;
 
@@ -295,24 +288,26 @@ export function projectileMesh(style: 'bolt' | 'orb', color: Color): Mesh<Icosah
 }
 
 export interface ShaderPlane {
-  readonly mesh: Mesh<PlaneGeometry, ShaderMaterial>;
+  readonly mesh: Mesh<BoxGeometry, ShaderMaterial>;
   readonly material: ShaderMaterial;
 }
 
 function groundPlane(fragmentShader: string, uniforms: Record<string, IUniform>, additiveBlend: boolean, order: number): ShaderPlane {
   const material: ShaderMaterial = new ShaderMaterial({
-    vertexShader: PLANE_VERTEX,
-    fragmentShader: `${NOISE}${fragmentShader}`,
-    uniforms,
+    vertexShader: GROUND_DECAL_VERTEX,
+    fragmentShader: `${GROUND_DECAL_FRAGMENT.join('\n')}\n${NOISE}${fragmentShader}`,
+    uniforms: { ...groundDecalUniforms(1), ...uniforms },
     transparent: true,
     depthWrite: false,
-    side: DoubleSide,
+    depthTest: false,
+    side: BackSide,
     forceSinglePass: true,
     blending: additiveBlend ? AdditiveBlending : NormalBlending,
   });
-  const mesh: Mesh<PlaneGeometry, ShaderMaterial> = new Mesh(new PlaneGeometry(2, 2), material);
+  const mesh: Mesh<BoxGeometry, ShaderMaterial> = new Mesh(groundDecalBox(1), material);
   mesh.rotation.x = -Math.PI / 2;
   mesh.renderOrder = order;
+  layOnGround(mesh);
   return { mesh, material };
 }
 

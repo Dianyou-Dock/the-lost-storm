@@ -1,5 +1,6 @@
-import type { BufferGeometry, Color, IUniform } from 'three';
-import { AdditiveBlending, BufferAttribute, BufferGeometry as Geometry, CylinderGeometry, DoubleSide, FrontSide, Group, Mesh, PlaneGeometry, Points, ShaderMaterial } from 'three';
+import type { BoxGeometry, BufferGeometry, Color, IUniform } from 'three';
+import { AdditiveBlending, BackSide, BufferAttribute, BufferGeometry as Geometry, CylinderGeometry, DoubleSide, FrontSide, Group, Mesh, Points, ShaderMaterial } from 'three';
+import { GROUND_DECAL_FRAGMENT, GROUND_DECAL_VERTEX, groundDecalBox, groundDecalUniforms, layOnGround, liftOffGround } from './ground-decal.ts';
 
 export const LIGHT_POOL = {
   extent: 1.25,
@@ -27,18 +28,22 @@ export const LIGHT_POOL = {
   columnPeak: 0.45,
 } as const;
 
-export const POOL_VERTEX: string = ['uniform float uExtent;', 'varying vec2 vSpot;', 'void main() {', '  vSpot = position.xy * 2.0 * uExtent;', '  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);', '}'].join('\n');
+export const POOL_VERTEX: string = GROUND_DECAL_VERTEX;
 
 export const POOL_FRAGMENT: string = [
   'uniform vec3 uColor;',
   'uniform float uStrength;',
   'uniform float uRadius;',
   'uniform float uTime;',
-  'varying vec2 vSpot;',
+  'uniform float uExtent;',
+  ...GROUND_DECAL_FRAGMENT,
   'float hash(vec2 p) { p = fract(p * vec2(123.34, 456.21)); p += dot(p, p + 45.32); return fract(p.x * p.y); }',
   'float noise(vec2 p) { vec2 i = floor(p); vec2 f = fract(p); vec2 u = f * f * (3.0 - 2.0 * f);',
   '  return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), u.x), mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), u.x), u.y); }',
   'void main() {',
+  '  vec2 local;',
+  '  float share = onGround(local);',
+  '  vec2 vSpot = local * 2.0 * uExtent;',
   '  float d = length(vSpot) / max(uRadius, 0.001);',
   `  float core = exp(-(d * d) / ${(LIGHT_POOL.core * LIGHT_POOL.core).toFixed(4)});`,
   `  float fade = 1.0 - smoothstep(${LIGHT_POOL.fadeFrom.toFixed(3)}, ${LIGHT_POOL.extent.toFixed(3)}, d);`,
@@ -48,7 +53,7 @@ export const POOL_FRAGMENT: string = [
   '  vec3 deep = uColor * uColor / max(max(uColor.r, max(uColor.g, uColor.b)), 0.001);',
   `  vec3 lit = mix(uColor, deep, core * ${LIGHT_POOL.deepen.toFixed(3)}) * glow;`,
   `  lit /= max(1.0, max(lit.r, max(lit.g, lit.b)) / ${LIGHT_POOL.peak.toFixed(3)});`,
-  '  gl_FragColor = vec4(lit, 1.0);',
+  '  gl_FragColor = vec4(lit * share, 1.0);',
   '}',
 ].join('\n');
 
@@ -159,9 +164,10 @@ export function createLightPool(color: Color, column: boolean): LightPool {
   const extent: IUniform<number> = { value: poolExtent(1) };
   const uniforms: PoolUniforms = { uColor: { value: color.clone() }, uStrength: { value: 0 }, uRadius: { value: 1 }, uExtent: extent, uTime: { value: 0 } };
   const group: Group = new Group();
-  const poolMaterial: ShaderMaterial = additive(POOL_VERTEX, POOL_FRAGMENT, uniforms, false);
-  const pool: Mesh<PlaneGeometry, ShaderMaterial> = new Mesh(new PlaneGeometry(1, 1), poolMaterial);
+  const poolMaterial: ShaderMaterial = new ShaderMaterial({ uniforms: { ...groundDecalUniforms(0.5), ...uniforms }, vertexShader: POOL_VERTEX, fragmentShader: POOL_FRAGMENT, transparent: true, depthWrite: false, depthTest: false, blending: AdditiveBlending, side: BackSide, forceSinglePass: true });
+  const pool: Mesh<BoxGeometry, ShaderMaterial> = new Mesh(groundDecalBox(0.5), poolMaterial);
   pool.rotation.x = -Math.PI / 2;
+  layOnGround(pool);
   group.add(pool);
   const columnUniforms: PoolUniforms = { uColor: uniforms.uColor, uStrength: { value: 0 }, uRadius: { value: 1 }, uTime: uniforms.uTime };
   const moteUniforms: PoolUniforms = { uColor: uniforms.uColor, uStrength: { value: 0 }, uRadius: { value: 1 }, uTime: uniforms.uTime, uHeight: { value: LIGHT_POOL.columnHeight }, uSize: { value: LIGHT_POOL.moteSize } };
@@ -195,6 +201,7 @@ export function createLightPool(color: Color, column: boolean): LightPool {
       moteUniforms.uStrength.value = strength * LIGHT_POOL.moteStrength;
     },
     dispose(): void {
+      liftOffGround(pool);
       pool.geometry.dispose();
       poolMaterial.dispose();
       shaft?.geometry.dispose();

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { BufferAttribute, InterleavedBufferAttribute, Material } from 'three';
-import { Color, Mesh, NormalBlending, PlaneGeometry, ShaderMaterial, Vector3 } from 'three';
+import { BoxGeometry, Color, Mesh, NormalBlending, ShaderMaterial, Vector3 } from 'three';
 import type { Delivery } from '../../sim/content/types.ts';
 import { loadContent } from '../../sim/content/content.ts';
 import { groundArcs, lightningLine, pillarMesh, programKeepers, projectileMesh, scorchMesh, skyBolt, slashMesh, telegraphFor } from './effect-shapes.ts';
@@ -15,12 +15,12 @@ function deliveries(): Delivery[] {
   return [...seen.values()];
 }
 
-void test('every telegraph is light drawn by the ground-light shader on one plane, never a shape with an edge', (): void => {
+void test('every telegraph is light drawn by the ground-light shader as one decal on the ground, never a shape with an edge', (): void => {
   const shapes: Delivery[] = deliveries();
   assert.ok(shapes.length >= 4);
   for (const delivery of shapes) {
     for (const light of telegraphFor(delivery, new Color(1, 0, 0), 0).lights) {
-      assert.ok(light.mesh.geometry instanceof PlaneGeometry, `${delivery.type} draws on a plane`);
+      assert.ok(light.mesh.geometry instanceof BoxGeometry, `${delivery.type} draws as a ground decal`);
       assert.equal(light.mesh.material.fragmentShader, GROUND_LIGHT_FRAGMENT);
     }
   }
