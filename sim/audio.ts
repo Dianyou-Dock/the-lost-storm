@@ -1,4 +1,4 @@
-import type { AudioDef, CueDef, CueTable, UiAction, WeaponCue, WorldSoundEvent } from './content/audio.ts';
+import type { AudioDef, CueDef, CueTable, LifeSoundEvent, UiAction, WeaponCue, WorldSoundEvent } from './content/audio.ts';
 import { FALLBACK_KEY, GOLD_KEY, PLAYER_KEY } from './content/audio.ts';
 import type { ItemBaseDef, WeaponKind } from './content/types.ts';
 import { baseOf } from './items.ts';
@@ -15,7 +15,7 @@ type CueTableName = Exclude<keyof AudioDef, 'defaults' | 'ambience' | 'seam'>;
 
 const NO_KEYS: readonly string[] = [];
 
-const WARM_TABLES: readonly CueTableName[] = ['world', 'encounterNearing', 'encounterShown', 'skillStart', 'hit', 'critHit', 'guarded', 'skillHit', 'skillImpact', 'projectileSpawn', 'projectileExpire', 'death', 'aggro', 'pickup', 'drop', 'notice', 'ui'];
+const WARM_TABLES: readonly CueTableName[] = ['world', 'encounterNearing', 'encounterShown', 'life', 'skillStart', 'hit', 'critHit', 'guarded', 'skillHit', 'skillImpact', 'projectileSpawn', 'projectileExpire', 'death', 'aggro', 'pickup', 'drop', 'notice', 'ui'];
 
 function heldBy(entry: WeaponCue, weapon: WeaponKind | null): boolean {
   return entry.weapons.length === 0 || (weapon !== null && entry.weapons.includes(weapon));
@@ -225,6 +225,10 @@ export function warmSoundIds(audio: AudioDef): readonly string[] {
     }
   }
   return [...ids];
+}
+
+export function cuesForLife(audio: AudioDef, event: LifeSoundEvent, position: Vec2): readonly SoundCue[] {
+  return cues(audio.life, event, position);
 }
 
 export function cuesForUi(audio: AudioDef, action: UiAction): readonly SoundCue[] {

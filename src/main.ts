@@ -1,7 +1,7 @@
 import type { Box3, Material } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
-import { cuesForEvent, cuesForUi, uiActionForCommand, warmSoundIds } from '../sim/audio.ts';
+import { cuesForEvent, cuesForLife, cuesForUi, uiActionForCommand, warmSoundIds } from '../sim/audio.ts';
 import { zoneCharacterNeeds } from '../sim/wear.ts';
 import { carriedPictures } from '../sim/pictures.ts';
 import { heroRig } from '../sim/hero.ts';
@@ -15,6 +15,7 @@ import { markInput, markPlaying, wireFolds, wireHudAway, wireTitleKeys } from '.
 import type { SoundCue } from '../sim/audio.ts';
 import type { AudioDef, UiAction, ZoneAmbience } from '../sim/content/audio.ts';
 import { loadAudio } from '../sim/content/audio.ts';
+import { lifeSounds } from './life-audio.ts';
 import { loadContent } from '../sim/content/content.ts';
 import type { Content, LineDef } from '../sim/content/types.ts';
 import type { Vec2 } from '../sim/math.ts';
@@ -584,6 +585,7 @@ async function start(): Promise<void> {
       weather.update(dt, world.player.pos.x, world.player.pos.z, glitchSettings.get().reduceFlashes);
       rain.update(dt, world.player.pos.x, world.player.pos.z, weather.flash, zoneView);
       zoneView.update(now / 1000, dt, world, { look: input.look, figure: figureGauge.measure(actors.hero(), now / 1000), flash: weather.flash });
+      for (const sound of lifeSounds(zoneView.takeLifeEvents())) playCues(cuesForLife(audioDef, sound.event, sound.at));
       if (zoneView.lightsVersion !== torchVersion) {
         torchVersion = zoneView.lightsVersion;
         effects.setTorches(zoneView.torches);
