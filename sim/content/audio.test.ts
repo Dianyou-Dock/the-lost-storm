@@ -244,7 +244,7 @@ void test('the cave zone has its own ambience loops, quieter than the Hall of Ti
   const hall = must(audio.ambience.get(AMBIENT_ZONE), 'the Hall ambience');
   const loops: ReadonlySet<string> = new Set<string>(cave.loops.map((loop): string => loop.sound));
   assert.ok(loops.has('ambience_cave_air'));
-  assert.ok(loops.has('ambience_cave_drips'));
+  assert.ok(!loops.has('ambience_cave_drips'));
   assert.ok(!loops.has('ambience_hall_storm'));
   const storm = must(hall.loops.find((loop): boolean => loop.sound === 'ambience_hall_storm'), 'the Hall storm');
   const air = must(cave.loops.find((loop): boolean => loop.sound === 'ambience_cave_air'), 'the cave air');

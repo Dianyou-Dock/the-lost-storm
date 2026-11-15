@@ -223,7 +223,6 @@
     "under_hall": {
       "loops": [
         { "sound": "ambience_cave_air", "volume": 0.55 },
-        { "sound": "ambience_cave_drips", "volume": 0.28 },
         { "sound": "ambience_drone_low", "volume": 0.3 }
       ],
       "stingers": []
