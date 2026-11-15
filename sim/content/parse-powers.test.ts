@@ -15,3 +15,11 @@ void test('a trigger reads its effect: a cast, a stacking buff, or skill changes
   assert.throws((): unknown => powerTrigger({ on: 'use', effect: { type: 'empower', skillMods: [], duration: 0 } }, 'x'));
   assert.throws((): unknown => powerTrigger({ on: 'use', effect: { type: 'glow' } }, 'x'));
 });
+
+void test('a trigger can feed the flasks a whole number of charges for every few strikes', (): void => {
+  const fed = powerTrigger({ on: 'hit', skill: { group: 'spin' }, every: 4, cooldown: 0.5, effect: { type: 'flask', charges: 1 } }, 'x');
+  assert.deepEqual(fed.effect, { type: 'flask', charges: 1 });
+  assert.equal(fed.every, 4);
+  assert.equal(fed.cooldown, 0.5);
+  assert.throws((): unknown => powerTrigger({ on: 'hit', effect: { type: 'flask', charges: 0 } }, 'x'));
+});

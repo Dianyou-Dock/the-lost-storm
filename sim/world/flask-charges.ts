@@ -13,3 +13,7 @@ export function refillFlasks(player: PlayerState): boolean {
 export function gainFlaskCharges(player: PlayerState): void {
   for (const flask of player.flasks) flask.charges = Math.min(flask.def.maxCharges, flask.charges + flask.def.chargesPerKill);
 }
+
+export function addFlaskCharges(player: PlayerState, charges: number): void {
+  for (const flask of player.flasks) flask.charges = Math.min(flask.def.maxCharges, flask.charges + charges);
+}

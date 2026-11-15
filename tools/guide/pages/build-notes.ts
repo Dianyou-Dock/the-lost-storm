@@ -165,6 +165,9 @@ function whirlwind(data: GuideData): BuildNotes {
   const whirl: number = placeLevel(data, id, 'whirling_cleave');
   const endless: number = placeLevel(data, id, 'endless_turn');
   const wake: number = placeLevel(data, id, 'long_wake');
+  const undertow: number = placeLevel(data, id, 'wind_downdraught');
+  const riptide: number = placeLevel(data, id, 'riptide');
+  const still: number = placeLevel(data, id, 'blade_still_water');
   const wheel: string = skillName(data, 'cleave_millwheel');
   const millwheel: string = esc(item(data, 'the_millwheel').name);
   const [first = 0, second = 0, top = 0] = bossLevels(data);
@@ -172,10 +175,12 @@ function whirlwind(data: GuideData): BuildNotes {
     id,
     ...buildName(id),
     mainSkill: wheel,
-    forWho: 'For players who want to spin through a pack and out the other side without stopping.',
+    forWho: 'For players who want to spin through a pack, drag it under and drink from the fight without stopping.',
     plays: [
       `At level ${whirl} ${name(data, 'whirling_cleave')} turns ${skillName(data, 'cleave')} into a full turn that strikes everything around you. At level ${endless} ${name(data, 'endless_turn')} turns that into the ${wheel}: hold it and you keep turning while you run.`,
       `Every enemy the ${wheel} strikes builds momentum: you turn faster, reach wider and nothing knocks you off your feet. ${name(data, 'millstone')}, right after, lets the momentum climb higher and gives you life for every enemy struck.`,
+      `At level ${undertow} ${name(data, 'wind_downdraught')} gives you ${skillName(data, 'downdraught')}: a whirlpool where you aim that drags the pack together, so one turn strikes all of it.`,
+      `At level ${riptide} ${name(data, 'riptide')} turns your roll into ${skillName(data, 'dodge_roll_riptide')}: a longer roll that leaves a rip current where you land and drags the pack in after you. At level ${still} ${name(data, 'blade_still_water')} gives you ${skillName(data, 'still_water')}, a pool that slows everything around you, and from then on every four enemies the ${wheel} strikes put a charge back in each flask.`,
       `From there it crosses into ${pathName(data, 'wind')} for speed: ${name(data, 'racing_cloud')} makes you attack and move faster, and ${name(data, 'long_wake')} at level ${wake} holds your momentum longer after the last hit, so it carries from one pack to the next.`,
     ],
     lean: [

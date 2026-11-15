@@ -7,7 +7,7 @@ import { CAST_ORIGINS, MOD_OPS, POWER_TARGETS, POWER_TRIGGERS, STAT_IDS } from '
 
 function powerEffect(value: unknown, where: string): PowerEffect {
   const source: Fields = fields(value, where);
-  const type: 'cast' | 'buff' | 'empower' = choice(source, 'type', ['cast', 'buff', 'empower'] as const, where);
+  const type: PowerEffect['type'] = choice(source, 'type', ['cast', 'buff', 'empower', 'flask'] as const, where);
   switch (type) {
     case 'cast':
       return { type, skill: text(source, 'skill', where), at: choice(source, 'at', CAST_ORIGINS, where) };
@@ -15,6 +15,8 @@ function powerEffect(value: unknown, where: string): PowerEffect {
       return { type, stat: choice(source, 'stat', STAT_IDS, where), op: choice(source, 'op', MOD_OPS, where), value: numeric(source, 'value', where), duration: positive(source, 'duration', where), stacks: positive(source, 'stacks', where) };
     case 'empower':
       return { type, skillMods: each(source['skillMods'], `${where}.skillMods`, skillMod), duration: positive(source, 'duration', where) };
+    case 'flask':
+      return { type, charges: positive(source, 'charges', where) };
   }
   return { type: 'cast', skill: text(source, 'skill', where), at: 'target' };
 }

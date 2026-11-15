@@ -28,6 +28,9 @@ function triggerProblems(content: Content, owner: string, trigger: PowerTriggerD
         if (problem !== null) problems.push(problem);
       }
       break;
+    case 'flask':
+      if (!Number.isInteger(effect.charges)) problems.push(`${owner} gives ${effect.charges} flask charges, which is not a whole count`);
+      break;
   }
   return problems;
 }

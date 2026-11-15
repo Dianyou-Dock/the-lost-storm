@@ -55,7 +55,7 @@ void test('percent modifiers multiply the total of the flat ones', (): void => {
 });
 
 void test('allocated nodes add stat modifiers', (): void => {
-  const stats: StatBlock = computeStats(content, 1, bare, ['tempered_body', 'heavy_hands']);
+  const stats: StatBlock = computeStats(content, 1, bare, ['tempered_body', 'heavy_hands'], [], 'blade');
   assert.equal(stats.maxLife, 130);
   assert.ok(Math.abs(stats.damagePercent - 0.2) < 1e-9);
 });

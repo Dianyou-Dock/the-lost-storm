@@ -76,11 +76,11 @@ void test('levels, gear and the Skill Tree raise the figures', (): void => {
   const fresh: LadderFigures = ladderFigures(content, subject());
   const levelled: LadderFigures = ladderFigures(content, subject({ level: 10 }));
   const armed: LadderFigures = ladderFigures(content, subject({ equipped: { ...bare, weapon: item('rusted_blade') } }));
-  const tree: LadderFigures = ladderFigures(content, subject({ allocated: ['tempered_body', 'heavy_hands'] }));
+  const tree: LadderFigures = ladderFigures(content, subject({ equipped: { ...bare, weapon: item('rusted_blade') }, allocated: ['tempered_body', 'heavy_hands'] }));
   assert.ok(levelled.life > fresh.life && levelled.damage > fresh.damage);
   assert.ok(armed.damage > fresh.damage);
-  assert.equal(tree.life, fresh.life + 30);
-  assert.ok(tree.damage > fresh.damage);
+  assert.equal(tree.life, armed.life + 30);
+  assert.ok(tree.damage > armed.damage);
 });
 
 void test('a crossbow measures the shot it turns the main attack into', (): void => {

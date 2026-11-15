@@ -44,9 +44,10 @@ void test('a tree place whose trigger names a skill that does not exist, or empo
   const odd: SkillTreeNodeDef = { ...first, id: 'odd_place', triggers: [
     { on: 'use', skill: { type: 'skill', skill: 'no_such_roll' }, target: 'any', every: 1, cooldown: 0, effect: { type: 'empower', skillMods: [], duration: 2 } },
     { on: 'use', skill: null, target: 'any', every: 1, cooldown: 0, effect: { type: 'empower', skillMods: [{ target: { type: 'group', group: 'no_such_group' }, field: 'pierce', value: 1 }], duration: 2 } },
+    { on: 'hit', skill: null, target: 'any', every: 4, cooldown: 0.5, effect: { type: 'flask', charges: 1.5 } },
   ] };
   const problems: string[] = powerRuleProblems({ ...content, skillTree: [...content.skillTree, odd] });
-  for (const expected of ['tree node odd_place names unknown skill no_such_roll', 'tree node odd_place empowers nothing', 'tree node odd_place names unknown skill group no_such_group']) {
+  for (const expected of ['tree node odd_place names unknown skill no_such_roll', 'tree node odd_place empowers nothing', 'tree node odd_place names unknown skill group no_such_group', 'tree node odd_place gives 1.5 flask charges']) {
     assert.ok(problems.some((problem: string): boolean => problem.includes(expected)), expected);
   }
 });

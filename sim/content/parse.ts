@@ -143,6 +143,7 @@ function skill(value: unknown, where: string): SkillDef {
   const damage: Fields = fields(source['damage'], `${where}.damage`);
   return {
     id: text(source, 'id', where),
+    form: text(source, 'id', where),
     name: text(source, 'name', where),
     description: text(source, 'description', where),
     icon: text(source, 'icon', where),

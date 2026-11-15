@@ -133,6 +133,7 @@ export interface SkillCombo {
 
 export interface SkillDef extends SkillShape {
   readonly id: string;
+  readonly form: string;
   readonly name: string;
   readonly description: string;
   readonly icon: string;
@@ -246,7 +247,7 @@ export interface WearableDef {
 }
 
 export { ARMOUR_MATERIALS, CAST_ORIGINS, GROUND_KEEPS, GROUND_MODELS, ITEM_STATS, POWER_TARGETS, POWER_TRIGGERS, RARITY_MARKERS, WEAPON_KINDS } from './item-types.ts';
-export type { AffixDef, ArmourMaterial, BuffEffect, CastEffect, EmpowerEffect, CastOrigin, FamilyDef, GroundKeep, GroundLook, GroundModel, ItemBaseDef, ItemScaling, ItemStat, PowerDef, PowerEffect, PowerTarget, PowerTrigger, PowerTriggerDef, RarityDef, RarityMarker, ItemUse, PortalUse } from './item-types.ts';
+export type { AffixDef, ArmourMaterial, BuffEffect, CastEffect, EmpowerEffect, FlaskEffect, CastOrigin, FamilyDef, GroundKeep, GroundLook, GroundModel, ItemBaseDef, ItemScaling, ItemStat, PowerDef, PowerEffect, PowerTarget, PowerTrigger, PowerTriggerDef, RarityDef, RarityMarker, ItemUse, PortalUse } from './item-types.ts';
 
 export const TREE_NODE_KINDS = ['minor', 'notable', 'keystone'] as const;
 export type TreeNodeKind = (typeof TREE_NODE_KINDS)[number];

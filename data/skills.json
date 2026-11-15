@@ -891,8 +891,8 @@
   },
   {
     "id": "downdraught",
-    "name": "Downdraught",
-    "description": "Falling wind where you aim pulls enemies together, then slams them down.",
+    "name": "Undertow",
+    "description": "A whirlpool where you aim drags enemies together, then pulls them under.",
     "icon": "downdraught",
     "animation": "cast",
     "manaCost": 15,
@@ -908,7 +908,7 @@
     "shake": 0.45,
     "hitStop": 0.06,
     "category": "area",
-    "vfx": { "style": "wind", "color": "#a9c4cf", "cue": "hand" }
+    "vfx": { "style": "wind", "color": "#5fa9cf", "cue": "hand" }
   },
   {
     "id": "squall",
@@ -1176,8 +1176,8 @@
   },
   {
     "id": "downdraught_updraught",
-    "name": "Updraught",
-    "description": "Downdraught becomes an updraught: a burst of wind around you that hurls everything away.",
+    "name": "Breaker",
+    "description": "Undertow becomes a breaker: a wave bursts out around you and hurls everything away.",
     "icon": "downdraught",
     "animation": "cast",
     "manaCost": 15,
@@ -1192,7 +1192,7 @@
     "stagger": 0.5,
     "shake": 0.45,
     "hitStop": 0.06,
-    "vfx": { "style": "wind", "color": "#a9c4cf", "cue": "ground", "light": 0.8 }
+    "vfx": { "style": "wind", "color": "#5fa9cf", "cue": "ground", "light": 0.8 }
   },
   {
     "id": "thunderclap_gathered",
@@ -1577,5 +1577,8 @@
   {"id": "matron_spit", "category": "area", "name": "Molten Spit", "description": "A heavier gob, thrown far ahead.", "icon": "storm_bolt", "animation": "lunge", "manaCost": 0, "cooldown": 2.8, "windup": 0.75, "recovery": 0.5, "scalesWithAttackSpeed": false, "engageRange": 14, "delivery": {"type": "mark", "range": 15, "radius": 2.4, "delay": 1.0}, "damage": {"weaponPercent": 1.2, "flatMin": 0, "flatMax": 0}, "burn": {"duration": 2, "tick": 0.25, "share": 0.12}, "knockback": 6, "stagger": 0.2, "shake": 0.4, "hitStop": 0.06, "vfx": {"style": "fire", "color": "#ff6a1c", "light": 0.7, "impact": {"sparks": 12, "flash": 0.6}}},
   {"id": "mite_bite", "category": "melee", "name": "Cinder Bite", "description": "A hot snap at the ankles.", "icon": "cleave", "animation": "bite", "manaCost": 0, "cooldown": 1.1, "windup": 0.32, "recovery": 0.35, "scalesWithAttackSpeed": false, "engageRange": 0.9, "delivery": {"type": "arc", "reach": 1.2, "arcDegrees": 90}, "damage": {"weaponPercent": 1.0, "flatMin": 0, "flatMax": 0}, "knockback": 1.2, "stagger": 0.06, "shake": 0.08, "hitStop": 0.02, "vfx": {"style": "claw", "color": "#ff8a3a", "light": 0.25, "impact": {"sparks": 3, "flash": 0.05}}},
   {"id": "cinder_patch", "category": "area", "name": "Burning Ground", "description": "The ground where it landed, still burning.", "icon": "thunderclap", "animation": "cast", "manaCost": 0, "cooldown": 0, "windup": 0, "recovery": 0, "scalesWithAttackSpeed": false, "engageRange": 0, "delivery": {"type": "area", "range": 0, "radius": 1.6, "duration": 2.4, "pulse": 0.6, "pull": 0, "slow": 1, "anchor": "ground"}, "damage": {"weaponPercent": 0.2, "flatMin": 0, "flatMax": 0}, "burn": {"duration": 1.2, "tick": 0.25, "share": 0.1}, "knockback": 0, "stagger": 0, "shake": 0, "hitStop": 0, "vfx": {"style": "fire", "color": "#ff6a1c", "light": 0.4, "impact": {"sparks": 4, "flash": 0.1}}},
-  {"id": "alpha_patch", "category": "area", "name": "Burning Ground", "description": "The ground where it landed, still burning.", "icon": "thunderclap", "animation": "cast", "manaCost": 0, "cooldown": 0, "windup": 0, "recovery": 0, "scalesWithAttackSpeed": false, "engageRange": 0, "delivery": {"type": "area", "range": 0, "radius": 2.3, "duration": 3.4, "pulse": 0.6, "pull": 0, "slow": 1, "anchor": "ground"}, "damage": {"weaponPercent": 0.2, "flatMin": 0, "flatMax": 0}, "burn": {"duration": 1.2, "tick": 0.25, "share": 0.1}, "knockback": 0, "stagger": 0, "shake": 0, "hitStop": 0, "vfx": {"style": "fire", "color": "#ff6a1c", "light": 0.4, "impact": {"sparks": 4, "flash": 0.1}}}
+  {"id": "alpha_patch", "category": "area", "name": "Burning Ground", "description": "The ground where it landed, still burning.", "icon": "thunderclap", "animation": "cast", "manaCost": 0, "cooldown": 0, "windup": 0, "recovery": 0, "scalesWithAttackSpeed": false, "engageRange": 0, "delivery": {"type": "area", "range": 0, "radius": 2.3, "duration": 3.4, "pulse": 0.6, "pull": 0, "slow": 1, "anchor": "ground"}, "damage": {"weaponPercent": 0.2, "flatMin": 0, "flatMax": 0}, "burn": {"duration": 1.2, "tick": 0.25, "share": 0.1}, "knockback": 0, "stagger": 0, "shake": 0, "hitStop": 0, "vfx": {"style": "fire", "color": "#ff6a1c", "light": 0.4, "impact": {"sparks": 4, "flash": 0.1}}},
+  { "id": "dodge_roll_riptide", "name": "Riptide", "description": "Roll further toward the cursor on a surge of water, leaving a rip current where you land that drags enemies in after you.", "icon": "dodge_roll", "animation": "roll", "manaCost": 0, "cooldown": 1.1, "windup": 0.36, "recovery": 0.12, "scalesWithAttackSpeed": false, "engageRange": 6, "delivery": { "type": "dash", "distance": 6.5, "duration": 0.36, "invulnerable": 0.24, "passThrough": true, "steady": true }, "damage": { "weaponPercent": 0, "flatMin": 0, "flatMax": 0 }, "knockback": 0, "stagger": 0, "shake": 0, "hitStop": 0, "vfx": { "style": "roll", "color": "#6f9fb8", "cue": "none", "shadow": { "color": "#2f86c0", "strength": 0.9 } } },
+  { "id": "riptide_wake", "name": "Rip Current", "description": "A rip current that drags enemies into it and strikes them.", "icon": "downdraught", "animation": "cast", "weapons": [], "manaCost": 0, "cooldown": 0, "windup": 0, "recovery": 0, "scalesWithAttackSpeed": false, "engageRange": 3, "delivery": { "type": "area", "range": 0, "radius": 3, "duration": 1, "pulse": 0.5, "pull": 9, "slow": 0.6, "anchor": "ground" }, "damage": { "weaponPercent": 0.35, "flatMin": 1, "flatMax": 2 }, "knockback": 0, "stagger": 0.2, "shake": 0.12, "hitStop": 0, "vfx": { "style": "wind", "color": "#5fa9cf", "cue": "none" } },
+  { "id": "still_water", "name": "Still Water", "description": "A pool of still water spreads around you: enemies inside it are slowed, and it laps at them every second.", "icon": "still_water", "animation": "slam", "weapons": [], "manaCost": 16, "cooldown": 10, "windup": 0.2, "recovery": 0.3, "scalesWithAttackSpeed": false, "engageRange": 4, "delivery": { "type": "area", "range": 0, "radius": 4.5, "duration": 8, "pulse": 1, "pull": 0, "slow": 0.7, "anchor": "caster" }, "damage": { "weaponPercent": 0.3, "flatMin": 1, "flatMax": 2 }, "knockback": 0, "stagger": 0.05, "shake": 0.04, "hitStop": 0, "category": "lasting", "vfx": { "style": "gap", "color": "#5fa9cf", "cue": "ground" } }
 ]

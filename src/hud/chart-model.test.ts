@@ -12,7 +12,7 @@ void test('a search finds places by name, effect, path or the skill a place chan
   assert.equal(chartMatches(content, 'a'), null);
   assert.equal(chartMatches(content, 'Forked')?.has('forked_bolt'), true);
   assert.equal(chartMatches(content, 'storm bolt')?.has('storm_lance'), true);
-  assert.equal(chartMatches(content, 'the edge')?.has('heavy_hands'), true);
+  assert.equal(chartMatches(content, 'the turning tide')?.has('heavy_hands'), true);
   const life: ReadonlySet<string> | null = chartMatches(content, 'maximum life');
   assert.ok(life !== null && life.has('tempered_body') && !life.has('forked_bolt'));
   assert.equal(chartMatches(content, 'zzzz')?.size, 0);

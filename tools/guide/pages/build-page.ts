@@ -19,7 +19,7 @@ export interface BuildName {
 export const BUILD_NAMES: Readonly<Record<string, BuildName>> = {
   'glass-cannon': { name: 'Glass Cannon', kind: 'Crossbow and roll' },
   'bulwark': { name: 'Bulwark', kind: 'Tank' },
-  whirlwind: { name: 'Whirlwind', kind: 'Spinning blade' },
+  whirlwind: { name: 'Maelstrom', kind: 'Spinning blade' },
   'stormcaller': { name: 'Stormcaller', kind: 'Lightning caster' },
   'echo-weaver': { name: 'Echo Weaver', kind: 'Area caster' },
   windrunner: { name: 'Nightshot', kind: 'Marksman' },

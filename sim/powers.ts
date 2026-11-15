@@ -7,6 +7,7 @@ import { directionOf } from './math.ts';
 import { allocatedNodes, inGroup, resolveSkill } from './stats.ts';
 import type { Actor, BuffState, EmpowerState, Equipment, ItemInstance, PlayerState, PowerState, World } from './world/types.ts';
 import { skillAllowed } from './weapons.ts';
+import { addFlaskCharges } from './world/flask-charges.ts';
 
 export interface WornPower {
   readonly key: string;
@@ -67,9 +68,10 @@ export function wouldPassLimit(content: Content, equipped: Equipment, item: Item
   return others + 1 > rarity.wornLimit;
 }
 
-function skillMatches(content: Content, target: SkillTarget | null, skill: string): boolean {
+function skillMatches(content: Content, target: SkillTarget | null, skill: SkillDef): boolean {
   if (target === null) return true;
-  return target.type === 'skill' ? target.skill === skill : inGroup(content, target.group, skill);
+  const names: readonly string[] = [skill.id, skill.form];
+  return names.some((name: string): boolean => (target.type === 'skill' ? target.skill === name : inGroup(content, target.group, name)));
 }
 
 function targetMatches(content: Content, trigger: PowerTriggerDef, target: Actor | null): boolean {
@@ -146,7 +148,7 @@ export function firePowers(world: World, event: PowerEvent): boolean {
   let buffed: boolean = false;
   for (const source of triggerSources(world.content, player)) {
     source.triggers.forEach((trigger: PowerTriggerDef, index: number): void => {
-      if (trigger.on !== event.on || !skillMatches(world.content, trigger.skill, event.skill.id) || !targetMatches(world.content, trigger, event.target)) return;
+      if (trigger.on !== event.on || !skillMatches(world.content, trigger.skill, event.skill) || !targetMatches(world.content, trigger, event.target)) return;
       const key: string = `${source.key}:${index}`;
       if (!ready(player.powers, key, trigger)) return;
       const effect = trigger.effect;
@@ -161,6 +163,9 @@ export function firePowers(world: World, event: PowerEvent): boolean {
         case 'empower':
           empower(player.powers, key, effect);
           buffed = true;
+          return;
+        case 'flask':
+          addFlaskCharges(player, effect.charges);
           return;
       }
     });

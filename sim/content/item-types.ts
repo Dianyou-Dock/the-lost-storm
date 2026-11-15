@@ -96,7 +96,12 @@ export interface EmpowerEffect {
   readonly duration: number;
 }
 
-export type PowerEffect = CastEffect | BuffEffect | EmpowerEffect;
+export interface FlaskEffect {
+  readonly type: 'flask';
+  readonly charges: number;
+}
+
+export type PowerEffect = CastEffect | BuffEffect | EmpowerEffect | FlaskEffect;
 
 export interface PowerTriggerDef {
   readonly on: PowerTrigger;

@@ -1,7 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ARENA_CENTRE, ARENA_CONTENT, arena, place } from '../test/arena-support.ts';
-import { must } from '../test/support.ts';
+import { must, worldIn } from '../test/support.ts';
+import { loadContent } from './content/content.ts';
 import type { Content, MonsterDef, SkillDef, SkillTreeNodeDef } from './content/types.ts';
 import { generateItem, slotOf } from './items.ts';
 import { buffMods, emptyPowerState, familyReading, firePowers, heldPowers, stepPowerState, wornPowers, wouldPassLimit } from './powers.ts';
@@ -250,4 +251,95 @@ void test('a tree place off its weapon sets off no trigger', (): void => {
   const world: World = veiled('blade');
   assert.ok(!firePowers(world, { on: 'use', skill: skill('dodge_roll'), target: null, at: world.player.pos }));
   assert.deepEqual(world.player.powers.empowers, []);
+});
+
+const STILL: SkillTreeNodeDef = {
+  ...VEIL,
+  id: 'test_still',
+  name: 'Still',
+  description: 'Every four strikes of Cleave give each flask a charge.',
+  weapon: null,
+  triggers: [{ on: 'hit', skill: { type: 'skill', skill: 'cleave' }, target: 'any', every: 4, cooldown: 0.5, effect: { type: 'flask', charges: 1 } }],
+};
+
+function stilled(): World {
+  const world: World = arena(1, { ...content, skillTree: [...content.skillTree, STILL] });
+  world.player.allocated = ['test_still'];
+  for (const flask of world.player.flasks) flask.charges = 0;
+  return world;
+}
+
+function strike(world: World, times: number): void {
+  for (let struck: number = 0; struck < times; struck += 1) firePowers(world, { on: 'hit', skill: skill('cleave'), target: null, at: world.player.pos });
+}
+
+function charges(world: World): number[] {
+  return world.player.flasks.map((flask): number => flask.charges);
+}
+
+void test('a tree place gives each flask a charge for every few strikes, and not again until its cooldown has passed', (): void => {
+  const world: World = stilled();
+  assert.ok(world.player.flasks.length > 0);
+  strike(world, 3);
+  assert.ok(charges(world).every((held: number): boolean => held === 0));
+  strike(world, 1);
+  assert.ok(charges(world).every((held: number): boolean => held === 1));
+  strike(world, 8);
+  assert.ok(charges(world).every((held: number): boolean => held === 1));
+  stepPowerState(world.player.powers, 0.5);
+  strike(world, 4);
+  assert.ok(charges(world).every((held: number): boolean => held === 2));
+  firePowers(world, { on: 'hit', skill: skill('storm_bolt'), target: null, at: world.player.pos });
+  assert.equal(world.player.powers.counts['place:test_still:0'] ?? 0, 0);
+});
+
+void test('a flask charge never fills a flask past its maximum', (): void => {
+  const world: World = stilled();
+  for (const flask of world.player.flasks) flask.charges = flask.def.maxCharges;
+  strike(world, 4);
+  assert.ok(world.player.flasks.every((flask): boolean => flask.charges === flask.def.maxCharges));
+});
+
+const shipped: Content = loadContent();
+const MAELSTROM: readonly string[] = ['blade_thunderhead', 'heavy_hands', 'blade_1', 'whetstone', 'blade_4', 'whirling_cleave', 'endless_turn', 'millstone', 'riptide', 'blade_still_water'];
+
+function maelstrom(wielding: string): World {
+  const world: World = worldIn(shipped, 'hall_of_time', 3);
+  world.player.allocated = [...MAELSTROM];
+  world.player.wielding = wielding;
+  for (const flask of world.player.flasks) flask.charges = 0;
+  return world;
+}
+
+function shippedSkill(id: string): SkillDef {
+  return must(shipped.skills.get(id), id);
+}
+
+function resolvedIn(world: World, id: string): SkillDef {
+  return resolveSkill(shipped, shippedSkill(id), world.player.allocated, [], [], world.player.wielding, world.player.changes);
+}
+
+void test('with a blade in hand the Millwheel feeds the flasks through Still Water, and Riptide leaves its current where the roll lands', (): void => {
+  const world: World = maelstrom('blade');
+  const wheel: SkillDef = resolvedIn(world, 'cleave');
+  assert.deepEqual([wheel.id, wheel.form], ['cleave', 'cleave_millwheel']);
+  for (let struck: number = 0; struck < 4; struck += 1) firePowers(world, { on: 'hit', skill: shippedSkill('cleave'), target: null, at: world.player.pos });
+  assert.ok(world.player.flasks.every((flask): boolean => flask.charges === 0));
+  for (let struck: number = 0; struck < 4; struck += 1) firePowers(world, { on: 'hit', skill: wheel, target: null, at: world.player.pos });
+  assert.ok(world.player.flasks.every((flask): boolean => flask.charges === 1));
+  const start = { x: world.player.pos.x + 3, z: world.player.pos.z };
+  firePowers(world, { on: 'use', skill: shippedSkill('dodge_roll'), target: null, at: start });
+  assert.equal(world.echoes.length, 0);
+  const roll: SkillDef = resolvedIn(world, 'dodge_roll');
+  assert.deepEqual([roll.id, roll.form], ['dodge_roll', 'dodge_roll_riptide']);
+  firePowers(world, { on: 'use', skill: roll, target: null, at: start });
+  const current: EchoState = must(world.echoes.find((echo: EchoState): boolean => echo.skill.id === 'riptide_wake'), 'rip current');
+  assert.deepEqual(current.origin, start);
+});
+
+void test('Still Water feeds no flask with a crossbow in hand', (): void => {
+  const world: World = maelstrom('crossbow');
+  const wheel: SkillDef = resolvedIn(maelstrom('blade'), 'cleave');
+  for (let struck: number = 0; struck < 8; struck += 1) firePowers(world, { on: 'hit', skill: wheel, target: null, at: world.player.pos });
+  assert.ok(world.player.flasks.every((flask): boolean => flask.charges === 0));
 });

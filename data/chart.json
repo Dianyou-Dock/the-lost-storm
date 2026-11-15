@@ -1,7 +1,7 @@
 {
   "title": "The Skill Tree",
   "pointsPerLevel": 2,
-  "revision": 3,
+  "revision": 4,
   "twist": 0.08,
   "respec": {
     "goldPerPoint": 10,
@@ -16,9 +16,9 @@
     },
     {
       "id": "blade",
-      "name": "The Edge",
-      "tint": "#e2cf9e",
-      "description": "The weapon in your hand: faster swings, heavier blows, cleaner kills."
+      "name": "The Turning Tide",
+      "tint": "#7ab6d4",
+      "description": "The blade that never stops turning: spin through them, drag them under, and drink from the fight."
     },
     {
       "id": "wind",
@@ -80,7 +80,8 @@
         "downdraught",
         "held_breath",
         "forkline",
-        "umbra"
+        "umbra",
+        "still_water"
       ]
     },
     {
@@ -98,7 +99,16 @@
       "name": "rolls",
       "skills": [
         "dodge_roll",
-        "dodge_roll_slip"
+        "dodge_roll_slip",
+        "dodge_roll_riptide"
+      ]
+    },
+    {
+      "id": "spin",
+      "name": "spin skills",
+      "skills": [
+        "cleave_whirl",
+        "cleave_millwheel"
       ]
     }
   ],

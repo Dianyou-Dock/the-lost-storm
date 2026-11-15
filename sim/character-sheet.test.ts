@@ -41,13 +41,13 @@ void test('a bare level 1 character shows the base stats and a cleave of 2 to 4'
 });
 
 void test('levels count as base and tree nodes as tree', (): void => {
-  const sheet: CharacterSheet = characterSheet(content, subject(5, ['tempered_body', 'heavy_hands'], false));
+  const sheet: CharacterSheet = characterSheet(content, subject(5, ['tempered_body', 'heavy_hands'], true));
   assert.equal(sheet.figures.maxLife.base, 148);
   assert.equal(sheet.figures.maxLife.tree, 30);
   assert.equal(sheet.figures.maxLife.total, 178);
   near(sheet.figures.lifeRegen.tree, 1);
   near(sheet.figures.damagePercent.tree, 0.2);
-  near(skill(sheet, 'cleave').hitMax, 8 * 1.2);
+  near(skill(sheet, 'cleave').hitMax, (8 + 6) * 1.2);
 });
 
 void test('a weapon is gear: its damage lands in the gear column and the hit range', (): void => {

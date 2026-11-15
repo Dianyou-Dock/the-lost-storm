@@ -7,6 +7,7 @@ import { emptyEquipment, generateItem } from './items.ts';
 import { wornPowers } from './powers.ts';
 import { canAllocate } from './progression.ts';
 import { createRng } from './rng.ts';
+import { armedFlag } from './save-arm.ts';
 import { earnedPoints, parseSaveText, readSave, SAVE_VERSION, toSave } from './save.ts';
 import type { SaveData } from './save.ts';
 import { createWorld } from './world/create.ts';
@@ -476,7 +477,7 @@ void test('a save from before the traveller clothes were items gets them once, i
   const kept: ItemInstance = made('drowned_leathers', 'magic', 90);
   world.player.equipped = { ...emptyEquipment(), chest: kept };
   const { [content.player.dressedFlag]: _given, ...older } = world.flags;
-  const before: Record<string, unknown> = { ...toSave(world), flags: older };
+  const before: Record<string, unknown> = { ...toSave(world), flags: { ...older, [armedFlag('blade')]: 'bag' } };
   const save: SaveData = must(readSave(content, before), 'old save');
   assert.deepEqual(save.equipped.chest, kept);
   assert.equal(save.equipped.head, null);
@@ -625,4 +626,27 @@ void test('a windrunner saved before the Long Shadow loads with a free start ove
   assert.ok(!save.learned.includes('mist_step') && !save.bar.includes('mist_step'));
   assert.ok(!save.learned.includes('downdraught'));
   assert.ok(canAllocate(content, save.allocated, save.skillPoints, 'wind_ghost_wave'));
+});
+
+void test('a character saved before the Turning Tide loads with a free start over, keeps what still joins, and gets back what it spent on the Downdraught in the wind', (): void => {
+  const world: World = played();
+  world.player.level = 9;
+  world.player.skillPoints = 0;
+  const edge: readonly string[] = ['blade_thunderhead', 'heavy_hands', 'blade_1', 'whetstone', 'blade_4', 'whirling_cleave', 'blade_wind_near', 'wind_1'];
+  const undertow: readonly string[] = ['drag_of_the_deep', 'wind_downdraught', 'updraught'];
+  world.player.allocated = [...edge, ...undertow];
+  world.player.learned = ['cleave', 'thunderhead', 'downdraught', 'dodge_roll'];
+  world.player.bar = ['cleave', 'thunderhead', 'downdraught', null, null, 'dodge_roll'];
+  world.player.freeReset = false;
+  const stored = (allocated: readonly string[]): SaveData => must(parseSaveText(content, JSON.stringify({ ...toSave(world), allocated, treeRevision: content.chart.revision - 1 })), 'save');
+  const save: SaveData = stored(world.player.allocated);
+  assert.equal(save.freeReset, true);
+  assert.deepEqual(save.allocated, edge);
+  assert.equal(save.skillPoints, undertow.length);
+  assert.ok(!save.learned.includes('downdraught') && !save.bar.includes('downdraught'));
+  const turning: readonly string[] = [...edge, 'endless_turn', 'millstone', ...undertow];
+  const kept: SaveData = stored(turning);
+  assert.deepEqual(kept.allocated, turning);
+  assert.ok(kept.learned.includes('downdraught'));
+  assert.ok(canAllocate(content, kept.allocated, 1, 'riptide'));
 });

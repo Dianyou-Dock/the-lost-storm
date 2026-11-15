@@ -51,6 +51,13 @@ void test('the chart unlocks at least eight active skills beyond the basic attac
   }
 });
 
+void test('no place shares its name with a path, and every notable and keystone has a name of its own', (): void => {
+  const paths: ReadonlySet<string> = new Set<string>(content.chart.paths.map((path): string => path.name));
+  for (const node of content.skillTree) assert.ok(!paths.has(node.name), `${node.id} is named like a path`);
+  const named: readonly string[] = content.skillTree.filter((node): boolean => node.kind !== 'minor').map((node): string => node.name);
+  for (const name of named) assert.equal(content.skillTree.filter((node): boolean => node.name === name).length, 1, name);
+});
+
 void test('each path opens on an ability place, so a new character sees five abilities around the eye', (): void => {
   const entrances = content.skillTree.filter((node): boolean => node.requires.length === 0);
   assert.equal(entrances.length, content.chart.paths.length);

@@ -3809,7 +3809,7 @@
       },
       "power": {
         "family": "mist_treader",
-        "text": "Every roll leaves a Downdraught where you land, and each kill gives +5% movement speed for 3 s (stacks 5).",
+        "text": "Every roll leaves an Undertow where you land, and each kill gives +5% movement speed for 3 s (stacks 5).",
         "triggers": [
           {
             "on": "use",
