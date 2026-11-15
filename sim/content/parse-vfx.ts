@@ -1,6 +1,6 @@
 import type { Fields } from './read.ts';
-import { choice, ContentError, fields, nonNegative, positive, share, text } from './read.ts';
-import type { SkillVfx, VfxImpact, VfxLightning } from './vfx-types.ts';
+import { choice, ContentError, each, fields, nonNegative, positive, share, text } from './read.ts';
+import type { SkillVfx, VfxGather, VfxImpact, VfxLightning } from './vfx-types.ts';
 import { VFX_CUES, VFX_MAX_FORKS, VFX_STYLES } from './vfx-types.ts';
 
 function vfxLightning(value: unknown, where: string): VfxLightning | null {
@@ -26,6 +26,30 @@ function vfxImpact(value: unknown, where: string): VfxImpact | null {
   return { sparks, flash: nonNegative(source, 'flash', where) };
 }
 
+export const GATHER_MIN_SAMPLES: number = 2;
+
+function gatherCurve(value: unknown, where: string): readonly number[] {
+  const samples: number[] = each(value, where, (entry: unknown, entryWhere: string): number => {
+    if (typeof entry !== 'number' || entry < 0 || entry > 1) throw new ContentError(entryWhere, 'expected a number from 0 to 1');
+    return entry;
+  });
+  if (samples.length < GATHER_MIN_SAMPLES) throw new ContentError(where, `expected at least ${GATHER_MIN_SAMPLES} samples`);
+  return samples;
+}
+
+function vfxGather(value: unknown, where: string): VfxGather | null {
+  if (value === undefined) return null;
+  const source: Fields = fields(value, where);
+  return {
+    radius: positive(source, 'radius', where),
+    lift: nonNegative(source, 'lift', where),
+    size: gatherCurve(source['size'], `${where}.size`),
+    glow: gatherCurve(source['glow'], `${where}.glow`),
+    dust: nonNegative(source, 'dust', where),
+    light: nonNegative(source, 'light', where),
+  };
+}
+
 export function skillVfx(value: unknown, where: string): SkillVfx {
   const source: Fields = fields(value, where);
   return {
@@ -36,5 +60,7 @@ export function skillVfx(value: unknown, where: string): SkillVfx {
     lightning: vfxLightning(source['lightning'], `${where}.lightning`),
     impact: vfxImpact(source['impact'], `${where}.impact`),
     trail: source['trail'] === undefined ? 0 : nonNegative(source, 'trail', where),
+    linger: source['linger'] === undefined ? 0 : nonNegative(source, 'linger', where),
+    gather: vfxGather(source['gather'], `${where}.gather`),
   };
 }

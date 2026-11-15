@@ -6,7 +6,7 @@ import { ContentError } from './read.ts';
 import type { SkillVfx } from './vfx-types.ts';
 
 void test('an effect with no lightning, impact or trail keeps the plain look', (): void => {
-  assert.deepEqual(skillVfx({ style: 'bolt', color: '#9be1ff' }, 'vfx'), { style: 'bolt', color: '#9be1ff', cue: 'none', light: 1, lightning: null, impact: null, trail: 0 });
+  assert.deepEqual(skillVfx({ style: 'bolt', color: '#9be1ff' }, 'vfx'), { style: 'bolt', color: '#9be1ff', cue: 'none', light: 1, lightning: null, impact: null, trail: 0, linger: 0, gather: null });
 });
 
 void test('an effect reads its lightning, impact and trail', (): void => {
@@ -14,6 +14,12 @@ void test('an effect reads its lightning, impact and trail', (): void => {
   assert.deepEqual(vfx.lightning, { forks: 2, glow: 0.6, afterglow: 0.3, jitter: 0.5, width: 1, core: 1 });
   assert.deepEqual(vfx.impact, { sparks: 10, flash: 1.5 });
   assert.equal(vfx.trail, 1.2);
+});
+
+void test('an effect reads the light that gathers before it leaves and how long its trail hangs', (): void => {
+  const vfx: SkillVfx = skillVfx({ style: 'orb', color: '#a66bff', linger: 0.5, gather: { radius: 0.3, lift: 0.1, size: [0, 0.5, 1], glow: [0, 1, 0.7], dust: 40, light: 8 } }, 'vfx');
+  assert.equal(vfx.linger, 0.5);
+  assert.deepEqual(vfx.gather, { radius: 0.3, lift: 0.1, size: [0, 0.5, 1], glow: [0, 1, 0.7], dust: 40, light: 8 });
 });
 
 void test('a lightning look may widen its strand and soften its core', (): void => {
@@ -34,6 +40,12 @@ void test('an effect the kit cannot draw is refused with the field that is wrong
     [{ lightning: { forks: 1, glow: 0.5, afterglow: 0.2, jitter: 0.3, width: 0 } }, 'vfx.lightning.width'],
     [{ lightning: { forks: 1, glow: 0.5, afterglow: 0.2, jitter: 0.3, core: -1 } }, 'vfx.lightning.core'],
     [{ trail: -0.5 }, 'vfx.trail'],
+    [{ linger: -0.1 }, 'vfx.linger'],
+    [{ gather: { radius: 0, lift: 0, size: [0, 1], glow: [0, 1], dust: 1, light: 1 } }, 'vfx.gather.radius'],
+    [{ gather: { radius: 0.3, lift: 0, size: [0], glow: [0, 1], dust: 1, light: 1 } }, 'vfx.gather.size'],
+    [{ gather: { radius: 0.3, lift: 0, size: [0, 1.2], glow: [0, 1], dust: 1, light: 1 } }, 'vfx.gather.size[1]'],
+    [{ gather: { radius: 0.3, lift: 0, size: [0, 1], glow: 'up', dust: 1, light: 1 } }, 'vfx.gather.glow'],
+    [{ gather: { radius: 0.3, lift: 0, size: [0, 1], glow: [0, 1], dust: -1, light: 1 } }, 'vfx.gather.dust'],
   ];
   for (const [change, field] of refused) {
     assert.throws(

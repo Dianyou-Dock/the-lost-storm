@@ -5,6 +5,7 @@ import type { VfxImpact, VfxLightning } from '../../sim/content/types.ts';
 import type { EffectKit, KitBudget } from './effect-kit.ts';
 import { createEffectKit, flashLevel, heft, KIT, KIT_BUDGETS, kitBudget, sparkCount } from './effect-kit.ts';
 import type { BurstOptions, ParticleSystem } from './particles.ts';
+import { must } from '../../test/support.ts';
 
 interface Recorder {
   readonly particles: ParticleSystem;
@@ -86,9 +87,9 @@ void test('delayed impacts beyond the pending cap fire at once instead of piling
 void test('a carried bolt holds one strand, leaves a capped trail per frame, and lets the strand go when it is dropped', (): void => {
   const record: Recorder = recorder();
   const kit: EffectKit = kitWith(KIT_BUDGETS.desktop, record, []);
-  kit.carry(7, 0, 1.25, 0, 1, 0, BLUE, LOOK, 1.2, 1 / 60);
+  kit.carry(7, 0, 1.25, 0, 1, 0, BLUE, LOOK, 1.2, 0, 1 / 60);
   assert.equal(kit.strands.active, 1);
-  kit.carry(7, 40, 1.25, 0, 1, 0, BLUE, LOOK, 1.2, 1 / 60);
+  kit.carry(7, 40, 1.25, 0, 1, 0, BLUE, LOOK, 1.2, 0, 1 / 60);
   assert.equal(kit.strands.active, 1);
   assert.equal(record.bursts.length, KIT.trailPerFrame);
   kit.drop(7);
@@ -99,7 +100,7 @@ void test('a carried bolt holds one strand, leaves a capped trail per frame, and
 void test('reduced motion leaves no trail behind a carried bolt', (): void => {
   const record: Recorder = recorder();
   const kit: EffectKit = kitWith(kitBudget('desktop', true), record, []);
-  for (let step: number = 0; step < 30; step += 1) kit.carry(3, step * 0.5, 1.25, 0, 1, 0, BLUE, LOOK, 1.2, 1 / 60);
+  for (let step: number = 0; step < 30; step += 1) kit.carry(3, step * 0.5, 1.25, 0, 1, 0, BLUE, LOOK, 1.2, 0, 1 / 60);
   assert.equal(record.bursts.length, 0);
 });
 
@@ -132,8 +133,8 @@ void test('a channel holds one strand while its beam keeps ticking and lets it f
 void test('a carried projectile with no lightning leaves a trail and holds no strand', (): void => {
   const record: Recorder = recorder();
   const kit: EffectKit = kitWith(KIT_BUDGETS.desktop, record, []);
-  kit.carry(9, 0, 1.25, 0, 1, 0, BLUE, null, 1, 1 / 60);
-  kit.carry(9, 3, 1.25, 0, 1, 0, BLUE, null, 1, 1 / 60);
+  kit.carry(9, 0, 1.25, 0, 1, 0, BLUE, null, 1, 0, 1 / 60);
+  kit.carry(9, 3, 1.25, 0, 1, 0, BLUE, null, 1, 0, 1 / 60);
   assert.equal(kit.strands.active, 0);
   assert.ok(record.bursts.length > 0);
 });
@@ -143,4 +144,20 @@ void test('heft is nothing for a light swing and grows with the shake of a heavy
   assert.equal(heft(KIT.heftFrom), 0);
   assert.ok(heft(0.42) > 0.5);
   assert.equal(heft(5), 1);
+});
+
+void test('a lingering trail lays larger dust that hangs for the linger time, and a plain trail keeps the short sparks', (): void => {
+  const seen: BurstOptions[] = [];
+  const particles: ParticleSystem = { burst: (options: BurstOptions): void => void seen.push({ ...options, life: { ...options.life }, size: { ...options.size } }), setDensity: (): void => undefined, update: (): void => undefined, clear: (): void => undefined };
+  const kit: EffectKit = createEffectKit(new Group(), particles, (): void => undefined, (): KitBudget => KIT_BUDGETS.desktop, (): number => 0.5);
+  kit.carry(4, 0, 1.25, 0, 1, 0, BLUE, null, 4, 0.5, 1 / 60);
+  kit.carry(4, 2, 1.25, 0, 1, 0, BLUE, null, 4, 0.5, 1 / 60);
+  kit.carry(5, 0, 1.25, 0, 1, 0, BLUE, null, 4, 0, 1 / 60);
+  kit.carry(5, 2, 1.25, 0, 1, 0, BLUE, null, 4, 0, 1 / 60);
+  const lingering: BurstOptions = must(seen[0], 'lingering mote');
+  const plain: BurstOptions = must(seen.at(-1), 'plain mote');
+  assert.deepEqual(lingering.life, { min: 0.5 * KIT.lingerFrom, max: 0.5 });
+  assert.deepEqual(lingering.size, { min: KIT.lingerSizeMin, max: KIT.lingerSizeMax });
+  assert.deepEqual(plain.life, { min: KIT.trailLifeMin, max: KIT.trailLifeMax });
+  assert.deepEqual(plain.size, { min: KIT.trailSizeMin, max: KIT.trailSizeMax });
 });

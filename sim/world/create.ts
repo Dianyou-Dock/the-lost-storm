@@ -162,6 +162,7 @@ export function createWorld(content: Content, options: WorldOptions): World {
     explored: restoreExplored(content, save),
     exploredRevision: 0,
     projectiles: [],
+    shots: [],
     hazards: [],
     echoes: [],
     areas: [],

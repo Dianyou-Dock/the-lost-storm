@@ -20,6 +20,15 @@ export interface VfxImpact {
   readonly flash: number;
 }
 
+export interface VfxGather {
+  readonly radius: number;
+  readonly lift: number;
+  readonly size: readonly number[];
+  readonly glow: readonly number[];
+  readonly dust: number;
+  readonly light: number;
+}
+
 export interface SkillVfx {
   readonly style: VfxStyle;
   readonly color: string;
@@ -28,4 +37,6 @@ export interface SkillVfx {
   readonly lightning: VfxLightning | null;
   readonly impact: VfxImpact | null;
   readonly trail: number;
+  readonly linger: number;
+  readonly gather: VfxGather | null;
 }

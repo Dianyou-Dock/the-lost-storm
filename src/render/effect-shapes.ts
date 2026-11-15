@@ -275,7 +275,7 @@ export const ORB_HALO_VERTEX: string = ['varying float vFacing;', 'void main() {
 
 export const ORB_HALO_FRAGMENT: string = ['uniform vec3 uColor;', 'uniform float uStrength;', 'varying float vFacing;', 'void main() {', '  float soft = vFacing * vFacing * vFacing;', '  gl_FragColor = vec4(uColor * soft * uStrength, 1.0);', '}'].join('\n');
 
-function orbHalo(color: Color): Mesh<IcosahedronGeometry, ShaderMaterial> {
+export function orbHalo(color: Color): Mesh<IcosahedronGeometry, ShaderMaterial> {
   const halo: Mesh<IcosahedronGeometry, ShaderMaterial> = new Mesh(
     new IcosahedronGeometry(1, 2),
     new ShaderMaterial({ vertexShader: ORB_HALO_VERTEX, fragmentShader: ORB_HALO_FRAGMENT, uniforms: { uColor: { value: glow(color, SHAPES.orbHaloBoost) }, uStrength: { value: SHAPES.orbHaloStrength } }, transparent: true, depthWrite: false, blending: AdditiveBlending }),

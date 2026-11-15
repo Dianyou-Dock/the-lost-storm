@@ -17,13 +17,13 @@ import type { MomentFigure } from './moment-figure.ts';
 import type { TransitState } from './moment-transit.ts';
 import type { Rng } from '../rng.ts';
 import type { NpcState } from './npc-types.ts';
-import type { HazardState, ProjectileState } from './delivery-types.ts';
+import type { HazardState, ProjectileState, QueuedShot } from './delivery-types.ts';
 import type { Escort, SceneState } from './scene-state.ts';
 import type { WardState } from './wards.ts';
 import type { MomentumState } from './momentum-types.ts';
 import type { Tally } from '../tally.ts';
 
-export type { HazardState, MomentFigure, NpcState, ProjectileState };
+export type { HazardState, MomentFigure, NpcState, ProjectileState, QueuedShot };
 
 export interface RolledAffix {
   readonly affix: string;
@@ -633,6 +633,7 @@ export interface World {
   explored: Record<string, Uint8Array>;
   exploredRevision: number;
   projectiles: ProjectileState[];
+  shots: QueuedShot[];
   hazards: HazardState[];
   echoes: EchoState[];
   areas: AreaState[];
