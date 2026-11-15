@@ -59,7 +59,7 @@ import type {
   ZoneReturn,
   XpGap,
 } from './types.ts';
-import { DAMAGE_TYPES, MANA_SHOWS, NAME_STYLES, SKILL_CATEGORIES, STAT_IDS, WEAR_REGIONS } from './types.ts';
+import { BODY_MATERIALS, DAMAGE_TYPES, MANA_SHOWS, NAME_STYLES, SKILL_CATEGORIES, STAT_IDS, WEAR_REGIONS } from './types.ts';
 
 export interface RawContent {
   readonly skills: unknown;
@@ -236,6 +236,7 @@ function monster(value: unknown, where: string): MonsterDef {
     id: text(source, 'id', where),
     name: text(source, 'name', where),
     rig: text(source, 'rig', where),
+    bodyMaterial: source['bodyMaterial'] === undefined ? 'flesh' : choice(source, 'bodyMaterial', BODY_MATERIALS, where),
     scale: numeric(source, 'scale', where),
     radius: numeric(source, 'radius', where),
     life: numeric(source, 'life', where),

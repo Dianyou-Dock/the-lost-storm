@@ -1,9 +1,10 @@
 import audio from '../../data/audio.json' with { type: 'json' };
 import type { NoticeReason } from '../world/types.ts';
 import type { Fields } from './read.ts';
-import { ContentError, each, fields, flag, isFields, numeric, text } from './read.ts';
+import { choiceList, ContentError, each, fields, flag, isFields, numeric, text } from './read.ts';
 import type { ZoneEncounter } from './story-types.ts';
-import type { Content, RarityDef, ZoneDef } from './types.ts';
+import type { Content, RarityDef, WeaponKind, ZoneDef } from './types.ts';
+import { BODY_MATERIALS, WEAPON_KINDS } from './types.ts';
 
 export const UI_ACTIONS = ['click', 'panel_open', 'panel_close', 'error', 'skill_point', 'equip', 'title_gone'] as const;
 export type UiAction = (typeof UI_ACTIONS)[number];
@@ -16,6 +17,10 @@ const NOTICE_REASONS: readonly string[] = Object.keys(NOTICE_KEYS);
 
 export const PLAYER_KEY: string = 'player';
 export const GOLD_KEY: string = 'gold';
+export const FALLBACK_KEY: string = 'fallback';
+
+export const GUARD_OUTCOMES = ['blocked', 'broken'] as const;
+export type GuardSound = (typeof GUARD_OUTCOMES)[number];
 
 const SOUND_ID: RegExp = /^[a-z][a-z0-9_]*$/;
 
@@ -47,7 +52,11 @@ export interface CueDef {
   readonly holdForVoice: number;
 }
 
-export type CueTable = ReadonlyMap<string, readonly CueDef[]>;
+export interface WeaponCue extends CueDef {
+  readonly weapons: readonly WeaponKind[];
+}
+
+export type CueTable = ReadonlyMap<string, readonly WeaponCue[]>;
 
 export interface AmbienceLoop {
   readonly sound: string;
@@ -90,6 +99,7 @@ export interface AudioDef {
   readonly skillHit: CueTable;
   readonly hit: CueTable;
   readonly critHit: CueTable;
+  readonly guarded: CueTable;
   readonly death: CueTable;
   readonly aggro: CueTable;
   readonly drop: CueTable;
@@ -131,7 +141,16 @@ function required(source: Fields, key: string, min: number, max: number, where: 
 }
 
 function cue(value: unknown, defaults: CueDefaults, where: string): CueDef {
+  return cueFields(fields(value, where), defaults, where);
+}
+
+function weaponCue(value: unknown, defaults: CueDefaults, where: string): WeaponCue {
   const source: Fields = fields(value, where);
+  const weapons: readonly WeaponKind[] = source['weapons'] === undefined ? [] : choiceList(source, 'weapons', WEAPON_KINDS, where);
+  return { ...cueFields(source, defaults, where), weapons };
+}
+
+function cueFields(source: Fields, defaults: CueDefaults, where: string): CueDef {
   const maxVoices: number = ranged(source, 'maxVoices', defaults.maxVoices, 1, LIMITS.voicesMax, where);
   if (!Number.isInteger(maxVoices)) throw new ContentError(`${where}.maxVoices`, 'expected a whole number');
   return {
@@ -147,12 +166,12 @@ function cue(value: unknown, defaults: CueDefaults, where: string): CueDef {
 function table(source: Fields, key: string, allowed: ReadonlySet<string>, defaults: CueDefaults, where: string): CueTable {
   const entries: unknown = source[key];
   if (!isFields(entries)) throw new ContentError(`${where}.${key}`, 'expected an object');
-  const result: Map<string, readonly CueDef[]> = new Map<string, readonly CueDef[]>();
+  const result: Map<string, readonly WeaponCue[]> = new Map<string, readonly WeaponCue[]>();
   for (const [id, list] of Object.entries(entries)) {
     if (!allowed.has(id)) throw new ContentError(`${where}.${key}.${id}`, `unknown id, expected one of ${[...allowed].join(', ')}`);
     result.set(
       id,
-      each(list, `${where}.${key}.${id}`, (entry: unknown, entryWhere: string): CueDef => cue(entry, defaults, entryWhere)),
+      each(list, `${where}.${key}.${id}`, (entry: unknown, entryWhere: string): WeaponCue => weaponCue(entry, defaults, entryWhere)),
     );
   }
   return result;
@@ -220,7 +239,7 @@ export function parseAudio(value: unknown, known: KnownIds): AudioDef {
     if (!known.zones.has(id)) throw new ContentError(`${where}.ambience.${id}`, `unknown zone, expected one of ${[...known.zones].join(', ')}`);
     ambience.set(id, zone(entry, `${where}.ambience.${id}`));
   }
-  const targets: ReadonlySet<string> = withExtras(known.monsters, PLAYER_KEY);
+  const targets: ReadonlySet<string> = withExtras(known.monsters, PLAYER_KEY, FALLBACK_KEY, ...BODY_MATERIALS);
   const items: ReadonlySet<string> = withExtras(known.rarities, GOLD_KEY);
   return {
     defaults,
@@ -232,6 +251,7 @@ export function parseAudio(value: unknown, known: KnownIds): AudioDef {
     skillHit: read('skillHit', known.skills),
     hit: read('hit', targets),
     critHit: read('critHit', targets),
+    guarded: read('guarded', new Set<string>(GUARD_OUTCOMES)),
     death: read('death', targets),
     aggro: read('aggro', known.monsters),
     drop: read('drop', items),

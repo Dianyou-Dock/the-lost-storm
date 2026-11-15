@@ -69,6 +69,8 @@ The playable heroes are data: `heroes` in `data/player.json` lists each with an 
 
 How a weapon is held and what it does to a skill are data too. An attachment may name a `stance`; a rig lists `clips.stances`, and an actor holding that attachment plays the stance's idle and looks its actions up there first, falling back to the rig's own clips. An item base may list `variants` (`{skill, becomes}`), which turn one skill into another while the item is worn; the hand crossbow turns Cleave into a shot this way. The weapon's grip is modelled to fit the hand the stance's clips were authored with; clips are never edited and fingers are never posed.
 
+How a fight sounds is data too. A weapon base has a `weaponKind` and a monster has a `bodyMaterial`; `data/audio.json` picks a hit's layers from them: a cue may list `weapons` to play only for those kinds, a hit takes its body sound from the monster's own id, else its material, else `fallback`, a crit adds its sound to the hit, and the shield sound belongs to the `guarded` table, which the sim's blocked and broken guard events trigger. The engine never repeats a file within the last two plays of a sound.
+
 If new content cannot be expressed in the data, extend the schema in `sim/content/` and its handling in the engine in a general way (a new delivery type, a new modifier target), then write the content as data. Do not special-case an id in engine or render code. `sim/content/content.test.ts` checks every cross-reference between the data files.
 
 ## Tests

@@ -1,7 +1,9 @@
-import type { AudioDef, CueDef, CueTable, UiAction, WorldSoundEvent } from './content/audio.ts';
-import { GOLD_KEY, PLAYER_KEY } from './content/audio.ts';
+import type { AudioDef, CueDef, CueTable, UiAction, WeaponCue, WorldSoundEvent } from './content/audio.ts';
+import { FALLBACK_KEY, GOLD_KEY, PLAYER_KEY } from './content/audio.ts';
+import type { ItemBaseDef, WeaponKind } from './content/types.ts';
+import { baseOf } from './items.ts';
 import type { Vec2 } from './math.ts';
-import type { Command, GroundItem, MonsterState, WakeBeat, World, WorldEvent } from './world/types.ts';
+import type { Command, GroundItem, ItemInstance, MonsterState, WakeBeat, World, WorldEvent } from './world/types.ts';
 
 export interface SoundCue extends CueDef {
   readonly position: Vec2 | null;
@@ -11,12 +13,36 @@ const NONE: readonly SoundCue[] = [];
 
 type CueTableName = Exclude<keyof AudioDef, 'defaults' | 'ambience' | 'seam'>;
 
-const WARM_TABLES: readonly CueTableName[] = ['world', 'encounterNearing', 'encounterShown', 'skillStart', 'hit', 'critHit', 'skillHit', 'skillImpact', 'projectileSpawn', 'projectileExpire', 'death', 'aggro', 'pickup', 'drop', 'notice', 'ui'];
+const NO_KEYS: readonly string[] = [];
 
-function cues(table: CueTable, key: string, position: Vec2 | null): readonly SoundCue[] {
-  const list: readonly CueDef[] | undefined = table.get(key);
-  if (list === undefined || list.length === 0) return NONE;
-  return list.map((entry: CueDef): SoundCue => ({ sound: entry.sound, volume: entry.volume, maxVoices: entry.maxVoices, cooldown: entry.cooldown, reach: entry.reach, holdForVoice: entry.holdForVoice, position }));
+const WARM_TABLES: readonly CueTableName[] = ['world', 'encounterNearing', 'encounterShown', 'skillStart', 'hit', 'critHit', 'guarded', 'skillHit', 'skillImpact', 'projectileSpawn', 'projectileExpire', 'death', 'aggro', 'pickup', 'drop', 'notice', 'ui'];
+
+function heldBy(entry: WeaponCue, weapon: WeaponKind | null): boolean {
+  return entry.weapons.length === 0 || (weapon !== null && entry.weapons.includes(weapon));
+}
+
+function cues(table: CueTable, key: string, position: Vec2 | null, weapon: WeaponKind | null = null): readonly SoundCue[] {
+  const list: readonly WeaponCue[] | undefined = table.get(key);
+  if (list === undefined) return NONE;
+  const heard: readonly WeaponCue[] = list.filter((entry: WeaponCue): boolean => heldBy(entry, weapon));
+  if (heard.length === 0) return NONE;
+  return heard.map((entry: CueDef): SoundCue => ({ sound: entry.sound, volume: entry.volume, maxVoices: entry.maxVoices, cooldown: entry.cooldown, reach: entry.reach, holdForVoice: entry.holdForVoice, position }));
+}
+
+function firstOf(table: CueTable, keys: readonly string[], position: Vec2 | null, weapon: WeaponKind | null): readonly SoundCue[] {
+  for (const key of keys) {
+    const found: readonly SoundCue[] = cues(table, key, position, weapon);
+    if (found.length > 0) return found;
+  }
+  return NONE;
+}
+
+function weaponOf(world: World, actorId: number): WeaponKind | null {
+  if (actorId !== world.player.id) return null;
+  const held: ItemInstance | null = world.player.equipped.weapon;
+  if (held === null) return null;
+  const base: ItemBaseDef | null = baseOf(world.content, held);
+  return base === null ? null : base.weaponKind;
 }
 
 function monsterOf(world: World, id: number): MonsterState | undefined {
@@ -28,9 +54,10 @@ function positionOf(world: World, actorId: number): Vec2 | null {
   return actor === undefined ? null : { x: actor.pos.x, z: actor.pos.z };
 }
 
-function targetKey(world: World, team: 'player' | 'monster', id: number): string | null {
-  if (team === 'player') return PLAYER_KEY;
-  return monsterOf(world, id)?.def.id ?? null;
+function targetKeys(world: World, team: 'player' | 'monster', id: number): readonly string[] {
+  if (team === 'player') return [PLAYER_KEY];
+  const monster: MonsterState | undefined = monsterOf(world, id);
+  return monster === undefined ? NO_KEYS : [monster.def.id, monster.def.bodyMaterial, FALLBACK_KEY];
 }
 
 function groundKey(ground: GroundItem): string {
@@ -47,28 +74,32 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
   let found: readonly SoundCue[] = NONE;
   switch (event.type) {
     case 'skill_start':
-      found = cues(audio.skillStart, event.skill.id, positionOf(world, event.actorId));
+      found = cues(audio.skillStart, event.skill.id, positionOf(world, event.actorId), weaponOf(world, event.actorId));
       break;
     case 'skill_impact':
       found = cues(audio.skillImpact, event.skill.id, event.origin);
       break;
     case 'projectile_spawn':
-      found = cues(audio.projectileSpawn, event.projectile.skill.id, event.projectile.pos);
+      found = cues(audio.projectileSpawn, event.projectile.skill.id, event.projectile.pos, weaponOf(world, event.projectile.ownerId));
       break;
     case 'projectile_end':
       if (!event.hit) found = cues(audio.projectileExpire, event.skill.id, event.pos);
       break;
     case 'damage': {
-      const key: string | null = targetKey(world, event.targetTeam, event.targetId);
-      const fromSkill: readonly SoundCue[] = cues(audio.skillHit, event.skill.id, event.pos);
-      found = key === null ? fromSkill : [...fromSkill, ...cues(event.crit ? audio.critHit : audio.hit, key, event.pos)];
+      const weapon: WeaponKind | null = weaponOf(world, event.sourceId);
+      const keys: readonly string[] = targetKeys(world, event.targetTeam, event.targetId);
+      const arrival: readonly SoundCue[] = cues(audio.skillHit, event.skill.id, event.pos, weapon);
+      const body: readonly SoundCue[] = firstOf(audio.hit, keys, event.pos, weapon);
+      const sweetener: readonly SoundCue[] = event.crit ? firstOf(audio.critHit, keys, event.pos, weapon) : NONE;
+      found = [...arrival, ...body, ...sweetener];
       break;
     }
-    case 'death': {
-      const key: string | null = targetKey(world, event.team, event.actorId);
-      if (key !== null) found = cues(audio.death, key, event.pos);
+    case 'guarded':
+      found = cues(audio.guarded, event.broken ? 'broken' : 'blocked', event.pos);
       break;
-    }
+    case 'death':
+      found = firstOf(audio.death, targetKeys(world, event.team, event.actorId), event.pos, null);
+      break;
     case 'aggro': {
       const monster: MonsterState | undefined = monsterOf(world, event.monsterId);
       if (monster !== undefined) found = cues(audio.aggro, monster.def.id, { x: monster.pos.x, z: monster.pos.z });
@@ -136,7 +167,6 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
     case 'hazard':
       if (event.burst) found = cues(audio.skillImpact, event.hazard.skill.id, event.hazard.pos);
       break;
-    case 'guarded':
     case 'skill_interrupt':
     case 'area':
     case 'chain':

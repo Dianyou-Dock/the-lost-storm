@@ -1,9 +1,9 @@
 import type { Fields } from './read.ts';
-import { choice, choiceList, each, fields, flag, nonNegative, nullableText, numeric, positive, text, textList } from './read.ts';
+import { ContentError, choice, choiceList, each, fields, flag, nonNegative, nullableText, numeric, positive, text, textList } from './read.ts';
 import { skillMod, skillTarget, statMod } from './parse-chart.ts';
 import type { SkillTarget, SkillVariant } from './chart-types.ts';
-import type { AffixDef, FamilyDef, GroundLook, ItemBaseDef, ItemSlot, PowerDef, PowerEffect, PowerTriggerDef, RarityDef } from './types.ts';
-import { ARMOUR_MATERIALS, CAST_ORIGINS, GROUND_KEEPS, GROUND_MODELS, ITEM_SLOTS, ITEM_STATS, MOD_OPS, POWER_TARGETS, POWER_TRIGGERS, RARITY_MARKERS, STAT_IDS } from './types.ts';
+import type { AffixDef, FamilyDef, GroundLook, ItemBaseDef, ItemSlot, PowerDef, PowerEffect, PowerTriggerDef, RarityDef, WeaponKind } from './types.ts';
+import { ARMOUR_MATERIALS, CAST_ORIGINS, GROUND_KEEPS, GROUND_MODELS, ITEM_SLOTS, ITEM_STATS, MOD_OPS, POWER_TARGETS, POWER_TRIGGERS, RARITY_MARKERS, STAT_IDS, WEAPON_KINDS } from './types.ts';
 
 function genericLook(slot: ItemSlot | null): GroundLook {
   return { model: slot === 'charm' ? 'pouch' : 'bundle', keep: 'all', scale: 1, flatten: 1, pitch: 0, roll: 0, yawJitter: 180 };
@@ -74,6 +74,16 @@ function power(value: unknown, where: string): PowerDef | null {
   };
 }
 
+function weaponKind(source: Fields, slot: ItemSlot | null, where: string): WeaponKind | null {
+  const given: boolean = source['weaponKind'] !== undefined && source['weaponKind'] !== null;
+  if (slot !== 'weapon') {
+    if (given) throw new ContentError(`${where}.weaponKind`, 'only a weapon has a weapon kind');
+    return null;
+  }
+  if (!given) throw new ContentError(`${where}.weaponKind`, `a weapon needs a kind, one of ${WEAPON_KINDS.join(', ')}`);
+  return choice(source, 'weaponKind', WEAPON_KINDS, where);
+}
+
 export function itemBase(value: unknown, where: string): ItemBaseDef {
   const source: Fields = fields(value, where);
   const slot: ItemSlot | null = source['slot'] === null ? null : choice(source, 'slot', ITEM_SLOTS, where);
@@ -84,6 +94,7 @@ export function itemBase(value: unknown, where: string): ItemBaseDef {
     book: source['book'] === undefined ? null : text(source, 'book', where),
     story: source['story'] === undefined ? false : flag(source, 'story', where),
     material: source['material'] === null || source['material'] === undefined ? null : choice(source, 'material', ARMOUR_MATERIALS, where),
+    weaponKind: weaponKind(source, slot, where),
     icon: text(source, 'icon', where),
     dropWeight: numeric(source, 'dropWeight', where),
     minLevel: numeric(source, 'minLevel', where),

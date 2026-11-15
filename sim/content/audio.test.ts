@@ -6,13 +6,13 @@ import type { TestContext } from 'node:test';
 import { must } from '../../test/support.ts';
 import audioJson from '../../data/audio.json' with { type: 'json' };
 import soundIds from '../../data/sound-ids.json' with { type: 'json' };
-import type { AudioDef, CueDef, KnownIds } from './audio.ts';
+import type { AudioDef, CueDef, KnownIds, WeaponCue } from './audio.ts';
 import { knownIdsOf, loadAudio, parseAudio, UI_ACTIONS, WORLD_SOUND_EVENTS } from './audio.ts';
 import { loadContent } from './content.ts';
 import { loadGlitches } from './glitches.ts';
 import type { SeamTimes } from './glitches.ts';
 import { ContentError } from './read.ts';
-import type { Content } from './types.ts';
+import type { Content, ItemBaseDef } from './types.ts';
 
 const content: Content = loadContent();
 const AMBIENT_ZONE: string = 'hall_of_time';
@@ -63,8 +63,8 @@ void test('cues take the defaults for what they leave out', (): void => {
     draft['ui'] = { click: [{ sound: 'ui_click' }, { sound: 'ui_click', volume: 0.5, maxVoices: 2, cooldown: 1, reach: 60 }] };
   }), known);
   const [plain, tuned]: readonly CueDef[] = must(audio.ui.get('click'), 'click cues');
-  assert.deepEqual(plain, { sound: 'ui_click', volume: 1, maxVoices: 4, cooldown: 0, reach: 30, holdForVoice: 0 });
-  assert.deepEqual(tuned, { sound: 'ui_click', volume: 0.5, maxVoices: 2, cooldown: 1, reach: 60, holdForVoice: 0 });
+  assert.deepEqual(plain, { sound: 'ui_click', volume: 1, maxVoices: 4, cooldown: 0, reach: 30, holdForVoice: 0, weapons: [] });
+  assert.deepEqual(tuned, { sound: 'ui_click', volume: 0.5, maxVoices: 2, cooldown: 1, reach: 60, holdForVoice: 0, weapons: [] });
 });
 
 void test('a table that names an id the game does not have is rejected', (): void => {
@@ -250,4 +250,59 @@ void test('the cave zone has its own ambience loops, quieter than the Hall of Ti
   const air = must(cave.loops.find((loop): boolean => loop.sound === 'ambience_cave_air'), 'the cave air');
   assert.ok(air.volume < storm.volume);
   assert.equal(cave.stingers.length, 0);
+});
+
+void test('a cue may be filtered to weapon kinds, and an unknown kind is rejected', (): void => {
+  const audio: AudioDef = parseAudio(variant((draft): void => {
+    draft['skillStart'] = { cleave: [{ sound: 'sword_swing_light' }, { sound: 'sword_swing_heavy', weapons: ['blunt', 'greatsword'] }] };
+  }), known);
+  const [plain, heavy]: readonly WeaponCue[] = must(audio.skillStart.get('cleave'), 'cleave cues');
+  assert.deepEqual(plain?.weapons, []);
+  assert.deepEqual(heavy?.weapons, ['blunt', 'greatsword']);
+  reject(variant((draft): void => {
+    draft['skillStart'] = { cleave: [{ sound: 'a', weapons: ['wand'] }] };
+  }), /skillStart\.cleave\[0\]\.weapons/);
+});
+
+void test('hit tables take monster ids, body materials, fallback and the player, and the guard table takes only guard outcomes', (): void => {
+  const audio: AudioDef = parseAudio(variant((draft): void => {
+    draft['hit'] = { wolf: [{ sound: 'a' }], chitin: [{ sound: 'a' }], fallback: [{ sound: 'a' }], player: [{ sound: 'a' }] };
+    draft['guarded'] = { blocked: [{ sound: 'a' }], broken: [{ sound: 'a' }] };
+  }), known);
+  assert.equal(audio.hit.size, 4);
+  assert.equal(audio.guarded.size, 2);
+  reject(variant((draft): void => {
+    draft['hit'] = { scales: [{ sound: 'a' }] };
+  }), /hit\.scales/);
+  reject(variant((draft): void => {
+    draft['guarded'] = { wolf: [{ sound: 'a' }] };
+  }), /guarded\.wolf/);
+});
+
+void test('every monster has a hit sound by its own id, its material or the fallback', (): void => {
+  const audio: AudioDef = loadAudio(content);
+  assert.ok((audio.hit.get('fallback')?.length ?? 0) > 0);
+  assert.ok((audio.critHit.get('fallback')?.length ?? 0) > 0);
+  for (const def of content.monsters.values()) {
+    const found: boolean = [def.id, def.bodyMaterial, 'fallback'].some((key: string): boolean => (audio.hit.get(key)?.length ?? 0) > 0);
+    assert.ok(found, def.id);
+  }
+});
+
+void test('the shield sound is named only by the guard table', (): void => {
+  const audio: AudioDef = loadAudio(content);
+  assert.ok((audio.guarded.get('blocked') ?? []).some((entry: CueDef): boolean => entry.sound === 'hit_shield'));
+  for (const table of [audio.hit, audio.critHit, audio.skillHit, audio.skillStart, audio.death]) {
+    for (const list of table.values()) assert.ok(list.every((entry: CueDef): boolean => entry.sound !== 'hit_shield'));
+  }
+});
+
+void test('every weapon sounds the swing it makes, whatever its kind', (): void => {
+  const audio: AudioDef = loadAudio(content);
+  const kinds: readonly string[] = [...new Set<string>([...content.itemBases.values()].filter((base: ItemBaseDef): boolean => base.slot === 'weapon').map((base: ItemBaseDef): string => base.weaponKind ?? 'none'))];
+  assert.ok(!kinds.includes('none'));
+  for (const kind of kinds) {
+    const heard: readonly WeaponCue[] = (audio.skillStart.get('cleave') ?? []).filter((entry: WeaponCue): boolean => entry.weapons.length === 0 || entry.weapons.some((weapon: string): boolean => weapon === kind));
+    assert.ok(heard.length > 0, kind);
+  }
 });

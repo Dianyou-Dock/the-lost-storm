@@ -5,9 +5,12 @@ import { must, worldIn } from '../test/support.ts';
 import { cuesForEvent, cuesForUi, uiActionForCommand, warmSoundIds } from './audio.ts';
 import type { SoundCue } from './audio.ts';
 import type { AudioDef } from './content/audio.ts';
-import { loadAudio } from './content/audio.ts';
+import { knownIdsOf, loadAudio, parseAudio } from './content/audio.ts';
 import { loadContent } from './content/content.ts';
-import type { Content, SkillDef } from './content/types.ts';
+import audioJson from '../data/audio.json' with { type: 'json' };
+import { createRng } from './rng.ts';
+import { generateItem } from './items.ts';
+import type { BodyMaterial, Content, SkillDef } from './content/types.ts';
 import type { Vec2 } from './math.ts';
 import { forceStrike } from './world/moments.ts';
 import { stepWorld } from './world/step.ts';
@@ -74,7 +77,7 @@ void test('a hit plays what the skill and the target sound like, and a crit the 
   const thrall: MonsterState = monster(world, 'mended');
   const base = { type: 'damage', targetId: thrall.id, sourceId: world.player.id, targetTeam: 'monster', amount: 5, killed: false, pos: thrall.pos, direction: AWAY } as const;
   assert.deepEqual(sounds(cuesForEvent(audio, world, { ...base, crit: false, skill: skill('cleave') })), ['bone_hit']);
-  assert.deepEqual(sounds(cuesForEvent(audio, world, { ...base, crit: true, skill: skill('cleave') })), ['crit_hit']);
+  assert.deepEqual(sounds(cuesForEvent(audio, world, { ...base, crit: true, skill: skill('cleave') })), ['bone_hit', 'crit_hit']);
   assert.deepEqual(sounds(cuesForEvent(audio, world, { ...base, crit: false, skill: skill('storm_bolt') })), ['bolt_impact', 'bone_hit']);
   const hurt: readonly SoundCue[] = cuesForEvent(audio, world, { ...base, targetId: world.player.id, targetTeam: 'player', crit: false, skill: skill('mender_needle') });
   assert.deepEqual(sounds(hurt), ['hex_impact', 'hero_hurt']);
@@ -230,4 +233,129 @@ void test('the strike sounds sit under the hit sounds', (): void => {
   const hits: number[] = [...audio.hit.values()].flat().map((cue): number => cue.volume);
   const loudestHit: number = Math.max(...hits);
   for (const cue of cuesForEvent(audio, world, { type: 'moment_strike', moment })) assert.ok(cue.volume < loudestHit, `${cue.sound} at ${cue.volume}`);
+});
+
+function armed(world: World, base: string): void {
+  world.player.equipped.weapon = must(generateItem(content, createRng(1), 1, 1, base, 'common'), base);
+}
+
+function variant(change: (draft: Record<string, unknown>) => void): AudioDef {
+  const copy: unknown = JSON.parse(JSON.stringify(audioJson));
+  if (typeof copy !== 'object' || copy === null) throw new Error('audio.json is not an object');
+  const draft: Record<string, unknown> = Object.fromEntries(Object.entries(copy));
+  change(draft);
+  return parseAudio(draft, knownIdsOf(content));
+}
+
+function tableOf(draft: Record<string, unknown>, key: string): Record<string, unknown> {
+  const value: unknown = draft[key];
+  if (typeof value !== 'object' || value === null) throw new Error(`audio.json has no ${key}`);
+  return Object.fromEntries(Object.entries(value));
+}
+
+function swung(world: World, skillId: string, from: AudioDef = audio): string[] {
+  return sounds(cuesForEvent(from, world, { type: 'skill_start', actorId: world.player.id, skill: skill(skillId), direction: AWAY, windup: 0.1, recovery: 0.1 }));
+}
+
+function hitSounds(world: World, target: MonsterState, skillId: string, crit: boolean, from: AudioDef = audio): string[] {
+  return sounds(cuesForEvent(from, world, { type: 'damage', targetId: target.id, sourceId: world.player.id, targetTeam: 'monster', amount: 5, crit, killed: false, pos: target.pos, direction: AWAY, skill: skill(skillId) }));
+}
+
+void test('a swing adds a heavy layer only for heavy weapons, and an empty hand still swings', (): void => {
+  const world: World = fresh();
+  world.player.equipped.weapon = null;
+  assert.deepEqual(swung(world, 'cleave'), ['sword_swing_light']);
+  armed(world, 'stormsteel_sword');
+  assert.deepEqual(swung(world, 'cleave'), ['sword_swing_light']);
+  armed(world, 'woodsman_hatchet');
+  assert.deepEqual(swung(world, 'cleave'), ['sword_swing_light']);
+  armed(world, 'flanged_mace');
+  assert.deepEqual(swung(world, 'cleave'), ['sword_swing_light', 'sword_swing_heavy']);
+  armed(world, 'tempest_greatsword');
+  assert.deepEqual(swung(world, 'cleave'), ['sword_swing_light', 'sword_swing_heavy']);
+});
+
+void test('a cue filtered by weapon kind plays only for that kind, for the shot and for the hit', (): void => {
+  const world: World = fresh();
+  const thrall: MonsterState = monster(world, 'mended');
+  const filtered: AudioDef = variant((draft: Record<string, unknown>): void => {
+    draft['skillStart'] = { ...tableOf(draft, 'skillStart'), quarrel: [{ sound: 'bolt_whoosh', weapons: ['crossbow'] }] };
+    draft['skillHit'] = { ...tableOf(draft, 'skillHit'), quarrel: [{ sound: 'bolt_impact', weapons: ['crossbow'] }, { sound: 'hit_wood', weapons: ['staff', 'blade'] }] };
+  });
+  armed(world, 'hand_crossbow');
+  assert.deepEqual(swung(world, 'quarrel', filtered), ['bolt_whoosh']);
+  assert.deepEqual(hitSounds(world, thrall, 'quarrel', false, filtered), ['bolt_impact', 'bone_hit']);
+  armed(world, 'stormsteel_sword');
+  assert.deepEqual(swung(world, 'quarrel', filtered), []);
+  assert.deepEqual(hitSounds(world, thrall, 'quarrel', false, filtered), ['hit_wood', 'bone_hit']);
+  world.player.equipped.weapon = null;
+  assert.deepEqual(hitSounds(world, thrall, 'quarrel', false, filtered), ['bone_hit']);
+  const theirs: readonly SoundCue[] = cuesForEvent(filtered, world, { type: 'damage', targetId: world.player.id, sourceId: thrall.id, targetTeam: 'player', amount: 5, crit: false, killed: false, pos: AWAY, direction: AWAY, skill: skill('quarrel') });
+  assert.deepEqual(sounds(theirs), ['hero_hurt']);
+});
+
+void test('a hit picks the sound of what the target is made of', (): void => {
+  const world: World = fresh();
+  const expected: Readonly<Record<BodyMaterial, string>> = { flesh: 'hit_flesh', bone: 'bone_hit', hide: 'hit_flesh', chitin: 'hit_flesh', armour: 'hit_flesh' };
+  for (const def of content.monsters.values()) {
+    const target: MonsterState = place(world, def.id, { x: ARENA_CENTRE.x + 2, z: ARENA_CENTRE.z });
+    const heard: string[] = hitSounds(world, target, 'cleave', false);
+    assert.equal(heard.length, 1, def.id);
+    assert.equal(heard[0], expected[def.bodyMaterial], def.id);
+  }
+});
+
+void test('a monster with no sound of its own or for its material falls back, and nothing goes silent', (): void => {
+  const world: World = fresh();
+  const thrall: MonsterState = monster(world, 'mended');
+  const bare: AudioDef = variant((draft: Record<string, unknown>): void => {
+    draft['hit'] = { fallback: [{ sound: 'hit_wood' }] };
+    draft['critHit'] = { fallback: [{ sound: 'crit_hit' }] };
+  });
+  assert.deepEqual(hitSounds(world, thrall, 'cleave', true, bare), ['hit_wood', 'crit_hit']);
+  const specific: AudioDef = variant((draft: Record<string, unknown>): void => {
+    draft['hit'] = { fallback: [{ sound: 'hit_wood' }], bone: [{ sound: 'bone_hit' }], mended: [{ sound: 'body_fall' }] };
+  });
+  assert.deepEqual(hitSounds(world, thrall, 'cleave', false, specific), ['body_fall']);
+  const mender: MonsterState = place(world, 'mender', { x: ARENA_CENTRE.x + 2, z: ARENA_CENTRE.z });
+  assert.deepEqual(hitSounds(world, mender, 'cleave', false, specific), ['bone_hit']);
+});
+
+void test('a layer whose cues are all filtered out for the weapon is skipped, not silent', (): void => {
+  const world: World = fresh();
+  const thrall: MonsterState = monster(world, 'mended');
+  const filtered: AudioDef = variant((draft: Record<string, unknown>): void => {
+    draft['hit'] = { mended: [{ sound: 'body_fall', weapons: ['blade'] }], bone: [{ sound: 'bone_hit' }], fallback: [{ sound: 'hit_wood' }] };
+  });
+  armed(world, 'stormsteel_sword');
+  assert.deepEqual(hitSounds(world, thrall, 'cleave', false, filtered), ['body_fall']);
+  armed(world, 'woodsman_hatchet');
+  assert.deepEqual(hitSounds(world, thrall, 'cleave', false, filtered), ['bone_hit']);
+  const noBone: AudioDef = variant((draft: Record<string, unknown>): void => {
+    draft['hit'] = { mended: [{ sound: 'body_fall', weapons: ['blade'] }], fallback: [{ sound: 'hit_wood' }] };
+  });
+  assert.deepEqual(hitSounds(world, thrall, 'cleave', false, noBone), ['hit_wood']);
+});
+
+void test('a crit adds to the hit instead of replacing it', (): void => {
+  const world: World = fresh();
+  const wolf: MonsterState = place(world, 'wolf', { x: ARENA_CENTRE.x + 2, z: ARENA_CENTRE.z });
+  assert.deepEqual(hitSounds(world, wolf, 'cleave', false), ['hit_flesh']);
+  assert.deepEqual(hitSounds(world, wolf, 'cleave', true), ['hit_flesh', 'crit_hit']);
+});
+
+void test('the shield sound plays only when the sim reports a blocked or broken guard', (): void => {
+  const world: World = fresh();
+  const brute: MonsterState = place(world, 'unfinished_brute', { x: ARENA_CENTRE.x + 2, z: ARENA_CENTRE.z });
+  assert.ok(!hitSounds(world, brute, 'cleave', false).includes('hit_shield'));
+  assert.ok(!hitSounds(world, brute, 'cleave', true).includes('hit_shield'));
+  const guard = { type: 'guarded', monsterId: brute.id, pos: brute.pos, direction: AWAY } as const;
+  assert.deepEqual(sounds(cuesForEvent(audio, world, { ...guard, broken: false })), ['hit_shield']);
+  assert.deepEqual(sounds(cuesForEvent(audio, world, { ...guard, broken: true })), ['hit_shield']);
+  assert.deepEqual(cuesForEvent(audio, world, { ...guard, broken: false })[0]?.position, brute.pos);
+});
+
+void test('no sound id the data names for a weapon hit is the shield sound unless it is guarded', (): void => {
+  const named: string[] = [...audio.hit.values(), ...audio.critHit.values(), ...audio.skillHit.values(), ...audio.death.values()].flatMap((list): string[] => list.map((entry): string => entry.sound));
+  assert.ok(!named.includes('hit_shield'));
 });

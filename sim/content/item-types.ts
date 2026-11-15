@@ -19,6 +19,9 @@ export interface RarityDef {
 export const ARMOUR_MATERIALS = ['cloth', 'leather', 'mail', 'plate'] as const;
 export type ArmourMaterial = (typeof ARMOUR_MATERIALS)[number];
 
+export const WEAPON_KINDS = ['blade', 'axe', 'blunt', 'greatsword', 'crossbow', 'staff'] as const;
+export type WeaponKind = (typeof WEAPON_KINDS)[number];
+
 export const GROUND_MODELS = ['held', 'worn', 'bundle', 'pouch'] as const;
 export type GroundModel = (typeof GROUND_MODELS)[number];
 export const GROUND_KEEPS = ['all', 'left'] as const;
@@ -41,6 +44,7 @@ export interface ItemBaseDef {
   readonly book: string | null;
   readonly story: boolean;
   readonly material: ArmourMaterial | null;
+  readonly weaponKind: WeaponKind | null;
   readonly icon: string;
   readonly dropWeight: number;
   readonly minLevel: number;

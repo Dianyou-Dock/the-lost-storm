@@ -16,7 +16,8 @@ import type { AssetManifest } from './manifest.ts';
 import type { Placement } from './mix.ts';
 import { CENTRE, MIX } from './mix.ts';
 import type { AudioControls, AudioSettings } from './settings.ts';
-import { pickVariant, pitchRate, delayBetween, volumeScale } from './variation.ts';
+import type { VariantBag } from './variation.ts';
+import { createVariantBag, pitchRate, delayBetween, volumeScale } from './variation.ts';
 import type { SpokenClip, VoiceLines } from './voice-lines.ts';
 import { createVoiceLines } from './voice-lines.ts';
 import type { VoiceHold } from './voice-hold.ts';
@@ -116,7 +117,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
   const { base, controls, random, clock } = options;
   const limiter: VoiceLimiter = createVoiceLimiter(clock);
   const cache: BufferCache<AudioBuffer> = createBufferCache<AudioBuffer>(SYSTEM.cacheBytes, (buffer: AudioBuffer): number => buffer.length * buffer.numberOfChannels * SYSTEM.bytesPerSample);
-  const lastVariant: Map<string, number> = new Map<string, number>();
+  const variants: VariantBag = createVariantBag(random);
   const listeners: ((trigger: Trigger) => void)[] = [];
   const health: LoadHealth = createLoadHealth();
   const hold: VoiceHold = createVoiceHold();
@@ -212,8 +213,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
       limiter.end(cue.sound);
       return;
     }
-    const variant: number = pickVariant(paths.length, lastVariant.get(cue.sound) ?? -1, random);
-    lastVariant.set(cue.sound, variant);
+    const variant: number = variants.next(cue.sound, paths.length);
     const path: string | undefined = paths[variant];
     const buffer: AudioBuffer | null = path === undefined ? null : await load(path);
     if (buffer === null || clock() - asked > SYSTEM.latePlaySeconds) {

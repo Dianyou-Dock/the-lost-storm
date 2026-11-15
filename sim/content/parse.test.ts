@@ -88,7 +88,7 @@ const extraAttachment = { id: 'ash_brand', model: 'models/weapons/rusted_blade.g
 const extraBase = {
   id: 'obsidian_blade',
   name: 'Obsidian Blade',
-  slot: 'weapon',
+  slot: 'weapon', weaponKind: 'blade',
   material: null,
   icon: 'sword',
   dropWeight: 5,
@@ -254,15 +254,15 @@ void test('worn gear is data: unknown wearables, doubled regions and unknown bod
   const hidesNothing: Content = parseContent({ ...shipped, wearables: [...wearables, { ...extraWearable, hides: ['tail'] }] });
   assert.ok(contentProblems(hidesNothing).some((found: string): boolean => found.includes('wearable ash_shroud') && found.includes('no body part tail')));
 
-  const badItem: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'ghost_coat', slot: 'chest', material: 'cloth', visual: null, wear: ['no_such_coat'] }] } });
+  const badItem: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'ghost_coat', slot: 'chest', weaponKind: null, material: 'cloth', visual: null, wear: ['no_such_coat'] }] } });
   assert.ok(contentProblems(badItem).some((found: string): boolean => found.includes('item ghost_coat wears unknown wearable no_such_coat')));
 
-  const lookless: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'plain_coat', slot: 'chest', material: 'cloth', visual: null, wear: [] }] } });
+  const lookless: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'plain_coat', slot: 'chest', weaponKind: null, material: 'cloth', visual: null, wear: [] }] } });
   assert.ok(contentProblems(lookless).some((found: string): boolean => found.includes('item plain_coat has no look')));
-  const wrongRegion: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'boot_coat', slot: 'chest', material: 'cloth', visual: null, wear: ['worn_boots'] }] } });
+  const wrongRegion: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'boot_coat', slot: 'chest', weaponKind: null, material: 'cloth', visual: null, wear: ['worn_boots'] }] } });
   assert.ok(contentProblems(wrongRegion).some((found: string): boolean => found.includes('item boot_coat in slot chest wears worn_boots, which covers feet')));
-  assert.ok(!contentProblems(parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'pauldron_coat', slot: 'chest', material: 'cloth', visual: null, wear: ['militia_tunic', 'tunic_pauldron'] }] } })).some((found: string): boolean => found.includes('pauldron_coat')));
-  const bareCoat: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'bare_coat', slot: 'chest', visual: null }] } });
+  assert.ok(!contentProblems(parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'pauldron_coat', slot: 'chest', weaponKind: null, material: 'cloth', visual: null, wear: ['militia_tunic', 'tunic_pauldron'] }] } })).some((found: string): boolean => found.includes('pauldron_coat')));
+  const bareCoat: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, id: 'bare_coat', slot: 'chest', weaponKind: null, visual: null }] } });
   assert.ok(contentProblems(bareCoat).some((found: string): boolean => found.includes('item bare_coat in slot chest needs a material')));
   const plateSword: Content = parseContent({ ...shipped, items: { ...items, bases: [...items.bases, { ...extraBase, material: 'plate' }] } });
   assert.ok(contentProblems(plateSword).some((found: string): boolean => found.includes('item obsidian_blade in slot weapon cannot have a material')));

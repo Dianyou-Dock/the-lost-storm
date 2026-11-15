@@ -2,6 +2,7 @@ import type { ZoneTerrain } from './terrain-types.ts';
 import type { MonsterRank, PackRanks } from './rank-types.ts';
 import type { ZoneBarrier } from './barrier-types.ts';
 import type { AffixDef, FamilyDef, ItemBaseDef, ItemScaling, RarityDef } from './item-types.ts';
+export type { WeaponKind } from './item-types.ts';
 import type { FlaskDef } from './flasks.ts';
 import type { AttachmentDef, RigDef } from './rig-types.ts';
 import type { AlarmDef, AmbushBehaviour, DormantDef, FactionDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, StalkerBehaviour, SummonDef, SwarmBehaviour } from './combat-types.ts';
@@ -170,10 +171,14 @@ export interface MonsterLoot {
   readonly itemChance: number;
 }
 
+export const BODY_MATERIALS = ['flesh', 'bone', 'hide', 'chitin', 'armour'] as const;
+export type BodyMaterial = (typeof BODY_MATERIALS)[number];
+
 export interface MonsterDef {
   readonly id: string;
   readonly name: string;
   readonly rig: string;
+  readonly bodyMaterial: BodyMaterial;
   readonly scale: number;
   readonly radius: number;
   readonly life: number;
@@ -224,7 +229,7 @@ export interface WearableDef {
   readonly iconWith: readonly string[];
 }
 
-export { ARMOUR_MATERIALS, CAST_ORIGINS, GROUND_KEEPS, GROUND_MODELS, ITEM_STATS, POWER_TARGETS, POWER_TRIGGERS, RARITY_MARKERS } from './item-types.ts';
+export { ARMOUR_MATERIALS, CAST_ORIGINS, GROUND_KEEPS, GROUND_MODELS, ITEM_STATS, POWER_TARGETS, POWER_TRIGGERS, RARITY_MARKERS, WEAPON_KINDS } from './item-types.ts';
 export type { AffixDef, ArmourMaterial, BuffEffect, CastEffect, CastOrigin, FamilyDef, GroundKeep, GroundLook, GroundModel, ItemBaseDef, ItemScaling, ItemStat, PowerDef, PowerEffect, PowerTarget, PowerTrigger, PowerTriggerDef, RarityDef, RarityMarker } from './item-types.ts';
 
 export const TREE_NODE_KINDS = ['minor', 'notable', 'keystone'] as const;

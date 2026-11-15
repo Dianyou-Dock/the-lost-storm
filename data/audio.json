@@ -8,7 +8,10 @@
     "settle": { "synth": false, "cues": [{ "sound": "seam_return", "volume": 0.61, "maxVoices": 1 }] }
   },
   "skillStart": {
-    "cleave": [{ "sound": "sword_swing_light", "volume": 0.9, "maxVoices": 3 }],
+    "cleave": [
+      { "sound": "sword_swing_light", "volume": 0.9, "maxVoices": 3 },
+      { "sound": "sword_swing_heavy", "volume": 0.5, "maxVoices": 3, "weapons": ["blunt", "greatsword"] }
+    ],
     "dodge_roll": [{ "sound": "dodge_whoosh", "volume": 0.75, "maxVoices": 2 }, { "sound": "footstep_stone", "volume": 0.6, "maxVoices": 2 }],
     "taker_snatch": [{ "sound": "sword_swing_heavy", "volume": 0.45, "maxVoices": 3 }],
     "wolf_pounce": [{ "sound": "dodge_whoosh", "volume": 0.6, "maxVoices": 3 }],
@@ -76,50 +79,23 @@
     "thunderclap": [{ "sound": "bolt_impact", "volume": 0.55, "maxVoices": 3, "cooldown": 0.04 }]
   },
   "hit": {
-    "mended": [{ "sound": "bone_hit", "volume": 0.9, "maxVoices": 4 }],
-    "mender": [{ "sound": "bone_hit", "volume": 0.8, "maxVoices": 4 }],
-    "unfinished_taker": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
-    "wolf": [{ "sound": "hit_flesh", "volume": 0.8, "maxVoices": 3 }],
+    "bone": [{ "sound": "bone_hit", "volume": 0.85, "maxVoices": 4 }],
+    "hide": [{ "sound": "hit_flesh", "volume": 0.8, "maxVoices": 3 }],
+    "chitin": [{ "sound": "hit_flesh", "volume": 0.6, "maxVoices": 2, "cooldown": 0.05 }],
     "rat": [{ "sound": "hit_flesh", "volume": 0.5, "maxVoices": 3, "cooldown": 0.05 }],
     "bat": [{ "sound": "hit_flesh", "volume": 0.45, "maxVoices": 3, "cooldown": 0.05 }],
-    "spider": [{ "sound": "hit_flesh", "volume": 0.6, "maxVoices": 2, "cooldown": 0.05 }],
-    "crawler": [{ "sound": "hit_flesh", "volume": 0.6, "maxVoices": 2, "cooldown": 0.05 }],
-    "unfinished_thrower": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
-    "unfinished_brute": [{ "sound": "hit_shield", "volume": 0.9, "maxVoices": 3 }],
-    "unfinished_borrower": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
-    "unfinished_colossus": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
-    "stormcaller_rival": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
-    "timekeeper_gatekeeper": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
-    "timekeeper_adept": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
-    "timekeeper_binder": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
-    "timekeeper_duelist": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
-    "still_standing": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
-    "still_waking": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
-    "warden_patrol": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
+    "fallback": [{ "sound": "hit_flesh", "volume": 0.85, "maxVoices": 3 }],
     "player": [{ "sound": "hero_hurt", "volume": 0.85, "maxVoices": 2, "cooldown": 0.3 }]
   },
   "critHit": {
-    "mended": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "mender": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "unfinished_taker": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "wolf": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
+    "chitin": [{ "sound": "crit_hit", "volume": 0.7, "maxVoices": 2, "cooldown": 0.05 }],
     "rat": [{ "sound": "crit_hit", "volume": 0.6, "maxVoices": 2, "cooldown": 0.05 }],
     "bat": [{ "sound": "crit_hit", "volume": 0.55, "maxVoices": 2, "cooldown": 0.05 }],
-    "spider": [{ "sound": "crit_hit", "volume": 0.7, "maxVoices": 2, "cooldown": 0.05 }],
-    "crawler": [{ "sound": "crit_hit", "volume": 0.7, "maxVoices": 2, "cooldown": 0.05 }],
-    "unfinished_thrower": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "unfinished_brute": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "unfinished_borrower": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "unfinished_colossus": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "stormcaller_rival": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "timekeeper_gatekeeper": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "timekeeper_adept": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "timekeeper_binder": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "timekeeper_duelist": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "still_standing": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "still_waking": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "warden_patrol": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }],
-    "player": [{ "sound": "hero_hurt", "volume": 1, "maxVoices": 2, "cooldown": 0.3 }]
+    "fallback": [{ "sound": "crit_hit", "volume": 0.95, "maxVoices": 3 }]
+  },
+  "guarded": {
+    "blocked": [{ "sound": "hit_shield", "volume": 0.9, "maxVoices": 3 }],
+    "broken": [{ "sound": "hit_shield", "volume": 1, "maxVoices": 2 }]
   },
   "death": {
     "mended": [{ "sound": "bones_collapse", "volume": 1, "maxVoices": 3 }],
