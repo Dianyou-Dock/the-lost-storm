@@ -4,7 +4,7 @@ import { MeshStandardMaterial, ShaderLib } from 'three';
 import type { IUniform } from 'three';
 import { unsafeGlsl } from '../../test/glsl-support.ts';
 import type { SurfaceGlow } from '../../sim/content/types.ts';
-import { GLOW_CLOCK, glowFragment, glowingGround, glowKey, patchGlowShader, tickGlow } from './surface-glow.ts';
+import { GLOW_CLOCK, GLOW_HELPERS, glowFragment, glowingGround, glowKey, patchGlowShader, tickGlow } from './surface-glow.ts';
 import { patchGroundShader, wetGroundKey } from './wet-ground.ts';
 
 const LAVA: SurfaceGlow = { color: '#ff5a14', strength: 2, cover: 0.7, cracks: 0.3, scale: 6, flow: 0.08, pulse: 0.2 };
@@ -16,13 +16,16 @@ void test('the glow is written as safe GLSL that drifts, pulses and lights the s
   assert.match(source, /sin\( uGlowTime \* /);
   assert.match(source, /totalEmissiveRadiance \+= vec3\( 2\.0, /);
   assert.doesNotMatch(glowFragment({ ...LAVA, pulse: 0 }), /sin\(/);
+  assert.deepEqual(unsafeGlsl(glowFragment({ ...LAVA, cover: 0 })), []);
+  assert.deepEqual(unsafeGlsl(GLOW_HELPERS), []);
 });
 
 void test('a glowing ground keeps the wet patch, adds its glow after the emissive map and shares the clock', (): void => {
   const shader: { vertexShader: string; fragmentShader: string; uniforms: Record<string, IUniform> } = { vertexShader: ShaderLib.physical.vertexShader, fragmentShader: ShaderLib.physical.fragmentShader, uniforms: {} };
   patchGroundShader(shader, 0.2);
   patchGlowShader(shader, LAVA);
-  assert.match(shader.fragmentShader, /uniform float uGlowTime;/);
+  assert.match(shader.fragmentShader, /uniform float uGlowTime;\nvec2 glowHash/);
+  assert.ok(shader.fragmentShader.indexOf('float glowPlates(') < shader.fragmentShader.indexOf('glowEdge = glowPlates('));
   assert.match(shader.fragmentShader, /#include <emissivemap_fragment>\nvec2 glowDrift/);
   assert.ok(shader.fragmentShader.indexOf('groundFbm( vec2 p )') < shader.fragmentShader.indexOf('glowFirst = groundFbm'));
   assert.equal(shader.uniforms['uGlowTime'], GLOW_CLOCK);
