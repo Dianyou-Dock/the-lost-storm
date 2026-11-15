@@ -27,7 +27,7 @@ function cues(table: CueTable, key: string, position: Vec2 | null, weapon: Weapo
   if (list === undefined) return NONE;
   const heard: readonly WeaponCue[] = list.filter((entry: WeaponCue): boolean => heldBy(entry, weapon));
   if (heard.length === 0) return NONE;
-  return heard.map((entry: CueDef): SoundCue => ({ sound: entry.sound, volume: entry.volume, maxVoices: entry.maxVoices, cooldown: entry.cooldown, reach: entry.reach, holdForVoice: entry.holdForVoice, position }));
+  return heard.map((entry: CueDef): SoundCue => ({ sound: entry.sound, volume: entry.volume, maxVoices: entry.maxVoices, cooldown: entry.cooldown, reach: entry.reach, holdForVoice: entry.holdForVoice, pitch: entry.pitch, volumeJitter: entry.volumeJitter, position }));
 }
 
 function firstOf(table: CueTable, keys: readonly string[], position: Vec2 | null, weapon: WeaponKind | null): readonly SoundCue[] {

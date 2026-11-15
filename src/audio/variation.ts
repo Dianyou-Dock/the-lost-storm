@@ -1,3 +1,5 @@
+import type { PitchRange } from '../../sim/content/audio.ts';
+
 export const VARIATION = {
   pitchCents: 70,
   volumeSpread: 0.12,
@@ -36,13 +38,14 @@ export function createVariantBag(random: () => number): VariantBag {
   };
 }
 
-export function pitchRate(random: () => number): number {
+export function pitchRate(random: () => number, range: PitchRange | null = null): number {
+  if (range !== null) return range.min + random() * (range.max - range.min);
   const cents: number = (random() * 2 - 1) * VARIATION.pitchCents;
   return 2 ** (cents / VARIATION.centsPerOctave);
 }
 
-export function volumeScale(random: () => number): number {
-  return 1 + (random() * 2 - 1) * VARIATION.volumeSpread;
+export function volumeScale(random: () => number, jitter: number | null = null): number {
+  return 1 + (random() * 2 - 1) * (jitter ?? VARIATION.volumeSpread);
 }
 
 export function delayBetween(minimum: number, maximum: number, random: () => number): number {

@@ -63,8 +63,8 @@ void test('cues take the defaults for what they leave out', (): void => {
     draft['ui'] = { click: [{ sound: 'ui_click' }, { sound: 'ui_click', volume: 0.5, maxVoices: 2, cooldown: 1, reach: 60 }] };
   }), known);
   const [plain, tuned]: readonly CueDef[] = must(audio.ui.get('click'), 'click cues');
-  assert.deepEqual(plain, { sound: 'ui_click', volume: 1, maxVoices: 4, cooldown: 0, reach: 30, holdForVoice: 0, weapons: [] });
-  assert.deepEqual(tuned, { sound: 'ui_click', volume: 0.5, maxVoices: 2, cooldown: 1, reach: 60, holdForVoice: 0, weapons: [] });
+  assert.deepEqual(plain, { sound: 'ui_click', volume: 1, maxVoices: 4, cooldown: 0, reach: 30, holdForVoice: 0, pitch: null, volumeJitter: null, weapons: [] });
+  assert.deepEqual(tuned, { sound: 'ui_click', volume: 0.5, maxVoices: 2, cooldown: 1, reach: 60, holdForVoice: 0, pitch: null, volumeJitter: null, weapons: [] });
 });
 
 void test('a table that names an id the game does not have is rejected', (): void => {
@@ -305,4 +305,38 @@ void test('every weapon sounds the swing it makes, whatever its kind', (): void 
     const heard: readonly WeaponCue[] = (audio.skillStart.get('cleave') ?? []).filter((entry: WeaponCue): boolean => entry.weapons.length === 0 || entry.weapons.some((weapon: string): boolean => weapon === kind));
     assert.ok(heard.length > 0, kind);
   }
+});
+
+void test('a cue may carry its own pitch range and volume jitter, and bad ones are rejected', (): void => {
+  const audio: AudioDef = parseAudio(variant((draft): void => {
+    draft['ui'] = { click: [{ sound: 'ui_click', pitch: [0.94, 1.06], volumeJitter: 0.15 }, { sound: 'ui_click' }] };
+  }), known);
+  const clicks: readonly CueDef[] = must(audio.ui.get('click'), 'click cues');
+  const varied: CueDef = must(clicks[0], 'varied cue');
+  const plain: CueDef = must(clicks[1], 'plain cue');
+  assert.deepEqual(varied.pitch, { min: 0.94, max: 1.06 });
+  assert.equal(varied.volumeJitter, 0.15);
+  assert.equal(plain.pitch, null);
+  assert.equal(plain.volumeJitter, null);
+  for (const bad of [[1.06, 0.94], [0.94], [0.94, 1.06, 1.1], [0.1, 1], [1, 3], ['a', 'b']]) {
+    reject(variant((draft): void => {
+      draft['ui'] = { click: [{ sound: 'a', pitch: bad }] };
+    }), /ui\.click\[0\]\.pitch/);
+  }
+  reject(variant((draft): void => {
+    draft['ui'] = { click: [{ sound: 'a', pitch: 1 }] };
+  }), /pitch/);
+  reject(variant((draft): void => {
+    draft['ui'] = { click: [{ sound: 'a', volumeJitter: 0.9 }] };
+  }), /volumeJitter/);
+  reject(variant((draft): void => {
+    draft['ui'] = { click: [{ sound: 'a', volumeJitter: -0.1 }] };
+  }), /volumeJitter/);
+});
+
+void test('the dodge roll varies its pitch and level more than the default and keeps a wide choice of takes', (): void => {
+  const roll: readonly CueDef[] = must(loadAudio(content).skillStart.get('dodge_roll'), 'roll cues');
+  const whoosh: CueDef | undefined = roll.find((entry: CueDef): boolean => entry.sound === 'dodge_whoosh');
+  assert.ok(whoosh !== undefined && whoosh.pitch !== null && whoosh.volumeJitter !== null);
+  assert.ok(whoosh.pitch.max - whoosh.pitch.min > 0.08);
 });

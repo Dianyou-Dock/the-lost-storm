@@ -5,8 +5,8 @@ import { CENTRE } from './mix.ts';
 import type { HeldCue, VoiceHold } from './voice-hold.ts';
 import { createVoiceHold } from './voice-hold.ts';
 
-const PLAIN: SoundCue = { sound: 'bone_hit', volume: 1, maxVoices: 2, cooldown: 0, reach: 30, holdForVoice: 0, position: null };
-const PATIENT: SoundCue = { sound: 'opening_alien', volume: 0.55, maxVoices: 1, cooldown: 30, reach: 30, holdForVoice: 8, position: null };
+const PLAIN: SoundCue = { sound: 'bone_hit', volume: 1, maxVoices: 2, cooldown: 0, reach: 30, holdForVoice: 0, pitch: null, volumeJitter: null, position: null };
+const PATIENT: SoundCue = { sound: 'opening_alien', volume: 0.55, maxVoices: 1, cooldown: 30, reach: 30, holdForVoice: 8, pitch: null, volumeJitter: null, position: null };
 
 function sounds(ready: readonly HeldCue[]): readonly string[] {
   return ready.map((entry: HeldCue): string => entry.cue.sound);

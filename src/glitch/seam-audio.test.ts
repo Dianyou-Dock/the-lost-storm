@@ -17,7 +17,7 @@ interface Heard {
 const TIMES: SeamTimes = { buildUp: 2, guard: 0.5, tear: 0.36, tearBack: 0.36, settle: 0.8 };
 
 function sound(synth: boolean): SeamSound {
-  const cues: SeamSound['parts']['tear']['cues'] = synth ? [] : [{ sound: 'glitch_tear', volume: 1, maxVoices: 1, cooldown: 0, reach: 0, holdForVoice: 0 }];
+  const cues: SeamSound['parts']['tear']['cues'] = synth ? [] : [{ sound: 'glitch_tear', volume: 1, maxVoices: 1, cooldown: 0, reach: 0, holdForVoice: 0, pitch: null, volumeJitter: null }];
   return {
     worldFloor: 0.18,
     parts: {

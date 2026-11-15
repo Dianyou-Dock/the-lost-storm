@@ -77,6 +77,18 @@ void test('pitch and volume stay inside their spread and are centred on one', ()
   assert.ok(Math.abs(volumeScale((): number => 0) - (1 - VARIATION.volumeSpread)) < 1e-9);
 });
 
+void test('a cue pitch range replaces the default spread, and a cue jitter replaces the default volume spread', (): void => {
+  const range = { min: 0.9, max: 1.1 };
+  assert.equal(pitchRate((): number => 0, range), 0.9);
+  assert.equal(pitchRate((): number => 1, range), 1.1);
+  assert.ok(Math.abs(pitchRate((): number => 0.5, range) - 1) < 1e-9);
+  assert.ok(Math.abs(volumeScale((): number => 1, 0.3) - 1.3) < 1e-9);
+  assert.ok(Math.abs(volumeScale((): number => 0, 0.3) - 0.7) < 1e-9);
+  assert.equal(volumeScale((): number => 0.5, 0.3), 1);
+  assert.equal(pitchRate((): number => 1, null), pitchRate((): number => 1));
+  assert.equal(volumeScale((): number => 1, null), volumeScale((): number => 1));
+});
+
 void test('a delay falls between its bounds', (): void => {
   assert.equal(delayBetween(10, 30, (): number => 0), 10);
   assert.equal(delayBetween(10, 30, (): number => 0.5), 20);

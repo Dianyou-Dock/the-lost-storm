@@ -12,7 +12,7 @@
       { "sound": "sword_swing_light", "volume": 0.9, "maxVoices": 3 },
       { "sound": "sword_swing_heavy", "volume": 0.5, "maxVoices": 3, "weapons": ["blunt", "greatsword"] }
     ],
-    "dodge_roll": [{ "sound": "dodge_whoosh", "volume": 0.75, "maxVoices": 2 }, { "sound": "footstep_stone", "volume": 0.6, "maxVoices": 2 }],
+    "dodge_roll": [{ "sound": "dodge_whoosh", "volume": 0.8, "maxVoices": 2, "pitch": [0.93, 1.07], "volumeJitter": 0.16 }, { "sound": "footstep_stone", "volume": 0.6, "maxVoices": 2, "pitch": [0.92, 1.08], "volumeJitter": 0.2 }],
     "taker_snatch": [{ "sound": "sword_swing_heavy", "volume": 0.45, "maxVoices": 3 }],
     "wolf_pounce": [{ "sound": "dodge_whoosh", "volume": 0.6, "maxVoices": 3 }],
     "rat_bite": [{ "sound": "dodge_whoosh", "volume": 0.3, "maxVoices": 3, "cooldown": 0.08 }],

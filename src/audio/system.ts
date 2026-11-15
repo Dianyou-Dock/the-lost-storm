@@ -222,8 +222,8 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
     }
     const source: AudioBufferSourceNode = current.context.createBufferSource();
     source.buffer = buffer;
-    source.playbackRate.value = pitchRate(random);
-    const level: number = cue.volume * place.gain * volumeScale(random);
+    source.playbackRate.value = pitchRate(random, cue.pitch);
+    const level: number = cue.volume * place.gain * volumeScale(random, cue.volumeJitter);
     const voice: GainNode = connect(source, level, place.pan, current[bus], current, (): void => limiter.end(cue.sound));
     source.start();
     if (cut === null) return;
@@ -520,7 +520,7 @@ export function createAudioSystem(options: AudioOptions): AudioSystem {
         timer.left -= dt;
         if (timer.left > 0) continue;
         timer.left = delayBetween(timer.stinger.minDelay, timer.stinger.maxDelay, random);
-        const cue: SoundCue = { sound: timer.stinger.sound, volume: timer.stinger.volume, maxVoices: 1, cooldown: 0, reach: MIX.farDistance, holdForVoice: 0, position: null };
+        const cue: SoundCue = { sound: timer.stinger.sound, volume: timer.stinger.volume, maxVoices: 1, cooldown: 0, reach: MIX.farDistance, holdForVoice: 0, pitch: null, volumeJitter: null, position: null };
         trigger('ambience', cue, { gain: CENTRE.gain, pan: (random() * 2 - 1) * SYSTEM.stingerPan });
       }
     },

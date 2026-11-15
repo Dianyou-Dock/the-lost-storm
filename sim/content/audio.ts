@@ -35,6 +35,9 @@ const LIMITS = {
   reachMin: 5,
   reachMax: 200,
   holdMax: 30,
+  pitchMin: 0.5,
+  pitchMax: 2,
+  jitterMax: 0.5,
   cutMin: 0.05,
   cutMax: 10,
 } as const;
@@ -46,6 +49,11 @@ export interface CueDefaults {
   readonly reach: number;
 }
 
+export interface PitchRange {
+  readonly min: number;
+  readonly max: number;
+}
+
 export interface CueDef {
   readonly sound: string;
   readonly volume: number;
@@ -53,6 +61,8 @@ export interface CueDef {
   readonly cooldown: number;
   readonly reach: number;
   readonly holdForVoice: number;
+  readonly pitch: PitchRange | null;
+  readonly volumeJitter: number | null;
 }
 
 export interface WeaponCue extends CueDef {
@@ -144,6 +154,17 @@ function required(source: Fields, key: string, min: number, max: number, where: 
   return value;
 }
 
+function pitchRange(source: Fields, where: string): PitchRange | null {
+  const given: unknown = source['pitch'];
+  if (given === undefined) return null;
+  const pair: readonly unknown[] = Array.isArray(given) ? given.map((item: unknown): unknown => item) : [];
+  const min: unknown = pair[0];
+  const max: unknown = pair[1];
+  if (typeof min !== 'number' || typeof max !== 'number' || pair.length !== 2) throw new ContentError(`${where}.pitch`, 'expected [lowest, highest] playback rates');
+  if (!(min >= LIMITS.pitchMin && max <= LIMITS.pitchMax && min <= max)) throw new ContentError(`${where}.pitch`, `expected ${LIMITS.pitchMin} to ${LIMITS.pitchMax}, lowest first`);
+  return { min, max };
+}
+
 function cue(value: unknown, defaults: CueDefaults, where: string): CueDef {
   return cueFields(fields(value, where), defaults, where);
 }
@@ -164,6 +185,8 @@ function cueFields(source: Fields, defaults: CueDefaults, where: string): CueDef
     cooldown: ranged(source, 'cooldown', defaults.cooldown, 0, LIMITS.cooldownMax, where),
     reach: ranged(source, 'reach', defaults.reach, LIMITS.reachMin, LIMITS.reachMax, where),
     holdForVoice: ranged(source, 'holdForVoice', 0, 0, LIMITS.holdMax, where),
+    pitch: pitchRange(source, where),
+    volumeJitter: source['volumeJitter'] === undefined ? null : required(source, 'volumeJitter', 0, LIMITS.jitterMax, where),
   };
 }
 
