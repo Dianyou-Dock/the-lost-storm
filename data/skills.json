@@ -1277,5 +1277,58 @@
   {"id": "rat_bite", "category": "melee", "name": "Bite", "description": "A quick snap at the ankles.", "icon": "cleave", "animation": "bite", "manaCost": 0, "cooldown": 1.6, "windup": 0.35, "recovery": 0.4, "scalesWithAttackSpeed": false, "engageRange": 0.9, "delivery": {"type": "arc", "reach": 1.3, "arcDegrees": 90}, "damage": {"weaponPercent": 1.0, "flatMin": 0, "flatMax": 0}, "knockback": 0.6, "stagger": 0.05, "shake": 0.08, "hitStop": 0.02, "vfx": {"style": "claw", "color": "#b89a8a", "light": 0.2, "impact": {"sparks": 2, "flash": 0}}},
   {"id": "bat_bite", "category": "melee", "name": "Bite", "description": "It drops from the dark, bites and is gone again.", "icon": "cleave", "animation": "bite", "manaCost": 0, "cooldown": 1.4, "windup": 0.3, "recovery": 0.45, "scalesWithAttackSpeed": false, "engageRange": 1.0, "delivery": {"type": "arc", "reach": 1.4, "arcDegrees": 90}, "damage": {"weaponPercent": 1.0, "flatMin": 0, "flatMax": 0}, "knockback": 0.4, "stagger": 0.05, "shake": 0.08, "hitStop": 0.02, "vfx": {"style": "claw", "color": "#c9b48a", "light": 0.2, "impact": {"sparks": 2, "flash": 0}}},
   {"id": "spider_leap", "category": "area", "name": "Leap", "description": "It waits until you are close, then lands on you.", "icon": "thunderclap", "animation": "pounce", "manaCost": 0, "cooldown": 3.6, "windup": 1.1, "recovery": 0.7, "scalesWithAttackSpeed": false, "engageRange": 6, "delivery": {"type": "nova", "radius": 1.5}, "damage": {"weaponPercent": 1.0, "flatMin": 0, "flatMax": 0}, "knockback": 4, "stagger": 0.25, "shake": 0.45, "hitStop": 0.08, "vfx": {"style": "claw", "color": "#c9b48a", "light": 0.35, "impact": {"sparks": 6, "flash": 0.2}}, "leap": {"distance": 6.5, "stopShort": 0.9, "airTime": 0.55}},
-  {"id": "crawler_lunge", "category": "melee", "name": "Lunge", "description": "It skims along the ground and drives its tail into what it was aimed at.", "icon": "cleave", "animation": "lunge", "manaCost": 0, "cooldown": 3.2, "windup": 1.2, "recovery": 0.8, "scalesWithAttackSpeed": false, "engageRange": 5.5, "delivery": {"type": "arc", "reach": 2.2, "arcDegrees": 50}, "damage": {"weaponPercent": 1.0, "flatMin": 0, "flatMax": 0}, "knockback": 3, "stagger": 0.3, "shake": 0.4, "hitStop": 0.08, "vfx": {"style": "claw", "color": "#c9b48a", "light": 0.3, "impact": {"sparks": 5, "flash": 0.15}}, "leap": {"distance": 5, "stopShort": 1.2, "airTime": 0.4, "lane": true}}
+  {"id": "crawler_lunge", "category": "melee", "name": "Lunge", "description": "It skims along the ground and drives its tail into what it was aimed at.", "icon": "cleave", "animation": "lunge", "manaCost": 0, "cooldown": 3.2, "windup": 1.2, "recovery": 0.8, "scalesWithAttackSpeed": false, "engageRange": 5.5, "delivery": {"type": "arc", "reach": 2.2, "arcDegrees": 50}, "damage": {"weaponPercent": 1.0, "flatMin": 0, "flatMax": 0}, "knockback": 3, "stagger": 0.3, "shake": 0.4, "hitStop": 0.08, "vfx": {"style": "claw", "color": "#c9b48a", "light": 0.3, "impact": {"sparks": 5, "flash": 0.15}}, "leap": {"distance": 5, "stopShort": 1.2, "airTime": 0.4, "lane": true}},
+  {
+    "id": "wisp_volley",
+    "name": "Wisp Volley",
+    "description": "A purple light gathers at the hand, swells, then breaks into a quick volley of wisps that leave dust hanging behind them.",
+    "icon": "storm_bolt",
+    "animation": "cast",
+    "manaCost": 12,
+    "cooldown": 1.4,
+    "windup": 0.66,
+    "recovery": 0.3,
+    "scalesWithAttackSpeed": false,
+    "engageRange": 13,
+    "delivery": {
+      "type": "projectile",
+      "speed": 28,
+      "radius": 0.4,
+      "range": 13,
+      "pierce": 0,
+      "count": 6,
+      "spreadDegrees": 4,
+      "interval": 0.016
+    },
+    "damage": {
+      "weaponPercent": 0.4,
+      "flatMin": 1,
+      "flatMax": 2
+    },
+    "knockback": 2,
+    "stagger": 0.08,
+    "shake": 0.2,
+    "hitStop": 0.02,
+    "category": "single",
+    "vfx": {
+      "style": "orb",
+      "color": "#a66bff",
+      "cue": "none",
+      "light": 0.18,
+      "impact": {
+        "sparks": 6,
+        "flash": 0.2
+      },
+      "trail": 8,
+      "linger": 0.5,
+      "gather": {
+        "radius": 0.26,
+        "lift": 0.15,
+        "dust": 120,
+        "light": 5,
+        "size": [0, 0, 0.18, 0.35, 0.45, 0.48, 0.56, 0.68, 0.75, 0.77, 0.81, 0.87, 0.91, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.92, 0.95, 0.99],
+        "glow": [0, 0, 0.03, 0.16, 0.24, 0.28, 0.34, 0.43, 0.49, 0.53, 0.55, 0.63, 0.77, 0.92, 0.99, 0.99, 0.97, 0.93, 0.88, 0.82, 0.77, 0.74, 0.74]
+      }
+    }
+  }
 ]

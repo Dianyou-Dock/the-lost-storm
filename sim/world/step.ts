@@ -29,6 +29,7 @@ import { stepDrifts, stepTriggers } from './terrain.ts';
 import { acceptsCommand, hurryWake } from './wake.ts';
 import { stepPowerState } from '../powers.ts';
 import { refreshPlayer } from './character.ts';
+import { stepTally } from '../tally.ts';
 
 export const MAX_STEP: number = 1 / 30;
 
@@ -85,5 +86,6 @@ export function stepWorld(world: World, commands: readonly Command[], dt: number
   stepTrade(world);
   stepGlitch(world, dt);
   recordPath(world, dt);
+  stepTally(world, dt);
   return world.events;
 }

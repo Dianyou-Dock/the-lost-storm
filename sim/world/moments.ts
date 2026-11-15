@@ -16,7 +16,7 @@ import { clearOfTallProps, inSight, lowerProps, raiseProps, standClear, standJoi
 import { setFlags } from './story.ts';
 import { monsterLevel, spawnMonster } from './spawn.ts';
 import { rankPack, ranksHere, rollRank } from './ranks.ts';
-import type { EchoState, ItemInstance, MomentFigure, MomentOutcome, MomentState, MonsterState, NpcState, ProjectileState, World } from './types.ts';
+import type { EchoState, ItemInstance, MomentFigure, MomentOutcome, MomentState, MonsterState, NpcState, ProjectileState, QueuedShot, World } from './types.ts';
 
 export const MOMENTS = {
   placementTries: 100,
@@ -263,6 +263,7 @@ function removeEchoes(world: World, moment: MomentState, onlyLiving: boolean): v
   world.monsters = world.monsters.filter((monster: MonsterState): boolean => !gone.has(monster.id));
   for (const projectile of world.projectiles) if (gone.has(projectile.ownerId)) world.events.push({ type: 'projectile_end', id: projectile.id, pos: { ...projectile.pos }, hit: false, skill: projectile.skill });
   world.projectiles = world.projectiles.filter((projectile: ProjectileState): boolean => !gone.has(projectile.ownerId));
+  world.shots = world.shots.filter((shot: QueuedShot): boolean => !gone.has(shot.projectile.ownerId));
   world.echoes = world.echoes.filter((echo: EchoState): boolean => !gone.has(echo.ownerId));
 }
 

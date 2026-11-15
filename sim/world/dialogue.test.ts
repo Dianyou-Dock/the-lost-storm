@@ -6,6 +6,7 @@ import { loadContent } from '../content/content.ts';
 import type { Content, NpcDef, QuestDef, TalkDef } from '../content/types.ts';
 import { distance } from '../math.ts';
 import { toSave } from '../save.ts';
+import type { SaveData } from '../save.ts';
 import { allHold } from './conditions.ts';
 import { createWorld } from './create.ts';
 import { canReplay, DIALOGUE, hasNews, nextTalk, replayable } from './dialogue.ts';
@@ -275,7 +276,8 @@ function atTheGate(shipped: Content = SHIPPED): World {
 }
 
 function settled(world: World): string {
-  return JSON.stringify({ save: toSave(world), quests: world.quests, flags: world.flags, heard: world.heard });
+  const save: SaveData = toSave(world);
+  return JSON.stringify({ save: { ...save, tally: { ...save.tally, played: 0 } }, quests: world.quests, flags: world.flags, heard: world.heard });
 }
 
 void test('at each step the Guide offers again only the talks the hero has heard whose conditions still hold, never a later one', (): void => {

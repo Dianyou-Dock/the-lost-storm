@@ -38,3 +38,8 @@ export interface HazardState {
   readonly critMultiplier: number;
   timeLeft: number;
 }
+
+export interface QueuedShot {
+  readonly projectile: ProjectileState;
+  timeLeft: number;
+}

@@ -7,13 +7,13 @@ import type { ComboStep, Content, SkillDef } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { distance } from '../math.ts';
 import { cellIndex } from '../nav/grid.ts';
-import { chainedSkill, chargedSkill, comboHits, readyToRepeat, startSkill } from './skills.ts';
+import { chainedSkill, chargedSkill, clearProjectiles, comboHits, readyToRepeat, startSkill, volleyOrder } from './skills.ts';
 import { damageTo, dummy, offset, run, SHAPE_CONTENT, shapeArena, shapeSkill } from '../../test/shape-support.ts';
 import { resolveSkill } from '../stats.ts';
 import { generateItem } from '../items.ts';
 import { createRng } from '../rng.ts';
 import { stepWorld } from './step.ts';
-import type { AreaState, Command, MonsterState, World, WorldEvent } from './types.ts';
+import type { AreaState, Command, MonsterState, ProjectileState, World, WorldEvent } from './types.ts';
 
 const content: Content = loadContent();
 const DT: number = 1 / 60;
@@ -312,4 +312,73 @@ void test('a hero in the Mist-Treader Boots leaves a Downdraught where the Mist 
   startSkill(world, world.player, step, { x: -3, z: 0 });
   for (let frame: number = 0; frame < Math.round((step.windup + 0.4) / DT); frame += 1) stepWorld(world, [], DT);
   assert.equal(world.areas.filter((late: AreaState): boolean => late.skill.id === 'downdraught').length, 0);
+});
+
+void test('a volley order keeps the fan in order when its shots leave together and scatters it when they leave one by one', (): void => {
+  assert.deepEqual(volleyOrder(5, 0), [0, 1, 2, 3, 4]);
+  assert.deepEqual(volleyOrder(6, 0.016), [0, 5, 2, 4, 1, 3]);
+});
+
+void test('Wisp Volley looses its six wisps one after another from the release, across a narrow fan, within its interval span', (): void => {
+  const wisp: SkillDef = shapeSkill('wisp_volley');
+  assert.equal(wisp.delivery.type, 'projectile');
+  const step: number = 1 / 600;
+  const world: World = shapeArena(['wisp_volley']);
+  const spawned: { readonly at: number; readonly angle: number }[] = [];
+  const marks: { released: number | null } = { released: null };
+  let clock: number = 0;
+  const watch = (events: readonly WorldEvent[]): void => {
+    for (const event of events) {
+      if (event.type === 'skill_impact') marks.released = clock;
+      if (event.type === 'projectile_spawn') spawned.push({ at: clock, angle: Math.atan2(event.projectile.direction.x, event.projectile.direction.z) });
+    }
+  };
+  watch(stepWorld(world, [{ type: 'skill', slot: 0, aim: offset(0, 8), targetId: null }], step));
+  for (let index: number = 0; index < 600 && spawned.length < wisp.delivery.count; index += 1) {
+    clock += step;
+    watch(stepWorld(world, [], step));
+  }
+  const release: number = must(marks.released, 'released');
+  assert.ok(Math.abs(release - wisp.windup) < step * 2);
+  assert.equal(spawned.length, wisp.delivery.count);
+  assert.ok(Math.abs((spawned[0]?.at ?? -1) - release) < step);
+  const span: number = (wisp.delivery.count - 1) * wisp.delivery.interval;
+  assert.ok(Math.abs((spawned.at(-1)?.at ?? -1) - release - span) < step * 2);
+  const angles: number[] = spawned.map((shot: { readonly angle: number }): number => shot.angle);
+  const sorted: number[] = angles.toSorted((a: number, b: number): number => a - b);
+  assert.notDeepEqual(angles, sorted);
+  assert.ok((sorted.at(-1) ?? 0) - (sorted[0] ?? 0) <= (wisp.delivery.count - 1) * wisp.delivery.spreadDegrees * (Math.PI / 180) + 1e-9);
+});
+
+void test('a queued shot that leaves partway through a long frame flies only the rest of that frame, so the volley keeps its spacing', (): void => {
+  const wisp: SkillDef = shapeSkill('wisp_volley');
+  const delivery = wisp.delivery;
+  assert.equal(delivery.type, 'projectile');
+  const frame: number = 1 / 30;
+  const world: World = shapeArena(['wisp_volley']);
+  stepWorld(world, [{ type: 'skill', slot: 0, aim: offset(0, 8), targetId: null }], frame);
+  for (let index: number = 0; index < 60 && (world.shots.length > 0 || world.projectiles.length < delivery.count); index += 1) stepWorld(world, [], frame);
+  assert.equal(world.projectiles.length, delivery.count);
+  const flown: number[] = world.projectiles.map((projectile: ProjectileState): number => delivery.range - projectile.distanceLeft).toSorted((a: number, b: number): number => b - a);
+  for (const [rank, distanceFlown] of flown.entries()) {
+    const lead: number = must(flown[0], 'first wisp') - distanceFlown;
+    assert.ok(Math.abs(lead - rank * delivery.interval * delivery.speed) < 0.05, `wisp ${rank} trails the first by ${lead.toFixed(3)} m`);
+  }
+});
+
+void test('Wisp Volley lands several wisps on one enemy ahead, each a hit of its own', (): void => {
+  const world: World = shapeArena(['wisp_volley']);
+  const target: MonsterState = dummy(world, offset(0, 8));
+  const events: WorldEvent[] = run(world, 2, [{ type: 'skill', slot: 0, aim: target.pos, targetId: null }]);
+  assert.ok(damageTo(events, target.id).length >= 2);
+});
+
+void test('queued shots that have not left yet are dropped with the flying ones', (): void => {
+  const world: World = shapeArena(['wisp_volley']);
+  stepWorld(world, [{ type: 'skill', slot: 0, aim: offset(0, 8), targetId: null }], 1 / 60);
+  run(world, shapeSkill('wisp_volley').windup + 1 / 120);
+  assert.ok(world.shots.length > 0);
+  clearProjectiles(world);
+  assert.equal(world.shots.length, 0);
+  assert.equal(run(world, 0.2).filter((event: WorldEvent): boolean => event.type === 'projectile_spawn').length, 0);
 });

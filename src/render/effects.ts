@@ -3,7 +3,10 @@ import type { Group, Object3D, Scene, Vector3 } from 'three';
 import { Color, Mesh, MeshBasicMaterial, SphereGeometry } from 'three';
 import type { FlaskResource } from '../../sim/content/flasks.ts';
 import type { Delivery, SkillDef } from '../../sim/content/types.ts';
+import type { VfxGather } from '../../sim/content/vfx-types.ts';
+import type { Vec2 } from '../../sim/math.ts';
 import { DEGREES_TO_RADIANS, facingOf } from '../../sim/math.ts';
+import { SKILLS } from '../../sim/world/skills.ts';
 import type { MonsterState, ProjectileState, World, WorldEvent } from '../../sim/world/types.ts';
 import { disposeObject, glow, programKeepers, projectileMesh, slashMesh } from './effect-shapes.ts';
 import type { Shockwave } from './shockwave.ts';
@@ -19,6 +22,8 @@ import type { BurstOptions, ParticleSystem } from './particles.ts';
 import { renderBudget } from '../mobile/quality.ts';
 import type { AbilityCues } from './ability-cues.ts';
 import { createAbilityCues, novaLook } from './ability-cues.ts';
+import type { GatherOrbs } from './gather-orb.ts';
+import { createGatherOrbs } from './gather-orb.ts';
 import type { HurtWash } from './hurt-wash.ts';
 import { CALM_WASH, stepWash, washHit } from './hurt-wash.ts';
 import type { NovaLook } from './ability-cues.ts';
@@ -143,6 +148,8 @@ function landsAhead(skill: SkillDef): boolean {
   return skill.leap !== null || delivery.type === 'blink' || (delivery.type === 'area' && delivery.anchor === 'ground');
 }
 
+const launchPoint = (from: { readonly x: number; readonly z: number }, direction: { readonly x: number; readonly z: number }): Vec2 => ({ x: from.x + direction.x * SKILLS.projectileOrigin, z: from.z + direction.z * SKILLS.projectileOrigin });
+
 function easeOut(t: number): number {
   return 1 - (1 - t) * (1 - t) * (1 - t);
 }
@@ -247,6 +254,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
   };
 
   const cues: AbilityCues = createAbilityCues({ add, spray, flashLight, gather: riseLight, ring });
+  const orbs: GatherOrbs = createGatherOrbs({ add, spray, gather: riseLight, flashLight });
   const shockwave: Shockwave = createShockwave({ add, spray, flashLight, shade: (x: number, z: number, radius: number): void => cues.shade(x, z, radius), kit, dust: DUST });
 
   const burst = (x: number, z: number, radius: number, skill: SkillDef): void => {
@@ -266,6 +274,11 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
   };
 
   const onSkillStart = (event: Extract<WorldEvent, { type: 'skill_start' }>, world: World): void => {
+    const gathered: VfxGather | null = event.skill.vfx.gather;
+    if (gathered !== null) {
+      const caster: { readonly pos: { readonly x: number; readonly z: number } } | undefined = event.actorId === world.player.id ? world.player : world.monsters.find((candidate: MonsterState): boolean => candidate.id === event.actorId);
+      if (caster !== undefined) orbs.start(event.actorId, launchPoint(caster.pos, event.direction), EFFECTS.projectileHeight, gathered, event.windup, colorOf(event.skill.vfx.color));
+    }
     if (event.skill.vfx.style === 'roll') {
       const roller: { readonly pos: { readonly x: number; readonly z: number } } | undefined = event.actorId === world.player.id ? world.player : world.monsters.find((candidate: MonsterState): boolean => candidate.id === event.actorId);
       if (roller !== undefined) dashTrails.start(event.actorId, roller.pos, event.direction, colorOf(event.skill.vfx.color));
@@ -306,6 +319,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
         spray(event.origin.x + event.direction.x * EFFECTS.castReach, EFFECTS.castLift, event.origin.z + event.direction.z * EFFECTS.castReach, color, 12, { speed: { min: 1, max: 4 }, lift: { min: 0.5, max: 3 }, life: { min: 0.2, max: 0.5 } });
         break;
       case 'projectile':
+        if (event.skill.vfx.gather !== null) orbs.release(launchPoint(event.origin, event.direction), EFFECTS.projectileHeight, event.direction, event.skill.vfx.gather, color);
         spray(event.origin.x + event.direction.x, EFFECTS.projectileHeight, event.origin.z + event.direction.z, color, event.skill.vfx.lightning === null ? 10 : EFFECTS.releaseSparks, { dirX: event.direction.x, dirZ: event.direction.z, spread: 0.9, speed: { min: 3, max: 9 }, lift: { min: -1, max: 2 }, gravity: 2 });
         if (event.team === 'player') flashLight(event.origin.x, 2, event.origin.z, color, EFFECTS.boltLight * event.skill.vfx.light);
         break;
@@ -560,6 +574,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
           case 'moment_strike':
           case 'moment_woke':
           case 'moment_ended':
+          case 'item_found':
           case 'moment_gone':
           case 'moment_chest':
           case 'path_marked':
@@ -625,14 +640,14 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
         flights.set(projectile.id, flight);
         const flying: number = EFFECTS.projectileHeight + flight - liftHere(projectile.pos.x, projectile.pos.z);
         if (lightning !== null) {
-          kit.carry(projectile.id, projectile.pos.x, flying, projectile.pos.z, projectile.direction.x, projectile.direction.z, colorOf(projectile.skill.vfx.color), lightning, projectile.skill.vfx.trail, dt);
+          kit.carry(projectile.id, projectile.pos.x, flying, projectile.pos.z, projectile.direction.x, projectile.direction.z, colorOf(projectile.skill.vfx.color), lightning, projectile.skill.vfx.trail, projectile.skill.vfx.linger, dt);
           continue;
         }
         const view: ProjectileView | null = projectileView(projectile);
         if (view === null) continue;
         view.mesh.position.set(projectile.pos.x, floorUp(projectile.pos.x, flying, projectile.pos.z), projectile.pos.z);
         view.mesh.rotation.z += dt * 14;
-        if (projectile.skill.vfx.trail > 0) kit.carry(projectile.id, projectile.pos.x, flying, projectile.pos.z, projectile.direction.x, projectile.direction.z, view.color, null, projectile.skill.vfx.trail, dt);
+        if (projectile.skill.vfx.trail > 0) kit.carry(projectile.id, projectile.pos.x, flying, projectile.pos.z, projectile.direction.x, projectile.direction.z, view.color, null, projectile.skill.vfx.trail, projectile.skill.vfx.linger, dt);
         else spray(projectile.pos.x, flying, projectile.pos.z, view.color, 2, { speed: { min: 0, max: 1.2 }, lift: { min: -0.6, max: 0.8 }, life: { min: 0.12, max: 0.32 }, size: { min: 0.3, max: 0.7 }, gravity: 0, jitter: 0.25 });
       }
       if (warmFrames > 0) {

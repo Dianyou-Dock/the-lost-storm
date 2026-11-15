@@ -20,7 +20,7 @@ const content: Content = { ...shipped, zones: new Map<string, ZoneDef>([...shipp
 const PLAY = { seed: 11, dt: 1 / 60, fewestChanges: 50 } as const;
 
 function kept(world: World): string {
-  const { nextItemUid: _nextItemUid, ...rest } = toSave(world);
+  const { nextItemUid: _nextItemUid, tally: _tally, ...rest } = toSave(world);
   return JSON.stringify(rest);
 }
 

@@ -111,6 +111,7 @@ function delivery(value: unknown, where: string): Delivery {
     pierce: numeric(source, 'pierce', where),
     count: numeric(source, 'count', where),
     spreadDegrees: numeric(source, 'spreadDegrees', where),
+    interval: source['interval'] === undefined ? 0 : nonNegative(source, 'interval', where),
   };
 }
 
@@ -146,6 +147,7 @@ function skill(value: unknown, where: string): SkillDef {
     description: text(source, 'description', where),
     icon: text(source, 'icon', where),
     animation: text(source, 'animation', where),
+    weapons: source['weapons'] === undefined ? [] : textList(source, 'weapons', where),
     manaCost: numeric(source, 'manaCost', where),
     cooldown: numeric(source, 'cooldown', where),
     windup: numeric(source, 'windup', where),

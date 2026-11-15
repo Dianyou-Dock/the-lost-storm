@@ -89,6 +89,7 @@ export interface ProjectileDelivery {
   readonly pierce: number;
   readonly count: number;
   readonly spreadDegrees: number;
+  readonly interval: number;
 }
 
 export interface DashDelivery {
@@ -134,6 +135,7 @@ export interface SkillDef extends SkillShape {
   readonly description: string;
   readonly icon: string;
   readonly animation: string;
+  readonly weapons: readonly string[];
   readonly manaCost: number;
   readonly cooldown: number;
   readonly windup: number;
@@ -250,9 +252,10 @@ export interface SkillTreeNodeDef {
   readonly skillMods: readonly SkillMod[];
   readonly variants: readonly SkillVariant[];
   readonly unlock: string | null;
+  readonly weapon: string | null;
 }
 
-export type { ChartDef, ChartGroup, ChartPath, ChartRespec, PointGrant, SkillTarget, SkillVariant } from './chart-types.ts';
+export type { ChartDef, ChartGroup, ChartPath, ChartRespec, PointGrant, SkillTarget, SkillVariant, WeaponGroup } from './chart-types.ts';
 
 export type { PropCache, PropDef, PropLight, SurfaceDef } from './prop-types.ts';
 

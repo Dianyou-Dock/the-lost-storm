@@ -17,7 +17,7 @@ import { raiseFallen } from './revive.ts';
 import { feedMomentum, glidesWith, momentumOf, momentumStep } from './momentum.ts';
 import type { MomentumStep } from './momentum.ts';
 import { resolveBeam, resolveBlink, resolveChain } from './shapes.ts';
-import type { ActionState, Actor, EchoState, NoticeReason, PlayerState, ProjectileState, Team, World } from './types.ts';
+import type { ActionState, Actor, EchoState, NoticeReason, PlayerState, ProjectileState, QueuedShot, Team, World } from './types.ts';
 
 export const SKILLS = {
   projectileOrigin: 0.9,
@@ -168,9 +168,22 @@ export function startSkill(world: World, actor: Actor, requested: SkillDef, dire
   world.events.push({ type: 'skill_start', actorId: actor.id, skill, direction: aim, windup, recovery });
 }
 
+const VOLLEY_SCATTER: number = (Math.sqrt(5) - 1) / 2;
+
+export function volleyOrder(count: number, interval: number): readonly number[] {
+  const scatter = (index: number): number => (interval > 0 ? (index * VOLLEY_SCATTER) % 1 : index);
+  return Array.from({ length: count }, (_: unknown, index: number): number => index).toSorted((a: number, b: number): number => scatter(a) - scatter(b));
+}
+
+function launch(world: World, projectile: ProjectileState): void {
+  world.projectiles.push(projectile);
+  world.events.push({ type: 'projectile_spawn', projectile });
+}
+
 function spawnProjectiles(world: World, origin: ReadonlyVec2, skill: SkillDef, delivery: ProjectileDelivery, direction: ReadonlyVec2, offence: Offence): void {
   const count: number = Math.max(1, Math.round(delivery.count));
-  for (let index: number = 0; index < count; index += 1) {
+  const order: readonly number[] = volleyOrder(count, delivery.interval);
+  order.forEach((index: number, rank: number): void => {
     const offset: number = count === 1 ? 0 : (index - (count - 1) / 2) * delivery.spreadDegrees * DEGREES_TO_RADIANS;
     const aim: Vec2 = rotate(direction, offset);
     const projectile: ProjectileState = {
@@ -192,9 +205,10 @@ function spawnProjectiles(world: World, origin: ReadonlyVec2, skill: SkillDef, d
       hitIds: [],
     };
     world.nextId += 1;
-    world.projectiles.push(projectile);
-    world.events.push({ type: 'projectile_spawn', projectile });
-  }
+    const wait: number = rank * delivery.interval;
+    if (wait > 0) world.shots.push({ projectile, timeLeft: wait });
+    else launch(world, projectile);
+  });
 }
 
 interface Impact {
@@ -413,11 +427,27 @@ function stepProjectile(world: World, projectile: ProjectileState, dt: number): 
   return true;
 }
 
+function launchDue(world: World, dt: number): void {
+  const due: QueuedShot[] = [];
+  world.shots = world.shots.filter((shot: QueuedShot): boolean => {
+    shot.timeLeft -= dt;
+    if (shot.timeLeft > 0) return true;
+    due.push(shot);
+    return false;
+  });
+  for (const shot of due) {
+    launch(world, shot.projectile);
+    if (!stepProjectile(world, shot.projectile, Math.min(dt, -shot.timeLeft))) world.projectiles = world.projectiles.filter((projectile: ProjectileState): boolean => projectile !== shot.projectile);
+  }
+}
+
 export function stepProjectiles(world: World, dt: number): void {
   world.projectiles = world.projectiles.filter((projectile: ProjectileState): boolean => stepProjectile(world, projectile, dt));
+  launchDue(world, dt);
 }
 
 export function clearProjectiles(world: World): void {
   for (const projectile of world.projectiles) world.events.push({ type: 'projectile_end', id: projectile.id, pos: { ...projectile.pos }, hit: false, skill: projectile.skill });
   world.projectiles = [];
+  world.shots = [];
 }

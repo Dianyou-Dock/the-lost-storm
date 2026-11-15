@@ -87,6 +87,7 @@ export function makeItem(world: World, level: number, base: string | null, rarit
     return null;
   }
   world.nextItemUid += 1;
+  if (source.kind !== 'start' && source.kind !== 'trader') world.events.push({ type: 'item_found', rarity: item.rarity });
   if (ticket === undefined && seedless(world, base, rarity)) world.ledger.waiting.push({ uid: item.uid, source, level });
   if (ticket !== undefined) {
     world.ledger.spent.add(ticket.id);
