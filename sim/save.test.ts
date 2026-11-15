@@ -550,3 +550,14 @@ void test('made-up place names in a save hand back no more points than the chara
   assert.deepEqual(save.allocated, ['stone_thunderclap', 'tempered_body', 'blade_thunderhead', 'heavy_hands']);
   assert.equal(save.skillPoints + save.allocated.length, earnedPoints(content, save.level, save.grants));
 });
+
+void test('the chosen change of a skill survives a save, and a choice no held place gives is dropped', (): void => {
+  const world: World = played();
+  world.player.allocated = ['storm_storm_bolt', 'stormcallers_focus', 'storm_1', 'forked_bolt', 'storm_4', 'storm_lance', 'echo_storm_mid', 'twice_told_bolt'];
+  world.player.changes = { storm_bolt: 'storm_bolt_echo' };
+  assert.deepEqual(roundTrip(world).changes, { storm_bolt: 'storm_bolt_echo' });
+  assert.deepEqual(must(readSave(content, { ...toSave(world), changes: { storm_bolt: 'cleave_whirl', cleave: 7, nonsense: 'storm_bolt_echo' } }), 'save').changes, {});
+  assert.deepEqual(must(readSave(content, { ...toSave(world), changes: 'lance' }), 'save').changes, {});
+  const { changes: _changes, ...older } = toSave(world);
+  assert.deepEqual(must(readSave(content, older), 'save').changes, {});
+});

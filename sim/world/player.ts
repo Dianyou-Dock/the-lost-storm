@@ -10,7 +10,7 @@ import { isWalkable, lineWalkable } from '../nav/grid.ts';
 import { directPath, findPath, nearFace } from '../nav/path.ts';
 import { blockerInReach, chasePath, chaseStalled, freshChase } from './chase.ts';
 import { pastBlocks, roundPast, stillRound } from './stick.ts';
-import { allocateNode, dropFromInventory, equipFromInventory, refundNode, respecChart, slotSkill, unequip } from './character.ts';
+import { allocateNode, chooseChange, dropFromInventory, equipFromInventory, refundNode, respecChart, slotSkill, unequip } from './character.ts';
 import { findActor } from './combat.ts';
 import { canDash, dashAim } from './dash.ts';
 import { respawnPlayer } from './death.ts';
@@ -267,6 +267,7 @@ function act(world: World, command: Command): void {
     case 'allocate':
     case 'refund':
     case 'respec':
+    case 'choose_change':
     case 'respawn':
       return;
   }
@@ -301,6 +302,9 @@ export function handleCommand(world: World, command: Command): void {
       return;
     case 'respec':
       respecChart(world);
+      return;
+    case 'choose_change':
+      chooseChange(world, command.skill, command.becomes);
       return;
     case 'advance':
       advanceDialogue(world);

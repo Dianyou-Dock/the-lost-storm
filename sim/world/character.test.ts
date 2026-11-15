@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { armed, must, worldIn } from '../../test/support.ts';
 import { loadContent } from '../content/content.ts';
-import type { Content, XpReduction } from '../content/types.ts';
+import type { Content, SkillDef, XpReduction } from '../content/types.ts';
 import { generateItem } from '../items.ts';
 import { xpToNextLevel } from '../progression.ts';
 import { createRng } from '../rng.ts';
@@ -158,4 +158,31 @@ void test('an xp gain says whether it was reduced and on which side', (): void =
   const gains: (XpReduction | null)[] = world.events.flatMap((event: WorldEvent): (XpReduction | null)[] => (event.type === 'xp' ? [event.reduced] : []));
   assert.equal(gains[0]?.side, 'below');
   assert.equal(gains[1], null);
+});
+
+const BOTH_CHANGES: readonly string[] = ['storm_storm_bolt', 'stormcallers_focus', 'storm_1', 'forked_bolt', 'storm_4', 'storm_lance', 'echo_storm_mid', 'twice_told_bolt'];
+
+function boltName(world: World): string {
+  return must(world.player.skills.find((skill: SkillDef | null): boolean => skill?.id === 'storm_bolt'), 'storm bolt on the bar').name;
+}
+
+void test('the player picks which held change of a skill is active, only among changes a held place gives, and a refunded choice falls back', (): void => {
+  const world: World = armed(worldIn(content, 'hall_of_time', 1));
+  world.player.skillPoints = BOTH_CHANGES.length;
+  for (const node of BOTH_CHANGES) send(world, { type: 'allocate', node });
+  assert.deepEqual(world.player.allocated, BOTH_CHANGES);
+  send(world, { type: 'slot', slot: 0, skill: 'storm_bolt' });
+  const lance: string = must(content.skills.get('storm_bolt_lance'), 'lance').name;
+  const echo: string = must(content.skills.get('storm_bolt_echo'), 'echo').name;
+  assert.equal(boltName(world), lance);
+  send(world, { type: 'choose_change', skill: 'storm_bolt', becomes: 'storm_bolt_echo' });
+  assert.deepEqual(world.player.changes, { storm_bolt: 'storm_bolt_echo' });
+  assert.equal(boltName(world), echo);
+  send(world, { type: 'choose_change', skill: 'storm_bolt', becomes: 'cleave_whirl' });
+  send(world, { type: 'choose_change', skill: 'cleave', becomes: 'cleave_whirl' });
+  assert.deepEqual(world.player.changes, { storm_bolt: 'storm_bolt_echo' });
+  world.player.gold = 1000;
+  send(world, { type: 'refund', node: 'twice_told_bolt' });
+  assert.deepEqual(world.player.changes, {});
+  assert.equal(boltName(world), lance);
 });

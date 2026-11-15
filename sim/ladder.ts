@@ -14,7 +14,7 @@ export const DAMAGE_EXPLAINED: string = 'Damage per second of your main attack a
 
 export const DAMAGE_NAME: string = 'Damage per second';
 
-export type LadderSubject = Pick<SaveData, 'level' | 'equipped' | 'allocated' | 'bar'>;
+export type LadderSubject = Pick<SaveData, 'level' | 'equipped' | 'allocated' | 'changes' | 'bar'>;
 
 export interface LadderFigures {
   readonly damage: number;
@@ -36,7 +36,7 @@ export function mainAttack(content: Content, subject: LadderSubject): SkillDef |
   const id: string | null = subject.bar[slot] ?? content.player.skillBar[slot]?.skill ?? null;
   const base: SkillDef | undefined = id === null ? undefined : content.skills.get(id);
   if (base === undefined) return null;
-  return resolveSkill(content, base, subject.allocated, wornPowers(content, subject.equipped), wornVariants(content, subject.equipped), heldGroup(content, subject.equipped));
+  return resolveSkill(content, base, subject.allocated, wornPowers(content, subject.equipped), wornVariants(content, subject.equipped), heldGroup(content, subject.equipped), subject.changes);
 }
 
 export function chainOf(skill: SkillDef): readonly SkillDef[] {

@@ -7,6 +7,7 @@ import { ITEM_SLOTS } from './content/types.ts';
 import { emptyEquipment, generateItem } from './items.ts';
 import { wornVariants } from './powers.ts';
 import { createRng } from './rng.ts';
+import { ANY_WEAPON } from './weapons.ts';
 import { applyMods, armourReduction, averageHit, computeStats, damagePerSecond, damageTakenScale, modTargets, resistanceOf, resolveSkill, resolveSkillBar, variantChain } from './stats.ts';
 import { addToInventory, equipFromInventory } from './world/character.ts';
 import { createWorld } from './world/create.ts';
@@ -316,4 +317,12 @@ void test('buff mods add on top of everything else', (): void => {
   const quick: StatBlock = computeStats(content, 1, bare, [], [{ stat: 'attackSpeed', op: 'add', value: 0.12 }]);
   assert.ok(Math.abs(quick.attackSpeed - plain.attackSpeed - 0.12) < 1e-9);
   assert.equal(legendary('the_millwheel').rarity, 'stormtouched');
+});
+
+void test('when two held places change one skill the chosen change is active, and the one taken first when nothing is chosen', (): void => {
+  const both: readonly string[] = ['twice_told_bolt', 'storm_lance'];
+  assert.equal(resolveSkill(content, skillOf('storm_bolt'), both).name, skillOf('storm_bolt_echo').name);
+  assert.equal(resolveSkill(content, skillOf('storm_bolt'), both.toReversed()).name, skillOf('storm_bolt_lance').name);
+  for (const becomes of ['storm_bolt_echo', 'storm_bolt_lance']) assert.equal(resolveSkill(content, skillOf('storm_bolt'), both, [], [], ANY_WEAPON, { storm_bolt: becomes }).name, skillOf(becomes).name);
+  assert.equal(resolveSkill(content, skillOf('storm_bolt'), ['twice_told_bolt'], [], [], ANY_WEAPON, { storm_bolt: 'storm_bolt_lance' }).name, skillOf('storm_bolt_echo').name);
 });

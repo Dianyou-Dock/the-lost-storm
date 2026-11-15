@@ -116,30 +116,18 @@ export function joinBlock(content: Content, allocated: readonly string[], node: 
   return near.some((id: string): boolean => allocated.includes(id)) ? 'branch' : 'connect';
 }
 
-export interface RivalBlock {
-  readonly node: SkillTreeNodeDef;
-  readonly skill: string;
+export function offersChange(content: Content, allocated: readonly string[], skill: string, becomes: string): boolean {
+  return content.skillTree.some((node: SkillTreeNodeDef): boolean => allocated.includes(node.id) && node.variants.some((variant: SkillVariant): boolean => variant.skill === skill && variant.becomes === becomes));
 }
 
-export function rivalBlock(content: Content, allocated: readonly string[], node: SkillTreeNodeDef): RivalBlock | null {
-  const varied: ReadonlySet<string> = new Set<string>(node.variants.map((variant: SkillVariant): string => variant.skill));
-  if (varied.size === 0) return null;
-  for (const other of content.skillTree) {
-    if (other.id === node.id || !allocated.includes(other.id)) continue;
-    const shared: SkillVariant | undefined = other.variants.find((variant: SkillVariant): boolean => varied.has(variant.skill));
-    if (shared !== undefined) return { node: other, skill: shared.skill };
-  }
-  return null;
-}
-
-export function rivalVariant(content: Content, allocated: readonly string[], node: SkillTreeNodeDef): SkillTreeNodeDef | null {
-  return rivalBlock(content, allocated, node)?.node ?? null;
+export function heldChanges(content: Content, allocated: readonly string[], changes: Readonly<Record<string, string>>): Record<string, string> {
+  return Object.fromEntries(Object.entries(changes).filter(([skill, becomes]: [string, string]): boolean => offersChange(content, allocated, skill, becomes)));
 }
 
 export function canAllocate(content: Content, allocated: readonly string[], skillPoints: number, nodeId: string): boolean {
   const node: SkillTreeNodeDef | null = findNode(content, nodeId);
   if (node === null || skillPoints <= 0 || allocated.includes(nodeId)) return false;
-  return joinBlock(content, allocated, node) === null && rivalVariant(content, allocated, node) === null;
+  return joinBlock(content, allocated, node) === null;
 }
 
 export type RefundBlock = 'not_held' | 'root' | 'split';

@@ -13,7 +13,7 @@ import type { LobbyHero, LobbyStat, LobbySubject } from './lobby-sheet.ts';
 const content: Content = loadContent();
 
 function subject(level: number, xp: number): LobbySubject {
-  return { level, xp, equipped: emptyEquipment(), allocated: [], bar: CLASSIC_BAR, skills: resolveSkillBar(content, CLASSIC_BAR, []) };
+  return { level, xp, equipped: emptyEquipment(), allocated: [], changes: {}, bar: CLASSIC_BAR, skills: resolveSkillBar(content, CLASSIC_BAR, []) };
 }
 
 void test('a character who has not earned anything yet shows the quiet empty state', (): void => {

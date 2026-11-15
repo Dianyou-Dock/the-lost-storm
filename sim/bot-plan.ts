@@ -5,6 +5,7 @@ import { distance } from './math.ts';
 import { canAllocate, placeLinks, startingPlaces } from './progression.ts';
 import { wornPowers, wornVariants } from './powers.ts';
 import { armourReduction, computeStats, damagePerSecond, resolveSkill } from './stats.ts';
+import type { ChangeChoice } from './stats.ts';
 import { heldGroup } from './weapons.ts';
 import { canDash } from './world/dash.ts';
 import { playerMayStrike } from './world/factions.ts';
@@ -173,10 +174,10 @@ function toughnessOf(content: Content, stats: StatBlock): number {
   return stats.maxLife / Math.max(0.05, 1 - armourReduction(stats.armour, content.player.resistance.armourCap));
 }
 
-export function powerOf(content: Content, level: number, equipped: Equipment, allocated: readonly string[], focus: string | null = null): Power {
+export function powerOf(content: Content, level: number, equipped: Equipment, allocated: readonly string[], focus: string | null = null, changes: ChangeChoice = {}): Power {
   const stats: StatBlock = computeStats(content, level, equipped, allocated);
   const base: SkillDef | undefined = content.skills.get(focus ?? content.player.skillBar[0]?.skill ?? '');
-  const skill: SkillDef | undefined = base === undefined ? undefined : resolveSkill(content, base, allocated, wornPowers(content, equipped), wornVariants(content, equipped), heldGroup(content, equipped));
+  const skill: SkillDef | undefined = base === undefined ? undefined : resolveSkill(content, base, allocated, wornPowers(content, equipped), wornVariants(content, equipped), heldGroup(content, equipped), changes);
   const items: number = Object.values(equipped).reduce((sum: number, item: ItemInstance | null): number => sum + (item?.level ?? 0), 0);
   return { dps: skill === undefined ? 0 : damagePerSecond(stats, skill), toughness: toughnessOf(content, stats), itemLevels: items, mobility: stats.moveSpeed };
 }
@@ -193,14 +194,14 @@ function wanted(content: Content, plan: BotPlan, item: ItemInstance, slot: ItemS
 
 export function upgradeIndex(world: World, plan: BotPlan): number | null {
   const player: PlayerState = world.player;
-  const now: number = scoreOf(powerOf(world.content, player.level, player.equipped, player.allocated, plan.focus), plan.weights);
+  const now: number = scoreOf(powerOf(world.content, player.level, player.equipped, player.allocated, plan.focus, player.changes), plan.weights);
   let best: number | null = null;
   let bestScore: number = now * BOT_PLAN.upgradeMargin;
   for (const [index, item] of player.inventory.entries()) {
     if (item === null) continue;
     const slot: ItemSlot | null = slotOf(world.content, item);
     if (slot === null || !wanted(world.content, plan, item, slot)) continue;
-    const score: number = scoreOf(powerOf(world.content, player.level, { ...player.equipped, [slot]: item }, player.allocated, plan.focus), plan.weights);
+    const score: number = scoreOf(powerOf(world.content, player.level, { ...player.equipped, [slot]: item }, player.allocated, plan.focus, player.changes), plan.weights);
     if (score > bestScore) {
       best = index;
       bestScore = score;
@@ -217,7 +218,7 @@ export function junkIndex(world: World, plan: BotPlan): number | null {
   for (const [index, item] of player.inventory.entries()) {
     const slot: ItemSlot | null = item === null ? null : slotOf(world.content, item);
     if (item === null || slot === null) continue;
-    const score: number = wanted(world.content, plan, item, slot) ? scoreOf(powerOf(world.content, player.level, { ...player.equipped, [slot]: item }, player.allocated, plan.focus), plan.weights) : 0;
+    const score: number = wanted(world.content, plan, item, slot) ? scoreOf(powerOf(world.content, player.level, { ...player.equipped, [slot]: item }, player.allocated, plan.focus, player.changes), plan.weights) : 0;
     if (score < worstScore) {
       worst = index;
       worstScore = score;

@@ -128,22 +128,33 @@ function chained(content: Content, chosen: ChosenSkill, variants: readonly Skill
   return current;
 }
 
-export function variantChain(content: Content, skill: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON): ChosenSkill {
-  const fromTree: readonly SkillVariant[] = allocatedNodes(content, allocated, held).flatMap((node: SkillTreeNodeDef): readonly SkillVariant[] => node.variants);
+export type ChangeChoice = Readonly<Record<string, string>>;
+
+export function activeChanges(variants: readonly SkillVariant[], chosen: ChangeChoice): SkillVariant[] {
+  return variants.filter((entry: SkillVariant): boolean => {
+    const rivals: readonly SkillVariant[] = variants.filter((other: SkillVariant): boolean => other.skill === entry.skill);
+    const kept: SkillVariant | undefined = rivals.find((other: SkillVariant): boolean => other.becomes === chosen[entry.skill]) ?? rivals[0];
+    return kept === entry;
+  });
+}
+
+export function variantChain(content: Content, skill: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON, chosen: ChangeChoice = {}): ChosenSkill {
+  const taken: readonly SkillTreeNodeDef[] = allocatedNodes(content, allocated, held).toSorted((a: SkillTreeNodeDef, b: SkillTreeNodeDef): number => allocated.indexOf(a.id) - allocated.indexOf(b.id));
+  const fromTree: readonly SkillVariant[] = activeChanges(taken.flatMap((node: SkillTreeNodeDef): readonly SkillVariant[] => node.variants), chosen);
   const fromPowers: readonly SkillVariant[] = powers.flatMap((power: PowerDef): readonly SkillVariant[] => power.variants);
   return chained(content, varied(content, { skill, through: [skill.id] }, worn), [...fromPowers, ...fromTree]);
 }
 
-export function chosenVariant(content: Content, skill: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON): SkillDef {
-  return variantChain(content, skill, allocated, powers, worn, held).skill;
+export function chosenVariant(content: Content, skill: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON, chosen: ChangeChoice = {}): SkillDef {
+  return variantChain(content, skill, allocated, powers, worn, held, chosen).skill;
 }
 
 function scaleOf(mods: readonly SkillMod[], field: SkillMod['field']): number {
   return Math.max(0, 1 + sumSkillMod(mods, field));
 }
 
-export function resolveSkill(content: Content, base: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON): SkillDef {
-  const { skill, through }: ChosenSkill = variantChain(content, base, allocated, powers, worn, held);
+export function resolveSkill(content: Content, base: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON, chosen: ChangeChoice = {}): SkillDef {
+  const { skill, through }: ChosenSkill = variantChain(content, base, allocated, powers, worn, held, chosen);
   const mods: SkillMod[] = [...allocatedNodes(content, allocated, held).flatMap((node: SkillTreeNodeDef): readonly SkillMod[] => node.skillMods), ...powers.flatMap((power: PowerDef): readonly SkillMod[] => power.skillMods)].filter((mod: SkillMod): boolean => modTargets(content, mod, through));
   if (mods.length === 0) return skill;
   const delivery: Delivery = scaledDelivery(skill.delivery, {
@@ -168,10 +179,10 @@ export function resolveSkill(content: Content, base: SkillDef, allocated: readon
   };
 }
 
-export function resolveSkillBar(content: Content, bar: readonly (string | null)[], allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON): (SkillDef | null)[] {
+export function resolveSkillBar(content: Content, bar: readonly (string | null)[], allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON, chosen: ChangeChoice = {}): (SkillDef | null)[] {
   return bar.map((id: string | null): SkillDef | null => {
     const skill: SkillDef | undefined = id === null ? undefined : content.skills.get(id);
-    return skill === undefined ? null : resolveSkill(content, skill, allocated, powers, worn, held);
+    return skill === undefined ? null : resolveSkill(content, skill, allocated, powers, worn, held, chosen);
   });
 }
 

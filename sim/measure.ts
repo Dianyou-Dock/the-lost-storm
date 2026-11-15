@@ -180,7 +180,7 @@ function stateMeasures(world: World, meter: Meter, t: number): Measurement[] {
     meter.allocated.add(place);
     out.push({ kind: 'chart', t, place, path: pathOf(world.content, place), points: world.player.allocated.length });
   }
-  const power: Power = powerOf(world.content, world.player.level, world.player.equipped, world.player.allocated);
+  const power: Power = powerOf(world.content, world.player.level, world.player.equipped, world.player.allocated, null, world.player.changes);
   if (!samePower(meter.power, power)) {
     meter.power = power;
     out.push({ kind: 'power', t, dps: round(power.dps), toughness: round(power.toughness), itemLevels: power.itemLevels });

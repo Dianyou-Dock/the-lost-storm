@@ -4,7 +4,6 @@ import { loadContent } from '../../sim/content/content.ts';
 import type { Content, SkillTreeNodeDef } from '../../sim/content/types.ts';
 import { findNode } from '../../sim/progression.ts';
 import { reachable } from './chart-parts.ts';
-import type { TreeNodeStatus } from './tree-status.ts';
 import { costLine, lockedLine, pointsPrompt, statusLine, takenLine, treeNodeStatus } from './tree-status.ts';
 
 const CONTENT: Content = loadContent();
@@ -53,31 +52,14 @@ void test('the card lines name the cost and the reason', (): void => {
   assert.equal(statusLine({ kind: 'allocated' }, false), 'Allocated');
 });
 
-void test('a place that changes a skill a held place already changes reads as blocked by that place, not as lacking points', (): void => {
+void test('a place that changes a skill a held place already changes is open like any other place', (): void => {
   const held: readonly string[] = ['twice_told_bolt', 'echo_storm_mid'];
-  for (const points of [0, 2]) {
-    const status: TreeNodeStatus = treeNodeStatus(CONTENT, held, points, node('storm_lance'));
-    assert.equal(status.kind, 'rival');
-    assert.equal(status.node.id, 'twice_told_bolt');
-    assert.equal(status.skillName, 'Storm Bolt');
-    assert.equal(status.giveBack, null);
-  }
-  const status: TreeNodeStatus = treeNodeStatus(CONTENT, held, 2, node('storm_lance'));
-  assert.equal(statusLine(status, false), 'You already hold Twice-Told Bolt, which changes Storm Bolt. Give it back to take this.');
-  assert.equal(statusLine(status, true), 'You already hold Twice-Told Bolt, which changes Storm Bolt. Give it back to take this.');
-  assert.equal(reachable(status), false);
-});
-
-void test('a rival that cannot be given back is named with the reason instead of being told to give it back', (): void => {
-  const status: TreeNodeStatus = treeNodeStatus(CONTENT, ['echo_4', 'twice_told_bolt', 'echo_storm_mid'], 2, node('storm_lance'));
-  assert.equal(status.kind, 'rival');
-  assert.equal(statusLine(status, false), 'You already hold Twice-Told Bolt, which changes Storm Bolt · giving it back would cut off places beyond it');
-  assert.equal(reachable(status), false);
+  assert.deepEqual(treeNodeStatus(CONTENT, held, 2, node('storm_lance')), { kind: 'available' });
+  assert.deepEqual(treeNodeStatus(CONTENT, held, 0, node('storm_lance')), { kind: 'no_points' });
 });
 
 void test('no points is reported only when nothing else blocks the place', (): void => {
   assert.deepEqual(treeNodeStatus(CONTENT, ['stone_thunderclap'], 0, node('tempered_body')), { kind: 'no_points' });
-  assert.equal(treeNodeStatus(CONTENT, ['twice_told_bolt', 'echo_storm_mid'], 0, node('storm_lance')).kind, 'rival');
   assert.deepEqual(treeNodeStatus(CONTENT, ['echo_storm_mid'], 0, node('storm_lance')), { kind: 'no_points' });
   assert.deepEqual(treeNodeStatus(CONTENT, ['echo_storm_mid'], 1, node('storm_lance')), { kind: 'available' });
   assert.equal(reachable({ kind: 'no_points' }), true);

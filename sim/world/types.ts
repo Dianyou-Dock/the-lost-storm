@@ -172,6 +172,7 @@ export interface PlayerState extends ActorState {
   gold: number;
   skillPoints: number;
   allocated: string[];
+  changes: Record<string, string>;
   learned: string[];
   grantsTaken: string[];
   freeReset: boolean;
@@ -372,6 +373,12 @@ export interface RefundCommand {
 
 export interface RespecCommand { readonly type: 'respec' }
 
+export interface ChooseChangeCommand {
+  readonly type: 'choose_change';
+  readonly skill: string;
+  readonly becomes: string;
+}
+
 export interface TravelCommand {
   readonly type: 'travel';
   readonly exit: string;
@@ -494,7 +501,7 @@ export interface OverlayCommand {
   readonly open: boolean;
 }
 
-export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | TravelCommand | TalkCommand | AdvanceCommand | ReplayCommand | TeleportCommand | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand;
+export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | ChooseChangeCommand | TravelCommand | TalkCommand | AdvanceCommand | ReplayCommand | TeleportCommand | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand;
 
 export interface StartRespawn {
   readonly type: 'start';

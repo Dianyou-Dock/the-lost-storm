@@ -17,7 +17,7 @@ const content: Content = loadContent();
 const bare: Equipment = emptyEquipment();
 
 function subject(overrides: Partial<LadderSubject> = {}): LadderSubject {
-  return { level: 1, equipped: bare, allocated: [], bar: ['cleave', null, null, null, null, null], ...overrides };
+  return { level: 1, equipped: bare, allocated: [], changes: {}, bar: ['cleave', null, null, null, null, null], ...overrides };
 }
 
 function item(base: string, level: number = 1): ItemInstance {

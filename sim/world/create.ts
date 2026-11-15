@@ -41,6 +41,7 @@ const PLAYER_ID: number = 1;
 function freshPlayer(content: Content, save: SaveData | null, chosen: string | null): PlayerState {
   const equipped: Equipment = save === null ? emptyEquipment() : { ...save.equipped };
   const allocated: string[] = save === null ? [] : [...save.allocated];
+  const changes: Record<string, string> = save === null ? {} : { ...save.changes };
   const level: number = save?.level ?? 1;
   const bar: (string | null)[] = save === null ? defaultBar(content) : [...save.bar];
   const stats = computeStats(content, level, equipped, allocated);
@@ -74,12 +75,13 @@ function freshPlayer(content: Content, save: SaveData | null, chosen: string | n
     mana: stats.maxMana,
     stats,
     bar,
-    skills: resolveSkillBar(content, bar, allocated, wornPowers(content, equipped), wornVariants(content, equipped), heldGroup(content, equipped)),
+    skills: resolveSkillBar(content, bar, allocated, wornPowers(content, equipped), wornVariants(content, equipped), heldGroup(content, equipped), changes),
     level,
     xp: save?.xp ?? 0,
     gold: save?.gold ?? 0,
     skillPoints: save?.skillPoints ?? 0,
     allocated,
+    changes,
     learned: save === null ? startingSkills(content) : [...save.learned],
     grantsTaken: save === null ? [] : [...save.grants],
     freeReset: save?.freeReset ?? true,
@@ -115,7 +117,7 @@ function giveStartingItems(world: World, emptyHanded: boolean): void {
     else addToInventory(world.player, item);
   }
   world.player.wielding = heldGroup(world.content, world.player.equipped);
-  world.player.skills = resolveSkillBar(world.content, world.player.bar, world.player.allocated, wornPowers(world.content, world.player.equipped), wornVariants(world.content, world.player.equipped), world.player.wielding);
+  world.player.skills = resolveSkillBar(world.content, world.player.bar, world.player.allocated, wornPowers(world.content, world.player.equipped), wornVariants(world.content, world.player.equipped), world.player.wielding, world.player.changes);
   world.player.stats = computeStats(world.content, world.player.level, world.player.equipped, world.player.allocated);
   world.player.maxLife = world.player.stats.maxLife;
   world.player.life = world.player.stats.maxLife;

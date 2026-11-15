@@ -240,6 +240,6 @@ function brandStrike(world: World, offence: Offence, target: Actor, skill: Skill
   if (skill.brand === null || !target.alive) return;
   const burst: SkillDef | undefined = world.content.skills.get(skill.brand.burst);
   if (burst === undefined) return;
-  target.brand = { source: skill.id, burst: offence.team === 'player' ? resolveSkill(world.content, burst, world.player.allocated, [], [], world.player.wielding) : burst, offence, timeLeft: skill.brand.duration };
+  target.brand = { source: skill.id, burst: offence.team === 'player' ? resolveSkill(world.content, burst, world.player.allocated, [], [], world.player.wielding, world.player.changes) : burst, offence, timeLeft: skill.brand.duration };
   world.events.push({ type: 'brand', targetId: target.id, skill, pos: { x: target.pos.x, z: target.pos.z }, burst: false });
 }

@@ -235,6 +235,7 @@ export function uiActionForCommand(command: Command): UiAction | null {
     case 'allocate':
     case 'refund':
     case 'respec':
+    case 'choose_change':
       action = 'skill_point';
       break;
     case 'equip':

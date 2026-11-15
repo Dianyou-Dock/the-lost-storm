@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadContent } from './content/content.ts';
 import type { Content, SkillTreeNodeDef, XpCurve } from './content/types.ts';
-import { adoptLearned, applyXp, gapBand, gapScale, canAllocate, canRefund, findNode, holdingParts, holdingTrunk, joinBlock, placeLinks, reachablePlaces, bankedReset, refundBlock, refundCost, refundState, respecCost, respecState, rivalBlock, rivalVariant, startingPlaces, xpToNextLevel } from './progression.ts';
-import type { RivalBlock, XpResult } from './progression.ts';
+import { adoptLearned, applyXp, gapBand, gapScale, canAllocate, canRefund, findNode, holdingParts, holdingTrunk, joinBlock, placeLinks, reachablePlaces, bankedReset, refundBlock, refundCost, refundState, respecCost, respecState, heldChanges, offersChange, startingPlaces, xpToNextLevel } from './progression.ts';
+import type { XpResult } from './progression.ts';
 
 const content: Content = loadContent();
 const curve: XpCurve = { base: 60, growth: 1.42, maxLevel: 30, gap: { band: 5, widenEvery: 10, soft: 2, power: 3, floor: 0.05, above: true } };
@@ -96,12 +96,12 @@ void test('a ring crosses to another path and the walk can turn inward to that p
   assert.ok(canAllocate(content, ['blade_thunderhead', 'heavy_hands', 'blade_1', 'storm_blade_near'], 1, 'storm_1'));
 });
 
-void test('a skill takes one changed form at a time', (): void => {
+void test('a second changed form of a skill is taken like any joined place', (): void => {
   const storm: readonly string[] = ['stormcallers_focus', 'storm_1', 'forked_bolt', 'storm_4', 'storm_lance'];
   const echo: readonly string[] = ['echo_forkline', 'first_echo', 'echo_1', 'long_squall', 'echo_4'];
   assert.ok(canAllocate(content, echo, 1, 'twice_told_bolt'));
   assert.equal(joinBlock(content, [...echo, ...storm], node('twice_told_bolt')), null);
-  assert.ok(!canAllocate(content, [...echo, ...storm], 1, 'twice_told_bolt'));
+  assert.ok(canAllocate(content, [...echo, ...storm], 1, 'twice_told_bolt'));
 });
 
 void test('a place can be given back only while what is left stays joined to its start', (): void => {
@@ -166,28 +166,17 @@ void test('a skill learned before the chart gave abilities takes its place when 
   assert.deepEqual(adoptLearned(content, 'junk', []), { allocated: [], refund: 0 });
 });
 
-void test('two nodes are rivals when any of the skills they change is the same', (): void => {
-  const heaving: SkillTreeNodeDef | null = findNode(content, 'heaving_cleave');
-  assert.ok(heaving !== null);
-  assert.equal(rivalVariant(content, ['whirling_cleave'], heaving)?.id, 'whirling_cleave');
-  const onlyShot: SkillTreeNodeDef = { ...heaving, id: 'only_shot', variants: [{ skill: 'quarrel', becomes: 'quarrel_heave' }] };
-  assert.equal(rivalVariant(content, ['whirling_cleave'], onlyShot)?.id, 'whirling_cleave');
-  assert.equal(rivalVariant(content, ['storm_lance'], onlyShot), null);
+void test('a second change of a skill can be taken beside the first', (): void => {
+  assert.ok(canAllocate(content, ['twice_told_bolt', 'echo_storm_mid'], 1, 'storm_lance'));
+  assert.ok(canAllocate(content, ['storm_lance', 'echo_storm_mid', 'echo_4'], 1, 'twice_told_bolt'));
 });
 
-void test('a rival block names the held place and the skill both places change', (): void => {
-  const lance: SkillTreeNodeDef | null = findNode(content, 'storm_lance');
-  assert.ok(lance !== null);
-  const block: RivalBlock | null = rivalBlock(content, ['twice_told_bolt'], lance);
-  assert.ok(block !== null);
-  assert.equal(block.node.id, 'twice_told_bolt');
-  assert.equal(block.skill, 'storm_bolt');
-  assert.equal(rivalBlock(content, ['storm_lance'], lance), null);
-  assert.equal(rivalBlock(content, [], lance), null);
-  const plain: SkillTreeNodeDef | null = findNode(content, 'tempered_body');
-  assert.ok(plain !== null);
-  assert.equal(rivalBlock(content, ['twice_told_bolt'], plain), null);
-  assert.ok(!canAllocate(content, ['twice_told_bolt'], 2, 'storm_lance'));
+void test('only a held place offers its change, and choices no held place offers are dropped', (): void => {
+  assert.ok(offersChange(content, ['twice_told_bolt', 'storm_lance'], 'storm_bolt', 'storm_bolt_lance'));
+  assert.ok(!offersChange(content, ['twice_told_bolt'], 'storm_bolt', 'storm_bolt_lance'));
+  assert.ok(!offersChange(content, ['storm_lance'], 'cleave', 'storm_bolt_lance'));
+  assert.deepEqual(heldChanges(content, ['storm_lance'], { storm_bolt: 'storm_bolt_lance', cleave: 'cleave_whirl' }), { storm_bolt: 'storm_bolt_lance' });
+  assert.deepEqual(heldChanges(content, [], { storm_bolt: 'storm_bolt_lance' }), {});
 });
 
 const GAP_CHECK = { cliff: 0.5, drastic: 0.25 } as const;

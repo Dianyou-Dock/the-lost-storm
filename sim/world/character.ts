@@ -1,6 +1,6 @@
 import type { ItemSlot, XpReduction } from '../content/types.ts';
 import { isStoryItem, slotOf } from '../items.ts';
-import { applyXp, canAllocate, findNode, gapScale, refundCost, refundState, respecCost, respecState, xpReduction } from '../progression.ts';
+import { applyXp, canAllocate, findNode, gapScale, heldChanges, offersChange, refundCost, refundState, respecCost, respecState, xpReduction } from '../progression.ts';
 import type { ChartChange } from '../progression.ts';
 import type { XpResult } from '../progression.ts';
 import { assignSlot, chartSkills } from '../skill-book.ts';
@@ -15,7 +15,7 @@ export function refreshPlayer(world: World): void {
   const player: PlayerState = world.player;
   player.wielding = heldGroup(world.content, player.equipped);
   player.stats = computeStats(world.content, player.level, player.equipped, player.allocated, buffMods(player.powers), player.wielding);
-  player.skills = resolveSkillBar(world.content, player.bar, player.allocated, wornPowers(world.content, player.equipped), wornVariants(world.content, player.equipped), player.wielding);
+  player.skills = resolveSkillBar(world.content, player.bar, player.allocated, wornPowers(world.content, player.equipped), wornVariants(world.content, player.equipped), player.wielding, player.changes);
   player.maxLife = player.stats.maxLife;
   player.life = Math.min(player.life, player.maxLife);
   player.mana = Math.min(player.mana, player.stats.maxMana);
@@ -125,6 +125,7 @@ export function refundNode(world: World, nodeId: string): void {
   if (!pay(world, refundState(world.content, player, nodeId), refundCost(world.content, player.level, 1))) return;
   player.allocated = player.allocated.filter((id: string): boolean => id !== nodeId);
   player.skillPoints += 1;
+  player.changes = heldChanges(world.content, player.allocated, player.changes);
   const unlock: string | null = findNode(world.content, nodeId)?.unlock ?? null;
   if (unlock !== null) forget(world, unlock);
   refreshPlayer(world);
@@ -137,6 +138,14 @@ export function respecChart(world: World): void {
   player.freeReset = false;
   for (const skill of chartSkills(world.content, player.allocated)) forget(world, skill);
   player.allocated = [];
+  player.changes = {};
   player.skillPoints += points;
+  refreshPlayer(world);
+}
+
+export function chooseChange(world: World, skill: string, becomes: string): void {
+  const player: PlayerState = world.player;
+  if (!offersChange(world.content, player.allocated, skill, becomes) || player.changes[skill] === becomes) return;
+  player.changes = { ...player.changes, [skill]: becomes };
   refreshPlayer(world);
 }

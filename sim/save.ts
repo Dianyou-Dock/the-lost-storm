@@ -10,7 +10,7 @@ import { createRng } from './rng.ts';
 import { retireUnworn } from './save-retire.ts';
 import { readTally, tallyToSave } from './tally.ts';
 import type { TallySave } from './tally.ts';
-import { adoptLearned, bankedReset, findNode, reachablePlaces } from './progression.ts';
+import { adoptLearned, bankedReset, findNode, heldChanges, reachablePlaces } from './progression.ts';
 import type { AdoptedPlaces } from './progression.ts';
 import { readBar, readLearned } from './skill-book.ts';
 import { grantIds } from './world/learning.ts';
@@ -36,6 +36,7 @@ export interface SaveData {
   readonly kills: number;
   readonly skillPoints: number;
   readonly allocated: readonly string[];
+  readonly changes: Readonly<Record<string, string>>;
   readonly learned: readonly string[];
   readonly grants: readonly string[];
   readonly treeRevision: number;
@@ -88,6 +89,7 @@ export function toSave(world: World): SaveData {
     kills: player.kills,
     skillPoints: player.skillPoints,
     allocated: [...player.allocated],
+    changes: { ...player.changes },
     learned: [...player.learned],
     grants: [...player.grantsTaken],
     treeRevision: world.content.chart.revision,
@@ -300,6 +302,11 @@ function readPurse(value: unknown): number {
   return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : 0;
 }
 
+function readChanges(value: unknown): Record<string, string> {
+  if (!isFields(value)) return {};
+  return Object.fromEntries(Object.entries(value).filter((entry: [string, unknown]): entry is [string, string] => typeof entry[1] === 'string'));
+}
+
 export function readSave(content: Content, value: unknown): SaveData | null {
   if (!isFields(value) || !READABLE_VERSIONS.has(value['version'])) return null;
   const level: number | null = count(value, 'level', 1);
@@ -351,6 +358,7 @@ export function readSave(content: Content, value: unknown): SaveData | null {
     kills,
     skillPoints: Math.floor(skillPoints) + unreached + removed,
     allocated: taken,
+    changes: heldChanges(content, taken, readChanges(value['changes'])),
     learned,
     grants,
     treeRevision: content.chart.revision,
