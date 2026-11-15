@@ -3,13 +3,15 @@ import type { Content, MonsterDef, PropDef, ZoneDef } from '../content/types.ts'
 import { rollDrop } from './loot.ts';
 import type { Vec2 } from '../math.ts';
 import { DEGREES_TO_RADIANS, distance } from '../math.ts';
-import { isWalkable, lineWalkable, routedGrid } from '../nav/grid.ts';
+import { blockerGap, isWalkable, lineWalkable, propBlockers, routedGrid } from '../nav/grid.ts';
 import { reachFrom } from '../nav/path.ts';
 import { pickWeighted } from '../rng.ts';
 import { allHold } from './conditions.ts';
 import { bountyReduction, grantXp, killReduction, killXp } from './character.ts';
 import { dropOnGround } from './ground.ts';
 import { goldScale } from './moment-chest.ts';
+import type { TransitObstacle, TransitRules, TransitState } from './moment-transit.ts';
+import { createTransit, momentObstacles, stepTransit, TRANSIT_RULES, transitSeed } from './moment-transit.ts';
 import { clearOfTallProps, inSight, lowerProps, raiseProps, standClear, standJoined } from './moment-ground.ts';
 import { setFlags } from './story.ts';
 import { monsterLevel, spawnMonster } from './spawn.ts';
@@ -67,6 +69,7 @@ function begin(world: World, def: MomentDef, pos: Vec2, combat: boolean, mark: b
     outcome: null,
     chest: 'none',
     figures: figuresOf(def, pos),
+    transit: null,
   };
   world.nextId += 1;
   world.moments.push(moment);
@@ -215,12 +218,30 @@ function turn(world: World, moment: MomentState, sure: boolean): number[] {
   return turned;
 }
 
+function zoneObstacles(world: World, moment: MomentState): TransitObstacle[] {
+  const rules: TransitRules = TRANSIT_RULES;
+  const list: TransitObstacle[] = [];
+  for (const placed of world.zone.props) {
+    const def: PropDef | undefined = world.content.props.get(placed.prop);
+    if (def === undefined || !allHold(world, placed.when)) continue;
+    for (const blocker of propBlockers(def, placed.x + world.shift.x - moment.pos.x, placed.z + world.shift.z - moment.pos.z, placed.rotationDegrees)) {
+      if (blockerGap(blocker, 0, 0) < moment.def.radius + rules.margin) list.push({ blocker, clearance: rules.clearance });
+    }
+  }
+  return list;
+}
+
+function startTransit(world: World, moment: MomentState): TransitState | null {
+  return createTransit(world.content, moment.def, [...momentObstacles(world.content, moment.def), ...zoneObstacles(world, moment)], transitSeed(world.rng.state(), moment.id));
+}
+
 export function wakeMoment(world: World, moment: MomentState, sure: boolean): void {
   moment.phase = 'awake';
   moment.entered = true;
   moment.timeLeft = moment.def.awake;
   moment.phaseTime = 0;
   const turned: number[] = turn(world, moment, sure);
+  if (turned.length === 0) moment.transit = startTransit(world, moment);
   world.events.push({ type: 'moment_woke', moment, turned });
   if (turned.length > 0 || !moment.combat || moment.def.chest === null) return;
   moment.chest = 'closed';
@@ -315,6 +336,7 @@ function stepAwake(world: World, moment: MomentState, dt: number): void {
 }
 
 function stepMoment(world: World, moment: MomentState, dt: number): boolean {
+  if (moment.transit !== null) stepTransit(moment.transit, dt);
   moment.timeLeft -= dt;
   moment.phaseTime += dt;
   const reach: number = world.player.alive ? distance(world.player.pos, moment.pos) : Infinity;

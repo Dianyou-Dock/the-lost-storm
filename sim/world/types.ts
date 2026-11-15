@@ -14,6 +14,7 @@ import type { LedgerState, PurseCommand } from './ledger.ts';
 import type { PackTimer } from './pack-return.ts';
 import type { GridStamp, NavGrid } from '../nav/grid.ts';
 import type { MomentFigure } from './moment-figure.ts';
+import type { TransitState } from './moment-transit.ts';
 import type { Rng } from '../rng.ts';
 import type { NpcState } from './npc-types.ts';
 import type { HazardState, ProjectileState } from './delivery-types.ts';
@@ -442,6 +443,7 @@ export interface MomentState {
   outcome: MomentOutcome | null;
   chest: ChestState;
   readonly figures: MomentFigure[];
+  transit: TransitState | null;
 }
 
 export interface UseCommand {

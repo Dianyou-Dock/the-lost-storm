@@ -6,6 +6,8 @@ import type { Content, MonsterDef, PropDef, SurfaceDef } from '../../sim/content
 import { distance } from '../../sim/math.ts';
 import { wornWearables, hiddenBodyParts } from '../../sim/wear.ts';
 import { momentFade } from '../../sim/world/moments.ts';
+import type { TransitWalker } from '../../sim/world/moment-transit.ts';
+import { TRANSIT_RULES, walkerOf, walksAcross } from '../../sim/world/moment-transit.ts';
 import type { MomentFigure, MomentState, World, WorldEvent } from '../../sim/world/types.ts';
 import type { QualityTier } from '../mobile/quality.ts';
 import type { CharacterLibrary, Dresser, LoadedRig, RigInstance } from './character-loader.ts';
@@ -14,7 +16,7 @@ import { disposeObject, groundArcs, skyBolt } from './effect-shapes.ts';
 import type { ChestView } from './moment-chest.ts';
 import { buildChest, disposeChest, stepChest } from './moment-chest.ts';
 import type { GhostUniforms } from './ghost-material.ts';
-import { createGhostUniforms, createRigGlow, makeGhost } from './ghost-material.ts';
+import { createGhostUniforms, createRigGlow, makeGhost, RIM_EDGE, rimEdge, rimPhases } from './ghost-material.ts';
 import type { RigGlow } from './ghost-material.ts';
 import { DOME_FRAGMENT, DOME_VERTEX, FLOOR_FRAGMENT, FLOOR_VERTEX } from './moment-shaders.ts';
 import type { Press } from './membrane.ts';
@@ -36,8 +38,6 @@ export const MOMENT_VIEW = {
   groundSegments: 40,
   phoneGroundSegments: 20,
   groundRings: 12,
-  groundFade: 0.16,
-  groundJag: 0.22,
   groundCrumble: 0.55,
   stillMix: 0.45,
   groundOffset: -2,
@@ -66,6 +66,7 @@ export const MOMENT_VIEW = {
   lightDecay: 1.4,
   desktopLights: 4,
   phoneLights: 0,
+  walkBlend: 0.25,
   boltTime: 0.32,
   arcTime: 0.45,
   flashPower: 0.55,
@@ -113,6 +114,7 @@ interface FigureView {
   readonly action: AnimationAction;
   readonly echo: number;
   readonly ghost: GhostUniforms;
+  walk: AnimationAction | null;
   shown: number;
 }
 
@@ -127,6 +129,7 @@ interface MomentEntry {
   readonly propGhost: GhostUniforms;
   readonly propMaterials: MeshStandardMaterial[];
   readonly figures: FigureView[];
+  readonly seed: number;
   readonly tint: Color;
   readonly lens: Color;
   readonly glow: Color;
@@ -198,14 +201,9 @@ function grain(value: number): number {
   return wave - Math.floor(wave);
 }
 
-function edgeAt(angle: number, seed: number): number {
-  const wobble: number = 0.5 * Math.sin(3 * angle + seed) + 0.3 * Math.sin(7 * angle + seed * 2) + 0.2 * Math.sin(13 * angle + seed * 3);
-  return 1 - MOMENT_VIEW.groundJag * (0.5 + 0.5 * wobble);
-}
-
 function groundAlpha(reach: number, angle: number, seed: number, vertex: number): number {
-  const edge: number = edgeAt(angle, seed);
-  const inside: number = Math.min(1, Math.max(0, (edge - reach) / MOMENT_VIEW.groundFade));
+  const edge: number = rimEdge(angle, seed);
+  const inside: number = Math.min(1, Math.max(0, (edge - reach) / RIM_EDGE.fade));
   if (inside >= 1) return 1;
   return inside * (1 - MOMENT_VIEW.groundCrumble * grain(vertex + seed));
 }
@@ -354,10 +352,16 @@ export function createMomentView(deps: MomentViewDeps): MomentView {
     const loaded: LoadedRig | undefined = library.rigs.get(rigId);
     if (loaded === undefined || !hasWear(library, loaded.def.frame, wornWearables(content, rigId, wear, null), gear)) return null;
     const ghost: GhostUniforms = createGhostUniforms(STILL, MOMENT_VIEW.echoMix);
+    ghost.phases.value.copy(rimPhases(entry.seed));
     const rig: RigInstance = instantiateRig(loaded, library, { tint: '#ffffff', glow: '#ffffff', ghost, feather: deps.tier.msaaSamples > 0 });
     rig.setGear(gear);
     const worn: string[] = wornWearables(content, rigId, wear, null);
     rig.setWear(worn, hiddenBodyParts(content, worn));
+    if (walksAcross(TRANSIT_RULES, echo)) {
+      rig.root.traverse((object: Object3D): void => {
+        object.castShadow = false;
+      });
+    }
     rig.root.position.set(figure.pos.x - entry.group.position.x, 0, figure.pos.z - entry.group.position.z);
     rig.root.rotation.y = figure.facing;
     rig.root.scale.setScalar(echo.look?.scale ?? monster.scale);
@@ -370,7 +374,7 @@ export function createMomentView(deps: MomentViewDeps): MomentView {
     rig.mixer.update(0);
     rig.setOpacity(0);
     entry.group.add(rig.root);
-    return { rig, action, echo: figure.echo, ghost, shown: 0 };
+    return { rig, action, echo: figure.echo, ghost, walk: null, shown: 0 };
   };
 
   const build = (moment: MomentState): MomentEntry => {
@@ -404,7 +408,7 @@ export function createMomentView(deps: MomentViewDeps): MomentView {
       group.add(ground);
     }
     group.add(floor, props, dome);
-    const entry: MomentEntry = { group, dome, floor, ground, domeUniforms, floorUniforms, props, propGhost, propMaterials: [], figures: [], tint, lens, glow: new Color(moment.def.light), light: null, chest: null, shown: 0, awake: 0, press: SLACK };
+    const entry: MomentEntry = { group, dome, floor, ground, domeUniforms, floorUniforms, props, propGhost, propMaterials: [], figures: [], seed: hashOf(moment.def.id), tint, lens, glow: new Color(moment.def.light), light: null, chest: null, shown: 0, awake: 0, press: SLACK };
     scene.add(group);
     return entry;
   };
@@ -462,6 +466,22 @@ export function createMomentView(deps: MomentViewDeps): MomentView {
     deps.trauma(MOMENT_VIEW.strikeTrauma);
   };
 
+  const stride = (view: FigureView, walker: TransitWalker, dt: number): void => {
+    if (view.walk === null) {
+      const gait: AnimationClip = view.rig.clips.gaits[walker.gait]?.clip ?? view.action.getClip();
+      const walk: AnimationAction = gait === view.action.getClip() ? view.action : view.rig.mixer.clipAction(gait);
+      if (walk !== view.action) {
+        walk.setLoop(LoopRepeat, Infinity);
+        walk.play();
+        view.action.crossFadeTo(walk, MOMENT_VIEW.walkBlend, false);
+      }
+      view.walk = walk;
+    }
+    view.action.timeScale = walker.crossing.rate;
+    view.walk.timeScale = walker.crossing.rate;
+    view.rig.mixer.update(dt);
+  };
+
   const stepEntry = (entry: MomentEntry, moment: MomentState, world: World, dt: number): void => {
     const marking: boolean = moment.phase === 'mark';
     const fade: number = momentFade(world, moment);
@@ -499,16 +519,27 @@ export function createMomentView(deps: MomentViewDeps): MomentView {
     }
     for (const view of entry.figures) {
       const figure: MomentFigure | undefined = moment.figures.find((candidate: MomentFigure): boolean => candidate.echo === view.echo);
+      const walker: TransitWalker | null = walkerOf(moment.transit, view.echo);
       const gone: boolean = figure?.turned === true;
       view.shown = gone ? Math.max(0, view.shown - dt / MOMENT_VIEW.turnFade) : easeToward(view.shown, marking ? 0 : 1, MOMENT_VIEW.appearRate, dt);
-      view.action.timeScale = moment.phase === 'awake' ? 1 : 0;
-      if (view.action.timeScale !== 0) view.rig.mixer.update(dt);
+      if (walker === null) {
+        view.action.timeScale = moment.phase === 'awake' ? 1 : 0;
+        if (view.action.timeScale !== 0) view.rig.mixer.update(dt);
+      } else {
+        stride(view, walker, dt);
+      }
       view.rig.setOpacity((MOMENT_VIEW.echoOpacity + (MOMENT_VIEW.awakeOpacity - MOMENT_VIEW.echoOpacity) * entry.awake) * view.shown * (1 - fade * 0.5));
       view.ghost.dissolve.value = Math.max(fade, 1 - view.shown);
       view.ghost.mix.value = MOMENT_VIEW.echoMix + MOMENT_VIEW.stillMix * (1 - entry.awake);
       view.ghost.rim.value = MOMENT_VIEW.echoRim + entry.awake * MOMENT_VIEW.echoRimAwake;
-      view.rig.root.visible = view.shown > 0;
-      if (figure !== undefined) view.rig.root.position.set(figure.pos.x - moment.pos.x, 0, figure.pos.z - moment.pos.z);
+      view.ghost.bound.value.set(moment.pos.x, moment.pos.z, moment.def.radius);
+      view.rig.root.visible = view.shown > 0 && (walker === null || walker.walking);
+      if (walker !== null) {
+        view.rig.root.position.set(walker.pos.x, 0, walker.pos.z);
+        view.rig.root.rotation.y = walker.heading;
+      } else if (figure !== undefined) {
+        view.rig.root.position.set(figure.pos.x - moment.pos.x, 0, figure.pos.z - moment.pos.z);
+      }
     }
   };
 
@@ -567,7 +598,7 @@ export function createMomentView(deps: MomentViewDeps): MomentView {
       await loadProps(content.moments.defs.values());
       const warm: MomentEntry[] = [];
       for (const def of content.moments.defs.values()) {
-        const moment: MomentState = { id: -1, def, combat: false, level: 1, pos: { x: 0, z: 0 }, phase: 'dormant', timeLeft: 1, phaseTime: 0, armed: false, away: 0, entered: false, bounty: 0, full: 0, reduced: null, blocks: null, outcome: null, chest: 'none', figures: def.echoes.map((echo: MomentEcho, index: number): MomentFigure => ({ echo: index, pos: { x: echo.x, z: echo.z }, facing: 0, turned: false, monsterId: null })) };
+        const moment: MomentState = { id: -1, def, combat: false, level: 1, pos: { x: 0, z: 0 }, phase: 'dormant', timeLeft: 1, phaseTime: 0, armed: false, away: 0, entered: false, bounty: 0, full: 0, reduced: null, blocks: null, outcome: null, chest: 'none', figures: def.echoes.map((echo: MomentEcho, index: number): MomentFigure => ({ echo: index, pos: { x: echo.x, z: echo.z }, facing: 0, turned: false, monsterId: null })), transit: null };
         const entry: MomentEntry = build(moment);
         for (const placed of def.props) placeProp(entry, placed);
         if (def.chest !== null) entry.chest = chestOf(entry, def.chest);
