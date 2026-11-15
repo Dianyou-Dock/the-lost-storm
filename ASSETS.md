@@ -217,6 +217,13 @@ The walls, pillars, stairs, lamps, furniture, graves, dead trees, houses and sta
 | `public/models/world/great_doors.glb` | Great stone doors with a carved disc | Built by `blender/build_road.py` | MIT |
 | `public/models/world/great_lamp.glb` | Great lamp, dark | Built by `blender/build_environment.py` | MIT |
 | `public/models/world/great_lamp_lit.glb` | Great lamp, lit | Built by `blender/build_environment.py` | MIT |
+| `public/models/world/hall_column.glb` | Tall fluted hall column | Built by `blender/build_environment.py` | MIT |
+| `public/models/world/hall_column_broken.glb` | Broken hall column, two drums standing | Built by `blender/build_environment.py` | MIT |
+| `public/models/world/hall_column_fallen.glb` | Fallen hall column, drums and capital on the floor | Built by `blender/build_environment.py` | MIT |
+| `public/models/world/hall_gallery.glb` | Tall gallery tiers with a back wall | Built by `blender/build_environment.py` | MIT |
+| `public/models/world/hall_niches.glb` | Wall of identical niches, each holding a sealed tablet | Built by `blender/build_environment.py` | MIT |
+| `public/models/world/hall_shelf.glb` | Stone shelves of sealed tablets | Built by `blender/build_environment.py` | MIT |
+| `public/models/world/hall_tiers.glb` | Low stepped tiers | Built by `blender/build_environment.py` | MIT |
 | `public/models/world/house_a.glb` | Timber-framed house | Built by `blender/build_environment.py` | MIT |
 | `public/models/world/house_b.glb` | Tall timber-framed house | Built by `blender/build_environment.py` | MIT |
 | `public/models/world/hut_patched.glb` | Patched hut with mismatched walls | Built by `blender/build_road.py` | MIT |
@@ -241,6 +248,7 @@ The walls, pillars, stairs, lamps, furniture, graves, dead trees, houses and sta
 | `public/models/world/still_figure_bowed.glb` | Still figure with bowed head, in a hooded robe | Built like `still_figure.glb` with the neck, head and spine turned forward | CC0 1.0 |
 | `public/models/world/sunken_cart.glb` | Cart sunk to its axle | Built by `blender/build_road.py` | MIT |
 | `public/models/world/table_broken.glb` | Broken trestle table | Built by `blender/build_environment.py` | MIT |
+| `public/models/world/tally_stone.glb` | Standing stone cut with tally marks | Built by `blender/build_environment.py` | MIT |
 | `public/models/world/torch.glb` | Wall torch | Built by `blender/build_environment.py` | MIT |
 | `public/models/world/wall_a.glb` | Wall section | Built by `blender/build_environment.py` | MIT |
 | `public/models/world/wall_b.glb` | Wall section with a buttress | Built by `blender/build_environment.py` | MIT |

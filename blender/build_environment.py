@@ -502,6 +502,179 @@ def coins(kit: Kit) -> None:
     kit.cylinder("gold", 0.12, 0.3, 0.01, 0.15, 0.03, segments=12, tilt_y=-0.4)
 
 
+HALL_SHAFT_DRUMS: int = 5
+HALL_DRUM: float = 1.1
+HALL_GROOVE: float = 0.05
+HALL_SHAFT_RADIUS: float = 0.5
+HALL_FLUTES: int = 16
+
+
+def hall_footing(kit: Kit) -> float:
+    kit.box("stone", 0.0, 0.0, 0.0, 1.7, 1.7, 0.45)
+    kit.box("stone", 0.0, 0.0, 0.45, 1.42, 1.42, 0.2)
+    kit.cylinder("stone", 0.0, 0.0, 0.65, 0.64, 0.2, segments=20, top=0.58)
+    return 0.85
+
+
+def hall_drums(kit: Kit, bottom: float, drums: int) -> float:
+    at: float = bottom
+    for index in range(drums):
+        kit.cylinder("stone", 0.0, 0.0, at, HALL_SHAFT_RADIUS - index * 0.008, HALL_DRUM - HALL_GROOVE, segments=20, top=HALL_SHAFT_RADIUS - (index + 1) * 0.008)
+        kit.cylinder("stone", 0.0, 0.0, at + HALL_DRUM - HALL_GROOVE, HALL_SHAFT_RADIUS - 0.025, HALL_GROOVE, segments=20)
+        at += HALL_DRUM
+    return at
+
+
+def hall_flutes(kit: Kit, bottom: float, top: float) -> None:
+    for index in range(HALL_FLUTES):
+        angle: float = index * math.pi * 2.0 / HALL_FLUTES
+        x: float = math.cos(angle) * (HALL_SHAFT_RADIUS - 0.005)
+        y: float = math.sin(angle) * (HALL_SHAFT_RADIUS - 0.005)
+        kit.box("stone", x, y, bottom + 0.12, 0.07, 0.05, top - bottom - 0.24, yaw=angle)
+
+
+def hall_column(kit: Kit) -> None:
+    bottom: float = hall_footing(kit)
+    top: float = hall_drums(kit, bottom, HALL_SHAFT_DRUMS)
+    hall_flutes(kit, bottom, top)
+    kit.cylinder("stone", 0.0, 0.0, top, 0.48, 0.36, segments=20, top=0.74)
+    kit.box("stone", 0.0, 0.0, top + 0.36, 1.6, 1.6, 0.3)
+    kit.box("stone", 0.0, 0.0, top + 0.66, 1.34, 1.34, 0.24)
+
+
+def hall_column_broken(kit: Kit) -> None:
+    bottom: float = hall_footing(kit)
+    top: float = hall_drums(kit, bottom, 2)
+    hall_flutes(kit, bottom, top)
+    kit.cylinder("stone", 0.06, -0.04, top, HALL_SHAFT_RADIUS - 0.02, 0.55, segments=20, top=HALL_SHAFT_RADIUS - 0.04, tilt_x=0.16, tilt_y=-0.1)
+    kit.scatter_blocks("stone", 5, -0.9, 0.9, FRONT * 1.4, FRONT * 0.8, 0.18, 0.4)
+
+
+def hall_column_fallen(kit: Kit) -> None:
+    kit.box("stone", 0.0, 0.0, 0.0, 1.7, 1.7, 0.45)
+    kit.box("stone", 0.0, 0.0, 0.45, 1.42, 1.42, 0.2)
+    kit.cylinder("stone", 0.0, 0.0, 0.65, 0.6, 0.32, segments=20, top=0.54, tilt_x=0.05)
+    for index, (x, yaw, roll) in enumerate(((1.6, 0.08, 0.0), (2.75, -0.05, 0.3), (3.95, 0.14, 0.12), (5.05, 0.3, 0.5))):
+        kit.cylinder("stone", x, 0.0 + index * 0.06, HALL_SHAFT_RADIUS - 0.06, HALL_SHAFT_RADIUS - 0.02, HALL_DRUM - 0.08, segments=20, tilt_y=math.pi / 2.0, yaw=yaw)
+    kit.box("stone", 6.5, 0.4, 0.0, 1.6, 1.6, 0.3, yaw=0.5, tilt_x=0.25)
+    kit.scatter_blocks("stone", 6, 0.8, 6.0, -1.0, 1.0, 0.18, 0.42)
+
+
+NICHE_ROWS: int = 3
+NICHE_COLUMNS: int = 4
+NICHE_WIDTH: float = 0.66
+NICHE_HEIGHT: float = 0.86
+NICHE_PIER: float = 0.34
+NICHE_BAND: float = 0.3
+NICHE_FOOT: float = 0.6
+NICHE_DEPTH: float = 0.36
+NICHE_CORE: float = 0.9
+
+
+def niche_tablet(kit: Kit, x: float, y: float, z: float) -> None:
+    kit.box("stone", x, y, z, 0.42, 0.09, 0.62)
+    kit.cylinder("gold", x, y - 0.035, z + 0.36, 0.07, 0.03, segments=10, tilt_x=math.pi / 2.0)
+
+
+def hall_niches(kit: Kit) -> None:
+    face: float = FRONT * (NICHE_CORE / 2.0 + NICHE_DEPTH)
+    inner: float = FRONT * (NICHE_CORE / 2.0)
+    kit.box("stone", 0.0, 0.0, 0.0, WALL_LENGTH, NICHE_CORE, NICHE_FOOT + NICHE_ROWS * (NICHE_HEIGHT + NICHE_BAND) + 0.4)
+    kit.box("stone", 0.0, (face + inner) / 2.0, 0.0, WALL_LENGTH + 0.1, NICHE_DEPTH + 0.06, NICHE_FOOT)
+    pitch: float = NICHE_WIDTH + NICHE_PIER
+    left: float = -pitch * NICHE_COLUMNS / 2.0
+    for row in range(NICHE_ROWS):
+        base: float = NICHE_FOOT + row * (NICHE_HEIGHT + NICHE_BAND)
+        kit.box("stone", 0.0, (face + inner) / 2.0, base + NICHE_HEIGHT, WALL_LENGTH + 0.06, NICHE_DEPTH + 0.04, NICHE_BAND)
+        for column in range(NICHE_COLUMNS + 1):
+            kit.box("stone", left + column * pitch, (face + inner) / 2.0, base, NICHE_PIER, NICHE_DEPTH, NICHE_HEIGHT)
+        for column in range(NICHE_COLUMNS):
+            x: float = left + column * pitch + pitch / 2.0
+            kit.box("void", x, inner - 0.01, base, NICHE_WIDTH, 0.02, NICHE_HEIGHT)
+            niche_tablet(kit, x, inner - 0.12, base + 0.02)
+    top: float = NICHE_FOOT + NICHE_ROWS * (NICHE_HEIGHT + NICHE_BAND)
+    kit.box("stone", 0.0, FRONT * 0.1, top, WALL_LENGTH + 0.16, NICHE_CORE + NICHE_DEPTH + 0.3, 0.4)
+
+
+SHELF_WIDTH: float = 3.0
+SHELF_DEPTH: float = 0.7
+SHELF_LEVELS: int = 4
+SHELF_RISE: float = 0.62
+SHELF_TABLETS: int = 8
+
+
+def hall_shelf(kit: Kit) -> None:
+    height: float = 0.2 + SHELF_LEVELS * SHELF_RISE + 0.1
+    for x in (-SHELF_WIDTH / 2.0, SHELF_WIDTH / 2.0):
+        kit.box("stone", x, 0.0, 0.0, 0.22, SHELF_DEPTH + 0.06, height)
+    kit.box("stone", 0.0, 0.0, 0.0, SHELF_WIDTH, SHELF_DEPTH, 0.2)
+    gap: float = (SHELF_WIDTH - 0.3) / SHELF_TABLETS
+    for level in range(SHELF_LEVELS):
+        shelf: float = 0.2 + level * SHELF_RISE
+        kit.box("stone", 0.0, 0.0, shelf + SHELF_RISE - 0.08, SHELF_WIDTH, SHELF_DEPTH, 0.08)
+        for index in range(SHELF_TABLETS):
+            x: float = -SHELF_WIDTH / 2.0 + 0.15 + gap * (index + 0.5)
+            kit.box("stone", x, 0.0, shelf, 0.1, SHELF_DEPTH - 0.12, SHELF_RISE - 0.16)
+            kit.cylinder("gold", x, FRONT * (SHELF_DEPTH / 2.0 - 0.05), shelf + SHELF_RISE - 0.32, 0.045, 0.02, segments=8, tilt_x=math.pi / 2.0)
+    kit.box("stone", 0.0, 0.0, height - 0.1, SHELF_WIDTH + 0.3, SHELF_DEPTH + 0.14, 0.14)
+
+
+TALLY_WIDTH: float = 1.3
+TALLY_THICK: float = 0.36
+TALLY_HEIGHT: float = 2.5
+TALLY_ROWS: int = 7
+TALLY_GROUPS: int = 3
+TALLY_STROKE: float = 0.2
+TALLY_CUT: float = 0.026
+
+
+def tally_marks(kit: Kit, y: float, last: int) -> None:
+    for row in range(TALLY_ROWS):
+        z: float = TALLY_HEIGHT - 0.42 - row * 0.3
+        for group in range(TALLY_GROUPS):
+            x0: float = -TALLY_WIDTH / 2.0 + 0.16 + group * 0.36
+            strokes: int = 4 if row < TALLY_ROWS - 1 or group < TALLY_GROUPS - 1 else last
+            for stroke in range(strokes):
+                x: float = x0 + stroke * 0.055
+                kit.beam("void", (x, y, z), (x, y, z + TALLY_STROKE), TALLY_CUT, 0.012)
+            if strokes == 4:
+                kit.beam("void", (x0 - 0.04, y, z + 0.03), (x0 + 0.21, y, z + TALLY_STROKE - 0.03), TALLY_CUT, 0.014)
+
+
+def tally_stone(kit: Kit) -> None:
+    kit.box("stone", 0.0, 0.0, 0.0, TALLY_WIDTH + 0.3, TALLY_THICK + 0.3, 0.3)
+    kit.box("stone", 0.0, 0.0, 0.3, TALLY_WIDTH, TALLY_THICK, TALLY_HEIGHT - 0.3)
+    kit.box("stone", 0.0, 0.0, TALLY_HEIGHT, TALLY_WIDTH + 0.1, TALLY_THICK + 0.08, 0.16)
+    tally_marks(kit, FRONT * (TALLY_THICK / 2.0 + 0.004), 2)
+    tally_marks(kit, TALLY_THICK / 2.0 + 0.004, 4)
+
+
+TIER_WIDTH: float = 4.0
+TIER_DEPTH: float = 0.9
+TIER_RISE: float = 0.55
+
+
+def tiers(kit: Kit, count: int, back: float) -> None:
+    depth: float = count * TIER_DEPTH
+    for index in range(count):
+        front: float = -depth / 2.0 + index * TIER_DEPTH
+        kit.box("stone", 0.0, (front + depth / 2.0) / 2.0, 0.0, TIER_WIDTH, depth / 2.0 - front, TIER_RISE * (index + 1), jitter=0.008)
+        kit.box("stone", 0.0, front + 0.06, TIER_RISE * (index + 1) - 0.02, TIER_WIDTH + 0.02, 0.16, 0.06)
+    if back > 0.0:
+        kit.box("stone", 0.0, depth / 2.0 + 0.25, 0.0, TIER_WIDTH, 0.5, count * TIER_RISE + back)
+        kit.box("stone", 0.0, depth / 2.0 + 0.2, count * TIER_RISE + back, TIER_WIDTH + 0.08, 0.7, 0.2)
+
+
+def hall_tiers(kit: Kit) -> None:
+    tiers(kit, 4, 0.0)
+
+
+def hall_gallery(kit: Kit) -> None:
+    tiers(kit, 6, 1.6)
+    for x in (-TIER_WIDTH / 2.0 + 0.3, TIER_WIDTH / 2.0 - 0.3):
+        kit.box("stone", x, 6 * TIER_DEPTH / 2.0 - 0.1, 0.0, 0.6, 0.7, 6 * TIER_RISE + 1.8)
+
+
 MODELS: dict[str, Callable[[Kit], None]] = {
     "wall_a": wall_a,
     "wall_b": wall_b,
@@ -551,6 +724,14 @@ MODELS: dict[str, Callable[[Kit], None]] = {
     "dead_tree_medium": dead_tree_medium,
     "dead_tree_small": dead_tree_small,
     "coins": coins,
+    "hall_column": hall_column,
+    "hall_column_broken": hall_column_broken,
+    "hall_column_fallen": hall_column_fallen,
+    "hall_niches": hall_niches,
+    "hall_shelf": hall_shelf,
+    "tally_stone": tally_stone,
+    "hall_tiers": hall_tiers,
+    "hall_gallery": hall_gallery,
 }
 
 
