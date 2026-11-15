@@ -92,6 +92,12 @@
       ]
     }
   ],
+  "weaponGroups": [
+    { "id": "blade", "name": "Blade", "kinds": ["blade", "axe"] },
+    { "id": "heavy", "name": "Heavy weapon", "kinds": ["greatsword", "blunt"] },
+    { "id": "crossbow", "name": "Crossbow", "kinds": ["crossbow"] },
+    { "id": "staff", "name": "Staff", "kinds": ["staff"] }
+  ],
   "grants": [
     {"id": "first_moment", "when": [{"type": "flag", "flag": "first_moment", "is": "cleared"}], "points": 1},
     {"id": "fire_lesson", "when": [{"type": "flag", "flag": "fire_lesson", "is": "given"}], "points": 1}

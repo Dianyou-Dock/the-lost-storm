@@ -1,9 +1,9 @@
-import type { ChartDef, ChartGroup, ChartPath, PointGrant, SkillTarget, SkillVariant } from './chart-types.ts';
+import type { ChartDef, ChartGroup, ChartPath, PointGrant, SkillTarget, SkillVariant, WeaponGroup } from './chart-types.ts';
 import { conditions } from './parse-conditions.ts';
 import type { Fields } from './read.ts';
-import { choice, ContentError, each, fields, isFields, nonNegative, numeric, positive, text, textList } from './read.ts';
-import type { Content, SkillMod, SkillTreeNodeDef, StatMod } from './types.ts';
-import { MOD_OPS, SKILL_MOD_FIELDS, STAT_IDS, TREE_NODE_KINDS } from './types.ts';
+import { choice, choiceList, ContentError, each, fields, isFields, nonNegative, numeric, positive, text, textList } from './read.ts';
+import type { Content, SkillDef, SkillMod, SkillTreeNodeDef, StatMod, WeaponKind } from './types.ts';
+import { MOD_OPS, SKILL_MOD_FIELDS, STAT_IDS, TREE_NODE_KINDS, WEAPON_KINDS } from './types.ts';
 
 const TINT: RegExp = /^#[0-9a-f]{6}$/i;
 
@@ -46,6 +46,7 @@ export function treeNode(value: unknown, where: string): SkillTreeNodeDef {
     skillMods: each(source['skillMods'], `${where}.skillMods`, skillMod),
     variants: source['variants'] === undefined ? [] : each(source['variants'], `${where}.variants`, variant),
     unlock: source['unlock'] === undefined ? null : text(source, 'unlock', where),
+    weapon: source['weapon'] === undefined ? null : text(source, 'weapon', where),
   };
 }
 
@@ -59,6 +60,11 @@ function chartPath(value: unknown, where: string): ChartPath {
 function chartGroup(value: unknown, where: string): ChartGroup {
   const source: Fields = fields(value, where);
   return { id: text(source, 'id', where), name: text(source, 'name', where), skills: textList(source, 'skills', where) };
+}
+
+function weaponGroup(value: unknown, where: string): WeaponGroup {
+  const source: Fields = fields(value, where);
+  return { id: text(source, 'id', where), name: text(source, 'name', where), kinds: choiceList(source, 'kinds', WEAPON_KINDS, where) };
 }
 
 function pointGrant(value: unknown, where: string): PointGrant {
@@ -80,6 +86,7 @@ export function chartDef(value: unknown, where: string): ChartDef {
     respec: { goldPerPoint: nonNegative(respec, 'goldPerPoint', `${where}.respec`), goldPerLevel: nonNegative(respec, 'goldPerLevel', `${where}.respec`) },
     paths: each(source['paths'], `${where}.paths`, chartPath),
     groups: each(source['groups'], `${where}.groups`, chartGroup),
+    weaponGroups: each(source['weaponGroups'], `${where}.weaponGroups`, weaponGroup),
     grants: each(source['grants'], `${where}.grants`, pointGrant),
     twist: nonNegative(source, 'twist', where),
   };
@@ -130,6 +137,34 @@ export function chartProblems(content: Content): string[] {
     problems.push(...variantProblems(content, node));
   }
   problems.push(...rivalProblems(nodes));
+  problems.push(...weaponProblems(content));
+  return problems;
+}
+
+function weaponProblems(content: Content): string[] {
+  const problems: string[] = [];
+  const groups: readonly WeaponGroup[] = content.chart.weaponGroups;
+  const groupIds: ReadonlySet<string> = new Set<string>(groups.map((group: WeaponGroup): string => group.id));
+  if (!unique(groups.map((group: WeaponGroup): string => group.id))) problems.push('chart has duplicate weapon group ids');
+  for (const kind of WEAPON_KINDS) {
+    const holders: number = groups.filter((group: WeaponGroup): boolean => group.kinds.includes(kind)).length;
+    if (holders === 0) problems.push(`weapon kind ${kind} is in no weapon group`);
+    if (holders > 1) problems.push(`weapon kind ${kind} is in more than one weapon group`);
+  }
+  for (const group of groups) {
+    if (group.kinds.length === 0) problems.push(`weapon group ${group.id} names no weapon kind`);
+    if (!unique(group.kinds.map((kind: WeaponKind): string => kind))) problems.push(`weapon group ${group.id} names a weapon kind twice`);
+  }
+  for (const skill of content.skills.values()) problems.push(...skillWeaponProblems(groupIds, skill));
+  for (const node of content.skillTree) {
+    if (node.weapon !== null && !groupIds.has(node.weapon)) problems.push(`tree node ${node.id} leans on unknown weapon group ${node.weapon}`);
+  }
+  return problems;
+}
+
+function skillWeaponProblems(groupIds: ReadonlySet<string>, skill: SkillDef): string[] {
+  const problems: string[] = skill.weapons.filter((group: string): boolean => !groupIds.has(group)).map((group: string): string => `skill ${skill.id} needs unknown weapon group ${group}`);
+  if (!unique(skill.weapons)) problems.push(`skill ${skill.id} names a weapon group twice`);
   return problems;
 }
 

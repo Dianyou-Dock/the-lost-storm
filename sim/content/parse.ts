@@ -146,6 +146,7 @@ function skill(value: unknown, where: string): SkillDef {
     description: text(source, 'description', where),
     icon: text(source, 'icon', where),
     animation: text(source, 'animation', where),
+    weapons: source['weapons'] === undefined ? [] : textList(source, 'weapons', where),
     manaCost: numeric(source, 'manaCost', where),
     cooldown: numeric(source, 'cooldown', where),
     windup: numeric(source, 'windup', where),

@@ -24,6 +24,13 @@ export interface ChartRespec {
 }
 
 import type { Condition } from './condition-types.ts';
+import type { WeaponKind } from './item-types.ts';
+
+export interface WeaponGroup {
+  readonly id: string;
+  readonly name: string;
+  readonly kinds: readonly WeaponKind[];
+}
 
 export interface PointGrant {
   readonly id: string;
@@ -37,6 +44,7 @@ export interface ChartDef {
   readonly respec: ChartRespec;
   readonly paths: readonly ChartPath[];
   readonly groups: readonly ChartGroup[];
+  readonly weaponGroups: readonly WeaponGroup[];
   readonly grants: readonly PointGrant[];
   readonly twist: number;
 }
