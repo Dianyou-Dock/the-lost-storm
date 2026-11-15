@@ -20,6 +20,7 @@ const slam: SkillDef = must(ARENA_CONTENT.skills.get('test_slam'), 'test_slam');
 const SKILLS: readonly SkillDef[] = [
   { ...slam, id: 'k_cut', cooldown: 0, windup: 0.3, recovery: 0.2, engageRange: 2.5, echo: 0 },
   { ...slam, id: 'k_ring', cooldown: 0, windup: 0.3, recovery: 0.2, engageRange: 2.5, echo: 0, delivery: { type: 'nova', radius: 5 } },
+  { ...slam, id: 'k_far', cooldown: 0, windup: 0.3, recovery: 0.2, engageRange: 12, echo: 0, delivery: { type: 'nova', radius: 5 } },
 ];
 
 function phase(below: number, extra: Partial<BossPhase>): BossPhase {
@@ -37,6 +38,7 @@ const KEEPER: BossDef = {
 
 const MONSTERS: readonly MonsterDef[] = [
   { ...thrall, id: 't_keeper', life: 1000, scalesLife: false, moveSpeed: 4, skill: 'k_cut', boss: KEEPER },
+  { ...thrall, id: 't_reacher', life: 1000, scalesLife: false, moveSpeed: 4, skill: 'k_cut', boss: { ...KEEPER, phases: [phase(1, { measure: ['k_cut', 'k_far'], beat: 1 })] } },
   { ...thrall, id: 't_clock', life: 200, scalesLife: false, xp: 0, behaviour: { type: 'fixed', sealed: false, collateral: 1 }, poise: { knockback: 0, stagger: 0, resolve: 0 } },
   { ...thrall, id: 't_book', life: 200, scalesLife: false, xp: 0, behaviour: { type: 'fixed', sealed: true, collateral: 0 }, poise: { knockback: 0, stagger: 0, resolve: 0 } },
 ];
@@ -207,4 +209,21 @@ void test('the bot strikes what holds a held foe instead of the foe', (): void =
   assert.equal(aimAt(world, [keeper], [keeper]), keeper);
   hit(world, keeper, 12);
   assert.equal(aimAt(world, [keeper], [keeper]), clock);
+});
+
+void test('a measure step he cannot reach is passed over after a beat, and the next step he can reach is played', (): void => {
+  const world: World = arena(11, CONTENT);
+  const reacher: MonsterState = place(world, 't_reacher', { x: ARENA_CENTRE.x, z: ARENA_CENTRE.z });
+  world.player.maxLife = 1e6;
+  world.player.life = 1e6;
+  reacher.aggro = true;
+  const starts: { readonly skill: string; readonly time: number }[] = [];
+  for (let step: number = 0; step < Math.round(4 / DT); step += 1) {
+    world.player.pos = { x: reacher.pos.x + 7, z: reacher.pos.z };
+    world.player.life = world.player.maxLife;
+    for (const event of stepWorld(world, [], DT)) if (event.type === 'skill_start' && event.actorId === reacher.id) starts.push({ skill: event.skill.id, time: world.time });
+  }
+  assert.ok(starts.length > 0, 'the measure moved on');
+  assert.ok(starts.every((start): boolean => start.skill === 'k_far'), 'the step out of reach is never struck');
+  assert.ok(must(starts[0], 'first start').time <= 2.5, `first ranged step at ${must(starts[0], 'first start').time}`);
 });

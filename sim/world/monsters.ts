@@ -8,7 +8,7 @@ import type { NavGrid } from '../nav/grid.ts';
 import { findPath } from '../nav/path.ts';
 import { lifePhase, pickBossSkill } from './boss.ts';
 import { aggroPack } from './combat.ts';
-import { anchoredGoal, onBeat, stepMeasure } from './count.ts';
+import { anchoredGoal, onBeat, passOver, stepMeasure } from './count.ts';
 import { allHold } from './conditions.ts';
 import type { Steering, SteerStep } from './movement.ts';
 import { beingKnocked, faceToward, steerAlong, steerToward, stepKnock, stepTimers } from './movement.ts';
@@ -130,6 +130,7 @@ function chase(world: World, monster: MonsterState, skill: SkillDef, foe: Actor,
     if (inReach) attack(world, monster, skill, foe);
     return;
   }
+  passOver(world, monster);
   monster.stance = 'approach';
   const goal: Vec2 = anchoredGoal(world, monster, foe.pos);
   if (distance(goal, monster.pos) <= MONSTERS.anchorRest) face(monster, foe.pos, dt);

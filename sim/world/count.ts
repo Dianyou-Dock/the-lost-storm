@@ -89,6 +89,14 @@ export function stepMeasure(world: World, monster: MonsterState): void {
   monster.beatAt = world.time + phase.beat;
 }
 
+export function passOver(world: World, monster: MonsterState): boolean {
+  const phase: BossPhase | null = phaseOf(monster);
+  if (phase === null || phase.measure.length === 0 || world.time < monster.beatAt + phase.beat) return false;
+  stepMeasure(world, monster);
+  monster.nextSkill = null;
+  return true;
+}
+
 export function anchorOf(world: World, monster: MonsterState): { readonly pos: Vec2; readonly radius: number } | null {
   const anchor: BossAnchor | null = phaseOf(monster)?.anchor ?? null;
   if (anchor === null) return null;
