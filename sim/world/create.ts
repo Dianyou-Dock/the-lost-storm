@@ -64,6 +64,7 @@ function freshPlayer(content: Content, save: SaveData | null, chosen: string | n
     tempo: 1,
     tempoTime: 0,
     brand: null,
+    burn: null,
     alive: true,
     deadTime: 0,
     moving: false,

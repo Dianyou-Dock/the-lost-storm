@@ -1464,5 +1464,93 @@
         "kick": 5
       }
     }
+  },
+  {
+    "id": "fire_burst",
+    "name": "Fire Burst",
+    "description": "Flame snaps alight in the hand and bursts on the ground a few steps ahead; whatever it catches keeps burning.",
+    "icon": "thunderclap",
+    "animation": "cast",
+    "manaCost": 14,
+    "cooldown": 1.8,
+    "windup": 0.28,
+    "recovery": 0.3,
+    "scalesWithAttackSpeed": false,
+    "engageRange": 6,
+    "delivery": {
+      "type": "area",
+      "range": 4.5,
+      "radius": 2.2,
+      "duration": 1.3,
+      "pulse": 0,
+      "pull": 0,
+      "slow": 1,
+      "anchor": "ground",
+      "opening": true
+    },
+    "damage": {
+      "weaponPercent": 1.1,
+      "flatMin": 4,
+      "flatMax": 8
+    },
+    "burn": {
+      "duration": 1.25,
+      "tick": 0.25,
+      "share": 0.15
+    },
+    "knockback": 3.5,
+    "stagger": 0.2,
+    "shake": 0.35,
+    "hitStop": 0.07,
+    "category": "area",
+    "vfx": {
+      "style": "fire",
+      "color": "#ff7a1a",
+      "cue": "none",
+      "light": 1.2,
+      "impact": {
+        "sparks": 18,
+        "flash": 2.2
+      },
+      "gather": {
+        "radius": 0.16,
+        "lift": 0.1,
+        "size": [
+          0,
+          0.9,
+          1,
+          1,
+          0.95,
+          0.9,
+          0.9,
+          0.85,
+          0.8,
+          0.8
+        ],
+        "glow": [
+          0,
+          1,
+          0.85,
+          0.7,
+          0.8,
+          0.75,
+          0.8,
+          0.85,
+          0.9,
+          1
+        ],
+        "dust": 30,
+        "light": 4
+      },
+      "punch": {
+        "dust": 18,
+        "kick": 6
+      },
+      "burn": {
+        "flares": [{"at": 0.175, "strength": 0.94}, {"at": 0.24, "strength": 1}, {"at": 0.29, "strength": 0.93}, {"at": 0.335, "strength": 0.93}, {"at": 0.375, "strength": 0.74}, {"at": 0.41, "strength": 0.77}, {"at": 0.44, "strength": 0.82}, {"at": 0.495, "strength": 0.73}, {"at": 0.55, "strength": 0.56}, {"at": 0.59, "strength": 0.63}, {"at": 0.67, "strength": 0.55}, {"at": 0.695, "strength": 0.57}, {"at": 0.795, "strength": 0.47}, {"at": 0.905, "strength": 0.35}, {"at": 0.94, "strength": 0.41}, {"at": 1.005, "strength": 0.31}, {"at": 1.05, "strength": 0.34}, {"at": 1.1, "strength": 0.28}, {"at": 1.195, "strength": 0.21}, {"at": 1.28, "strength": 0.2}],
+        "embers": 30,
+        "light": 6
+      }
+    }
   }
 ]

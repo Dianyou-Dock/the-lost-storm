@@ -24,6 +24,8 @@ import type { AbilityCues } from './ability-cues.ts';
 import { createAbilityCues, novaLook } from './ability-cues.ts';
 import type { GatherOrbs } from './gather-orb.ts';
 import { createGatherOrbs } from './gather-orb.ts';
+import type { FireBursts } from './fire-burst.ts';
+import { createFireBursts } from './fire-burst.ts';
 import type { GhostWaves } from './ghost-wave.ts';
 import { createGhostWaves } from './ghost-wave.ts';
 import type { HurtWash } from './hurt-wash.ts';
@@ -258,6 +260,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
   const cues: AbilityCues = createAbilityCues({ add, spray, flashLight, gather: riseLight, ring });
   const orbs: GatherOrbs = createGatherOrbs({ add, spray, gather: riseLight, flashLight });
   const waves: GhostWaves = createGhostWaves({ parent: scene, spray });
+  const fires: FireBursts = createFireBursts({ parent: scene, kit, spray, flashLight, colorOf, trauma: (amount: number): void => camera.addTrauma(amount) });
   const shockwave: Shockwave = createShockwave({ add, spray, flashLight, shade: (x: number, z: number, radius: number): void => cues.shade(x, z, radius), kit, dust: DUST });
 
   const burst = (x: number, z: number, radius: number, skill: SkillDef): void => {
@@ -303,6 +306,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     const color: Color = colorOf(event.skill.vfx.color);
     const delivery = event.skill.delivery;
     cancelOwned(event.actorId);
+    if (event.skill.vfx.gather !== null) orbs.release(launchPoint(event.origin, event.direction), EFFECTS.projectileHeight, event.direction, event.skill.vfx.gather, color);
     switch (delivery.type) {
       case 'arc': {
         const weight: number = heft(event.skill.shake);
@@ -322,7 +326,6 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
         spray(event.origin.x + event.direction.x * EFFECTS.castReach, EFFECTS.castLift, event.origin.z + event.direction.z * EFFECTS.castReach, color, 12, { speed: { min: 1, max: 4 }, lift: { min: 0.5, max: 3 }, life: { min: 0.2, max: 0.5 } });
         break;
       case 'projectile':
-        if (event.skill.vfx.gather !== null) orbs.release(launchPoint(event.origin, event.direction), EFFECTS.projectileHeight, event.direction, event.skill.vfx.gather, color);
         spray(event.origin.x + event.direction.x, EFFECTS.projectileHeight, event.origin.z + event.direction.z, color, event.skill.vfx.lightning === null ? 10 : EFFECTS.releaseSparks, { dirX: event.direction.x, dirZ: event.direction.z, spread: 0.9, speed: { min: 3, max: 9 }, lift: { min: -1, max: 2 }, gravity: 2 });
         if (event.team === 'player') flashLight(event.origin.x, 2, event.origin.z, color, EFFECTS.boltLight * event.skill.vfx.light);
         break;
@@ -330,10 +333,8 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
         if (event.skill.vfx.style === 'roll') dashTrails.land(event.origin, event.direction, color);
         break;
       case 'chain':
-        if (event.skill.vfx.gather !== null) orbs.release(launchPoint(event.origin, event.direction), EFFECTS.projectileHeight, event.direction, event.skill.vfx.gather, color);
-        break;
-      case 'revive':
       case 'area':
+      case 'revive':
       case 'beam':
       case 'blink':
         break;
@@ -481,6 +482,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     },
     handle(events: readonly WorldEvent[], world: World): void {
       for (const event of events) {
+        fires.take(event);
         storm.handle(event);
         switch (event.type) {
           case 'skill_start':
@@ -501,7 +503,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
             onGuarded(event);
             break;
           case 'damage':
-            onDamage(event);
+            if (!event.burn) onDamage(event);
             break;
           case 'death':
             onDeath(event, world);
@@ -569,6 +571,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
           case 'aggro':
           case 'drop':
           case 'area':
+          case 'burn':
           case 'chain':
           case 'beam':
           case 'blink':
@@ -636,11 +639,13 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
       dashTrails.clear();
       storm.clear();
       waves.clear();
+      fires.clear();
       telegraphs.clear();
     },
     update(dt: number, world: World): void {
       dashTrails.update(dt, world);
       waves.update(dt);
+      fires.update(dt, world);
       storm.update(dt, world);
       telegraphs.update(dt, world);
       for (const transient of transients) {

@@ -97,7 +97,7 @@ void test('the seconds after a blow still count as a fight for a quiet pass', ()
   const world: World = harmlessFight(11, 4);
   world.monsters = [];
   world.time = world.glitch.def.rules.arrival + 1;
-  world.events = [{ type: 'damage', targetId: world.player.id, sourceId: 0, targetTeam: 'player', amount: 1, crit: false, killed: false, pos: world.player.pos, direction: { x: 1, z: 0 }, skill: must(content.skills.get('cleave'), 'cleave') }];
+  world.events = [{ type: 'damage', targetId: world.player.id, sourceId: 0, targetTeam: 'player', amount: 1, crit: false, killed: false, pos: world.player.pos, direction: { x: 1, z: 0 }, skill: must(content.skills.get('cleave'), 'cleave'), burn: false }];
   stepGlitch(world, 0);
   assert.equal(glitchBlock(world, { kind: 'quiet_pass', source: 'story', trigger: null }), 'fight');
   assert.equal(glitchBlock(world, { kind: 'hard_cut', source: 'story', trigger: null }), null);

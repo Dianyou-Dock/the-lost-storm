@@ -1,6 +1,6 @@
 import type { Fields } from './read.ts';
 import { choice, ContentError, each, fields, nonNegative, positive, share, text } from './read.ts';
-import type { SkillVfx, VfxGather, VfxImpact, VfxLightning, VfxPunch, VfxRipple, VfxWave } from './vfx-types.ts';
+import type { SkillVfx, VfxBurn, VfxFlare, VfxGather, VfxImpact, VfxLightning, VfxPunch, VfxRipple, VfxWave } from './vfx-types.ts';
 import { VFX_CUES, VFX_MAX_FORKS, VFX_STYLES } from './vfx-types.ts';
 
 function vfxLightning(value: unknown, where: string): VfxLightning | null {
@@ -84,6 +84,22 @@ function vfxPunch(value: unknown, where: string): VfxPunch | null {
   return { dust, kick: positive(source, 'kick', where) };
 }
 
+function vfxFlare(value: unknown, where: string): VfxFlare {
+  const source: Fields = fields(value, where);
+  return { at: nonNegative(source, 'at', where), strength: share(source, 'strength', where) };
+}
+
+function vfxBurn(value: unknown, where: string): VfxBurn | null {
+  if (value === undefined) return null;
+  const source: Fields = fields(value, where);
+  const flares: VfxFlare[] = each(source['flares'], `${where}.flares`, vfxFlare);
+  flares.forEach((flare: VfxFlare, index: number): void => {
+    const before: VfxFlare | undefined = flares[index - 1];
+    if (before !== undefined && flare.at <= before.at) throw new ContentError(`${where}.flares[${index}].at`, 'expected each flare later than the one before');
+  });
+  return { flares, embers: nonNegative(source, 'embers', where), light: nonNegative(source, 'light', where) };
+}
+
 export function skillVfx(value: unknown, where: string): SkillVfx {
   const source: Fields = fields(value, where);
   return {
@@ -98,5 +114,6 @@ export function skillVfx(value: unknown, where: string): SkillVfx {
     gather: vfxGather(source['gather'], `${where}.gather`),
     wave: vfxWave(source['wave'], `${where}.wave`),
     punch: vfxPunch(source['punch'], `${where}.punch`),
+    burn: vfxBurn(source['burn'], `${where}.burn`),
   };
 }

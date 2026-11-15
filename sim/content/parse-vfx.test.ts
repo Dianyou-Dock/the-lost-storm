@@ -6,7 +6,7 @@ import { ContentError } from './read.ts';
 import type { SkillVfx } from './vfx-types.ts';
 
 void test('an effect with no lightning, impact or trail keeps the plain look', (): void => {
-  assert.deepEqual(skillVfx({ style: 'bolt', color: '#9be1ff' }, 'vfx'), { style: 'bolt', color: '#9be1ff', cue: 'none', light: 1, lightning: null, impact: null, trail: 0, linger: 0, gather: null, wave: null, punch: null });
+  assert.deepEqual(skillVfx({ style: 'bolt', color: '#9be1ff' }, 'vfx'), { style: 'bolt', color: '#9be1ff', cue: 'none', light: 1, lightning: null, impact: null, trail: 0, linger: 0, gather: null, wave: null, punch: null, burn: null });
 });
 
 void test('an effect reads its lightning, impact and trail', (): void => {
@@ -57,6 +57,8 @@ void test('an effect the kit cannot draw is refused with the field that is wrong
     [{ gather: { radius: 0.3, lift: 0, size: [0, 1], glow: [0, 1], dust: -1, light: 1 } }, 'vfx.gather.dust'],
     [{ punch: { dust: 2.5, kick: 3 } }, 'vfx.punch.dust'],
     [{ punch: { dust: 12, kick: 0 } }, 'vfx.punch.kick'],
+    [{ burn: { flares: [{ at: 0.5, strength: 1 }, { at: 0.2, strength: 0.5 }], embers: 1, light: 1 } }, 'vfx.burn.flares[1].at'],
+    [{ burn: { flares: [{ at: 0.5, strength: 1.5 }], embers: 1, light: 1 } }, 'vfx.burn.flares[0].strength'],
   ];
   for (const [change, field] of refused) {
     assert.throws(
@@ -76,4 +78,8 @@ void test('the shipped lightning skills that strike a target carry a lightning l
 
 void test('a punch kicks a whole number of dust motes off the ground at a speed', (): void => {
   assert.deepEqual(skillVfx({ style: 'fork', color: '#9fe8ff', punch: { dust: 14, kick: 4.5 } }, 'vfx').punch, { dust: 14, kick: 4.5 });
+});
+
+void test('a burn look reads its flares in order, with embers and a warm light', (): void => {
+  assert.deepEqual(skillVfx({ style: 'fire', color: '#ff7a1a', burn: { flares: [{ at: 0.1, strength: 1 }, { at: 0.3, strength: 0.5 }], embers: 20, light: 5 } }, 'vfx').burn, { flares: [{ at: 0.1, strength: 1 }, { at: 0.3, strength: 0.5 }], embers: 20, light: 5 });
 });
