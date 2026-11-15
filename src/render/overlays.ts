@@ -419,6 +419,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
         switch (event.type) {
           case 'damage': {
             if (event.targetTeam !== 'player') targetBar.hit(event.targetId);
+            if (event.amount === 0 && event.targetTeam === 'monster') break;
             const y: number = floorUp(event.pos.x, hooks.heightOf(event.targetId) * OVERLAYS.numberHeight, event.pos.z);
             const kind: string = event.burn ? 'burn' : event.targetTeam === 'player' ? 'hurt' : event.crit ? 'crit' : '';
             float(event.crit ? `${event.amount}!` : `${event.amount}`, kind, event.pos.x, y, event.pos.z);

@@ -128,6 +128,7 @@ export interface ActorView {
   glance(span: number): void;
   flinch(span: number): void;
   die(): void;
+  standDown(): void;
   revive(): void;
   detach(): void;
   wake(pose: WakePose | null): void;
@@ -551,6 +552,14 @@ export function createActorView(rig: RigInstance, scale: number, facing: number,
         return;
       }
       play(bodyClip(rig, 'death', chance), ACTOR.deathFade, ACTOR.deathSpeed, true, true);
+    },
+    standDown(): void {
+      oneShot = 0;
+      flinchLeft = 0;
+      resume = null;
+      glance = null;
+      acting = null;
+      play(idleClip(rig), ACTOR.standFade, 1, false, true);
     },
     revive(): void {
       dead = false;

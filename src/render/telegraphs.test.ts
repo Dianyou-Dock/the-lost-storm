@@ -3,13 +3,13 @@ import { test } from 'node:test';
 import type { Object3D } from 'three';
 import { Color, Group, Mesh, ShaderMaterial } from 'three';
 import type { SkillDef } from '../../sim/content/types.ts';
-import type { HazardState, MonsterState, World } from '../../sim/world/types.ts';
+import type { EchoState, HazardState, MonsterState, World } from '../../sim/world/types.ts';
 import { offenceOf } from '../../sim/world/combat.ts';
 import { placeHazard } from '../../sim/world/hazards.ts';
 import { arena, place } from '../../test/arena-support.ts';
 import { must } from '../../test/support.ts';
 import type { Telegraphs } from './telegraphs.ts';
-import { createTelegraphs, fieldGlow, settleLevel, telegraphEase, telegraphFlare, telegraphGlow, telegraphGrain, TELEGRAPHS } from './telegraphs.ts';
+import { createTelegraphs, echoesToShow, echoProgress, fieldGlow, settleLevel, telegraphEase, telegraphFlare, telegraphGlow, telegraphGrain, TELEGRAPHS } from './telegraphs.ts';
 
 const RED: Color = new Color(0xc65a4a);
 const STEP: number = 1 / 60;
@@ -119,5 +119,51 @@ void test('a field glows while its hazard lasts and fades once it is gone', (): 
   telegraphs.update(STEP, world);
   assert.equal(telegraphs.active, 1);
   for (let frame: number = 0; frame < Math.ceil(TELEGRAPHS.fieldSettle / STEP) + 1; frame += 1) telegraphs.update(STEP, world);
+  assert.equal(telegraphs.active, 0);
+});
+
+function echoOf(world: World, monster: MonsterState, timeLeft: number): EchoState {
+  const skill: SkillDef = { ...must(world.content.skills.get('test_slam'), 'test_slam'), echo: 0.6 };
+  return { ownerId: monster.id, ...offenceOf(monster), skill, origin: { x: monster.pos.x, z: monster.pos.z }, direction: { x: 1, z: 0 }, target: null, timeLeft };
+}
+
+void test('a monster echo still to land is shown once, from the moment it is queued, and the player\'s are not', (): void => {
+  const world: World = arena(6);
+  const monster: MonsterState = place(world, 'test_brute', { x: 14, z: 17 });
+  const echo: EchoState = echoOf(world, monster, 0.6);
+  world.echoes = [echo, { ...echo, ...offenceOf(world.player), ownerId: world.player.id }];
+  const seen: WeakSet<EchoState> = new WeakSet<EchoState>();
+  assert.deepEqual(echoesToShow(world, seen), [echo]);
+  assert.deepEqual(echoesToShow(world, seen), []);
+  assert.equal(echoProgress(echo), 0);
+  echo.timeLeft = 0.15;
+  assert.ok(Math.abs(echoProgress(echo) - 0.75) < 1e-9);
+});
+
+void test('an echo telegraph faces the way the echo will land, outlasts its owner\'s next swing and settles once it lands', (): void => {
+  const world: World = arena(7);
+  const monster: MonsterState = place(world, 'test_brute', { x: 14, z: 17 });
+  const parent: Group = new Group();
+  const telegraphs: Telegraphs = createTelegraphs(parent, RED);
+  world.echoes = [echoOf(world, monster, 0.6)];
+  telegraphs.update(STEP, world);
+  assert.equal(telegraphs.active, 1);
+  assert.ok(Math.abs(must(parent.children[0], 'echo shape').rotation.y - Math.PI / 2) < 1e-6);
+  const skill: SkillDef = windingUp(world, monster, 0.5);
+  telegraphs.start(monster.id, 'actor', monster.pos, { x: 0, z: 1 }, skill, 0.5, RED, 0);
+  for (let frame: number = 0; frame < 10; frame += 1) telegraphs.update(STEP, world);
+  assert.equal(telegraphs.active, 2);
+  world.echoes = [];
+  monster.action = null;
+  for (let frame: number = 0; frame < Math.ceil(TELEGRAPHS.settle / STEP) + 2; frame += 1) telegraphs.update(STEP, world);
+  assert.equal(telegraphs.active, 0);
+});
+
+void test('without an echo colour no echo is drawn', (): void => {
+  const world: World = arena(8);
+  const monster: MonsterState = place(world, 'test_brute', { x: 14, z: 17 });
+  const telegraphs: Telegraphs = createTelegraphs(new Group());
+  world.echoes = [echoOf(world, monster, 0.6)];
+  telegraphs.update(STEP, world);
   assert.equal(telegraphs.active, 0);
 });

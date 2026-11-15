@@ -196,7 +196,7 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
     transients.push({ object, duration, tick, age: 0, owner });
   };
 
-  const telegraphs: Telegraphs = createTelegraphs(scene);
+  const telegraphs: Telegraphs = createTelegraphs(scene, TELEGRAPH);
 
   const cancelOwned = (owner: number): void => {
     for (const transient of transients) if (transient.owner === owner) transient.age = transient.duration;

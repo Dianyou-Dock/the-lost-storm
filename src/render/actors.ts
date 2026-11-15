@@ -32,6 +32,8 @@ import type { ShadeMotion } from './shadow-shade.ts';
 import { shadowOf, stepShade } from './shadow-shade.ts';
 import type { Soaking } from './soak-look.ts';
 import { SOAK_COLOR, SOAK_LOOK, soakDried, soakedFor, stepSoak } from './soak-look.ts';
+import type { CountLook, CountShade } from './count-look.ts';
+import { countShadeOf, createCountLook } from './count-look.ts';
 import type { VfxShadow } from '../../sim/content/vfx-types.ts';
 import type { BodySwap, SwapMix } from './body-swap.ts';
 import { startSwap, stepSwap } from './body-swap.ts';
@@ -102,6 +104,15 @@ const HIT_WHITE: Color = new Color(0xffffff);
 const HIT_BURN: Color = new Color(0xff8a3a);
 const HIT_RED: Color = new Color(0xff6040);
 
+function standDown(view: ActorView): void {
+  view.rig.setGear([]);
+  view.standDown();
+}
+
+function stillPose(actor: ActorState): ActorPose {
+  return { pos: actor.pos, facing: actor.facing, motion: 'still', gait: 0, knockTime: 0, busy: false, held: false, beat: null, deadTime: 0 };
+}
+
 function poseOf(actor: ActorState, beat: number | null): ActorPose {
   return { pos: actor.pos, facing: actor.facing, motion: actor.motion, gait: actor.gait, knockTime: knockTime(actor), busy: actor.action !== null, held: isTimeHeld(actor), beat, deadTime: actor.deadTime };
 }
@@ -158,6 +169,8 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   const shade: ShadeMotion = { value: 0, speed: 0 };
   const shadeColor: Color = new Color();
   const soaks: Map<number, Soaking> = new Map<number, Soaking>();
+  const countLook: CountLook = createCountLook(scene);
+  const countShades: Map<number, { readonly motion: ShadeMotion; color: Color }> = new Map<number, { readonly motion: ShadeMotion; color: Color }>();
   const standChosen = (current: World): void => {
     const wanted: string = heroRig(content, current.player.hero);
     if (playerView.rig.def.id === wanted) return;
@@ -270,7 +283,8 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
     scene.add(view.rig.root);
     const entry: MonsterEntry = { def: monster.def, view, spawnTime: Math.max(monster.spawnTime, 1e-3), echo, partial, standIn, checked: false, swap: null };
     monsters.set(monster.id, entry);
-    if (!monster.alive) view.die();
+    if (monster.yielded) standDown(view);
+    else if (!monster.alive) view.die();
     return entry;
   };
 
@@ -340,6 +354,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
         setOffView(view.rig.root, !drawnBy(sight, x, floorAt(x, z), z, view.height));
       };
       standChosen(current);
+      countLook.update(dt, current);
       if (librarySize() !== dressedWith) {
         dressedWith = librarySize();
         dressHero(current);
@@ -371,10 +386,19 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
           entry.view.rig.setShade(SOAK_COLOR, wetness * SOAK_LOOK.tint, false, wetness);
         }
         if (soaking !== undefined && soakDried(soaking)) soaks.delete(monster.id);
+        const wanted: CountShade | null = countShadeOf(current, monster);
+        const counted = countShades.get(monster.id) ?? (wanted === null ? undefined : { motion: { value: 0, speed: 0 }, color: wanted.color });
+        if (counted !== undefined) {
+          if (wanted !== null) counted.color = wanted.color;
+          stepShade(counted.motion, wanted?.mix ?? 0, dt);
+          if (soaking === undefined) entry.view.rig.setShade(counted.color, counted.motion.value, false, 0);
+          if (wanted === null && counted.motion.value === 0) countShades.delete(monster.id);
+          else countShades.set(monster.id, counted);
+        }
         entry.view.setHover(monster.id === hoveredId);
         draw(entry.view, monster.pos.x, monster.pos.z);
         if (monster.alive) guard.keep(monster.id, entry.view.rig.root, scene, monster.def.id);
-        const pose: ActorPose = poseOf(monster, unisonOf(current, monster) === null ? null : current.time);
+        const pose: ActorPose = monster.yielded ? stillPose(monster) : poseOf(monster, unisonOf(current, monster) === null ? null : current.time);
         const placed: SyncOptions = { rise: entry.echo === null ? turning : 1, floor: floorAt(monster.pos.x, monster.pos.z), turnRate: ACTOR.turnRate, seen: seen(entry.view, monster.pos.x, monster.pos.z) };
         entry.view.sync(dt, pose, placed);
         if (entry.swap !== null) {
@@ -439,6 +463,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
     },
     handle(events: readonly WorldEvent[], current: World): void {
       const guarded: Set<number> = new Set<number>();
+      countLook.handle(events);
       for (const event of events) {
         switch (event.type) {
           case 'skill_start':
@@ -464,10 +489,14 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
             if (played || !event.broken) guarded.add(event.monsterId);
             break;
           }
-          case 'death':
-            viewOf(event.actorId)?.die();
+          case 'death': {
+            const fallen: MonsterState | undefined = current.monsters.find((candidate: MonsterState): boolean => candidate.id === event.actorId);
+            const view: ActorView | null = viewOf(event.actorId);
+            if (fallen?.yielded === true && view !== null) standDown(view);
+            else view?.die();
             monsters.get(event.actorId)?.swap?.old.die();
             break;
+          }
           case 'unison_look':
             for (const id of event.monsterIds) viewOf(id)?.glance(event.turn);
             break;

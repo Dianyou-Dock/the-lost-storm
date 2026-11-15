@@ -2,7 +2,7 @@ import type { Color, Object3D } from 'three';
 import type { SkillDef } from '../../sim/content/types.ts';
 import type { Vec2 } from '../../sim/math.ts';
 import { facingOf } from '../../sim/math.ts';
-import type { HazardState, MonsterState, World } from '../../sim/world/types.ts';
+import type { EchoState, HazardState, MonsterState, World } from '../../sim/world/types.ts';
 import type { Telegraph } from './effect-shapes.ts';
 import { disposeObject, telegraphFor } from './effect-shapes.ts';
 import type { GroundLight } from './ground-light.ts';
@@ -33,7 +33,7 @@ export const TELEGRAPHS = {
   fieldSettle: 0.5,
 } as const;
 
-export type TelegraphSource = 'actor' | 'hazard';
+export type TelegraphSource = 'actor' | 'hazard' | 'echo';
 
 export interface Telegraphs {
   start(owner: number, source: TelegraphSource, at: Vec2, direction: Vec2, skill: SkillDef, windup: number, color: Color, path: number): void;
@@ -48,6 +48,7 @@ interface Shown {
   readonly owner: number;
   readonly source: TelegraphSource;
   readonly skillId: string;
+  readonly echo: EchoState | null;
   readonly shape: Telegraph;
   readonly windup: number;
   age: number;
@@ -93,7 +94,18 @@ export function fieldGlow(age: number): number {
   return TELEGRAPHS.fieldGlow * (1 - TELEGRAPHS.fieldBreathe * (0.5 + 0.5 * Math.sin(age * TELEGRAPHS.fieldBreatheRate)));
 }
 
+export function echoProgress(echo: EchoState): number {
+  return echo.skill.echo > 0 ? Math.min(1, Math.max(0, 1 - echo.timeLeft / echo.skill.echo)) : 1;
+}
+
+export function echoesToShow(world: World, seen: WeakSet<EchoState>): EchoState[] {
+  const fresh: EchoState[] = world.echoes.filter((echo: EchoState): boolean => echo.team === 'monster' && !seen.has(echo));
+  for (const echo of fresh) seen.add(echo);
+  return fresh;
+}
+
 function windupOf(world: World, shown: Shown): number | null {
+  if (shown.source === 'echo') return shown.echo !== null && world.echoes.includes(shown.echo) ? echoProgress(shown.echo) : null;
   if (shown.source === 'hazard') {
     for (const hazard of world.hazards) if (hazard.id === shown.owner) return hazardProgress(hazard);
     return null;
@@ -123,9 +135,10 @@ function setGrain(light: GroundLight, grain: number): void {
   if (uniform !== undefined) uniform.value = grain;
 }
 
-export function createTelegraphs(parent: Object3D): Telegraphs {
+export function createTelegraphs(parent: Object3D, echoColor: Color | null = null): Telegraphs {
   const shown: Shown[] = [];
   const fields: Field[] = [];
+  const seenEchoes: WeakSet<EchoState> = new WeakSet<EchoState>();
 
   const settle = (entry: Shown): void => {
     if (entry.settling < 0) entry.settling = 0;
@@ -148,10 +161,10 @@ export function createTelegraphs(parent: Object3D): Telegraphs {
       return shown.length + fields.length;
     },
     start(owner: number, source: TelegraphSource, at: Vec2, direction: Vec2, skill: SkillDef, windup: number, color: Color, path: number): void {
-      for (const entry of shown) if (entry.owner === owner) settle(entry);
+      for (const entry of shown) if (entry.owner === owner && entry.source !== 'echo') settle(entry);
       const shape: Telegraph = telegraphFor(skill.delivery, color, path);
       place(shape.object, at, direction, parent);
-      shown.push({ owner, source, skillId: skill.id, shape, windup, age: 0, progress: 0, rate: windup > 0 ? 1 / windup : 1, settling: -1 });
+      shown.push({ owner, source, skillId: skill.id, echo: null, shape, windup, age: 0, progress: 0, rate: windup > 0 ? 1 / windup : 1, settling: -1 });
     },
     field(owner: number, at: Vec2, radius: number, color: Color): void {
       const light: GroundLight = createGroundLight(color, { kind: 'round', radius, inner: 0, arc: Math.PI * 2 }, { fill: 1, band: 0, width: radius * TELEGRAPHS.fieldWidth, wobble: radius * TELEGRAPHS.fieldWobble, hollow: TELEGRAPHS.fieldHollow, grain: TELEGRAPHS.fieldGrain });
@@ -160,9 +173,16 @@ export function createTelegraphs(parent: Object3D): Telegraphs {
       fields.push({ owner, light, settling: -1, age: 0 });
     },
     cancel(owner: number): void {
-      for (const entry of shown) if (entry.owner === owner) settle(entry);
+      for (const entry of shown) if (entry.owner === owner && entry.source !== 'echo') settle(entry);
     },
     update(dt: number, world: World): void {
+      if (echoColor !== null) {
+        for (const echo of echoesToShow(world, seenEchoes)) {
+          const shape: Telegraph = telegraphFor(echo.skill.delivery, echoColor, 0);
+          place(shape.object, echo.origin, echo.direction, parent);
+          shown.push({ owner: echo.ownerId, source: 'echo', skillId: echo.skill.id, echo, shape, windup: echo.timeLeft, age: 0, progress: echoProgress(echo), rate: echo.timeLeft > 0 ? 1 / echo.timeLeft : 1, settling: -1 });
+        }
+      }
       for (let index: number = shown.length - 1; index >= 0; index -= 1) {
         const entry: Shown | undefined = shown[index];
         if (entry === undefined) continue;
