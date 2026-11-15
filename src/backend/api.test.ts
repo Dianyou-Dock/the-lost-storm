@@ -68,6 +68,27 @@ void test('writing sends the save and the base revision and returns the stored c
   assert.equal(sent(seen).init.keepalive, true);
 });
 
+void test('leaving tells the server which window left, with the token in the header and keepalive so it outlives the page', async (): Promise<void> => {
+  const { client, seen } = api((): Response => reply(200, { released: true }));
+  client.leavePlay('tok', 'page-a');
+  await Promise.resolve();
+  assert.equal(sent(seen).url, 'http://localhost:8787/v1/play/leave');
+  assert.equal(sent(seen).init.method, 'POST');
+  assert.equal(sent(seen).init.keepalive, true);
+  assert.deepEqual(sent(seen).init.headers, { Authorization: 'Bearer tok', 'Content-Type': 'application/json' });
+  assert.deepEqual(bodyOf(sent(seen).init), { play: 'page-a' });
+  assert.equal(sent(seen).url.includes('tok'), false);
+});
+
+void test('leaving never throws, whether the network fails or the server refuses', async (): Promise<void> => {
+  const down = api((): Error => new TypeError('network down'));
+  down.client.leavePlay('tok', 'page-a');
+  const refused = api((): Response => reply(500, 'oops'));
+  refused.client.leavePlay('tok', 'page-a');
+  await Promise.resolve();
+  assert.equal(down.seen.length + refused.seen.length, 2);
+});
+
 void test('every save written carries the purse cursor', async (): Promise<void> => {
   const { client, seen } = api((): Response => reply(200, COPY));
   await client.writeSave('tok', { ...SAVE, purse: 17 }, 1, 2, SIGNAL);

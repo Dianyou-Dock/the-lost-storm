@@ -33,7 +33,7 @@ export function pagePlay(): Play {
 }
 
 export function createBrowserBackend(content: Content, rawUrl: string | undefined): Backend {
-  return createBackend(content, rawUrl, {
+  const backend: Backend = createBackend(content, rawUrl, {
     fetch: (url: string, init: RequestInit): Promise<Response> => fetch(url, init),
     store: createBrowserStore(),
     clock: (): number => Date.now(),
@@ -42,6 +42,8 @@ export function createBrowserBackend(content: Content, rawUrl: string | undefine
     characterKeys: CHARACTER_KEYS,
     play: PAGE_PLAY,
   });
+  window.addEventListener('pagehide', (): void => backend.leave());
+  return backend;
 }
 
 export function createBrowserAccount(content: Content, rawUrl: string | undefined): AccountService | null {

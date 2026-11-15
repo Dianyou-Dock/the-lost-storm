@@ -215,6 +215,13 @@ function ahead(left: readonly number[], right: readonly number[]): number {
   return 0;
 }
 
+export const PLAY_STALE_MS: number = 30_000;
+
+interface HeldPlay {
+  readonly play: string;
+  readonly seenAt: number;
+}
+
 const LADDER_ORDERS: ReadonlySet<string> = new Set<string>(['damage', 'life', 'played', 'kills', 'deaths']);
 
 function ladder(accounts: readonly ServerAccount[], viewer: ServerAccount | undefined, by: string | null): unknown {
@@ -256,7 +263,7 @@ function addressOf(body: unknown): string | null {
 export function createFakeServer(clock: FakeClock): FakeServer {
   const accounts: ServerAccount[] = [];
   const requests: RecordedRequest[] = [];
-  const plays: Map<string, string> = new Map<string, string>();
+  const plays: Map<string, HeldPlay> = new Map<string, HeldPlay>();
   const planned: Planned[] = [];
   const gates: Promise<void>[] = [];
   let created: number = 0;
@@ -445,6 +452,11 @@ export function createFakeServer(clock: FakeClock): FakeServer {
     }
     const view = (): Readonly<Record<string, unknown>> => ({ save: owner.save, revision: owner.revision, updatedAt: owner.updatedAt, epoch });
     if (method === 'GET' && path === '/v1/save') return json(200, view());
+    if (method === 'POST' && path === '/v1/play/leave' && isFields(body)) {
+      const released: boolean = plays.get(owner.accountId)?.play === body['play'];
+      if (released) plays.delete(owner.accountId);
+      return json(200, { released });
+    }
     if (method === 'PUT' && path === '/v1/save' && isFields(body)) {
       const written: number | null = epochOf(body, 'epoch');
       if (written === null) return failed(400, 'bad_request');
@@ -454,9 +466,10 @@ export function createFakeServer(clock: FakeClock): FakeServer {
       if (save === null) return json(422, { error: { code: 'invalid_save', message: 'no' } });
       const play: unknown = body['play'];
       if (typeof play === 'string') {
-        const active: string | undefined = plays.get(owner.accountId);
-        if (active !== undefined && active !== play && body['claim'] !== true) return failed(409, 'played_elsewhere');
-        plays.set(owner.accountId, play);
+        const held: HeldPlay | undefined = plays.get(owner.accountId);
+        const live: boolean = held !== undefined && clock.now - held.seenAt < PLAY_STALE_MS;
+        if (held !== undefined && live && held.play !== play && body['claim'] !== true) return failed(409, 'played_elsewhere');
+        plays.set(owner.accountId, { play, seenAt: clock.now });
       }
       if (body['baseRevision'] !== owner.revision) return json(409, { error: { code: 'revision_conflict', message: 'no' }, current: view() });
       owner.save = save;

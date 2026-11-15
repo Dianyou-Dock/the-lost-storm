@@ -2,6 +2,7 @@ import type { Fields } from '../../sim/content/read.ts';
 import { isFields } from '../../sim/content/read.ts';
 import type { TradeFrame } from '../player-trade/trade-protocol.ts';
 import { LIVE_TRADE_VERSION, readTradeFrame } from '../player-trade/trade-protocol.ts';
+import type { PlayStamp } from './play.ts';
 
 export const LIVE_LIMITS: {
   readonly idChars: number;
@@ -88,7 +89,7 @@ export interface Welcome {
 }
 
 export type ServerFrame =
-  | { readonly type: 'welcome'; readonly roaming: Welcome | null; readonly trade: boolean }
+  | { readonly type: 'welcome'; readonly roaming: Welcome | null; readonly trade: boolean; readonly claimed: boolean }
   | { readonly type: 'present'; readonly zone: string; readonly you: string; readonly players: readonly LivePlayer[]; readonly chat: readonly ChatLine[] | null }
   | { readonly type: 'said'; readonly line: ChatLine }
   | { readonly type: 'whisper'; readonly dir: WhisperDirection; readonly with: string; readonly line: ChatLine }
@@ -192,7 +193,7 @@ function readEach<T>(value: unknown, read: (entry: unknown) => T | null, limit: 
 function readFields(source: Fields): ServerFrame | null {
   switch (source['type']) {
     case 'welcome':
-      return { type: 'welcome', roaming: readWelcome(source), trade: source['trade'] === LIVE_TRADE_VERSION };
+      return { type: 'welcome', roaming: readWelcome(source), trade: source['trade'] === LIVE_TRADE_VERSION, claimed: source['claimed'] === true };
     case 'full':
       return { type: 'full' };
     case 'replaced':
@@ -265,8 +266,10 @@ export function readServerFrame(data: unknown): ServerFrame | null {
   return isFields(parsed) ? readFields(parsed) : null;
 }
 
-export function helloFrame(token: string, play: string | null = null): string {
-  return JSON.stringify(play === null ? { type: 'hello', token, chat: LIVE_CHAT_VERSION, trade: LIVE_TRADE_VERSION } : { type: 'hello', token, chat: LIVE_CHAT_VERSION, trade: LIVE_TRADE_VERSION, play });
+export function helloFrame(token: string, play: PlayStamp | null = null): string {
+  if (play === null) return JSON.stringify({ type: 'hello', token, chat: LIVE_CHAT_VERSION, trade: LIVE_TRADE_VERSION });
+  if (play.claim) return JSON.stringify({ type: 'hello', token, chat: LIVE_CHAT_VERSION, trade: LIVE_TRADE_VERSION, play: play.id, claim: true });
+  return JSON.stringify({ type: 'hello', token, chat: LIVE_CHAT_VERSION, trade: LIVE_TRADE_VERSION, play: play.id });
 }
 
 function rounded(value: number): number {

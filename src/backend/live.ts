@@ -157,6 +157,7 @@ export function createLive(options: LiveOptions): Live {
       case 'welcome':
         welcomed = true;
         trading = frame.trade;
+        if (frame.claimed) options.play?.claimed();
         failures = 0;
         roaming = frame.roaming !== null;
         if (frame.roaming === null) return;
@@ -230,7 +231,7 @@ export function createLive(options: LiveOptions): Live {
     let opened: LiveSocket | null = null;
     const handlers: SocketHandlers = {
       open(): void {
-        if (socket === opened) send(helloFrame(token, options.play?.id ?? null));
+        if (socket === opened) send(helloFrame(token, options.play?.stamp() ?? null));
       },
       message(data: unknown): void {
         if (socket !== opened) return;

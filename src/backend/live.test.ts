@@ -424,12 +424,42 @@ void test('the hello names the page only when the page has a play id', (): void 
   const named: Harness = harness(createPlay('page-a'));
   welcomed(named);
   const hello: unknown = last(named).sent[0];
-  assert.deepEqual(hello, JSON.parse(helloFrame('secret-token', 'page-a')));
+  assert.deepEqual(hello, JSON.parse(helloFrame('secret-token', { id: 'page-a', claim: true })));
   assert.ok(isFields(hello) && hello['play'] === 'page-a');
   const plain: Harness = harness();
   welcomed(plain);
   const bare: unknown = last(plain).sent[0];
   assert.ok(isFields(bare) && !('play' in bare));
+});
+
+function joined(h: Harness, welcome: Readonly<Record<string, unknown>>): FakeSocket {
+  h.live.update(ROAD);
+  const socket: FakeSocket = last(h);
+  socket.handlers.open();
+  say(socket, welcome);
+  return socket;
+}
+
+void test('a fresh page claims in its hello, so it is never judged before it has claimed, and a welcome that says so ends the claim', async (): Promise<void> => {
+  const play: Play = createPlay('page-a');
+  const h: Harness = harness(play);
+  const first: FakeSocket = joined(h, { type: 'welcome', you: 'c1', chat: [], claimed: true });
+  assert.deepEqual(first.sent[0], { type: 'hello', token: 'secret-token', chat: 1, trade: 1, play: 'page-a', claim: true });
+  assert.deepEqual(play.stamp(), { id: 'page-a', claim: false });
+  first.handlers.closed(1006);
+  await h.timers.advance(LIVE.longestRetryMs);
+  h.live.update(ROAD);
+  const again: FakeSocket = last(h);
+  assert.notEqual(again, first);
+  again.handlers.open();
+  assert.deepEqual(again.sent[0], { type: 'hello', token: 'secret-token', chat: 1, trade: 1, play: 'page-a' });
+});
+
+void test('a welcome from an older server that does not say it claimed leaves the claim to the first save', (): void => {
+  const play: Play = createPlay('page-a');
+  const h: Harness = harness(play);
+  joined(h, { type: 'welcome', you: 'c1', chat: [] });
+  assert.deepEqual(play.stamp(), { id: 'page-a', claim: true });
 });
 
 void test('played elsewhere replaces the page, closes the socket and never opens another', (): void => {

@@ -144,7 +144,7 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
     if (stored !== null) keep({ ...stored, pending: false, overwriteCloud: false });
   };
   const playedElsewhere = (): void => {
-    log.warn('this character is being played in another window, so this one stopped saving');
+    log.warn('this character was opened in another tab or on another device, so this one stopped saving');
     stop();
     options.play?.replace();
   };
@@ -517,6 +517,11 @@ export function createRemoteBackend(options: RemoteOptions): Backend {
       }
       keep({ ...held, pending: false, overwriteCloud: true });
       log.warn('Start over could not reach the cloud save; it will replace the cloud copy the next time the cloud is reachable');
+    },
+    leave(): void {
+      const play: Play | undefined = options.play;
+      if (play === undefined || record === null || play.replaced() || play.stamp().claim) return;
+      api.leavePlay(record.token, play.id);
     },
     flush(): void {
       if (failures > 0) return;

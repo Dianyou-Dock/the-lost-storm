@@ -211,6 +211,7 @@ export interface Api {
   createGuest(signal: AbortSignal): Promise<GuestResult>;
   readSave(token: string, signal: AbortSignal): Promise<ReadResult>;
   writeSave(token: string, save: SaveData, baseRevision: number, epoch: number, signal: AbortSignal, play?: PlayStamp | null): Promise<WriteResult>;
+  leavePlay(token: string, play: string): void;
   providers(signal: AbortSignal): Promise<ProvidersResult>;
   profile(token: string, signal: AbortSignal): Promise<ProfileResult>;
   googleSignIn(token: string, accessToken: string, signal: AbortSignal): Promise<SessionResult>;
@@ -393,6 +394,9 @@ export function createApi(baseUrl: string, fetchFn: FetchFn, content: Content): 
       if (!succeeded(answer)) return failureOf(answer);
       const state: CloudState | null = readCloudState(content, answer.body);
       return state === null || state.save === null ? { kind: 'refused', status: answer.status } : { kind: 'ok', copy: state, fold: readFold(content, answer.body) };
+    },
+    leavePlay(token: string, play: string): void {
+      void exchange(fetchFn, `${baseUrl}/v1/play/leave`, { method: 'POST', headers: headers(token), body: JSON.stringify({ play }), keepalive: true });
     },
     async providers(signal: AbortSignal): Promise<ProvidersResult> {
       const answer: Answer | null = await exchange(fetchFn, `${baseUrl}/v1/auth/providers`, { method: 'GET', signal });

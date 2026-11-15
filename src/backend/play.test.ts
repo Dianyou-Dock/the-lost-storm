@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { isFields } from '../../sim/content/read.ts';
-import { createHarness, makeSave } from '../../test/backend-support.ts';
+import { createHarness, makeSave, PLAY_STALE_MS } from '../../test/backend-support.ts';
 import type { Harness, RecordedRequest } from '../../test/backend-support.ts';
 import { must } from '../../test/support.ts';
 import type { Backend } from './backend.ts';
@@ -150,4 +150,88 @@ void test('a window replaced over the live socket clears its pending flag and le
   assert.equal(after.pending, false);
   assert.equal(after.revision, before.revision);
   assert.equal(storedLevel(harness), 4);
+});
+
+function leaves(harness: Harness): readonly unknown[] {
+  return harness.server.requests.filter((entry: RecordedRequest): boolean => entry.method === 'POST' && entry.path === '/v1/play/leave').map((entry: RecordedRequest): unknown => entry.body);
+}
+
+void test('a tab closed and a new one opened at once: the closed tab leaves and the new one plays with no card', async (): Promise<void> => {
+  const harness: Harness = createHarness();
+  const closed: Play = createPlay('closed');
+  const tab: Backend = await playing(harness, closed, 3);
+  tab.leave();
+  await harness.timers.advance(0);
+  assert.deepEqual(leaves(harness), [{ play: 'closed' }]);
+  const opened: Play = createPlay('opened');
+  const next: Backend = await playing(harness, opened, 4);
+  next.save(makeSave(5, 0));
+  await harness.timers.advance(TIMING.routinePushMs);
+  assert.equal(opened.replaced(), false);
+  assert.equal(must(harness.server.accounts[0], 'the account').save?.level, 5);
+});
+
+void test('a tab killed before it could leave does not stop the page opened after it', async (): Promise<void> => {
+  const harness: Harness = createHarness();
+  await playing(harness, createPlay('killed'), 3);
+  const opened: Play = createPlay('opened');
+  const next: Backend = await playing(harness, opened, 4);
+  next.save(makeSave(5, 0));
+  await harness.timers.advance(TIMING.routinePushMs);
+  assert.equal(opened.replaced(), false);
+  assert.equal(must(harness.server.accounts[0], 'the account').save?.level, 5);
+});
+
+void test('a reload leaves as the old page and plays as the new one, which saves again with no claim', async (): Promise<void> => {
+  const harness: Harness = createHarness();
+  const before: Backend = await playing(harness, createPlay('before-reload'), 3);
+  before.leave();
+  const after: Play = createPlay('after-reload');
+  const reloaded: Backend = await playing(harness, after, 4);
+  reloaded.save(makeSave(5, 0));
+  await harness.timers.advance(TIMING.routinePushMs);
+  assert.equal(after.replaced(), false);
+  assert.deepEqual(
+    puts(harness).map((put: { readonly play: unknown; readonly claim: unknown }): string => `${String(put.play)}:${String(put.claim)}`),
+    ['before-reload:true', 'after-reload:true', 'after-reload:false'],
+  );
+});
+
+void test('a page leaves only once it has claimed and only while it is not replaced, and an offline page sends nothing', async (): Promise<void> => {
+  const harness: Harness = createHarness();
+  const fresh: Play = createPlay('fresh');
+  const unclaimed: Backend = harness.open(undefined, fresh);
+  await unclaimed.load();
+  unclaimed.leave();
+  const older: Play = createPlay('older');
+  const first: Backend = await playing(harness, older, 3);
+  older.replace();
+  first.leave();
+  const offline: Backend = harness.open('', createPlay('offline'));
+  offline.leave();
+  await harness.timers.advance(0);
+  assert.deepEqual(leaves(harness), []);
+});
+
+void test('a claim older than the stale window blocks no save, and the newer progress that was saved stays', async (): Promise<void> => {
+  const harness: Harness = createHarness();
+  const quiet: Play = createPlay('quiet');
+  await playing(harness, quiet, 4);
+  const earlier: Play = createPlay('earlier');
+  earlier.claimed();
+  const back: Backend = harness.open(undefined, earlier);
+  await back.load();
+  back.save(makeSave(5, 0));
+  await harness.timers.advance(1000);
+  assert.equal(earlier.replaced(), true);
+  assert.equal(must(harness.server.accounts[0], 'the account').save?.level, 4);
+  const later: Play = createPlay('later');
+  later.claimed();
+  harness.clock.now += PLAY_STALE_MS;
+  const afterQuiet: Backend = harness.open(undefined, later);
+  await afterQuiet.load();
+  afterQuiet.save(makeSave(6, 0));
+  await harness.timers.advance(1000);
+  assert.equal(later.replaced(), false);
+  assert.equal(must(harness.server.accounts[0], 'the account').save?.level, 6);
 });

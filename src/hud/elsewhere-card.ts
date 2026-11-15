@@ -2,7 +2,7 @@ import type { Play } from '../backend/play.ts';
 import { el, label } from './dom.ts';
 
 export const ELSEWHERE_CARD = {
-  text: 'This character is being played in another window.',
+  text: 'This character was opened in another tab or on another device.',
   action: 'Play here instead',
   shownClass: 'on',
 } as const;
