@@ -2,6 +2,7 @@ import type { ComboStep, Content, SkillBinding, SkillDef, StatBlock } from './co
 import { wornPowers, wornVariants } from './powers.ts';
 import type { SaveData } from './save.ts';
 import { computeStats, expectedHit, resolveSkill, skillCycle } from './stats.ts';
+import { heldGroup } from './weapons.ts';
 import { stepSkill } from './world/skills.ts';
 
 export const LADDER = {
@@ -35,7 +36,7 @@ export function mainAttack(content: Content, subject: LadderSubject): SkillDef |
   const id: string | null = subject.bar[slot] ?? content.player.skillBar[slot]?.skill ?? null;
   const base: SkillDef | undefined = id === null ? undefined : content.skills.get(id);
   if (base === undefined) return null;
-  return resolveSkill(content, base, subject.allocated, wornPowers(content, subject.equipped), wornVariants(content, subject.equipped));
+  return resolveSkill(content, base, subject.allocated, wornPowers(content, subject.equipped), wornVariants(content, subject.equipped), heldGroup(content, subject.equipped));
 }
 
 export function chainOf(skill: SkillDef): readonly SkillDef[] {

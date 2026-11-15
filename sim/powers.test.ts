@@ -181,3 +181,18 @@ void test('Rainmaker: a Squall also breaks over the caster, and lasts longer', (
   firePowers(world, { on: 'use', skill: skill('storm_bolt'), target: null, at: away });
   assert.equal(world.echoes.length, 1);
 });
+
+void test('an item power does not cast a skill that needs another weapon than the one in hand', (): void => {
+  const skills: Map<string, SkillDef> = new Map<string, SkillDef>(content.skills);
+  skills.set('forkline', { ...skill('forkline'), weapons: ['staff'] });
+  const world: World = arena(1, { ...content, skills });
+  wear(world, 'wirethread_gloves');
+  world.player.wielding = 'blade';
+  const echo: MonsterState = place(world, 'test_echo', { x: ARENA_CENTRE.x + 2, z: ARENA_CENTRE.z });
+  firePowers(world, { on: 'kill', skill: skill('cleave'), target: echo, at: echo.pos });
+  assert.deepEqual(casts(world), []);
+  world.player.wielding = 'staff';
+  const again: MonsterState = place(world, 'test_echo', { x: ARENA_CENTRE.x - 2, z: ARENA_CENTRE.z });
+  firePowers(world, { on: 'kill', skill: skill('cleave'), target: again, at: again.pos });
+  assert.deepEqual(casts(world), ['forkline']);
+});

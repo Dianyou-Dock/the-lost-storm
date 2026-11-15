@@ -1,9 +1,10 @@
-import type { ChartGroup, Content, SkillDef, SkillMod, SkillTarget, StatBlock, StatId, StatMod } from './content/types.ts';
+import type { ChartGroup, Content, SkillDef, SkillMod, SkillTarget, SkillTreeNodeDef, StatBlock, StatId, StatMod } from './content/types.ts';
 import { ITEM_SLOTS } from './content/types.ts';
 import { emptyEquipment, itemMods } from './items.ts';
 import { describeMod } from './stat-text.ts';
 import { armourReduction, computeStats, damagePerSecond, skillCycle } from './stats.ts';
 import { xpToNextLevel } from './progression.ts';
+import { heldGroup, heldPlace } from './weapons.ts';
 import type { Equipment, PlayerState } from './world/types.ts';
 
 export interface Figure {
@@ -92,10 +93,11 @@ function skillModText(content: Content, mod: SkillMod): string {
   return `${sign}${amount} ${mod.field.replace(/Percent$/, '')} (${name})`;
 }
 
-function treeBonuses(content: Content, allocated: readonly string[]): SheetBonus[] {
+function treeBonuses(content: Content, allocated: readonly string[], held: string | null): SheetBonus[] {
   const bonuses: SheetBonus[] = [];
-  for (const node of content.skillTree) {
-    if (!allocated.includes(node.id)) continue;
+  for (const place of content.skillTree) {
+    if (!allocated.includes(place.id)) continue;
+    const node: SkillTreeNodeDef = heldPlace(content, place, held);
     const parts: string[] = [...node.statMods.map(describeMod), ...node.skillMods.map((mod: SkillMod): string => skillModText(content, mod))];
     bonuses.push({ source: 'tree', text: parts.length === 0 ? node.name : `${node.name}: ${parts.join(', ')}` });
   }
@@ -120,7 +122,8 @@ export function characterSheet(content: Content, subject: SheetSubject): Charact
   const bare: Equipment = emptyEquipment();
   const total: StatBlock = computeStats(content, subject.level, subject.equipped, subject.allocated);
   const base: StatBlock = computeStats(content, subject.level, bare, []);
-  const treeOnly: StatBlock = computeStats(content, subject.level, bare, subject.allocated);
+  const held: string | null = heldGroup(content, subject.equipped);
+  const treeOnly: StatBlock = computeStats(content, subject.level, bare, subject.allocated, [], held);
   const curve = content.player.xp;
   return {
     level: subject.level,
@@ -130,6 +133,6 @@ export function characterSheet(content: Content, subject: SheetSubject): Charact
     figures: figures(total, base, treeOnly),
     armourReduction: armourReduction(total.armour, content.player.resistance.armourCap),
     skills: subject.skills.filter((skill: SkillDef | null): skill is SkillDef => skill !== null && skill.delivery.type !== 'dash').map((skill: SkillDef): SkillOffence => skillOffence(total, skill)),
-    bonuses: [...gearBonuses(content, subject.equipped), ...treeBonuses(content, subject.allocated)],
+    bonuses: [...gearBonuses(content, subject.equipped), ...treeBonuses(content, subject.allocated, held)],
   };
 }

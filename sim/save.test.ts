@@ -9,6 +9,7 @@ import { createRng } from './rng.ts';
 import { parseSaveText, readSave, SAVE_VERSION, toSave } from './save.ts';
 import type { SaveData } from './save.ts';
 import { createWorld } from './world/create.ts';
+import { blockedReason } from './world/skills.ts';
 import { areaLevel } from './world/spawn.ts';
 import type { ItemInstance, World } from './world/types.ts';
 
@@ -67,6 +68,21 @@ void test('a save survives JSON and rebuilds the same character', (): void => {
   assert.equal(player.life, player.maxLife);
   assert.ok(player.stats.maxLife >= 100 + 12 * 3 + 30);
   assert.ok(restored.monsters.every((monster): boolean => monster.level === areaLevel(restored)));
+});
+
+void test('a save holding a skill its weapon no longer allows loads unchanged, keeps the skill on the bar and only blocks it', (): void => {
+  const original: World = played();
+  original.player.bar = ['cleave', 'thunderclap', 'thunderhead', null, null, null];
+  const skills = new Map(content.skills);
+  skills.set('thunderclap', { ...must(content.skills.get('thunderclap'), 'thunderclap'), weapons: ['heavy', 'staff'] });
+  const tagged: Content = { ...content, skills };
+  const save: SaveData = must(parseSaveText(tagged, JSON.stringify(toSave(original))), 'save');
+  const restored: World = createWorld(tagged, { seed: 5, save });
+  assert.deepEqual(restored.player.bar, original.player.bar);
+  assert.equal(restored.player.wielding, 'blade');
+  const clap = must(restored.player.skills[1], 'thunderclap');
+  assert.equal(blockedReason(restored.player, clap), 'wrong_weapon');
+  assert.equal(blockedReason(restored.player, must(restored.player.skills[0], 'cleave')), null);
 });
 
 void test('a save from before the ability places gives back the points of places it can no longer reach', (): void => {

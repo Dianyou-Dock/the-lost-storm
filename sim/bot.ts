@@ -8,7 +8,7 @@ import { isWalkable, lineWalkable } from './nav/grid.ts';
 import { allHold, questState } from './world/conditions.ts';
 import { objectivePaths } from './content/road.ts';
 import { currentObjective } from './world/quests.ts';
-import { SKILLS } from './world/skills.ts';
+import { blockedReason, SKILLS } from './world/skills.ts';
 import { choicesOpen } from './world/death.ts';
 import { stepWorld } from './world/step.ts';
 import { fightZones, nearestFight } from './world/moments.ts';
@@ -172,7 +172,7 @@ function nearest(world: World, monsters: readonly MonsterState[]): MonsterState 
 function ready(world: World, slot: number): SkillDef | null {
   const skill: SkillDef | undefined = world.player.skills[slot] ?? undefined;
   if (skill === undefined) return null;
-  return (world.player.cooldowns[skill.id] ?? 0) <= 0 && world.player.mana >= skill.manaCost ? skill : null;
+  return blockedReason(world.player, skill) === null ? skill : null;
 }
 
 function attack(world: World, target: MonsterState, crowd: readonly MonsterState[]): Command {

@@ -10,6 +10,7 @@ import { defaultBar, startingSkills } from '../skill-book.ts';
 import { copyVendors } from '../save.ts';
 import type { SaveData } from '../save.ts';
 import { computeStats, resolveSkillBar } from '../stats.ts';
+import { heldGroup } from '../weapons.ts';
 import { emptyPowerState, wornPowers, wornVariants } from '../powers.ts';
 import { addToInventory } from './character.ts';
 import { createFlasks } from './flasks.ts';
@@ -47,6 +48,7 @@ function freshPlayer(content: Content, save: SaveData | null, chosen: string | n
   return {
     kind: 'player',
     hero: heroOf(content, save === null ? chosen : save.hero).id,
+    wielding: heldGroup(content, equipped),
     id: PLAYER_ID,
     pos: { x: 0, z: 0 },
     facing: Math.PI,
@@ -72,7 +74,7 @@ function freshPlayer(content: Content, save: SaveData | null, chosen: string | n
     mana: stats.maxMana,
     stats,
     bar,
-    skills: resolveSkillBar(content, bar, allocated, wornPowers(content, equipped), wornVariants(content, equipped)),
+    skills: resolveSkillBar(content, bar, allocated, wornPowers(content, equipped), wornVariants(content, equipped), heldGroup(content, equipped)),
     level,
     xp: save?.xp ?? 0,
     gold: save?.gold ?? 0,
@@ -111,6 +113,8 @@ function giveStartingItems(world: World, emptyHanded: boolean): void {
     if (slot !== null && world.player.equipped[slot] === null) world.player.equipped[slot] = item;
     else addToInventory(world.player, item);
   }
+  world.player.wielding = heldGroup(world.content, world.player.equipped);
+  world.player.skills = resolveSkillBar(world.content, world.player.bar, world.player.allocated, wornPowers(world.content, world.player.equipped), wornVariants(world.content, world.player.equipped), world.player.wielding);
   world.player.stats = computeStats(world.content, world.player.level, world.player.equipped, world.player.allocated);
   world.player.maxLife = world.player.stats.maxLife;
   world.player.life = world.player.stats.maxLife;

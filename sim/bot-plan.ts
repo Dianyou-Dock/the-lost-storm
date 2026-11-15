@@ -5,6 +5,7 @@ import { distance } from './math.ts';
 import { canAllocate, placeLinks, startingPlaces } from './progression.ts';
 import { wornPowers, wornVariants } from './powers.ts';
 import { armourReduction, computeStats, damagePerSecond, resolveSkill } from './stats.ts';
+import { heldGroup } from './weapons.ts';
 import { canDash } from './world/dash.ts';
 import { playerMayStrike } from './world/factions.ts';
 import { blockedFlask } from './world/flasks.ts';
@@ -175,7 +176,7 @@ function toughnessOf(content: Content, stats: StatBlock): number {
 export function powerOf(content: Content, level: number, equipped: Equipment, allocated: readonly string[], focus: string | null = null): Power {
   const stats: StatBlock = computeStats(content, level, equipped, allocated);
   const base: SkillDef | undefined = content.skills.get(focus ?? content.player.skillBar[0]?.skill ?? '');
-  const skill: SkillDef | undefined = base === undefined ? undefined : resolveSkill(content, base, allocated, wornPowers(content, equipped), wornVariants(content, equipped));
+  const skill: SkillDef | undefined = base === undefined ? undefined : resolveSkill(content, base, allocated, wornPowers(content, equipped), wornVariants(content, equipped), heldGroup(content, equipped));
   const items: number = Object.values(equipped).reduce((sum: number, item: ItemInstance | null): number => sum + (item?.level ?? 0), 0);
   return { dps: skill === undefined ? 0 : damagePerSecond(stats, skill), toughness: toughnessOf(content, stats), itemLevels: items, mobility: stats.moveSpeed };
 }

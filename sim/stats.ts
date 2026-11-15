@@ -2,6 +2,7 @@ import type { ChartGroup, Content, DamageType, Delivery, PowerDef, ResistanceRul
 import { ITEM_SLOTS, STAT_IDS } from './content/types.ts';
 import { itemMods } from './items.ts';
 import type { Equipment } from './world/types.ts';
+import { ANY_WEAPON, heldGroup, heldPlace } from './weapons.ts';
 
 export const ARMOUR_HALF_POINT: number = 100;
 export const MIN_ATTACK_SPEED: number = 0.2;
@@ -18,18 +19,18 @@ export function applyMods(base: StatBlock, mods: readonly StatMod[]): StatBlock 
   return flat;
 }
 
-export function allocatedNodes(content: Content, allocated: readonly string[]): SkillTreeNodeDef[] {
-  return content.skillTree.filter((node: SkillTreeNodeDef): boolean => allocated.includes(node.id));
+export function allocatedNodes(content: Content, allocated: readonly string[], held: string | null): SkillTreeNodeDef[] {
+  return content.skillTree.filter((node: SkillTreeNodeDef): boolean => allocated.includes(node.id)).map((node: SkillTreeNodeDef): SkillTreeNodeDef => heldPlace(content, node, held));
 }
 
-export function computeStats(content: Content, level: number, equipped: Equipment, allocated: readonly string[], extra: readonly StatMod[] = []): StatBlock {
+export function computeStats(content: Content, level: number, equipped: Equipment, allocated: readonly string[], extra: readonly StatMod[] = [], held: string | null = heldGroup(content, equipped)): StatBlock {
   const mods: StatMod[] = [];
   for (const mod of content.player.perLevel) mods.push({ ...mod, value: mod.value * (level - 1) });
   for (const slot of ITEM_SLOTS) {
     const item = equipped[slot];
     if (item !== null) mods.push(...itemMods(content, item));
   }
-  for (const node of allocatedNodes(content, allocated)) mods.push(...node.statMods);
+  for (const node of allocatedNodes(content, allocated, held)) mods.push(...node.statMods);
   mods.push(...extra);
   const stats: StatBlock = applyMods(content.player.baseStats, mods);
   stats.damageMax = Math.max(stats.damageMax, stats.damageMin);
@@ -127,23 +128,23 @@ function chained(content: Content, chosen: ChosenSkill, variants: readonly Skill
   return current;
 }
 
-export function variantChain(content: Content, skill: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = []): ChosenSkill {
-  const fromTree: readonly SkillVariant[] = allocatedNodes(content, allocated).flatMap((node: SkillTreeNodeDef): readonly SkillVariant[] => node.variants);
+export function variantChain(content: Content, skill: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON): ChosenSkill {
+  const fromTree: readonly SkillVariant[] = allocatedNodes(content, allocated, held).flatMap((node: SkillTreeNodeDef): readonly SkillVariant[] => node.variants);
   const fromPowers: readonly SkillVariant[] = powers.flatMap((power: PowerDef): readonly SkillVariant[] => power.variants);
   return chained(content, varied(content, { skill, through: [skill.id] }, worn), [...fromPowers, ...fromTree]);
 }
 
-export function chosenVariant(content: Content, skill: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = []): SkillDef {
-  return variantChain(content, skill, allocated, powers, worn).skill;
+export function chosenVariant(content: Content, skill: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON): SkillDef {
+  return variantChain(content, skill, allocated, powers, worn, held).skill;
 }
 
 function scaleOf(mods: readonly SkillMod[], field: SkillMod['field']): number {
   return Math.max(0, 1 + sumSkillMod(mods, field));
 }
 
-export function resolveSkill(content: Content, base: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = []): SkillDef {
-  const { skill, through }: ChosenSkill = variantChain(content, base, allocated, powers, worn);
-  const mods: SkillMod[] = [...allocatedNodes(content, allocated).flatMap((node: SkillTreeNodeDef): readonly SkillMod[] => node.skillMods), ...powers.flatMap((power: PowerDef): readonly SkillMod[] => power.skillMods)].filter((mod: SkillMod): boolean => modTargets(content, mod, through));
+export function resolveSkill(content: Content, base: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON): SkillDef {
+  const { skill, through }: ChosenSkill = variantChain(content, base, allocated, powers, worn, held);
+  const mods: SkillMod[] = [...allocatedNodes(content, allocated, held).flatMap((node: SkillTreeNodeDef): readonly SkillMod[] => node.skillMods), ...powers.flatMap((power: PowerDef): readonly SkillMod[] => power.skillMods)].filter((mod: SkillMod): boolean => modTargets(content, mod, through));
   if (mods.length === 0) return skill;
   const delivery: Delivery = scaledDelivery(skill.delivery, {
     area: scaleOf(mods, 'areaPercent'),
@@ -167,10 +168,10 @@ export function resolveSkill(content: Content, base: SkillDef, allocated: readon
   };
 }
 
-export function resolveSkillBar(content: Content, bar: readonly (string | null)[], allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = []): (SkillDef | null)[] {
+export function resolveSkillBar(content: Content, bar: readonly (string | null)[], allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON): (SkillDef | null)[] {
   return bar.map((id: string | null): SkillDef | null => {
     const skill: SkillDef | undefined = id === null ? undefined : content.skills.get(id);
-    return skill === undefined ? null : resolveSkill(content, skill, allocated, powers, worn);
+    return skill === undefined ? null : resolveSkill(content, skill, allocated, powers, worn, held);
   });
 }
 

@@ -74,6 +74,17 @@ void test('tree skill modifiers reach the skill figures and the bonus list', ():
   assert.equal(texts[1]?.startsWith('Rolling Thunder'), true);
 });
 
+void test('a tree place off the weapon in hand lists only the lines it still gives', (): void => {
+  const tree = content.skillTree.map((node) => (node.id === 'heavy_hands' ? { ...node, weapon: 'heavy' } : node));
+  const tagged: Content = { ...content, skillTree: tree };
+  const held: SheetSubject = subject(7, ['tempered_body', 'heavy_hands'], true);
+  const off: string[] = characterSheet(tagged, held).bonuses.filter((bonus): boolean => bonus.source === 'tree').map((bonus): string => bonus.text);
+  const on: string[] = characterSheet(content, held).bonuses.filter((bonus): boolean => bonus.source === 'tree').map((bonus): string => bonus.text);
+  assert.notDeepEqual(off, on);
+  assert.ok(off.includes('Heavy Hands'));
+  assert.ok(on.some((text: string): boolean => text.startsWith('Heavy Hands: ')));
+});
+
 void test('experience reads against the next level and armour reduces by its own curve', (): void => {
   const sheet: CharacterSheet = characterSheet(content, { ...subject(3, [], false), xp: 10 });
   assert.equal(sheet.xp, 10);

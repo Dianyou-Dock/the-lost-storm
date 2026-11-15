@@ -1,5 +1,6 @@
 import { emptyEquipment } from '../../../sim/items.ts';
 import { computeStats } from '../../../sim/stats.ts';
+import { ANY_WEAPON } from '../../../sim/weapons.ts';
 import type { SkillTreeNodeDef, StatBlock } from '../../../sim/content/types.ts';
 import type { SkillPolicy } from '../../simulate-policies.ts';
 import { namedSkill } from '../builds.ts';
@@ -91,7 +92,7 @@ function routeList(data: GuideData, order: readonly string[], notes: BuildNotes)
 }
 
 function treeStats(data: GuideData, order: readonly string[], level: number): StatBlock {
-  return computeStats(data.content, level, emptyEquipment(), order);
+  return computeStats(data.content, level, emptyEquipment(), order, [], ANY_WEAPON);
 }
 
 function glance(data: GuideData, notes: BuildNotes, order: readonly string[]): string {

@@ -1,4 +1,4 @@
-import type { Content, ItemBaseDef, SkillDef, SkillTreeNodeDef, WeaponGroup, WeaponKind } from './content/types.ts';
+import type { ChartGroup, Content, ItemBaseDef, SkillDef, SkillMod, SkillTarget, SkillTreeNodeDef, StatId, StatMod, WeaponGroup, WeaponKind } from './content/types.ts';
 import type { Equipment } from './world/types.ts';
 
 export function groupOfKind(content: Content, kind: WeaponKind): WeaponGroup | null {
@@ -21,6 +21,30 @@ export function skillAllowed(skill: SkillDef, held: string | null): boolean {
   return skill.weapons.length === 0 || (held !== null && skill.weapons.includes(held));
 }
 
+export const ANY_WEAPON: string = '*';
+
+export const WEAPON_DAMAGE_STATS: ReadonlySet<StatId> = new Set<StatId>(['damagePercent', 'damageMin', 'damageMax', 'critChance', 'critMultiplier', 'attackSpeed']);
+
 export function placeLive(node: SkillTreeNodeDef, held: string | null): boolean {
-  return node.weapon === null || node.weapon === held;
+  return held === ANY_WEAPON || node.weapon === null || node.weapon === held;
+}
+
+export function liveStatMod(mod: StatMod): boolean {
+  return !WEAPON_DAMAGE_STATS.has(mod.stat);
+}
+
+function weaponFree(content: Content, skill: string): boolean {
+  return content.skills.get(skill)?.weapons.length === 0;
+}
+
+export function liveSkillMod(content: Content, mod: SkillMod): boolean {
+  const target: SkillTarget = mod.target;
+  if (target.type === 'skill') return weaponFree(content, target.skill);
+  const members: readonly string[] = content.chart.groups.find((group: ChartGroup): boolean => group.id === target.group)?.skills ?? [];
+  return members.length > 0 && members.every((skill: string): boolean => weaponFree(content, skill));
+}
+
+export function heldPlace(content: Content, node: SkillTreeNodeDef, held: string | null): SkillTreeNodeDef {
+  if (placeLive(node, held)) return node;
+  return { ...node, statMods: node.statMods.filter(liveStatMod), skillMods: node.skillMods.filter((mod: SkillMod): boolean => liveSkillMod(content, mod)), variants: [] };
 }

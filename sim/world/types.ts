@@ -162,6 +162,7 @@ export type Intent = IdleIntent | MoveIntent | AttackIntent | PickupIntent | Tra
 export interface PlayerState extends ActorState {
   readonly kind: 'player';
   hero: string;
+  wielding: string | null;
   mana: number;
   stats: StatBlock;
   bar: (string | null)[];
@@ -516,7 +517,7 @@ export type RespawnPoint = StartRespawn | ExitRespawn | CheckpointRespawn | Wayp
 
 export type AreaStage = 'start' | 'pulse' | 'end';
 
-export type NoticeReason = 'no_mana' | 'on_cooldown' | 'inventory_full' | 'flask_empty' | 'life_full' | 'mana_full' | 'no_gold' | 'stash_full' | 'legendary_limit';
+export type NoticeReason = 'wrong_weapon' | 'no_mana' | 'on_cooldown' | 'inventory_full' | 'flask_empty' | 'life_full' | 'mana_full' | 'no_gold' | 'stash_full' | 'legendary_limit';
 
 export type WorldEvent =
   | { readonly type: 'skill_start'; readonly actorId: number; readonly skill: SkillDef; readonly direction: Vec2; readonly windup: number; readonly recovery: number }
