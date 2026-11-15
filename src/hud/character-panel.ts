@@ -5,8 +5,13 @@ import { DEFENCE_ROWS, OFFENCE_ROWS, SOURCES } from './character-rows.ts';
 import type { SheetRow } from './character-rows.ts';
 import { springTo, stepSpring } from './character-spring.ts';
 import type { Spring } from './character-spring.ts';
-import { el, label } from './dom.ts';
+import { el, label, setText } from './dom.ts';
 import { attachTooltip } from './tooltip.ts';
+import { playerStats } from '../../sim/tally.ts';
+import type { PlayerStats } from '../../sim/tally.ts';
+import type { World } from '../../sim/world/types.ts';
+import { countText, foundLines, ownFigures, playedText, recordLines } from './record-lines.ts';
+import type { FoundLine, RecordFigures, RecordLine } from './record-lines.ts';
 
 const CHARACTER = {
   refreshInterval: 0.2,
@@ -91,6 +96,25 @@ function rowTip(row: SheetRow, sheet: CharacterSheet): HTMLElement {
   return tip;
 }
 
+function foundTip(found: readonly FoundLine[]): HTMLElement {
+  const tip: HTMLDivElement = el('div', 'tip cs-tip', null);
+  label('cs-tip-title', 'Items found', tip);
+  if (found.length === 0) label('cs-tip-note', 'None yet', tip);
+  for (const entry of found) line(tip, entry.name, countText(entry.count));
+  return tip;
+}
+
+function ownRecord(world: World): RecordFigures {
+  const stats: PlayerStats = playerStats(world.content, { kills: world.player.kills, level: world.player.level, zone: world.zone.id, visited: world.visited, quests: world.quests, tally: world.player.tally });
+  return ownFigures(world.content, stats);
+}
+
+interface RecordView {
+  readonly line: RecordLine;
+  readonly value: Animated | null;
+  readonly text: HTMLElement;
+}
+
 function skillTip(skill: SkillOffence): HTMLElement {
   const tip: HTMLDivElement = el('div', 'tip cs-tip', null);
   label('cs-tip-title', skill.name, tip);
@@ -135,6 +159,51 @@ export function createCharacterPanel(parent: HTMLElement, context: HudContext, i
   label('cs-heading wide', 'Bonuses', element);
   const bonusList: HTMLDivElement = el('div', 'cs-bonuses', element);
   let bonusKey: string = '';
+
+  label('cs-heading wide', 'Record', element);
+  const recordList: HTMLDivElement = el('div', 'cs-record', element);
+  let record: RecordFigures = ownRecord(context.api.world);
+  const recordViews: RecordView[] = recordLines(record).map((entry: RecordLine): RecordView => {
+    const holder: HTMLDivElement = el('div', 'cs-row', recordList);
+    label('cs-name', entry.name, holder);
+    const text: HTMLDivElement = el('div', 'cs-value', holder);
+    if (entry.id === 'found') attachTooltip(context.tooltip, holder, (): HTMLElement => foundTip(foundLines(context.api.world.content, record.found)));
+    switch (entry.value.kind) {
+      case 'count': {
+        const view: Animated = animated(text, (values: readonly number[]): string => countText(values[0] ?? 0));
+        views.push(view);
+        return { line: entry, value: view, text };
+      }
+      case 'time': {
+        const view: Animated = animated(text, (values: readonly number[]): string => playedText(values[0] ?? 0));
+        views.push(view);
+        return { line: entry, value: view, text };
+      }
+      case 'text':
+        return { line: entry, value: null, text };
+    }
+    return { line: entry, value: null, text };
+  });
+
+  const aimRecord = (): void => {
+    record = ownRecord(context.api.world);
+    const lines: readonly RecordLine[] = recordLines(record);
+    recordViews.forEach((view: RecordView, index: number): void => {
+      const current: RecordLine | undefined = lines[index];
+      if (current === undefined) return;
+      switch (current.value.kind) {
+        case 'count':
+          if (view.value !== null) aim(view.value, [current.value.value]);
+          return;
+        case 'time':
+          if (view.value !== null) aim(view.value, [current.value.seconds]);
+          return;
+        case 'text':
+          setText(view.text, current.value.text, !fresh);
+          return;
+      }
+    });
+  };
 
   const rebuildSkills = (): void => {
     skillTable.replaceChildren();
@@ -192,6 +261,7 @@ export function createCharacterPanel(parent: HTMLElement, context: HudContext, i
       rebuildBonuses();
     }
     aimAll();
+    aimRecord();
     if (fresh || rebuilt) {
       for (const view of views) snap(view);
       fresh = false;

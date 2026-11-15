@@ -109,6 +109,18 @@
   color: var(--ember);
 }
 
+.cs-record {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0 14px;
+}
+
+.cs-record .cs-value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .cs-bonuses {
   display: grid;
   grid-template-columns: 1fr 1fr;
