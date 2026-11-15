@@ -1,11 +1,13 @@
-import type { Material, Matrix4, Object3D, WebGLRenderTarget } from 'three';
+import type { AnimationClip, Material, Matrix4, Object3D, WebGLRenderTarget } from 'three';
 import { ACESFilmicToneMapping, Box3, BufferAttribute, BufferGeometry, Color, InterleavedBufferAttribute, DirectionalLight, Group, Mesh, MeshStandardMaterial, OrthographicCamera, PMREMGenerator, Scene, SRGBColorSpace, Vector3, WebGLRenderer } from 'three';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import type { Timers } from '../backend/backend.ts';
 import { GPU } from '../gpu-release.ts';
 import { wearKey } from '../../sim/wear.ts';
 import type { Picture } from '../../sim/pictures.ts';
-import type { CharacterLibrary, LoadedAttachment, LoadedWearable } from './character-loader.ts';
+import type { Look } from '../../sim/wear.ts';
+import type { CharacterLibrary, LoadedAttachment, LoadedRig, LoadedWearable, RigInstance } from './character-loader.ts';
+import { instantiateRig } from './character-loader.ts';
 import type { Keepsake } from './keepsake.ts';
 import { createKeepsake } from './keepsake.ts';
 
@@ -46,7 +48,19 @@ export const THUMBNAIL = {
   gapMs: 0,
 } as const;
 
+export const PORTRAIT = {
+  width: 240,
+  height: 360,
+  facing: -0.34,
+  padding: 0.06,
+} as const;
+
 export type ItemThumbnails = ReadonlyMap<string, string>;
+
+export interface PortraitLook {
+  readonly tint: string;
+  readonly glow: string;
+}
 
 interface Shot {
   readonly name: string;
@@ -282,7 +296,23 @@ function bookPose(keepsake: Keepsake): Group {
 
 export interface ThumbnailStudio {
   paint(frame: string, pictures: readonly Picture[]): Promise<ItemThumbnails>;
+  portrait(rig: LoadedRig, look: Look, colours: PortraitLook): Promise<string | null>;
   dispose(): void;
+}
+
+function standingIdle(rig: RigInstance): AnimationClip {
+  if (rig.armed()) return rig.stance()?.idle ?? rig.clips.idle;
+  return rig.clips.unarmed?.idle ?? rig.clips.idle;
+}
+
+function fit(camera: OrthographicCamera, size: Vector3, width: number, height: number, padding: number): void {
+  const aspect: number = width / height;
+  const halfHeight: number = Math.max(size.y / 2, size.x / 2 / aspect) * (1 + padding);
+  camera.left = -halfHeight * aspect;
+  camera.right = halfHeight * aspect;
+  camera.top = halfHeight;
+  camera.bottom = -halfHeight;
+  camera.updateProjectionMatrix();
 }
 
 interface Studio {
@@ -334,6 +364,12 @@ function openStudio(): Studio {
 export function createThumbnailStudio(library: CharacterLibrary, skinTint: string, timers: Timers): ThumbnailStudio {
   let studio: Studio | null = null;
   let closed: boolean = false;
+  let line: Promise<unknown> = Promise.resolve();
+  const inTurn = <T>(work: () => Promise<T>): Promise<T> => {
+    const next: Promise<T> = line.then(work);
+    line = next.catch((): null => null);
+    return next;
+  };
   const shotFor = (frame: string, picture: Picture, made: Made, keepsakes: Keepsake[]): Shot | null => {
     const { source } = picture;
     let shot: Shot | null = null;
@@ -359,46 +395,77 @@ export function createThumbnailStudio(library: CharacterLibrary, skinTint: strin
     }
     return shot;
   };
+  const shoot = async (rig: LoadedRig, look: Look, colours: PortraitLook): Promise<string | null> => {
+    if (closed) return null;
+    studio ??= openStudio();
+    const { renderer, scene, camera } = studio;
+    const made: RigInstance = instantiateRig(rig, library, { tint: colours.tint, glow: colours.glow, ghost: null, feather: false });
+    made.root.rotation.y = PORTRAIT.facing;
+    made.setWear(look.wearables, look.hidden);
+    made.setGear(look.held);
+    made.mixer.clipAction(standingIdle(made)).play();
+    made.mixer.update(0);
+    scene.add(made.root);
+    made.root.updateMatrixWorld(true);
+    const bounds: Box3 = new Box3().setFromObject(made.root, true);
+    made.root.position.sub(bounds.getCenter(new Vector3()));
+    fit(camera, bounds.getSize(new Vector3()), PORTRAIT.width, PORTRAIT.height, PORTRAIT.padding);
+    renderer.setSize(PORTRAIT.width, PORTRAIT.height, false);
+    await renderer.compileAsync(scene, camera).catch((): Object3D => scene);
+    renderer.render(scene, camera);
+    const encoded: Promise<string | null> = encode(renderer.domElement);
+    made.root.removeFromParent();
+    made.dispose();
+    const url: string | null = await encoded;
+    renderer.setSize(THUMBNAIL.size, THUMBNAIL.size, false);
+    return url;
+  };
+  const paint = async (frame: string, pictures: readonly Picture[]): Promise<ItemThumbnails> => {
+    const images: Map<string, string> = new Map<string, string>();
+    if (closed || pictures.length === 0) return images;
+    studio ??= openStudio();
+    const { renderer, scene, camera } = studio;
+    const made: Made = { materials: [], geometries: [] };
+    const keepsakes: Keepsake[] = [];
+    const shots: Shot[] = [];
+    for (const picture of pictures) {
+      const shot: Shot | null = shotFor(frame, picture, made, keepsakes);
+      if (shot !== null) shots.push(shot);
+    }
+
+    for (const shot of shots) scene.add(shot.posed);
+    await renderer.compileAsync(scene, camera).catch((): Object3D => scene);
+    for (const shot of shots) shot.posed.removeFromParent();
+
+    await oneAtATime(shots, timers, THUMBNAIL.gapMs, async (shot: Shot): Promise<void> => {
+      const { posed } = shot;
+      scene.add(posed);
+      const bounds: Box3 = shot.frame(posed);
+      posed.position.sub(bounds.getCenter(new Vector3()));
+      const size: Vector3 = bounds.getSize(new Vector3());
+      const half: number = (Math.max(size.x, size.y) / 2) * (1 + THUMBNAIL.padding);
+      camera.left = -half;
+      camera.right = half;
+      camera.top = half;
+      camera.bottom = -half;
+      camera.updateProjectionMatrix();
+      renderer.render(scene, camera);
+      const encoded: Promise<string | null> = encode(renderer.domElement);
+      posed.removeFromParent();
+      const url: string | null = await encoded;
+      if (url !== null) images.set(shot.name, url);
+    });
+    for (const material of made.materials) material.dispose();
+    for (const geometry of made.geometries) geometry.dispose();
+    for (const keepsake of keepsakes) keepsake.dispose();
+    return images;
+  };
   return {
-    async paint(frame: string, pictures: readonly Picture[]): Promise<ItemThumbnails> {
-      const images: Map<string, string> = new Map<string, string>();
-      if (closed || pictures.length === 0) return images;
-      studio ??= openStudio();
-      const { renderer, scene, camera } = studio;
-      const made: Made = { materials: [], geometries: [] };
-      const keepsakes: Keepsake[] = [];
-      const shots: Shot[] = [];
-      for (const picture of pictures) {
-        const shot: Shot | null = shotFor(frame, picture, made, keepsakes);
-        if (shot !== null) shots.push(shot);
-      }
-
-      for (const shot of shots) scene.add(shot.posed);
-      await renderer.compileAsync(scene, camera).catch((): Object3D => scene);
-      for (const shot of shots) shot.posed.removeFromParent();
-
-      await oneAtATime(shots, timers, THUMBNAIL.gapMs, async (shot: Shot): Promise<void> => {
-        const { posed } = shot;
-        scene.add(posed);
-        const bounds: Box3 = shot.frame(posed);
-        posed.position.sub(bounds.getCenter(new Vector3()));
-        const size: Vector3 = bounds.getSize(new Vector3());
-        const half: number = (Math.max(size.x, size.y) / 2) * (1 + THUMBNAIL.padding);
-        camera.left = -half;
-        camera.right = half;
-        camera.top = half;
-        camera.bottom = -half;
-        camera.updateProjectionMatrix();
-        renderer.render(scene, camera);
-        const encoded: Promise<string | null> = encode(renderer.domElement);
-        posed.removeFromParent();
-        const url: string | null = await encoded;
-        if (url !== null) images.set(shot.name, url);
-      });
-      for (const material of made.materials) material.dispose();
-      for (const geometry of made.geometries) geometry.dispose();
-      for (const keepsake of keepsakes) keepsake.dispose();
-      return images;
+    paint(frame: string, pictures: readonly Picture[]): Promise<ItemThumbnails> {
+      return inTurn((): Promise<ItemThumbnails> => paint(frame, pictures));
+    },
+    portrait(rig: LoadedRig, look: Look, colours: PortraitLook): Promise<string | null> {
+      return inTurn((): Promise<string | null> => shoot(rig, look, colours));
     },
     dispose(): void {
       closed = true;

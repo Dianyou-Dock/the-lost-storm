@@ -96,7 +96,7 @@ function rowTip(row: SheetRow, sheet: CharacterSheet): HTMLElement {
   return tip;
 }
 
-function foundTip(found: readonly FoundLine[]): HTMLElement {
+export function foundTip(found: readonly FoundLine[]): HTMLElement {
   const tip: HTMLDivElement = el('div', 'tip cs-tip', null);
   label('cs-tip-title', 'Items found', tip);
   if (found.length === 0) label('cs-tip-note', 'None yet', tip);

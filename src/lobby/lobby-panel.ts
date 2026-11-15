@@ -21,6 +21,7 @@ export interface LobbyPanelOptions {
   readonly title: string;
   readonly rows: number;
   readonly ticker: boolean;
+  readonly pick: ((name: string) => void) | null;
 }
 
 export const LOBBY_PANEL: { readonly tickerMs: number; readonly tickerLines: number; readonly swapMs: number; readonly empty: string; readonly unreachable: string } = {
@@ -96,9 +97,9 @@ export function createLobbyPanel(parent: HTMLElement, options: LobbyPanelOptions
   let drawn: string | null = null;
   const head: HTMLDivElement = el('div', 'lobby-head', root);
   label('lobby-title', options.title, head);
-  const online: OnlineList = createOnlineList(head, root);
+  const online: OnlineList = createOnlineList(head, root, options.pick);
   const list: HTMLOListElement = el('ol', 'lobby-board', root);
-  const board: BoardView = createBoardView(list, options.rows);
+  const board: BoardView = createBoardView(list, options.rows, options.pick);
   const note: HTMLDivElement = label('lobby-note', '', root);
   const ticker: Ticker | null = options.ticker ? createTicker(root) : null;
 

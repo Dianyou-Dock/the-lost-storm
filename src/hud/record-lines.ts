@@ -1,9 +1,11 @@
 import type { Content, RarityDef } from '../../sim/content/types.ts';
 import type { PlayerStats } from '../../sim/tally.ts';
+import type { CharacterProfile } from '../backend/api.ts';
 
 export const RECORD = {
   secondsPerMinute: 60,
   minutesPerHour: 60,
+  msPerSecond: 1000,
   under: 'Under a minute',
 } as const;
 
@@ -104,6 +106,23 @@ export function ownFigures(content: Content, stats: PlayerStats): RecordFigures 
     deaths: stats.deaths,
     level: stats.level,
     furthest: content.zones.get(stats.furthest)?.name ?? stats.furthest,
+    goldLooted: stats.goldLooted,
+    found: stats.found,
+    biggestHit: stats.biggestHit,
+    quests: stats.quests,
+    moments: stats.moments,
+  };
+}
+
+export function profileFigures(profile: CharacterProfile): RecordFigures {
+  const { stats } = profile;
+  return {
+    playedSeconds: stats.playedMs / RECORD.msPerSecond,
+    kills: stats.kills,
+    bosses: stats.bosses,
+    deaths: stats.deaths,
+    level: Math.max(stats.bestLevel, profile.level),
+    furthest: profile.furthest,
     goldLooted: stats.goldLooted,
     found: stats.found,
     biggestHit: stats.biggestHit,

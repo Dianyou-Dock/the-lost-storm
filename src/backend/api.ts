@@ -2,6 +2,8 @@ import type { Content } from '../../sim/content/types.ts';
 import type { Fields } from '../../sim/content/read.ts';
 import { isFields } from '../../sim/content/read.ts';
 import type { SaveData } from '../../sim/save.ts';
+import type { ItemSlot } from '../../sim/content/types.ts';
+import type { RolledAffix } from '../../sim/world/types.ts';
 import { readSave } from '../../sim/save.ts';
 import { epochOf, isEpoch } from './epoch.ts';
 import { readFold } from './purse-read.ts';
@@ -130,6 +132,45 @@ export interface Leaderboard {
   readonly characters: number;
   readonly levelUps: readonly LevelUpNote[];
 }
+
+export interface WornItem {
+  readonly slot: ItemSlot;
+  readonly base: string;
+  readonly rarity: string;
+  readonly level: number;
+  readonly affixes: readonly RolledAffix[];
+}
+
+export interface ProfileStats {
+  readonly playedMs: number;
+  readonly kills: number;
+  readonly bosses: number;
+  readonly deaths: number;
+  readonly bestLevel: number;
+  readonly biggestHit: number;
+  readonly goldLooted: number;
+  readonly moments: number;
+  readonly quests: number;
+  readonly found: Readonly<Record<string, number>>;
+}
+
+export interface ProfileBuild {
+  readonly bar: readonly (string | null)[];
+  readonly places: number;
+}
+
+export interface CharacterProfile {
+  readonly name: string;
+  readonly hero: string | null;
+  readonly level: number;
+  readonly furthest: string;
+  readonly online: boolean;
+  readonly stats: ProfileStats;
+  readonly worn: readonly WornItem[];
+  readonly build: ProfileBuild | null;
+}
+
+export type ProfileLookup = { readonly kind: 'ok'; readonly profile: CharacterProfile } | { readonly kind: 'missing' } | { readonly kind: 'unsupported' } | { readonly kind: 'failed' };
 
 export type NameRefusal = 'name_length' | 'name_characters' | 'name_blocked' | 'name_taken';
 

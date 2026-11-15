@@ -1,4 +1,5 @@
 import { arrange, el, setAttr, setClass, setText } from '../hud/dom.ts';
+import { listenForPicks, PICK } from './board-view.ts';
 import { arrivalsText, moreText, onlineText, presentLevelText } from './lobby-model.ts';
 import type { PresentRow, PresentView } from './lobby-model.ts';
 
@@ -21,8 +22,12 @@ interface RowParts {
   readonly level: HTMLSpanElement;
 }
 
-function makeRow(list: HTMLOListElement): RowParts {
+function makeRow(list: HTMLOListElement, pickable: boolean): RowParts {
   const item: HTMLLIElement = el('li', 'present-row entering', list);
+  if (pickable) {
+    item.classList.add(PICK.className);
+    item.tabIndex = 0;
+  }
   el('span', 'board-dot on', item);
   const name: HTMLSpanElement = el('span', 'present-name', item);
   const place: HTMLSpanElement = el('span', 'present-place', item);
@@ -37,7 +42,7 @@ function fill(parts: RowParts, row: PresentRow, animate: boolean): void {
   setClass(parts.item, 'you', row.own);
 }
 
-export function createOnlineList(head: HTMLElement, panel: HTMLElement): OnlineList {
+export function createOnlineList(head: HTMLElement, panel: HTMLElement, pick: ((name: string) => void) | null): OnlineList {
   const button: HTMLButtonElement = el('button', 'lobby-online', head);
   button.type = 'button';
   button.disabled = true;
@@ -52,6 +57,8 @@ export function createOnlineList(head: HTMLElement, panel: HTMLElement): OnlineL
   const more: HTMLDivElement = el('div', 'present-note', body);
   const arrivals: HTMLDivElement = el('div', 'present-note', body);
   const rows: Map<string, RowParts> = new Map<string, RowParts>();
+  const names: Map<Element, string> = new Map<Element, string>();
+  if (pick !== null) listenForPicks(list, names, pick);
   let open: boolean = false;
   let listable: boolean = false;
 
@@ -77,15 +84,17 @@ export function createOnlineList(head: HTMLElement, panel: HTMLElement): OnlineL
     for (const [name, parts] of rows) {
       if (keep.has(name)) continue;
       rows.delete(name);
+      names.delete(parts.item);
       leave(parts, before.get(parts.item) ?? 0);
     }
     const arrived: RowParts[] = [];
     const order: HTMLLIElement[] = [];
     for (const row of view.rows) {
       const existing: RowParts | undefined = rows.get(row.name);
-      const parts: RowParts = existing ?? makeRow(list);
+      const parts: RowParts = existing ?? makeRow(list, pick !== null);
       if (existing === undefined) arrived.push(parts);
       rows.set(row.name, parts);
+      names.set(parts.item, row.name);
       fill(parts, row, existing !== undefined && open);
       order.push(parts.item);
     }

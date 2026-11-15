@@ -9,6 +9,8 @@ import type { Ranking } from '../backend/api.ts';
 import { createLobbyFeed } from './lobby-feed.ts';
 import type { LobbyFeed } from './lobby-feed.ts';
 import { createLobbyPanel } from './lobby-panel.ts';
+import { createProfileDoor } from '../profile/profile-door.ts';
+import type { ProfileDoor } from '../profile/profile-door.ts';
 import type { LobbyPanel } from './lobby-panel.ts';
 
 export interface CompactLeaderboardOptions {
@@ -22,6 +24,8 @@ export interface Lobby {
   readonly service: LobbyService;
   readonly feed: LobbyFeed;
   readonly boards: Readonly<Record<Ranking, LobbyFeed>>;
+  readonly profiles: ProfileDoor;
+  readonly serverUrl: string;
 }
 
 export function rankedService(service: LobbyService, by: Ranking): LobbyService {
@@ -40,7 +44,7 @@ export function createBrowserLobby(rawUrl: string | undefined, withAccount: bool
   });
   const feedFor = (by: Ranking): LobbyFeed => createLobbyFeed(rankedService(service, by), createBrowserTimers(), (): number => Date.now());
   const feed: LobbyFeed = feedFor('level');
-  return { service, feed, boards: { level: feed, damage: feedFor('damage'), life: feedFor('life'), played: feedFor('played'), kills: feedFor('kills'), deaths: feedFor('deaths') } };
+  return { service, feed, boards: { level: feed, damage: feedFor('damage'), life: feedFor('life'), played: feedFor('played'), kills: feedFor('kills'), deaths: feedFor('deaths') }, profiles: createProfileDoor(), serverUrl: server.url };
 }
 
 export function watchFocus(feed: LobbyFeed): () => void {
@@ -59,7 +63,7 @@ export function mountCompactLeaderboard(root: HTMLElement, options: CompactLeade
   const lobby: Lobby | null = createBrowserLobby(options.serverUrl ?? import.meta.env.VITE_SERVER_URL, options.withAccount ?? false);
   if (lobby === null) return (): void => undefined;
   root.classList.add('lobby');
-  const panel: LobbyPanel = createLobbyPanel(root, { title: options.title ?? COMPACT.title, rows: options.rows ?? COMPACT.rows, ticker: true });
+  const panel: LobbyPanel = createLobbyPanel(root, { title: options.title ?? COMPACT.title, rows: options.rows ?? COMPACT.rows, ticker: true, pick: null });
   const unsubscribe: () => void = lobby.feed.subscribe((board): void => panel.show(board));
   const unwatch: () => void = watchFocus(lobby.feed);
   lobby.feed.every(COMPACT.refreshMs);

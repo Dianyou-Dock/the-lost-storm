@@ -42,6 +42,7 @@ export interface HideoutParts {
   readonly sight: Sight;
   readonly screen: Pick<Hud, 'attachPlayerTrade'>;
   readonly sync: () => Promise<void>;
+  readonly openProfile: ((name: string) => void) | null;
 }
 
 export interface Hideout {
@@ -81,7 +82,7 @@ export function startHideout(rawUrl: string | undefined, parts: HideoutParts): H
   });
   const trade: PlayerTrade = createTradeFlow({ live: server.live, world: (): World | null => current, sync: parts.sync, clock: (): number => Date.now(), timers: WINDOW_TIMERS });
   parts.screen.attachPlayerTrade(trade);
-  const menu: HideoutMenu = startHideoutMenu({ server, chat, mutes, others, root: parts.hud, frame: parts.labels, events: window, openDirect: (name: string): void => chat.openDirect(name), trade: { ready: (): boolean => trade.ready(), busy: (): boolean => tradeBusy(trade.state()), start: (target: OtherTarget): void => trade.ask(target.id, target.name) } });
+  const menu: HideoutMenu = startHideoutMenu({ server, chat, mutes, others, root: parts.hud, frame: parts.labels, events: window, openDirect: (name: string): void => chat.openDirect(name), openProfile: parts.openProfile, trade: { ready: (): boolean => trade.ready(), busy: (): boolean => tradeBusy(trade.state()), start: (target: OtherTarget): void => trade.ask(target.id, target.name) } });
   server.live.subscribe((event: LiveEvent): void => {
     others.handle(event);
     chat.handle(event);

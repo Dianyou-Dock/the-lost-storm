@@ -50,7 +50,7 @@ function typing(target: EventTarget | null): boolean {
 
 export function mountGameBoard(hud: HTMLElement, lobby: Lobby, options: GameBoardOptions): GameBoard {
   const root: HTMLDivElement = el('div', 'lobby game-lobby', hud);
-  const panel: LobbyPanel = createLobbyPanel(root, { title: 'Ladder', rows: GAME_BOARD.rows, ticker: false });
+  const panel: LobbyPanel = createLobbyPanel(root, { title: 'Ladder', rows: GAME_BOARD.rows, ticker: false, pick: (name: string): void => lobby.profiles.open(name) });
   const pinned: HTMLDivElement = el('div', 'lobby-pinned board-row you', panel.root);
   const pinRank: HTMLSpanElement = el('span', 'board-rank', pinned);
   el('span', 'board-dot on', pinned);

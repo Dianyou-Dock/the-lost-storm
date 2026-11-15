@@ -146,7 +146,8 @@
   box-sizing: border-box;
   transition:
     transform var(--spring-smooth-ms) var(--spring-smooth),
-    opacity var(--spring-smooth-ms) var(--spring-smooth);
+    opacity var(--spring-smooth-ms) var(--spring-smooth),
+    background-color var(--spring-snappy-ms) var(--spring-snappy);
 }
 
 .present-row.flip {
@@ -365,6 +366,15 @@
 .board-row[data-account]:is(:hover, :focus-visible) .board-account {
   opacity: 1;
   transform: none;
+}
+
+.lobby .profile-pick {
+  cursor: pointer;
+  outline: none;
+}
+
+.lobby .profile-pick:is(:hover, :focus-visible):not(.you) {
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .board-level {

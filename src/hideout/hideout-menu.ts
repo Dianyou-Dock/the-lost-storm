@@ -30,6 +30,7 @@ export interface HideoutMenuOptions {
   readonly frame: HTMLElement;
   readonly events: Window;
   readonly openDirect: ((name: string) => void) | null;
+  readonly openProfile: ((name: string) => void) | null;
   readonly trade: TradeStarter | null;
 }
 
@@ -144,6 +145,7 @@ export function startHideoutMenu(options: HideoutMenuOptions): HideoutMenu {
     blocksAvailable: blocks.available,
     reportAvailable,
     canMessage: options.openDirect !== null,
+    canProfile: options.openProfile !== null,
     trade: tradeOf(from, options.trade, others, where),
     reported: reported.has(reportKey(from)),
     busy,
@@ -218,6 +220,10 @@ export function startHideoutMenu(options: HideoutMenuOptions): HideoutMenu {
     const from: MenuOrigin = origin;
     const name: string = originName(from);
     switch (choice.type) {
+      case 'profile':
+        options.openProfile?.(name);
+        view.close('outside');
+        return;
       case 'message':
         options.openDirect?.(name);
         view.close('outside');

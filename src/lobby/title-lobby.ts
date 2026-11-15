@@ -19,7 +19,7 @@ export const TITLE_LOBBY: { readonly tabProperty: string; readonly tabRowPropert
 
 export function mountTitleLobby(root: HTMLElement, lobby: Lobby): TitleLobby {
   root.classList.add(TITLE_LOBBY.rankedClass);
-  const panel: LobbyPanel = createLobbyPanel(root, { title: COMPACT.title, rows: COMPACT.rows, ticker: true });
+  const panel: LobbyPanel = createLobbyPanel(root, { title: COMPACT.title, rows: COMPACT.rows, ticker: true, pick: (name: string): void => lobby.profiles.open(name) });
   const tabs: HTMLDivElement = el('div', 'lobby-tabs', null);
   tabs.setAttribute('role', 'tablist');
   tabs.setAttribute('aria-label', 'Rank by');

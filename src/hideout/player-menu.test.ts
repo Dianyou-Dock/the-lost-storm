@@ -12,6 +12,7 @@ const FACTS: MenuFacts = {
   blocksAvailable: true,
   reportAvailable: true,
   canMessage: false,
+  canProfile: false,
   trade: 'unsupported',
   reported: false,
   busy: new Set<EntryId>(),
@@ -29,21 +30,22 @@ function act(facts: MenuFacts, id: EntryId): MenuAction | null {
   return actionOf(entry(facts, id), facts);
 }
 
-void test('the menu always has the same six entries in the same order, so it never changes shape', (): void => {
-  const variants: readonly MenuFacts[] = [FACTS, { ...FACTS, blocked: true, muted: true, friend: 'friends', canMessage: true, trade: 'ready' }, { ...FACTS, blocksAvailable: false, reportAvailable: false }];
+void test('the menu always has the same seven entries in the same order, so it never changes shape', (): void => {
+  const variants: readonly MenuFacts[] = [FACTS, { ...FACTS, blocked: true, muted: true, friend: 'friends', canMessage: true, canProfile: true, trade: 'ready' }, { ...FACTS, blocksAvailable: false, reportAvailable: false }];
   const shapes: readonly (readonly EntryId[])[] = variants.map((facts: MenuFacts): readonly EntryId[] => menuEntries(facts).map((made: MenuEntry): EntryId => made.id));
-  for (const shape of shapes) assert.deepEqual(shape, ['message', 'trade', 'friend', 'mute', 'block', 'report']);
+  for (const shape of shapes) assert.deepEqual(shape, ['profile', 'message', 'trade', 'friend', 'mute', 'block', 'report']);
 });
 
-void test('Message and Trade that the server does not offer are shown disabled with Soon', (): void => {
-  for (const id of ['message', 'trade'] as const) {
+void test('Profile, Message and Trade that the server does not offer are shown disabled with Soon', (): void => {
+  for (const id of ['profile', 'message', 'trade'] as const) {
     const made: MenuEntry = entry(FACTS, id);
     assert.equal(made.enabled, false);
     assert.equal(made.soon, true);
     assert.equal(made.detail, PLAYER_MENU.soon);
     assert.equal(act(FACTS, id), null);
   }
-  const ready: MenuFacts = { ...FACTS, canMessage: true, trade: 'ready' };
+  const ready: MenuFacts = { ...FACTS, canMessage: true, canProfile: true, trade: 'ready' };
+  assert.deepEqual(act(ready, 'profile'), { type: 'profile' });
   assert.deepEqual(act(ready, 'message'), { type: 'message' });
   assert.deepEqual(act(ready, 'trade'), { type: 'trade' });
 });

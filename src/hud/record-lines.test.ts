@@ -5,8 +5,9 @@ import type { Content } from '../../sim/content/types.ts';
 import { emptyTally, playerStats } from '../../sim/tally.ts';
 import { createWorld } from '../../sim/world/create.ts';
 import { toSave } from '../../sim/save.ts';
+import type { CharacterProfile } from '../backend/api.ts';
 import { must } from '../../test/support.ts';
-import { countText, foundLines, foundTotal, ownFigures, playedText, recordLines, valueText } from './record-lines.ts';
+import { countText, foundLines, foundTotal, ownFigures, playedText, profileFigures, recordLines, valueText } from './record-lines.ts';
 import type { RecordLine } from './record-lines.ts';
 
 const content: Content = loadContent();
@@ -46,4 +47,21 @@ void test('your own record comes from the save: every line in order, the zone by
   assert.equal(text('kills'), '1,500');
   assert.equal(text('deaths'), '4');
   assert.equal(text('furthest'), must(content.zones.get(world.zone.id), 'zone').name);
+});
+
+void test('a profile record takes the server time in milliseconds and the higher of its best and current level', (): void => {
+  const profile: CharacterProfile = {
+    name: 'Rook',
+    hero: null,
+    level: 5,
+    furthest: 'Stillhold',
+    online: false,
+    stats: { playedMs: 90 * 60_000, kills: 3, bosses: 0, deaths: 1, bestLevel: 6, biggestHit: 20, goldLooted: 40, moments: 0, quests: 2, found: {} },
+    worn: [],
+    build: null,
+  };
+  const figures = profileFigures(profile);
+  assert.equal(figures.playedSeconds, 5400);
+  assert.equal(figures.level, 6);
+  assert.equal(figures.furthest, 'Stillhold');
 });

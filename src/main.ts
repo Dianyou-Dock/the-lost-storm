@@ -48,7 +48,8 @@ import { startAuction } from './auction/auction-start.ts';
 import type { Minter } from './backend/minter.ts';
 import { createHud } from './hud/hud.ts';
 import { findLabel } from './hud/pickup-notes.ts';
-import type { Hud } from './hud/hud-api.ts';
+import type { Hud, HudApi } from './hud/hud-api.ts';
+import { startProfile } from './profile/profile-start.ts';
 import type { Input } from './input.ts';
 import { createInput } from './input.ts';
 import { createPauseMenu } from './hud/pause-menu.ts';
@@ -118,7 +119,6 @@ import type { IsoCamera } from './render/iso-camera.ts';
 import { createIsoCamera, liftAt } from './render/iso-camera.ts';
 import { cutawayCompany, setCutawayCompany } from './render/prop-cutaway.ts';
 import { cameraSight } from './render/sight.ts';
-import type { ItemPictures } from './render/item-pictures.ts';
 import { startItemPictures } from './render/item-pictures-start.ts';
 import type { LootView } from './render/loot-view.ts';
 import { createLootView } from './render/loot-view.ts';
@@ -238,7 +238,7 @@ async function start(): Promise<void> {
   };
   const pick: HeroPick = createHeroPick({ content, chosen: startingHero(content, save === null ? null : world.player.hero, keptHero), standing: (): PlayerState => world.player, entered: (): boolean => entered, keep: keepChosen, restage: (): void => flow.restage(), settled: (): Promise<void> => {
     wantCarried();
-    return pictures.settled();
+    return pictures.items.settled();
   }, load: (id: string): Promise<void> => loadNeeds(loader, content, dresser, library, zoneCharacterNeeds(content, world.zone, world.player.equipped, id)) });
   const propDresser: Dresser = (dress: Readonly<Record<string, string>>, material: Material): Material => dressedProp(content, dress, material, propDressing(world.zone));
   const [library, firstView]: [CharacterLibrary, ZoneView] = await Promise.all([loadCharacters(loader, content, dresser, zoneCharacterNeeds(content, world.zone, world.player.equipped, world.player.hero)), buildZoneView(loader, content, world.zone, stage.scene, mobile.quality.tier.name)]);
@@ -296,9 +296,8 @@ async function start(): Promise<void> {
   const ward: Ward = createWard(stage.scene);
   const actors: Actors = createActors(stage.scene, library, world, mobile.quality.tier.msaaSamples > 0, cameraSight(stage.camera), particles);
   const figureGauge: FigureGauge = createFigureGauge(figureJoints(content.rigs.get(heroRig(content, world.player.hero))?.bodyParts ?? {}));
-  const pictures: ItemPictures = startItemPictures({ content, library, loader, dresser, hero: (): string | null => pick.chosen ?? world.player.hero, refresh: (): void => hud.refreshItems() });
-  const itemImage = (item: ItemInstance): string | null => pictures.image(item);
-  const wantCarried = (): void => pictures.want(carriedPictures(content, world.player));
+  const pictures = startItemPictures({ content, library, loader, dresser, hero: (): string | null => pick.chosen ?? world.player.hero, refresh: (): void => { hud.refreshItems(); profilePanel?.refreshItems(); } });
+  const wantCarried = (): void => pictures.items.want(carriedPictures(content, world.player));
   const voice: VoicePlayer = {
     play(line: LineDef): Promise<void> {
       return audio.playVoice(line.speaker, line.id).catch((): void => undefined);
@@ -322,10 +321,10 @@ async function start(): Promise<void> {
   });
 
   const qualityTier = (): string => (mobile.quality.tier.name === 'desktop' ? gameSettings.get().graphics.quality : `${gameSettings.get().graphics.quality} ${mobile.quality.tier.name}`);
-  const hud: Hud = createHud(element('hud', HTMLDivElement), {
+  const hudApi: HudApi = {
     world,
     send,
-    itemImage,
+    itemImage: (item: ItemInstance): string | null => pictures.items.image(item),
     unverified: (item: ItemInstance): boolean => minter?.unverified(world, item) ?? false,
     audio: controls,
     settings: gameSettings,
@@ -338,7 +337,9 @@ async function start(): Promise<void> {
     qualityTier,
     overlays: overlayManager,
     auction: startAuction({ content, serverUrl: import.meta.env.VITE_SERVER_URL, backend, world, send, save: (): void => saveNow(), unverified: (item: ItemInstance): boolean => minter?.unverified(world, item) ?? true }),
-  });
+  };
+  const hud: Hud = createHud(element('hud', HTMLDivElement), hudApi);
+  const profilePanel = startProfile(lobby, { api: hudApi, content, pictures, hosts: { play: element('hud', HTMLDivElement), lobby: element('lobby', HTMLDivElement) } });
   const overlays: Overlays = createOverlays(element('overlays', HTMLDivElement), camera, {
     findLabel: findLabel(mobile.touch),
     nameKeys: (): readonly string[] => gameSettings.keys().bindingsOf('names'),
@@ -359,7 +360,7 @@ async function start(): Promise<void> {
       hud.requestMap(true);
     },
   });
-  const hideout = startHideout(import.meta.env.VITE_SERVER_URL, { scene: stage.scene, library, content, feather: mobile.quality.tier.msaaSamples > 0, camera, labels: element('overlays', HTMLDivElement), hud: element('hud', HTMLDivElement), loader, dresser, sight: cameraSight(stage.camera), screen: hud, sync: (): Promise<void> => { dirty = true; saveNow(); return backend.sync(); } });
+  const hideout = startHideout(import.meta.env.VITE_SERVER_URL, { scene: stage.scene, library, content, feather: mobile.quality.tier.msaaSamples > 0, camera, labels: element('overlays', HTMLDivElement), hud: element('hud', HTMLDivElement), loader, dresser, sight: cameraSight(stage.camera), screen: hud, sync: (): Promise<void> => { dirty = true; saveNow(); return backend.sync(); }, openProfile: lobby === null ? null : (name: string): void => lobby.profiles.open(name) });
   const objectiveMarker: ObjectiveMarker = createObjectiveMarker(stage.scene, camera, element('hud', HTMLDivElement));
   const ladder: GameBoard | null = lobby === null ? null : mountGameBoard(element('hud', HTMLDivElement), lobby, { isToggleKey: (code: string): boolean => gameSettings.keys().actionOf(code) === 'ladder', overlays: overlayManager });
   const minimap: Minimap = createMinimap(element('hud', HTMLDivElement), { world, send, clickMarker: (x: number, z: number, hostile: boolean): void => effects.clickMarker(x, z, hostile), isToggleKey: (code: string): boolean => gameSettings.keys().actionOf(code) === 'minimap' });

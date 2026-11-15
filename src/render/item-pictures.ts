@@ -22,6 +22,7 @@ export interface ItemPicturesDeps {
 
 export interface ItemPictures {
   image(item: ItemInstance): string | null;
+  imageOn(frame: string, item: ItemInstance): string | null;
   want(pictures: readonly Picture[]): void;
   settled(): Promise<void>;
 }
@@ -97,8 +98,7 @@ export function createItemPictures(deps: ItemPicturesDeps): ItemPictures {
     working = run();
   };
 
-  const enqueue = (picture: Picture, into: Queued[]): void => {
-    const frame: string = deps.frame();
+  const enqueue = (frame: string, picture: Picture, into: Queued[]): void => {
     const key: string = pictureCacheKey(frame, picture);
     if (known.has(key)) {
       const waiting: number = lazy.findIndex((entry: Queued): boolean => entry.frame === frame && entry.picture.key === picture.key);
@@ -109,21 +109,27 @@ export function createItemPictures(deps: ItemPicturesDeps): ItemPictures {
     into.push({ frame, picture });
   };
 
+  const imageOn = (frame: string, item: ItemInstance): string | null => {
+    const picture: Picture | null = pictureOf(deps.content, item);
+    if (picture === null) return null;
+    const key: string = pictureCacheKey(frame, picture);
+    const found: string | undefined = images.get(key);
+    if (found !== undefined) return found;
+    if (!known.has(key)) {
+      enqueue(frame, picture, lazy);
+      start();
+    }
+    return null;
+  };
+
   return {
     image(item: ItemInstance): string | null {
-      const picture: Picture | null = pictureOf(deps.content, item);
-      if (picture === null) return null;
-      const key: string = pictureCacheKey(deps.frame(), picture);
-      const found: string | undefined = images.get(key);
-      if (found !== undefined) return found;
-      if (!known.has(key)) {
-        enqueue(picture, lazy);
-        start();
-      }
-      return null;
+      return imageOn(deps.frame(), item);
     },
+    imageOn,
     want(pictures: readonly Picture[]): void {
-      for (const picture of pictures) enqueue(picture, urgent);
+      const frame: string = deps.frame();
+      for (const picture of pictures) enqueue(frame, picture, urgent);
       if (urgent.length > 0) start();
     },
     settled(): Promise<void> {

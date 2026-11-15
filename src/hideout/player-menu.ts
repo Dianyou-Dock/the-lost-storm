@@ -8,7 +8,7 @@ export const PLAYER_MENU = {
 
 export type FriendStanding = 'none' | 'requested' | 'incoming' | 'friends' | 'unknown';
 
-export type EntryId = 'message' | 'trade' | 'friend' | 'mute' | 'block' | 'report';
+export type EntryId = 'profile' | 'message' | 'trade' | 'friend' | 'mute' | 'block' | 'report';
 
 export type MenuStep = 'entries' | 'confirm_block' | 'report';
 
@@ -30,6 +30,7 @@ export interface MenuFacts {
   readonly blocksAvailable: boolean;
   readonly reportAvailable: boolean;
   readonly canMessage: boolean;
+  readonly canProfile: boolean;
   readonly trade: TradeStanding;
   readonly reported: boolean;
   readonly busy: ReadonlySet<EntryId>;
@@ -44,6 +45,7 @@ export interface MenuEntry {
 }
 
 export type MenuAction =
+  | { readonly type: 'profile' }
   | { readonly type: 'message' }
   | { readonly type: 'trade' }
   | { readonly type: 'befriend' }
@@ -132,6 +134,7 @@ function tradeEntry(facts: MenuFacts): MenuEntry {
 export function menuEntries(facts: MenuFacts): readonly MenuEntry[] {
   const busy = (id: EntryId): boolean => facts.busy.has(id);
   return [
+    { id: 'profile', label: 'Profile', detail: facts.canProfile ? 'What they wear and how far they came' : PLAYER_MENU.soon, enabled: facts.canProfile, soon: !facts.canProfile },
     { id: 'message', label: 'Message', detail: facts.canMessage ? 'Write to them alone' : PLAYER_MENU.soon, enabled: facts.canMessage && !facts.blocked, soon: !facts.canMessage },
     tradeEntry(facts),
     friendEntry(facts),
@@ -144,6 +147,8 @@ export function menuEntries(facts: MenuFacts): readonly MenuEntry[] {
 export function actionOf(entry: MenuEntry, facts: MenuFacts): MenuAction | null {
   if (!entry.enabled) return null;
   switch (entry.id) {
+    case 'profile':
+      return { type: 'profile' };
     case 'message':
       return { type: 'message' };
     case 'trade':

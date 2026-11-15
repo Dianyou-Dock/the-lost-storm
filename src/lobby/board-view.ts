@@ -18,6 +18,27 @@ interface RowParts {
 
 export const BOARD_MOTION: { readonly leaveMs: number } = { leaveMs: 520 };
 
+export const PICK: { readonly className: string; readonly keys: readonly string[] } = { className: 'profile-pick', keys: ['Enter', 'Space'] };
+
+export function listenForPicks(list: HTMLElement, names: ReadonlyMap<Element, string>, pick: (name: string) => void): void {
+  const chosen = (target: EventTarget | null): string | null => {
+    if (!(target instanceof Element)) return null;
+    const row: Element | null = target.closest(`.${PICK.className}`);
+    return row === null ? null : (names.get(row) ?? null);
+  };
+  list.addEventListener('click', (event: MouseEvent): void => {
+    const name: string | null = chosen(event.target);
+    if (name !== null) pick(name);
+  });
+  list.addEventListener('keydown', (event: KeyboardEvent): void => {
+    if (!PICK.keys.includes(event.code)) return;
+    const name: string | null = chosen(event.target);
+    if (name === null) return;
+    event.preventDefault();
+    pick(name);
+  });
+}
+
 function makeRow(list: HTMLOListElement): RowParts {
   const item: HTMLLIElement = el('li', 'board-row entering', list);
   const rank: HTMLSpanElement = el('span', 'board-rank', item);
@@ -29,21 +50,24 @@ function makeRow(list: HTMLOListElement): RowParts {
   return { item, rank, dot, name, place, account, level };
 }
 
-function fill(parts: RowParts, row: BoardRow, you: string | null, by: Ranking, animate: boolean): void {
+function fill(parts: RowParts, row: BoardRow, you: string | null, by: Ranking, animate: boolean, pickable: boolean): void {
   setText(parts.rank, rankText(row.rank), animate);
   setText(parts.name, row.name, false);
   setText(parts.place, row.furthest, animate);
   setText(parts.level, rankValueText(row, by), animate);
   setText(parts.account, row.account ?? '', false);
   setFlag(parts.item, 'data-account', row.account !== null);
-  const tabIndex: number = row.account === null ? -1 : 0;
+  const tabIndex: number = row.account === null && !pickable ? -1 : 0;
+  setClass(parts.item, PICK.className, pickable);
   if (parts.item.tabIndex !== tabIndex) parts.item.tabIndex = tabIndex;
   setClass(parts.dot, 'on', row.online);
   setClass(parts.item, 'you', row.name === you);
 }
 
-export function createBoardView(list: HTMLOListElement, slots: number): BoardView {
+export function createBoardView(list: HTMLOListElement, slots: number, pick: ((name: string) => void) | null): BoardView {
   const rows: Map<string, RowParts> = new Map<string, RowParts>();
+  const names: Map<Element, string> = new Map<Element, string>();
+  if (pick !== null) listenForPicks(list, names, pick);
   const blanks: HTMLLIElement[] = [];
 
   for (let index: number = 0; index < slots; index += 1) blanks.push(el('li', 'board-row blank', list));
@@ -65,6 +89,7 @@ export function createBoardView(list: HTMLOListElement, slots: number): BoardVie
       for (const [name, parts] of rows) {
         if (keep.has(name)) continue;
         rows.delete(name);
+        names.delete(parts.item);
         leave(parts, before.get(parts.item) ?? 0);
       }
       const arrived: RowParts[] = [];
@@ -74,7 +99,8 @@ export function createBoardView(list: HTMLOListElement, slots: number): BoardVie
         const parts: RowParts = existing ?? makeRow(list);
         if (existing === undefined) arrived.push(parts);
         rows.set(row.name, parts);
-        fill(parts, row, you, by, existing !== undefined);
+        names.set(parts.item, row.name);
+        fill(parts, row, you, by, existing !== undefined, pick !== null);
         order.push(parts.item);
       }
       blanks.forEach((blank: HTMLLIElement, index: number): void => {
