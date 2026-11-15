@@ -382,3 +382,25 @@ void test('queued shots that have not left yet are dropped with the flying ones'
   assert.equal(world.shots.length, 0);
   assert.equal(run(world, 0.2).filter((event: WorldEvent): boolean => event.type === 'projectile_spawn').length, 0);
 });
+
+void test('Ghost Wave rolls through every enemy in its lane once, reaching the far one later than the near one', (): void => {
+  const world: World = shapeArena(['ghost_wave']);
+  const near: MonsterState = dummy(world, offset(0, 3));
+  const far: MonsterState = dummy(world, offset(0.8, 10));
+  const aside: MonsterState = dummy(world, offset(5, 6));
+  const struck: Map<number, number> = new Map<number, number>();
+  let clock: number = 0;
+  const watch = (events: readonly WorldEvent[]): void => {
+    for (const event of events) if (event.type === 'damage' && !struck.has(event.targetId)) struck.set(event.targetId, clock);
+  };
+  watch(stepWorld(world, [{ type: 'skill', slot: 0, aim: offset(0, 10), targetId: null }], 1 / 60));
+  for (let step: number = 0; step < 120; step += 1) {
+    clock += 1 / 60;
+    watch(stepWorld(world, [], 1 / 60));
+  }
+  const nearAt: number = must(struck.get(near.id), 'near hit');
+  const farAt: number = must(struck.get(far.id), 'far hit');
+  assert.ok(farAt - nearAt > 0.3);
+  assert.equal(struck.has(aside.id), false);
+  assert.equal(damageTo(run(world, 1), near.id).length, 0);
+});
