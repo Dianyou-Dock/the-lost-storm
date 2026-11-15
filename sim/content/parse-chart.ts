@@ -64,7 +64,7 @@ function chartGroup(value: unknown, where: string): ChartGroup {
 
 function weaponGroup(value: unknown, where: string): WeaponGroup {
   const source: Fields = fields(value, where);
-  return { id: text(source, 'id', where), name: text(source, 'name', where), kinds: choiceList(source, 'kinds', WEAPON_KINDS, where) };
+  return { id: text(source, 'id', where), name: text(source, 'name', where), kinds: choiceList(source, 'kinds', WEAPON_KINDS, where), starter: text(source, 'starter', where) };
 }
 
 function pointGrant(value: unknown, where: string): PointGrant {
@@ -157,6 +157,9 @@ function weaponProblems(content: Content): string[] {
   for (const group of groups) {
     if (group.kinds.length === 0) problems.push(`weapon group ${group.id} names no weapon kind`);
     if (!unique(group.kinds.map((kind: WeaponKind): string => kind))) problems.push(`weapon group ${group.id} names a weapon kind twice`);
+    const starter = content.itemBases.get(group.starter);
+    if (starter === undefined) problems.push(`weapon group ${group.id} starts with unknown item ${group.starter}`);
+    else if (starter.weaponKind === null || !group.kinds.includes(starter.weaponKind)) problems.push(`weapon group ${group.id} starts with ${group.starter}, which is not one of its weapons`);
   }
   for (const skill of content.skills.values()) problems.push(...skillWeaponProblems(groupIds, skill));
   for (const node of content.skillTree) {

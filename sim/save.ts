@@ -8,6 +8,8 @@ import { heroOf } from './hero.ts';
 import { emptyEquipment, generateItem, slotOf } from './items.ts';
 import { createRng } from './rng.ts';
 import { retireUnworn } from './save-retire.ts';
+import { armOnce } from './save-arm.ts';
+import type { Armed } from './save-arm.ts';
 import { readTally, tallyToSave } from './tally.ts';
 import type { TallySave } from './tally.ts';
 import { adoptLearned, bankedReset, findNode, heldChanges, reachablePlaces } from './progression.ts';
@@ -352,6 +354,13 @@ export function readSave(content: Content, value: unknown): SaveData | null {
   const removed: number = Math.min(saved.size - listed.length, room);
   const learned: string[] = readLearned(content, value['learned'], taken);
   const dressed: Dressed = dressOnce(content, worn.equipped, { ...readFlags(content, value['flags'], legacy), ...retired?.flags }, Math.floor(nextItemUid));
+  const armed: Armed = armOnce(content, { level: reached, allocated: taken, owned: [...Object.values(worn.equipped), ...slots, ...stashed.stash, ...kept], flags: dressed.flags, nextItemUid: dressed.nextItemUid });
+  const unplaced: ItemInstance[] = [];
+  for (const item of armed.laid) {
+    const free: number = slots.indexOf(null);
+    if (free < 0) unplaced.push(item);
+    else slots[free] = item;
+  }
   const savedHero: unknown = value['hero'];
   return retireUnworn(content, {
     version: SAVE_VERSION,
@@ -370,9 +379,9 @@ export function readSave(content: Content, value: unknown): SaveData | null {
     bar: readBar(content, savedBar, learned),
     inventory: slots,
     equipped: worn.equipped,
-    spilled: [...kept, ...worn.spilled, ...stashed.overflow],
+    spilled: [...kept, ...worn.spilled, ...stashed.overflow, ...unplaced],
     surge: Math.floor(surge),
-    nextItemUid: dressed.nextItemUid,
+    nextItemUid: armed.nextItemUid,
     zone,
     respawn: known ? readRespawn(value['respawn']) : { type: 'start' },
     visited: readVisited(content, value['visited'], zone).filter((id: string): boolean => !held.has(id)),
@@ -383,7 +392,7 @@ export function readSave(content: Content, value: unknown): SaveData | null {
     flasks: readFlasks(content, value['flasks']),
     stash: stashed.stash,
     vendors: readVendors(content, value['vendors']),
-    flags: dressed.flags,
+    flags: armed.flags,
     glitch: readGlitchSave(value['glitch']),
     path: value['version'] === SAVE_VERSION ? pathToSave(readPathLog(value['path'], new Set<string>(content.zones.keys()))) : pathToSave(emptyPathLog()),
     purse: readPurse(value['purse']),

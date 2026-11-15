@@ -94,10 +94,10 @@
     }
   ],
   "weaponGroups": [
-    { "id": "blade", "name": "Blade", "kinds": ["blade", "axe"] },
-    { "id": "heavy", "name": "Heavy weapon", "kinds": ["greatsword", "blunt"] },
-    { "id": "crossbow", "name": "Crossbow", "kinds": ["crossbow"] },
-    { "id": "staff", "name": "Staff", "kinds": ["staff"] }
+    { "id": "blade", "name": "Blade", "kinds": ["blade", "axe"], "starter": "warden_shortsword" },
+    { "id": "heavy", "name": "Heavy weapon", "kinds": ["greatsword", "blunt"], "starter": "tempest_greatsword" },
+    { "id": "crossbow", "name": "Crossbow", "kinds": ["crossbow"], "starter": "hand_crossbow" },
+    { "id": "staff", "name": "Staff", "kinds": ["staff"], "starter": "driftwood_staff" }
   ],
   "grants": [
     {"id": "first_moment", "when": [{"type": "flag", "flag": "first_moment", "is": "cleared"}], "points": 1},
