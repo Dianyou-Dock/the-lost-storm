@@ -41,7 +41,7 @@ function terrainCliff(value: unknown, where: string): TerrainCliff {
 export function zoneTerrain(value: unknown, where: string, tiles: readonly string[], cellSize: number): ZoneTerrain | null {
   if (value === undefined || value === null) return null;
   const source: Fields = fields(value, where);
-  const terrain: ZoneTerrain = { rise: positive(source, 'rise', where), levels: textList(source, 'levels', where), cliff: text(source, 'cliff', where), rough: terrainRough(source['rough'], `${where}.rough`), blends: source['blends'] === undefined ? [] : each(source['blends'], `${where}.blends`, terrainBlend), cliffs: source['cliffs'] === undefined ? [] : each(source['cliffs'], `${where}.cliffs`, terrainCliff) };
+  const terrain: ZoneTerrain = { rise: positive(source, 'rise', where), groundStep: positive(source, 'groundStep', where), levels: textList(source, 'levels', where), cliff: text(source, 'cliff', where), rough: terrainRough(source['rough'], `${where}.rough`), blends: source['blends'] === undefined ? [] : each(source['blends'], `${where}.blends`, terrainBlend), cliffs: source['cliffs'] === undefined ? [] : each(source['cliffs'], `${where}.cliffs`, terrainCliff) };
   const built: TerrainBuild = buildTerrain(terrain, tiles, cellSize);
   if (!built.ok) throw new ContentError(`${where}.levels`, built.problem);
   return terrain;

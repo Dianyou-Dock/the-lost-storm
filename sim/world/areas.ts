@@ -7,6 +7,7 @@ import { gridFor } from './movement.ts';
 import { applyHit, findActor, targetsOf } from './combat.ts';
 import { isDashing, rollsSteady } from './dash.ts';
 import { steadiness } from './poise.ts';
+import { sameFloor } from './floors.ts';
 import type { Actor, AreaState, Offence, Team, World } from './types.ts';
 
 export const AREAS = {
@@ -29,15 +30,15 @@ export function placeArea(world: World, offence: Offence, skill: SkillDef, at: R
   return area;
 }
 
-function covers(area: AreaState, delivery: AreaDelivery, pos: ReadonlyVec2, radius: number): boolean {
-  return Math.hypot(pos.x - area.pos.x, pos.z - area.pos.z) <= delivery.radius + radius;
+function covers(world: World, area: AreaState, delivery: AreaDelivery, pos: ReadonlyVec2, radius: number): boolean {
+  return Math.hypot(pos.x - area.pos.x, pos.z - area.pos.z) <= delivery.radius + radius && sameFloor(world, area.pos, pos);
 }
 
 export function timeScaleAt(world: World, team: Team, pos: ReadonlyVec2, radius: number): number {
   let scale: number = 1;
   for (const area of world.areas) {
     const delivery: AreaDelivery | null = areaOf(area.skill);
-    if (delivery === null || area.offence.team === team || !covers(area, delivery, pos, radius)) continue;
+    if (delivery === null || area.offence.team === team || !covers(world, area, delivery, pos, radius)) continue;
     scale = Math.min(scale, delivery.slow);
   }
   return scale;
@@ -50,7 +51,7 @@ export function timeScaleOf(world: World, actor: Actor): number {
 function pull(world: World, area: AreaState, delivery: AreaDelivery, dt: number): void {
   if (delivery.pull <= 0) return;
   for (const target of targetsOf(world, { sourceId: area.offence.sourceId, faction: area.offence.faction, from: area.from })) {
-    if (!covers(area, delivery, target.pos, target.radius) || (target.action !== null && !isDashing(target)) || rollsSteady(target)) continue;
+    if (!covers(world, area, delivery, target.pos, target.radius) || (target.action !== null && !isDashing(target)) || rollsSteady(target)) continue;
     const offset: Vec2 = { x: area.pos.x - target.pos.x, z: area.pos.z - target.pos.z };
     const gap: number = Math.hypot(offset.x, offset.z);
     const step: number = Math.min(delivery.pull * steadiness(target) * dt, gap - AREAS.pullStop);
@@ -63,7 +64,7 @@ function pull(world: World, area: AreaState, delivery: AreaDelivery, dt: number)
 function pulse(world: World, area: AreaState, delivery: AreaDelivery): void {
   let hits: number = 0;
   for (const target of targetsOf(world, { sourceId: area.offence.sourceId, faction: area.offence.faction, from: area.from })) {
-    if (!covers(area, delivery, target.pos, target.radius)) continue;
+    if (!covers(world, area, delivery, target.pos, target.radius)) continue;
     const offset: Vec2 = { x: target.pos.x - area.pos.x, z: target.pos.z - area.pos.z };
     const gap: number = Math.hypot(offset.x, offset.z);
     const away: Vec2 = gap > 0 ? { x: offset.x / gap, z: offset.z / gap } : { x: 0, z: 1 };

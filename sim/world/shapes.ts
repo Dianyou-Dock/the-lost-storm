@@ -4,6 +4,7 @@ import type { ReadonlyVec2, Vec2 } from '../math.ts';
 import { dot, normalize } from '../math.ts';
 import { isSolid, isWalkable, lineOfSight } from '../nav/grid.ts';
 import { applyHit, targetsOf } from './combat.ts';
+import { canReach, sameFloor } from './floors.ts';
 import type { Actor, Offence, World } from './types.ts';
 
 export const SHAPES = {
@@ -24,7 +25,7 @@ function closest(world: World, candidates: readonly Actor[], from: ReadonlyVec2,
   let best: Actor | null = null;
   let bestGap: number = Infinity;
   for (const target of candidates) {
-    if (gapTo(from, target) > reach || !lineOfSight(world.grid, from, target.pos)) continue;
+    if (gapTo(from, target) > reach || !canReach(world, from, target.pos)) continue;
     const gap: number = gapTo(near, target);
     if (gap < bestGap) {
       bestGap = gap;
@@ -61,7 +62,8 @@ function beamEnd(world: World, from: ReadonlyVec2, direction: ReadonlyVec2, rang
   let reach: number = 0;
   while (reach < range) {
     const next: number = Math.min(range, reach + SHAPES.beamProbe);
-    if (isSolid(world.grid, from.x + direction.x * next, from.z + direction.z * next)) return reach;
+    const ahead: Vec2 = { x: from.x + direction.x * next, z: from.z + direction.z * next };
+    if (isSolid(world.grid, ahead.x, ahead.z) || !sameFloor(world, { x: from.x + direction.x * reach, z: from.z + direction.z * reach }, ahead)) return reach;
     reach = next;
   }
   return reach;
@@ -95,7 +97,7 @@ export function resolveBlink(world: World, mover: Actor | null, origin: Readonly
   let hits: number = 0;
   for (const struck of targetsOf(world, offence)) {
     const offset: Vec2 = { x: struck.pos.x - arrival.x, z: struck.pos.z - arrival.z };
-    if (Math.hypot(offset.x, offset.z) > delivery.radius + struck.radius) continue;
+    if (Math.hypot(offset.x, offset.z) > delivery.radius + struck.radius || !sameFloor(world, arrival, struck.pos)) continue;
     if (applyHit(world, offence, struck, skill, normalize(offset, { x: 0, z: 1 }))) hits += 1;
   }
   return hits;

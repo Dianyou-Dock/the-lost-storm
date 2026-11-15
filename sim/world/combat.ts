@@ -23,6 +23,7 @@ import { flinchTogether } from './unison.ts';
 import { dealtScale } from './weaken.ts';
 import { holdLine, openScale } from './count.ts';
 import type { ActionState, Actor, BrandState, BurnState, GuardOutcome, ItemInstance, MonsterState, Offence, Team, World } from './types.ts';
+import { sameFloor } from './floors.ts';
 
 export const COMBAT = {
   guardedKnockback: 0.2,
@@ -280,7 +281,7 @@ function burstBrand(world: World, target: Actor, brand: BrandState): void {
   for (const other of targetsOf(world, brand.offence)) {
     const offset: ReadonlyVec2 = { x: other.pos.x - at.x, z: other.pos.z - at.z };
     const gap: number = Math.hypot(offset.x, offset.z);
-    if (gap > delivery.radius + other.radius) continue;
+    if (gap > delivery.radius + other.radius || !sameFloor(world, at, other.pos)) continue;
     applyHit(world, brand.offence, other, brand.burst, gap > 0 ? { x: offset.x / gap, z: offset.z / gap } : { x: 0, z: 1 });
   }
 }

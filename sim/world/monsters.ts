@@ -24,6 +24,7 @@ import { roomAhead } from './queue.ts';
 import { insideShell } from './shell.ts';
 import { heldInUnison, lookTogether } from './unison.ts';
 import type { Actor, MomentState, MonsterStance, MonsterState, World, WorldEvent } from './types.ts';
+import { canReach, sameFloor } from './floors.ts';
 
 const MONSTERS = {
   anchorRest: 0.4,
@@ -121,7 +122,7 @@ function chosenSkill(world: World, monster: MonsterState): SkillDef | null {
 
 function chase(world: World, monster: MonsterState, skill: SkillDef, foe: Actor, dt: number): void {
   const gap: number = distance(monster.pos, foe.pos) - foe.radius;
-  const sight: boolean = gap <= skill.engageRange + MONSTERS.engageBand && lineOfSight(world.grid, monster.pos, foe.pos);
+  const sight: boolean = gap <= skill.engageRange + MONSTERS.engageBand && canReach(world, monster.pos, foe.pos);
   const inReach: boolean = sight && gap <= skill.engageRange;
   const waiting: boolean = sight && monster.stance === 'engage' && blockedReason(monster, skill) !== null;
   if (inReach || waiting) {
@@ -150,7 +151,7 @@ function rangeStance(monster: MonsterState, behaviour: RangedBehaviour, gap: num
 function keepRange(world: World, monster: MonsterState, behaviour: RangedBehaviour, skill: SkillDef, foe: Actor, dt: number): void {
   const gap: number = distance(monster.pos, foe.pos);
   const toward: Vec2 = towardOf(monster, foe.pos);
-  const sight: boolean = lineOfSight(world.grid, monster.pos, foe.pos);
+  const sight: boolean = canReach(world, monster.pos, foe.pos);
   const lostSight: boolean = !sight && monster.blindTime === 0;
   monster.blindTime = sight ? 0 : monster.blindTime + dt;
   const reach: number = skill.engageRange + foe.radius;
@@ -185,7 +186,7 @@ function circle(world: World, monster: MonsterState, foe: Actor, range: number, 
 
 function stalk(world: World, monster: MonsterState, behaviour: StalkerBehaviour, skill: SkillDef, foe: Actor, dt: number): void {
   const gap: number = distance(monster.pos, foe.pos) - foe.radius;
-  const sight: boolean = lineOfSight(world.grid, monster.pos, foe.pos);
+  const sight: boolean = canReach(world, monster.pos, foe.pos);
   if (sight && gap <= skill.engageRange && attack(world, monster, skill, foe)) return;
   if (!sight || gap > behaviour.orbitRange + MONSTERS.orbitBand) {
     monster.stance = 'approach';
@@ -220,7 +221,7 @@ function turnTowardSide(monster: MonsterState, foe: Actor): number {
 
 function swarm(world: World, monster: MonsterState, behaviour: SwarmBehaviour, skill: SkillDef, foe: Actor, dt: number): void {
   const gap: number = distance(monster.pos, foe.pos) - foe.radius;
-  const sight: boolean = lineOfSight(world.grid, monster.pos, foe.pos);
+  const sight: boolean = canReach(world, monster.pos, foe.pos);
   if (sight && gap <= skill.engageRange && attack(world, monster, skill, foe)) return;
   if (!sight || gap > behaviour.ring + MONSTERS.orbitBand) {
     monster.stance = 'approach';
@@ -239,7 +240,7 @@ function swarm(world: World, monster: MonsterState, behaviour: SwarmBehaviour, s
 
 function lurk(world: World, monster: MonsterState, behaviour: AmbushBehaviour, skill: SkillDef, foe: Actor, dt: number): void {
   const gap: number = distance(monster.pos, foe.pos) - foe.radius;
-  const sight: boolean = lineOfSight(world.grid, monster.pos, foe.pos);
+  const sight: boolean = canReach(world, monster.pos, foe.pos);
   if (sight && gap <= skill.engageRange && attack(world, monster, skill, foe)) return;
   const ready: boolean = blockedReason(monster, skill) === null;
   if (!sight || gap > skill.engageRange || (ready && gap > behaviour.spring)) {
@@ -361,7 +362,7 @@ function unstrand(world: World, monster: MonsterState, dt: number): void {
   }
   monster.stranded += dt;
   if (monster.stranded < MONSTERS.strandSeconds) return;
-  const way: Vec2 | null = nearestWalkable(grid, monster.pos, MONSTERS.strandReach);
+  const way: Vec2 | null = nearestWalkable(grid, monster.pos, MONSTERS.strandReach, (at: Vec2): boolean => sameFloor(world, monster.pos, at));
   if (way === null) return;
   const gap: number = distance(monster.pos, way);
   if (gap <= 0) return;

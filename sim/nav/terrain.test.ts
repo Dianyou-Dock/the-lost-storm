@@ -8,7 +8,7 @@ import type { World } from '../world/types.ts';
 import { lineWalkable } from './grid.ts';
 import { findPath } from './path.ts';
 import type { TerrainBuild } from './terrain.ts';
-import { buildTerrain, heightAt, rampAt, surfacesMeet } from './terrain.ts';
+import { buildTerrain, heightAt, heightJump, rampAt, surfacesMeet, TERRAIN } from './terrain.ts';
 
 const SIZE = 4;
 const STAIR: ZoneDef = roadZone({
@@ -16,7 +16,7 @@ const STAIR: ZoneDef = roadZone({
   cellSize: SIZE,
   floorHeight: 0.5,
   tiles: ['wwwwww', 'wwwwww', 'wwwwww', 'wwwwww'],
-  terrain: { rise: 1, levels: ['000/22', '000/22', '000222', '000222'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] },
+  terrain: { rise: 1, groundStep: 0.6, levels: ['000/22', '000/22', '000222', '000222'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] },
   playerStart: { x: 6, z: 12 },
 });
 const CLIFF_X = 3 * SIZE;
@@ -35,6 +35,12 @@ void test('a ramp climbs evenly from the level before it to the level after it',
   assert.equal(rampAt(STAIR, 3, 2), false);
 });
 
+void test('the largest step on the ground between two points is small up a stair, the full drop across a ledge, and nothing without terrain', (): void => {
+  assert.ok(heightJump(STAIR, { x: 2, z: 2 }, { x: 22, z: 2 }) <= TERRAIN.slope * TERRAIN.probe);
+  assert.equal(heightJump(STAIR, { x: 10, z: 13 }, { x: 14, z: 13 }), 2);
+  assert.equal(heightJump(roadZone({ id: 'flat_jump_test' }), { x: 2, z: 2 }, { x: 20, z: 2 }), 0);
+});
+
 void test('tiles join where their surfaces meet and nowhere else', (): void => {
   assert.equal(surfacesMeet(STAIR, 1, 2, 1, 0), true);
   assert.equal(surfacesMeet(STAIR, 2, 2, 1, 0), false);
@@ -46,11 +52,11 @@ void test('tiles join where their surfaces meet and nowhere else', (): void => {
 });
 
 void test('a ramp that does not run between two different levels is refused, as are levels that do not match the tiles', (): void => {
-  const flat: TerrainBuild = buildTerrain({ rise: 1, levels: ['0/0'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] }, ['www'], SIZE);
+  const flat: TerrainBuild = buildTerrain({ rise: 1, groundStep: 0.6, levels: ['0/0'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] }, ['www'], SIZE);
   assert.equal(flat.ok, false);
-  const short: TerrainBuild = buildTerrain({ rise: 1, levels: ['00'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] }, ['www'], SIZE);
+  const short: TerrainBuild = buildTerrain({ rise: 1, groundStep: 0.6, levels: ['00'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] }, ['www'], SIZE);
   assert.equal(short.ok, false);
-  const odd: TerrainBuild = buildTerrain({ rise: 1, levels: ['0?0'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] }, ['www'], SIZE);
+  const odd: TerrainBuild = buildTerrain({ rise: 1, groundStep: 0.6, levels: ['0?0'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] }, ['www'], SIZE);
   assert.equal(odd.ok, false);
 });
 

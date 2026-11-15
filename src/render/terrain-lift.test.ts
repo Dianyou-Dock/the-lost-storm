@@ -15,7 +15,7 @@ const STAIR: ZoneDef = roadZone({
   cellSize: SIZE,
   floorHeight: 0.5,
   tiles: ['wwwwww', 'wwwwww'],
-  terrain: { rise: 1, levels: ['000/22', '000/22'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] },
+  terrain: { rise: 1, groundStep: 0.6, levels: ['000/22', '000/22'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] },
 });
 function heightOf(x: number, z: number): number {
   return liftAt(STAIR, x, z);

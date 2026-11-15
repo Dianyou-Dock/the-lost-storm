@@ -8,6 +8,7 @@ import { allHold } from './conditions.ts';
 import { setFlags } from './story.ts';
 import { findPath } from '../nav/path.ts';
 import type { MonsterState, PlayerState, World } from './types.ts';
+import { sameFloor } from './floors.ts';
 
 const TERRAIN = {
   rescueMargin: 2,
@@ -22,7 +23,7 @@ function rescue(world: World, actor: PlayerState | MonsterState): void {
   const goal: Vec2 | undefined = actor.path.at(-1);
   if (!actor.alive) return;
   if (!isWalkable(world.grid, actor.pos.x, actor.pos.z)) {
-    const safe: Vec2 | null = nearestWalkable(world.grid, actor.pos, rescueRadius(world));
+    const safe: Vec2 | null = nearestWalkable(world.grid, actor.pos, rescueRadius(world), (at: Vec2): boolean => sameFloor(world, actor.pos, at));
     if (safe !== null) {
       actor.pos.x = safe.x;
       actor.pos.z = safe.z;

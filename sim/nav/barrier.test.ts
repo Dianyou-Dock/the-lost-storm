@@ -158,7 +158,7 @@ function ledge(drop: readonly BarrierRow[]): ZoneDef {
     id: 'ledge_test',
     cellSize: 4,
     tiles: ['        ', ' wwwwww ', ' wwwwww ', ' wwwwww ', ' wwwwww ', '        '],
-    terrain: { rise: 1, levels: ['09999999', '03333339', '03333339', '03333339', '03333339', '09999999'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] },
+    terrain: { rise: 1, groundStep: 0.6, levels: ['09999999', '03333339', '03333339', '03333339', '03333339', '09999999'], cliff: 'road_firm', rough: null, blends: [], cliffs: [] },
     outside: { surface: 'road_firm', reach: 2, edge: null, barrier },
     playerStart: { x: 12, z: 12 },
   });

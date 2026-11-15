@@ -35,6 +35,7 @@ import { stepWaypoints, teleport } from './waypoints.ts';
 import { findExit, stepCheckpoints, travelThrough } from './zones.ts';
 import { exitWaits } from './scene.ts';
 import type { PortalEnd } from './portal-types.ts';
+import { sameFloor } from './floors.ts';
 import { goThrough, portalEndHere, stepChannel, useItem } from './portal.ts';
 
 const PLAYER = {
@@ -140,8 +141,8 @@ function fire(world: World, skill: SkillDef, aim: Vec2, slot: number): boolean {
   return true;
 }
 
-function inEngageRange(player: PlayerState, target: Actor, skill: SkillDef): boolean {
-  return distance(player.pos, target.pos) - target.radius <= skill.engageRange;
+function inEngageRange(world: World, player: PlayerState, target: Actor, skill: SkillDef): boolean {
+  return distance(player.pos, target.pos) - target.radius <= skill.engageRange && sameFloor(world, player.pos, target.pos);
 }
 
 function useSkill(world: World, command: SkillCommand): void {
@@ -161,7 +162,7 @@ function useSkill(world: World, command: SkillCommand): void {
     fire(world, skill, target?.alive === true ? target.pos : command.aim, command.slot);
     return;
   }
-  if (inEngageRange(player, target, skill)) {
+  if (inEngageRange(world, player, target, skill)) {
     fire(world, skill, target.pos, command.slot);
     return;
   }
@@ -417,7 +418,7 @@ function stepIntent(world: World, dt: number): void {
         player.path = [];
         return;
       }
-      if (inEngageRange(player, target, skill)) {
+      if (inEngageRange(world, player, target, skill)) {
         if (!fire(world, skill, target.pos, intent.slot)) {
           player.intent = { type: 'idle' };
           player.path = [];

@@ -35,6 +35,7 @@ export interface TerrainCliff extends CliffRule {
 
 export interface ZoneTerrain {
   readonly rise: number;
+  readonly groundStep: number;
   readonly levels: readonly string[];
   readonly cliff: string;
   readonly rough: TerrainRough | null;

@@ -461,7 +461,7 @@ export function lineOfSight(grid: NavGrid, from: ReadonlyVec2, to: ReadonlyVec2)
   return lineOpen(from, to, (x: number, z: number): boolean => !isSolid(grid, x, z));
 }
 
-export function nearestWalkable(grid: NavGrid, point: ReadonlyVec2, maxRadius: number): Vec2 | null {
+export function nearestWalkable(grid: NavGrid, point: ReadonlyVec2, maxRadius: number, accept: (at: Vec2) => boolean = (): boolean => true): Vec2 | null {
   if (isWalkable(grid, point.x, point.z)) return { x: point.x, z: point.z };
   for (let radius: number = NAV.searchStep; radius <= maxRadius; radius += NAV.searchStep) {
     const samples: number = Math.max(8, Math.ceil((2 * Math.PI * radius) / NAV.searchStep));
@@ -470,7 +470,7 @@ export function nearestWalkable(grid: NavGrid, point: ReadonlyVec2, maxRadius: n
       const angle: number = (sample / samples) * Math.PI * 2;
       const x: number = point.x + Math.cos(angle) * radius;
       const z: number = point.z + Math.sin(angle) * radius;
-      if (isWalkable(grid, x, z)) {
+      if (isWalkable(grid, x, z) && accept({ x, z })) {
         best = { x, z };
         break;
       }

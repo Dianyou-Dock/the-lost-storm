@@ -3,8 +3,9 @@ import type { PressDef } from '../content/shape-types.ts';
 import type { ComboStep, Delivery, ProjectileDelivery, SkillDef } from '../content/types.ts';
 import type { ReadonlyVec2, Vec2 } from '../math.ts';
 import { DEGREES_TO_RADIANS, directionOf, dot, facingOf, normalize, rotate } from '../math.ts';
-import { isSolid, isWalkable, lineOfSight, moveWithCollision } from '../nav/grid.ts';
+import { isSolid, isWalkable, moveWithCollision } from '../nav/grid.ts';
 import { gridFor } from './movement.ts';
+import { canReach, sameFloor } from './floors.ts';
 import type { Offence } from './combat.ts';
 import { applyHit, offenceOf, targetsOf, teamOf } from './combat.ts';
 import { clearSpot, passesThrough, stepDash } from './dash.ts';
@@ -233,7 +234,7 @@ function strike(world: World, impact: Impact): number {
       for (const target of targetsOf(world, offence)) {
         const offset: Vec2 = { x: target.pos.x - origin.x, z: target.pos.z - origin.z };
         const gap: number = Math.hypot(offset.x, offset.z);
-        if (gap > delivery.reach + target.radius) continue;
+        if (gap > delivery.reach + target.radius || !sameFloor(world, origin, target.pos)) continue;
         const toward: Vec2 = normalize(offset, direction);
         if (gap > target.radius && dot(toward, direction) < minDot) continue;
         if (applyHit(world, offence, target, skill, toward)) hits += 1;
@@ -243,7 +244,7 @@ function strike(world: World, impact: Impact): number {
     case 'nova': {
       for (const target of targetsOf(world, offence)) {
         const offset: Vec2 = { x: target.pos.x - origin.x, z: target.pos.z - origin.z };
-        if (Math.hypot(offset.x, offset.z) > delivery.radius + target.radius) continue;
+        if (Math.hypot(offset.x, offset.z) > delivery.radius + target.radius || !sameFloor(world, origin, target.pos)) continue;
         if (applyHit(world, offence, target, skill, normalize(offset, direction))) hits += 1;
       }
       return hits;
@@ -324,7 +325,7 @@ export function stepEchoes(world: World, dt: number): void {
 
 function land(world: World, actor: Actor, action: ActionState): void {
   const target: Vec2 | null = action.target;
-  if (target === null || !isWalkable(gridFor(world, actor), target.x, target.z) || !lineOfSight(world.grid, actor.pos, target)) return;
+  if (target === null || !isWalkable(gridFor(world, actor), target.x, target.z) || !canReach(world, actor.pos, target)) return;
   actor.pos.x = target.x;
   actor.pos.z = target.z;
   actor.motion = 'lunge';
@@ -422,11 +423,12 @@ function stepProjectile(world: World, projectile: ProjectileState, dt: number): 
   let travel: number = Math.min(delivery.speed * dt * timeScaleAt(world, projectile.team, projectile.pos, delivery.radius), projectile.distanceLeft);
   while (travel > 0) {
     const step: number = Math.min(travel, SKILLS.projectileStep);
+    const was: Vec2 = { x: projectile.pos.x, z: projectile.pos.z };
     travel -= step;
     projectile.pos.x += projectile.direction.x * step;
     projectile.pos.z += projectile.direction.z * step;
     projectile.distanceLeft -= step;
-    if (isSolid(world.grid, projectile.pos.x, projectile.pos.z)) {
+    if (isSolid(world.grid, projectile.pos.x, projectile.pos.z) || !sameFloor(world, was, projectile.pos)) {
       world.events.push({ type: 'projectile_end', id: projectile.id, pos: { ...projectile.pos }, hit: true, skill: projectile.skill });
       return false;
     }

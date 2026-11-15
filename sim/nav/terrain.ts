@@ -1,4 +1,5 @@
 import type { ZoneDef } from '../content/types.ts';
+import type { ReadonlyVec2 } from '../math.ts';
 import type { TerrainRough, ZoneTerrain } from '../content/terrain-types.ts';
 import { TERRAIN_MARKS } from '../content/terrain-types.ts';
 import { isFloorCell } from './layout.ts';
@@ -7,6 +8,7 @@ export const TERRAIN = {
   meet: 0.05,
   edgeSamples: [0.1, 0.5, 0.9],
   slope: 0.75,
+  probe: 0.25,
   hashX: 127.1,
   hashZ: 311.7,
   hashSalt: 74.7,
@@ -168,6 +170,20 @@ export function terrainCell(zone: ZoneDef, x: number, z: number): TerrainCell {
 export function heightAt(zone: ZoneDef, x: number, z: number): number {
   const cell: TerrainCell = terrainCell(zone, x, z);
   return tileHeight(zone, cell.column, cell.row, x, z);
+}
+
+export function heightJump(zone: ZoneDef, from: ReadonlyVec2, to: ReadonlyVec2): number {
+  if (zone.terrain === null) return 0;
+  const steps: number = Math.ceil(Math.hypot(to.x - from.x, to.z - from.z) / TERRAIN.probe);
+  let last: number = heightAt(zone, from.x, from.z);
+  let jump: number = 0;
+  for (let step: number = 1; step <= steps; step += 1) {
+    const share: number = step / steps;
+    const next: number = heightAt(zone, from.x + (to.x - from.x) * share, from.z + (to.z - from.z) * share);
+    jump = Math.max(jump, Math.abs(next - last));
+    last = next;
+  }
+  return jump;
 }
 
 export function floorAt(zone: ZoneDef, x: number, z: number): boolean {
