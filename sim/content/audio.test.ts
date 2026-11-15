@@ -237,3 +237,17 @@ void test('the hideout is sheltered: no rain falls there, while the storm still 
   assert.ok(!loops.includes('ambience_hall_storm'), 'the Hall\'s rain is heard in the hideout');
   assert.ok(heard.stingers.some((stinger): boolean => stinger.sound.startsWith('thunder')), 'no thunder is heard in the hideout');
 });
+
+void test('the cave zone has its own ambience loops, quieter than the Hall of Time\'s storm and with no weather of the Hall in them', (): void => {
+  const audio = loadAudio(content);
+  const cave = must(audio.ambience.get('under_hall'), 'the cave ambience');
+  const hall = must(audio.ambience.get(AMBIENT_ZONE), 'the Hall ambience');
+  const loops: ReadonlySet<string> = new Set<string>(cave.loops.map((loop): string => loop.sound));
+  assert.ok(loops.has('ambience_cave_air'));
+  assert.ok(loops.has('ambience_cave_drips'));
+  assert.ok(!loops.has('ambience_hall_storm'));
+  const storm = must(hall.loops.find((loop): boolean => loop.sound === 'ambience_hall_storm'), 'the Hall storm');
+  const air = must(cave.loops.find((loop): boolean => loop.sound === 'ambience_cave_air'), 'the cave air');
+  assert.ok(air.volume < storm.volume);
+  assert.equal(cave.stingers.length, 0);
+});

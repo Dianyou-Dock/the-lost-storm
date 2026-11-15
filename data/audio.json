@@ -243,6 +243,14 @@
         { "sound": "thunder_close", "volume": 0.35, "minDelay": 30, "maxDelay": 70 },
         { "sound": "thunder_close_sharp", "volume": 0.2, "minDelay": 70, "maxDelay": 160 }
       ]
+    },
+    "under_hall": {
+      "loops": [
+        { "sound": "ambience_cave_air", "volume": 0.55 },
+        { "sound": "ambience_cave_drips", "volume": 0.28 },
+        { "sound": "ambience_drone_low", "volume": 0.3 }
+      ],
+      "stingers": []
     }
   }
 }
