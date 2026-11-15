@@ -9,6 +9,7 @@ import type { Command, MonsterState, World } from '../../sim/world/types.ts';
 import { enterZone } from '../../sim/world/zones.ts';
 import type { WalkReport } from './body-walk.ts';
 import { BODY_WALK, missingBodies, open, walkBodies, walkRoute } from './body-walk.ts';
+import { setOffView } from '../render/actor-guard.ts';
 
 const content: Content = loadContent();
 
@@ -47,6 +48,9 @@ void test('a live monster with no drawn body near it is named, and a dead one is
   const hidden: Group = bodyAt(boss.pos.x, boss.pos.z);
   hidden.visible = false;
   assert.equal(missingBodies(world.monsters, [hidden]).length, 1);
+  const offView: Group = bodyAt(boss.pos.x, boss.pos.z);
+  setOffView(offView, true);
+  assert.deepEqual(missingBodies(world.monsters, [offView]), []);
   boss.alive = false;
   assert.deepEqual(missingBodies(world.monsters, []), []);
 });

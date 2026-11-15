@@ -24,7 +24,7 @@ import type { ParticleSystem } from './particles.ts';
 import type { SpinPose, SpinView } from './spin-view.ts';
 import { createSpinView } from './spin-view.ts';
 import type { ActorGuard } from './actor-guard.ts';
-import { createActorGuard } from './actor-guard.ts';
+import { createActorGuard, setOffView } from './actor-guard.ts';
 import { warnInConsole } from '../backend/console-log.ts';
 import type { BodyChoice } from './body-choice.ts';
 import { bodyArrived, chooseBody } from './body-choice.ts';
@@ -320,8 +320,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       sight.refresh();
       const seen = (view: ActorView, x: number, z: number): boolean => sight.sees(x, floorAt(x, z) + view.height / 2, z, view.height);
       const draw = (view: ActorView, x: number, z: number): void => {
-        const drawn: boolean = drawnBy(sight, x, floorAt(x, z), z, view.height);
-        if (view.rig.root.visible !== drawn) view.rig.root.visible = drawn;
+        setOffView(view.rig.root, !drawnBy(sight, x, floorAt(x, z), z, view.height));
       };
       standChosen(current);
       if (librarySize() !== dressedWith) {

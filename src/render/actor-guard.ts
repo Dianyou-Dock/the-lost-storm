@@ -17,8 +17,17 @@ function placed(root: Object3D): boolean {
   return Number.isFinite(position.x) && Number.isFinite(position.y) && Number.isFinite(position.z) && scale.x !== 0 && scale.y !== 0 && scale.z !== 0;
 }
 
+const offView: WeakSet<Object3D> = new WeakSet<Object3D>();
+
+export function setOffView(root: Object3D, off: boolean): void {
+  if (off) offView.add(root);
+  else offView.delete(root);
+  if (root.visible === off) root.visible = !off;
+}
+
 export function drawable(root: Object3D): boolean {
   if (!placed(root)) return false;
+  if (!root.visible && !offView.has(root)) return false;
   let found: boolean = false;
   const look = (object: Object3D): void => {
     if (found || !(object instanceof Mesh)) return;

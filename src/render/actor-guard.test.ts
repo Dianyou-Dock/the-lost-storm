@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, Scene } from 'three';
 import type { ActorGuard } from './actor-guard.ts';
-import { createActorGuard, drawable, shownMaterial } from './actor-guard.ts';
+import { createActorGuard, drawable, setOffView, shownMaterial } from './actor-guard.ts';
 
 function body(): { readonly root: Group; readonly mesh: Mesh<BoxGeometry, MeshStandardMaterial> } {
   const root: Group = new Group();
@@ -20,12 +20,15 @@ void test('a material draws unless it is hidden, writes no colour, or is transpa
   assert.equal(shownMaterial(new MeshBasicMaterial({ opacity: 0 })), true);
 });
 
-void test('an actor is drawable only with a shown mesh on a visible chain below its root, a finite place and a real scale', (): void => {
+void test('an actor is drawable only with a shown mesh on a visible chain, a finite place and a real scale', (): void => {
   const { root, mesh } = body();
   assert.equal(drawable(root), true);
   mesh.visible = false;
   assert.equal(drawable(root), false);
   mesh.visible = true;
+  root.visible = false;
+  assert.equal(drawable(root), false);
+  root.visible = true;
   mesh.material.visible = false;
   assert.equal(drawable(root), false);
   mesh.material = new MeshStandardMaterial();
@@ -85,9 +88,17 @@ void test('an undrawable actor is reported once per monster, and a forgotten id 
   assert.equal(reports.length, 3);
 });
 
-void test('an actor left undrawn off screen is still drawable, so its first check keeps its gear', (): void => {
-  const { root } = body();
-  root.visible = false;
+void test('an actor left undrawn off view is still drawable, so its first check keeps its gear and the body walk counts it', (): void => {
+  const { root, mesh } = body();
+  setOffView(root, true);
+  assert.equal(root.visible, false);
   assert.equal(drawable(root), true);
   assert.equal(createActorGuard((): undefined => undefined).inspect(1, root, 'skeleton'), true);
+  mesh.visible = false;
+  assert.equal(drawable(root), false);
+  mesh.visible = true;
+  setOffView(root, false);
+  assert.equal(root.visible, true);
+  root.visible = false;
+  assert.equal(drawable(root), false);
 });
