@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadContent } from './content.ts';
-import { basesWithoutLook, groundGenerics, handedBases, heroWears, itemProblems, linesFor } from './item-rules.ts';
+import { basesWithoutLook, groundGenerics, handedBases, heroWears, itemProblems, linesFor, slotCovers } from './item-rules.ts';
 import type { AffixDef, Content, ItemBaseDef, RigDef } from './types.ts';
 import { ITEM_STATS } from './types.ts';
 import { must } from '../../test/support.ts';
@@ -100,4 +100,14 @@ void test('a weapon may turn one skill into another the hero can play in the sta
   const unplayed: string[] = itemProblems({ ...content, rigs: new Map<string, RigDef>([...content.rigs, [hero.id, stanceless]]) });
   assert.ok(unplayed.some((problem: string): boolean => problem.includes(`item hand_crossbow turns cleave into quarrel, but rig ${hero.id} has no action clip shoot`)));
   assert.ok(unplayed.some((problem: string): boolean => problem.includes(`tree node whirling_cleave turns quarrel into quarrel_fan while hand_crossbow is held, but rig ${hero.id} has no action clip shoot`)));
+});
+
+void test('a chest piece may also dress the shoulders and the arms; every other slot dresses only its own region', (): void => {
+  for (const region of ['chest', 'shoulders', 'arms'] as const) assert.ok(slotCovers('chest', region), region);
+  assert.ok(!slotCovers('chest', 'legs'));
+  assert.ok(slotCovers('hands', 'hands'));
+  assert.ok(!slotCovers('hands', 'arms'));
+  assert.ok(!slotCovers('legs', 'shoulders'));
+  assert.ok(!slotCovers('weapon', 'hands'));
+  assert.ok(!slotCovers(null, 'chest'));
 });

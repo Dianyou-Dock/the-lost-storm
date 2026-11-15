@@ -104,7 +104,7 @@ export function itemsPage(data: GuideData): PageBody {
         'What you wear',
         para(
           `You have ${ITEM_SLOTS.length} slots: ${esc(list(ITEM_SLOTS.map((slot: ItemSlot): string => SLOT_NAMES[slot])))}. Your weapon sets your damage range, and every skill you use starts from it, so it is the slot that matters most. Everything else adds life, armour, speed and the rest.`,
-          `Every item has a level, about the level you were when it dropped. Its own lines (the ones every item of that kind has) grow by ${growth} for every level above the first, and so do its rolled lines. A level 15 sword is a much better sword than a level 2 one.`,
+          `Every item has a level, about the level you were when it dropped. Its own lines (the ones every item of that kind has) grow by ${growth} for every level above the first, and so do its rolled lines. A drawback, such as the slower swing of a heavy weapon or the slower step of plate, stays the same at every level. A level 15 sword is a much better sword than a level 2 one.`,
         ),
       ),
       section(

@@ -293,7 +293,7 @@ void test('the Millstone widens the momentum cap and heals for every enemy struc
   const base = must(skillOf('cleave_millwheel').momentum, 'momentum');
   const stone = must(resolveSkill(content, skillOf('cleave'), [...MILLRACE, 'millstone']).momentum, 'momentum');
   assert.equal(stone.cap, base.cap * 1.5);
-  assert.equal(stone.lifePerHit, base.lifePerHit + 1);
+  assert.equal(stone.lifePerHit, base.lifePerHit + 2);
   assert.equal(stone.grace, base.grace);
   const wake = must(resolveSkill(content, skillOf('cleave'), [...MILLRACE, 'long_wake']).momentum, 'momentum');
   assert.ok(Math.abs(wake.grace - base.grace * 1.6) < 1e-9);

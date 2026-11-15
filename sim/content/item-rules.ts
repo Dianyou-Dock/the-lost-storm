@@ -1,6 +1,6 @@
 import type { AffixDef, ItemBaseDef, RarityDef } from './item-types.ts';
 import { ITEM_STATS } from './item-types.ts';
-import type { ComboStep, Content, ItemSlot, RigClips, SkillDef, StatId } from './types.ts';
+import type { ComboStep, Content, ItemSlot, RigClips, SkillDef, StatId, WearRegion } from './types.ts';
 import { ITEM_SLOTS } from './types.ts';
 
 const BASE_DAMAGE: ReadonlySet<StatId> = new Set<StatId>(['damageMin', 'damageMax']);
@@ -15,6 +15,20 @@ function distinctStats(lines: readonly AffixDef[]): number {
 }
 
 const WORN_LOOK_SLOTS: ReadonlySet<ItemSlot> = new Set<ItemSlot>(['head', 'chest', 'hands', 'legs', 'feet']);
+
+const SLOT_REGIONS: Readonly<Record<ItemSlot, readonly WearRegion[]>> = {
+  weapon: [],
+  head: ['head'],
+  chest: ['chest', 'shoulders', 'arms'],
+  hands: ['hands'],
+  legs: ['legs'],
+  feet: ['feet'],
+  charm: [],
+};
+
+export function slotCovers(slot: ItemSlot | null, region: WearRegion): boolean {
+  return slot !== null && SLOT_REGIONS[slot].includes(region);
+}
 
 export function basesWithoutLook(content: Content): string[] {
   return [...content.itemBases.values()]
@@ -86,8 +100,8 @@ export function itemProblems(content: Content): string[] {
   for (const base of content.itemBases.values()) if (!base.wornModel && base.wear.length > 0) problems.push(`item ${base.id} has no worn model but wears ${base.wear.join(', ')}`);
   for (const base of content.itemBases.values()) {
     for (const id of base.wear) {
-      const region: string | undefined = content.wearables.get(id)?.region;
-      if (region !== undefined && region !== base.slot) problems.push(`item ${base.id} in slot ${base.slot ?? 'none'} wears ${id}, which covers ${region}`);
+      const region: WearRegion | undefined = content.wearables.get(id)?.region;
+      if (region !== undefined && !slotCovers(base.slot, region)) problems.push(`item ${base.id} in slot ${base.slot ?? 'none'} wears ${id}, which covers ${region}`);
     }
   }
   for (const base of content.itemBases.values()) {

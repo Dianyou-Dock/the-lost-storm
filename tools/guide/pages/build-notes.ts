@@ -9,9 +9,13 @@ import {
   carelessBossShare,
   carelessDeaths,
   deathWords,
+  familyNames,
   heavyWeapons,
+  legendaryLine,
+  manaWeapons,
   modShare,
   placeLevel,
+  quickWeapons,
   speedRank,
   steadyBossShare,
   steadyBossLife,
@@ -60,6 +64,7 @@ function glass(data: GuideData): BuildNotes {
     ],
     lookFor: [
       `A crossbow with more damage: ${weaponNames(variantWeapons(data, 'cleave'))}.`,
+      legendaryLine(data, 'quietshot'),
       affixLine(data, 'jagged'),
       affixLine(data, 'honed'),
       affixLine(data, 'keen'),
@@ -121,6 +126,7 @@ function tank(data: GuideData): BuildNotes {
     ],
     lookFor: [
       `A heavy weapon: ${weaponNames(heavyWeapons(data))}. They swing slower and hit much harder, which suits a held sweep.`,
+      legendaryLine(data, 'groundbreaker'),
       affixLine(data, 'hale'),
       affixLine(data, 'vital'),
       affixLine(data, 'plated'),
@@ -235,6 +241,8 @@ function caster(data: GuideData): BuildNotes {
       `Your skills still add your weapon's damage, so a weapon with more damage helps. A staff that adds mana helps more early on.`,
     ],
     lookFor: [
+      `A staff that adds mana: ${weaponNames(manaWeapons(data))}.`,
+      `The Forkweather legendaries: ${familyNames(data, 'forkweather')}.`,
       affixLine(data, 'brimming'),
       affixLine(data, 'clear'),
       affixLine(data, 'honed'),
@@ -285,6 +293,8 @@ function echoer(data: GuideData): BuildNotes {
       `${skillName(data, 'squall')} is what makes the build. It costs a lot of mana and waits several seconds, so put it where it will hit the most.`,
     ],
     lookFor: [
+      `A staff that adds mana: ${weaponNames(manaWeapons(data))}.`,
+      legendaryLine(data, 'rainmaker'),
       affixLine(data, 'brimming'),
       affixLine(data, 'clear'),
       affixLine(data, 'honed'),
@@ -334,7 +344,8 @@ function windrunner(data: GuideData): BuildNotes {
       `${name(data, 'updraught')} later turns Downdraught into a burst that throws everything away from you. Use it when you are surrounded rather than to gather a pack.`,
     ],
     lookFor: [
-      'A weapon with more damage. Cleave is still what kills.',
+      `A quick light blade: ${weaponNames(quickWeapons(data))}. Cleave is still what kills.`,
+      legendaryLine(data, 'mist_treader_boots'),
       affixLine(data, 'fleet'),
       affixLine(data, 'quick'),
       affixLine(data, 'honed'),

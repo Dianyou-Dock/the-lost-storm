@@ -582,6 +582,128 @@
     "hides": []
   },
   {
+    "id": "militia_tunic",
+    "model": "models/wear/{frame}/peasant.glb",
+    "pieces": [
+      "Peasant_Body",
+      "Peasant_Arms"
+    ],
+    "region": "chest",
+    "tint": "#8c8472",
+    "hides": []
+  },
+  {
+    "id": "tunic_pauldron",
+    "model": "models/wear/{frame}/ranger.glb",
+    "pieces": [
+      "Ranger_Pauldron"
+    ],
+    "region": "shoulders",
+    "tint": "#5f5040",
+    "hides": []
+  },
+  {
+    "id": "drover_smock",
+    "model": "models/wear/{frame}/peasant.glb",
+    "pieces": [
+      "Peasant_Body"
+    ],
+    "region": "chest",
+    "tint": "#6f7b6c",
+    "hides": []
+  },
+  {
+    "id": "long_sleeves",
+    "model": "models/wear/{frame}/ranger.glb",
+    "pieces": [
+      "Ranger_Arms"
+    ],
+    "region": "arms",
+    "tint": "#6a5644",
+    "hides": []
+  },
+  {
+    "id": "open_jerkin",
+    "model": "models/wear/{frame}/ranger.glb",
+    "pieces": [
+      "Ranger_Body",
+      "Ranger_Belt_1",
+      "Ranger_Belt_2"
+    ],
+    "region": "chest",
+    "tint": "#4f4538",
+    "hides": []
+  },
+  {
+    "id": "short_sleeves",
+    "model": "models/wear/{frame}/peasant.glb",
+    "pieces": [
+      "Peasant_Arms"
+    ],
+    "region": "arms",
+    "tint": "#b5aa94",
+    "hides": []
+  },
+  {
+    "id": "blackened_plate",
+    "model": "models/wear/{frame}/ranger.glb",
+    "pieces": [
+      "Ranger_Body",
+      "Ranger_Belt_1",
+      "Ranger_Belt_2",
+      "Ranger_Arms",
+      "Ranger_Pauldron"
+    ],
+    "region": "chest",
+    "tint": "#ffffff",
+    "hides": [],
+    "surfaces": {
+      "MI_Ranger": "mask_iron"
+    }
+  },
+  {
+    "id": "iron_vambraces",
+    "model": "models/wear/{frame}/ranger.glb",
+    "pieces": [
+      "Ranger_Bracers"
+    ],
+    "region": "hands",
+    "iconWith": [
+      "Ranger_Arms"
+    ],
+    "tint": "#ffffff",
+    "hides": [],
+    "surfaces": {
+      "MI_Ranger": "helm_steel"
+    }
+  },
+  {
+    "id": "iron_greaves",
+    "model": "models/wear/{frame}/ranger.glb",
+    "pieces": [
+      "Ranger_Legs"
+    ],
+    "region": "legs",
+    "tint": "#ffffff",
+    "hides": [],
+    "surfaces": {
+      "MI_Ranger": "mask_iron"
+    }
+  },
+  {
+    "id": "iron_sabatons",
+    "model": "models/wear/{frame}/ranger.glb",
+    "pieces": [
+      "Ranger_Feet"
+    ],
+    "region": "feet",
+    "tint": "#ffffff",
+    "hides": [],
+    "surfaces": {
+      "MI_Ranger": "helm_steel"
+    }
+  },
+  {
     "id": "hair_short",
     "model": "models/wear/{frame}/hair.glb",
     "pieces": [

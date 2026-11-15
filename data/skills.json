@@ -1101,7 +1101,7 @@
     "scalesWithAttackSpeed": true,
     "engageRange": 2.2,
     "delivery": { "type": "nova", "radius": 3.2 },
-    "damage": { "weaponPercent": 0.6, "flatMin": 0, "flatMax": 0 },
+    "damage": { "weaponPercent": 0.46, "flatMin": 0, "flatMax": 0 },
     "knockback": 3,
     "stagger": 0.16,
     "shake": 0.05,

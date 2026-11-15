@@ -102,6 +102,16 @@ void test('item level scales the implicit modifiers and rarity does not', (): vo
   assert.equal(rarityOf(content, { ...common, rarity: 'gone' }).id, 'unknown');
 });
 
+void test('item level grows what a base gives but never its drawback', (): void => {
+  const low: ItemInstance = must(generateItem(content, createRng(1), 1, 1, 'iron_maul', 'common'), 'low');
+  const high: ItemInstance = { ...low, level: 20 };
+  const speed = (item: ItemInstance): number => itemMods(content, item).filter((mod: StatMod): boolean => mod.stat === 'attackSpeed').reduce((sum: number, mod: StatMod): number => sum + mod.value, 0);
+  const hit = (item: ItemInstance): number => itemMods(content, item).filter((mod: StatMod): boolean => mod.stat === 'damageMax').reduce((sum: number, mod: StatMod): number => sum + mod.value, 0);
+  assert.ok(speed(low) < 0);
+  assert.equal(speed(high), speed(low));
+  assert.ok(hit(high) > hit(low) * 3);
+});
+
 void test('the item name takes one word from its first line in the fixed order', (): void => {
   const plain: ItemInstance = { uid: 1, base: 'rusted_blade', rarity: 'common', level: 1, affixes: [], ledger: null };
   assert.equal(itemName(content, plain), 'Rusted Blade');

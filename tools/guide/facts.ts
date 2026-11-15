@@ -132,6 +132,26 @@ export function variantWeapons(data: GuideData, skillId: string): ItemBaseDef[] 
   return droppedWeapons(data, (base: ItemBaseDef): boolean => base.variants.some((variant: SkillVariant): boolean => variant.skill === skillId));
 }
 
+export function quickWeapons(data: GuideData): ItemBaseDef[] {
+  return droppedWeapons(data, (base: ItemBaseDef): boolean => implicitOf(base, 'attackSpeed') > 0 && implicitOf(base, 'moveSpeed') > 0);
+}
+
+export function manaWeapons(data: GuideData): ItemBaseDef[] {
+  return droppedWeapons(data, (base: ItemBaseDef): boolean => implicitOf(base, 'maxMana') > 0);
+}
+
+export function legendaryLine(data: GuideData, id: string): string {
+  const base: ItemBaseDef | undefined = data.content.itemBases.get(id);
+  if (base?.power === null || base?.power === undefined) throw new Error(`${id} is not a legendary`);
+  return esc(`The ${base.name}, a legendary: ${base.power.text}`);
+}
+
+export function familyNames(data: GuideData, family: string): string {
+  const pieces: ItemBaseDef[] = [...data.content.itemBases.values()].filter((base: ItemBaseDef): boolean => base.power?.family === family);
+  if (pieces.length === 0) throw new Error(`no legendary belongs to ${family}`);
+  return weaponNames(pieces);
+}
+
 export function weaponNames(bases: readonly ItemBaseDef[]): string {
   return esc(list(bases.map((base: ItemBaseDef): string => `the ${base.name}`)));
 }
