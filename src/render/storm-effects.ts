@@ -2,7 +2,8 @@ import type { Group } from 'three';
 import { Color, PointLight, Vector3 } from 'three';
 import type { BufferGeometry, Mesh, MeshBasicMaterial, Object3D } from 'three';
 import type { AreaDelivery } from '../../sim/content/shape-types.ts';
-import type { SkillDef, VfxImpact } from '../../sim/content/types.ts';
+import type { SkillDef, VfxImpact, VfxLightning } from '../../sim/content/types.ts';
+import type { VfxPunch } from '../../sim/content/vfx-types.ts';
 import type { Vec2 } from '../../sim/math.ts';
 import { areaOf } from '../../sim/world/areas.ts';
 import { chargeOf } from '../../sim/world/skills.ts';
@@ -14,6 +15,8 @@ import { STRAND } from './strand-shape.ts';
 import type { BurstOptions } from './particles.ts';
 import type { EffectKit } from './effect-kit.ts';
 import { floorUp } from './terrain-lift.ts';
+import type { PunchRoll } from './punch.ts';
+import { dustHeadings, PUNCH, punchRoll, swungFrom } from './punch.ts';
 
 export const STORM_EFFECTS = {
   handHeight: 1.35,
@@ -149,9 +152,29 @@ export function createStormEffects(kit: StormKit): StormEffects {
     );
   };
 
+  const onPunch = (event: Extract<WorldEvent, { type: 'chain' }>, look: VfxLightning, punch: VfxPunch): void => {
+    const color: Color = kit.colorOf(event.skill.vfx.color);
+    const from: Vec2 | undefined = event.points[0];
+    const to: Vec2 | undefined = event.points[1];
+    if (from === undefined || to === undefined) return;
+    const impact: VfxImpact | null = event.skill.vfx.impact;
+    const roll: PunchRoll = punchRoll(impact === null ? 0 : impact.sparks, Math.random);
+    const start: Vec2 = swungFrom(from, to, roll.swing);
+    kit.kit.strike(placed(START, start, STORM_EFFECTS.handHeight), placed(END, to, STORM_EFFECTS.bodyHeight), color, look, 0);
+    if (impact !== null) kit.kit.impact(to.x, to.z, color, { sparks: roll.sparks, flash: impact.flash }, event.skill.vfx.light, 0);
+    for (const heading of dustHeadings(punch.dust, roll.turn)) {
+      kit.spray(to.x, PUNCH.dustHeight, to.z, color, 1, { dirX: heading.x, dirZ: heading.z, spread: PUNCH.dustSpread, speed: { min: punch.kick * PUNCH.dustSlowest, max: punch.kick }, lift: { min: PUNCH.dustLiftMin, max: PUNCH.dustLiftMax }, life: { min: PUNCH.dustLifeMin, max: PUNCH.dustLifeMax }, size: { min: PUNCH.dustSizeMin, max: PUNCH.dustSizeMax }, gravity: 0, drag: PUNCH.dustDrag, jitter: 0.1 });
+    }
+  };
+
   const onChain = (event: Extract<WorldEvent, { type: 'chain' }>): void => {
     const color: Color = kit.colorOf(event.skill.vfx.color);
     const lightning = event.skill.vfx.lightning;
+    const punch: VfxPunch | null = event.skill.vfx.punch;
+    if (lightning !== null && punch !== null) {
+      onPunch(event, lightning, punch);
+      return;
+    }
     if (lightning !== null) {
       const impact = event.skill.vfx.impact;
       event.points.forEach((point: Vec2, index: number): void => {
