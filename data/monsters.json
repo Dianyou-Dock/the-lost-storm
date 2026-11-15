@@ -59,6 +59,10 @@
       "orbitRange": 5
     },
     "skill": "taker_snatch",
+    "poise": {
+      "knockback": 0.3,
+      "stagger": 0.3
+    },
     "loot": {
       "goldChance": 0.55,
       "goldMin": 3,
@@ -93,6 +97,10 @@
       "retreatRange": 4
     },
     "skill": "thrower_stone",
+    "poise": {
+      "knockback": 0.3,
+      "stagger": 0.3
+    },
     "loot": {
       "goldChance": 0.65,
       "goldMin": 3,
@@ -764,5 +772,5 @@
   {"id": "bat", "name": "Bat", "rig": "bat", "bodyMaterial": "hide", "faction": "beasts", "scale": 1.0, "radius": 0.35, "life": 1, "scalesLife": false, "damageMin": 2, "damageMax": 3, "moveSpeed": 6.0, "xp": 3, "aggroRadius": 13, "behaviour": {"type": "swarm", "ring": 2.6}, "skill": "bat_bite", "loot": {"goldChance": 0.1, "goldMin": 1, "goldMax": 2, "itemChance": 0.02}, "color": "#c9b48a", "tint": "#b0a59a", "gear": [], "wear": []},
   {"id": "spider", "name": "Spider", "rig": "spider", "bodyMaterial": "chitin", "faction": "beasts", "scale": 1.0, "radius": 0.8, "life": 60, "damageMin": 9, "damageMax": 14, "moveSpeed": 1.9, "xp": 18, "aggroRadius": 11, "behaviour": {"type": "ambush", "spring": 4.5}, "skill": "spider_leap", "loot": {"goldChance": 0.4, "goldMin": 2, "goldMax": 8, "itemChance": 0.16}, "color": "#c9b48a", "tint": "#b0a59a", "gear": [], "wear": []},
   {"id": "crawler", "name": "Crawler", "rig": "crawler", "bodyMaterial": "chitin", "faction": "beasts", "scale": 1.0, "radius": 0.7, "life": 80, "damageMin": 10, "damageMax": 15, "moveSpeed": 0.7, "xp": 20, "aggroRadius": 10, "behaviour": {"type": "chaser"}, "skill": "crawler_lunge", "loot": {"goldChance": 0.45, "goldMin": 3, "goldMax": 9, "itemChance": 0.18}, "color": "#c9b48a", "tint": "#b0a59a", "gear": [], "wear": []},
-  {"id": "unfinished_crier", "name": "Echo", "rig": "unfinished_taker", "bodyMaterial": "flesh", "faction": "unfinished", "scale": 0.95, "radius": 0.5, "life": 38, "damageMin": 5, "damageMax": 8, "moveSpeed": 5.6, "xp": 15, "aggroRadius": 12, "behaviour": {"type": "chaser"}, "skill": "taker_snatch", "alarm": {"reach": 36, "cry": 3}, "loot": {"goldChance": 0.55, "goldMin": 3, "goldMax": 8, "itemChance": 0.2}, "color": "#d08a5a", "tint": "#e6d8c8", "gear": [], "wear": ["torn_hood", "odd_breeches", "cast_off_boots"]}
+  {"id": "unfinished_crier", "name": "Echo", "rig": "unfinished_taker", "bodyMaterial": "flesh", "faction": "unfinished", "scale": 0.95, "radius": 0.5, "life": 38, "damageMin": 5, "damageMax": 8, "moveSpeed": 5.6, "xp": 15, "aggroRadius": 12, "behaviour": {"type": "chaser"}, "skill": "taker_snatch", "poise": {"knockback": 0.3, "stagger": 0.3}, "alarm": {"reach": 36, "cry": 3}, "loot": {"goldChance": 0.55, "goldMin": 3, "goldMax": 8, "itemChance": 0.2}, "color": "#d08a5a", "tint": "#e6d8c8", "gear": [], "wear": ["torn_hood", "odd_breeches", "cast_off_boots"]}
 ]
