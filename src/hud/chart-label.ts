@@ -36,17 +36,11 @@ export function createNameView(host: HTMLElement, text: string, tint: string, at
   };
 }
 
-export function createFrameTargets(board: HTMLElement, here: HTMLElement, labels: readonly NameView[]): FrameTargets {
-  let hereZoom: number = 0;
+export function createFrameTargets(board: HTMLElement, labels: readonly NameView[]): FrameTargets {
   return {
     labels,
     moveBoard: (transform: string): void => {
       board.style.transform = transform;
-    },
-    zoomHere: (scale: number): void => {
-      if (scale === hereZoom) return;
-      hereZoom = scale;
-      here.style.setProperty('--zoom', String(scale));
     },
   };
 }

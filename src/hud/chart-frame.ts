@@ -13,7 +13,6 @@ export interface FrameLabel {
 export interface FrameTargets {
   readonly labels: readonly FrameLabel[];
   moveBoard(transform: string): void;
-  zoomHere(scale: number): void;
 }
 
 export function boardTransform(view: AtlasView, frame: AtlasFrame): string {
@@ -27,7 +26,6 @@ export function labelTransform(box: LabelBox): string {
 
 export function writeView(targets: FrameTargets, view: AtlasView, frame: AtlasFrame, foot: number): void {
   targets.moveBoard(boardTransform(view, frame));
-  targets.zoomHere(view.scale);
   const pins: readonly PinnedLabel[] = targets.labels.map((label: FrameLabel): PinnedLabel => pinLabel(toScreen(view, frame, label.at), label.halfWidth, label.halfHeight, frame, foot));
   const boxes: readonly LabelBox[] = spreadLabels(
     pins.map((pin: PinnedLabel, index: number): LabelBox => ({ x: pin.x, y: pin.y, halfWidth: targets.labels[index]?.halfWidth ?? 0, halfHeight: targets.labels[index]?.halfHeight ?? 0 })),

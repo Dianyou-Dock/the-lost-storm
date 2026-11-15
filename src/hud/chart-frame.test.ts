@@ -8,12 +8,11 @@ const FRAME: AtlasFrame = { width: 1400, height: 700, mapWidth: 1500, mapHeight:
 
 interface Writes {
   readonly board: string[];
-  readonly here: number[];
   readonly labels: { readonly transform: string; readonly pinned: boolean }[][];
 }
 
 function recording(): { readonly targets: FrameTargets; readonly writes: Writes } {
-  const writes: Writes = { board: [], here: [], labels: [[], []] };
+  const writes: Writes = { board: [], labels: [[], []] };
   const labels: FrameLabel[] = [
     { at: { x: 300, y: 300 }, halfWidth: 60, halfHeight: 10, place: (transform: string, pinned: boolean): void => void writes.labels[0]?.push({ transform, pinned }) },
     { at: { x: 1200, y: 1100 }, halfWidth: 60, halfHeight: 10, place: (transform: string, pinned: boolean): void => void writes.labels[1]?.push({ transform, pinned }) },
@@ -23,22 +22,20 @@ function recording(): { readonly targets: FrameTargets; readonly writes: Writes 
     targets: {
       labels,
       moveBoard: (transform: string): void => void writes.board.push(transform),
-      zoomHere: (scale: number): void => void writes.here.push(scale),
     },
   };
 }
 
-void test('a zoom step writes the board transform, the here-word scale and one transform per path name, and nothing else', (): void => {
+void test('a zoom step writes the board transform and one transform per path name, and nothing else', (): void => {
   const { targets, writes } = recording();
   const view: AtlasView = { x: 750, y: 700, scale: 1.4 };
   writeView(targets, view, FRAME, 52);
   assert.deepEqual(writes.board, [boardTransform(view, FRAME)]);
-  assert.deepEqual(writes.here, [1.4]);
   assert.deepEqual(
     writes.labels.map((entries) => entries.length),
     [1, 1],
   );
-  assert.equal(Object.keys(targets).toSorted().join(), 'labels,moveBoard,zoomHere');
+  assert.equal(Object.keys(targets).toSorted().join(), 'labels,moveBoard');
 });
 
 void test('the board transform is one translate and one scale of the view', (): void => {

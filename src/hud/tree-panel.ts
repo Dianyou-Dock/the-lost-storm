@@ -154,9 +154,6 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
   }
 
   const names: NameView[] = pathLabels(content).map((entry: PathLabel): NameView => createNameView(viewport, entry.path.name, entry.path.tint, place(entry.at)));
-  const here: HTMLDivElement = el('div', 'chart-here', board);
-  el('span', 'chart-here-ring', here);
-  label('chart-here-word', 'You are here', here);
   const prompt: HTMLDivElement = el('div', 'chart-prompt', viewport);
   const card: HTMLDivElement = el('div', 'chart-card', viewport);
   const cardBody: HTMLDivElement = el('div', 'chart-card-body', card);
@@ -365,7 +362,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
   const measureFoot = (): void => {
     wantedFoot = captionFoot(prompt.offsetTop, prompt.offsetHeight, frame.height);
   };
-  const frameTargets: FrameTargets = createFrameTargets(board, here, names);
+  const frameTargets: FrameTargets = createFrameTargets(board, names);
   const apply = (): void => {
     placeCard();
     writeView(frameTargets, motion.view, frame, foot);
@@ -583,12 +580,6 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
       const status: TreeNodeStatus = statusOf(view.def);
       for (const name of STATUS_CLASSES) view.button.classList.toggle(name, name === status.kind);
     }
-    const at: string | null = chartHere(content, you.allocated);
-    const hereNode: SkillTreeNodeDef | undefined = at === null ? undefined : byId.get(at);
-    const spot: ChartPoint = hereNode === undefined ? eye : centreOf(hereNode);
-    here.style.left = `${spot.x}px`;
-    here.style.top = `${spot.y}px`;
-    here.classList.toggle('start', hereNode === undefined);
     for (const link of links) {
       const fromTaken: boolean = you.allocated.includes(link.from);
       const toTaken: boolean = you.allocated.includes(link.to);

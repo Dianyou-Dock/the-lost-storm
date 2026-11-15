@@ -371,46 +371,6 @@
   }
 }
 
-.chart-here {
-  position: absolute;
-  width: 0;
-  height: 0;
-  pointer-events: none;
-  transition:
-    left var(--spring-smooth-ms) var(--spring-smooth),
-    top var(--spring-smooth-ms) var(--spring-smooth);
-}
-
-.chart-here-ring {
-  position: absolute;
-  left: -36px;
-  top: -36px;
-  width: 72px;
-  height: 72px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(232, 184, 102, 0) 52%, rgba(232, 184, 102, 0.26) 62%, rgba(232, 184, 102, 0) 74%);
-  animation: chart-breathe var(--drift-ms) var(--drift-ease) infinite;
-}
-
-.chart-here-word {
-  position: absolute;
-  right: 40px;
-  top: 0;
-  z-index: 1;
-  padding: 2px 6px;
-  border-radius: 3px;
-  background: rgba(5, 7, 11, 0.78);
-  transform: translateY(-50%) scale(calc(1 / min(var(--zoom, 1), 1.4)));
-  transform-origin: 100% 50%;
-  white-space: nowrap;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ember);
-  text-shadow: 0 0 6px #05070b, 0 0 2px #05070b;
-}
-
 .chart-search {
   flex: 1 1 140px;
   min-width: 110px;
