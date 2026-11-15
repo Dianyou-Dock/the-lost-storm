@@ -349,6 +349,8 @@ const FLOOR_PLACED: readonly string[] = [
   'src/render/dash-trail.ts',
   'src/render/overlays.ts',
   'src/render/health-bars.ts',
+  'src/render/projectile-views.ts',
+  'src/render/torch-flames.ts',
 ];
 const PLACING: RegExp = /(\.position\.set|camera\.project|new Vector3)\(/g;
 const PASSED_HEIGHT: RegExp = /^[\w.]+\.y$/;
