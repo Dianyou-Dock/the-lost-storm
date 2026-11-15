@@ -186,7 +186,8 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
   const hero: PointLight = new PointLight(STAGE.heroColor, heroStrength.value, heroRadius.value, heroFalloff.value);
   scene.add(hero);
 
-  const primer: WebGLRenderTarget = new WebGLRenderTarget(1, 1, { type: HalfFloatType });
+  const msaaSamples = (): number => Math.min(STAGE.samples, tier.msaaSamples);
+  const primer: WebGLRenderTarget = new WebGLRenderTarget(1, 1, { type: HalfFloatType, samples: msaaSamples() });
   let composer: EffectComposer | null = null;
   let finish: Pass | null = null;
   let builtBloom: boolean = false;
@@ -195,7 +196,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
   let builtSeam: Pass | null = null;
 
   const buildComposer = (): EffectComposer => {
-    const samples: number = Math.min(STAGE.samples, tier.msaaSamples);
+    const samples: number = msaaSamples();
     const made: EffectComposer = new EffectComposer(renderer, postBufferTarget(samples === 0));
     if (samples > 0) made.addPass(scenePass(scene, camera, samples, builtBloom).pass);
     else {
@@ -351,6 +352,10 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
     },
     drawOnce(target: Object3D, viewer: Camera): void {
       const previous: WebGLRenderTarget | null = renderer.getRenderTarget();
+      if (primer.samples !== msaaSamples()) {
+        primer.dispose();
+        primer.samples = msaaSamples();
+      }
       renderer.setRenderTarget(primer);
       try {
         renderer.render(target, viewer);
