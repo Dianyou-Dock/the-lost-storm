@@ -56,7 +56,7 @@ export interface StatMod {
   readonly value: number;
 }
 
-export const SKILL_MOD_FIELDS = ['damagePercent', 'areaPercent', 'rangePercent', 'durationPercent', 'cooldownPercent', 'manaCostPercent', 'knockbackPercent', 'staggerPercent', 'projectiles', 'pierce', 'chains', 'chainFalloff', 'momentumCapPercent', 'momentumGracePercent', 'lifePerHit'] as const;
+export const SKILL_MOD_FIELDS = ['damagePercent', 'areaPercent', 'rangePercent', 'durationPercent', 'cooldownPercent', 'manaCostPercent', 'knockbackPercent', 'staggerPercent', 'projectiles', 'pierce', 'chains', 'chainFalloff', 'momentumCapPercent', 'momentumGracePercent', 'lifePerHit', 'lifeOnHit'] as const;
 export type SkillModField = (typeof SKILL_MOD_FIELDS)[number];
 
 export interface SkillMod {
@@ -155,6 +155,7 @@ export interface SkillDef extends SkillShape {
   readonly combo: SkillCombo | null;
   readonly hold: number;
   readonly echo: number;
+  readonly lifeOnHit: number;
 }
 
 export interface ChaserBehaviour {

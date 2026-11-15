@@ -344,7 +344,7 @@ export function readSave(content: Content, value: unknown): SaveData | null {
   const saved: ReadonlySet<string> = new Set<string>(allocatedList.filter((node: unknown): node is string => typeof node === 'string'));
   const listed: string[] = [...saved].filter((node: string): boolean => findNode(content, node) !== null);
   const standing: readonly string[] = reachablePlaces(content, listed);
-  const adopted: AdoptedPlaces = adoptLearned(content, value['learned'], standing);
+  const adopted: AdoptedPlaces = adoptLearned(content, value['learned'], standing, listed);
   const taken: string[] = [...adopted.allocated];
   const grants: string[] = grantIds(content.chart.grants, value['grants']);
   const unreached: number = listed.length - standing.length + adopted.refund;

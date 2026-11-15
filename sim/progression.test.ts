@@ -97,11 +97,10 @@ void test('a ring crosses to another path and the walk can turn inward to that p
 });
 
 void test('a second changed form of a skill is taken like any joined place', (): void => {
-  const storm: readonly string[] = ['stormcallers_focus', 'storm_1', 'forked_bolt', 'storm_4', 'storm_lance'];
-  const echo: readonly string[] = ['echo_forkline', 'first_echo', 'echo_1', 'long_squall', 'echo_4'];
-  assert.ok(canAllocate(content, echo, 1, 'twice_told_bolt'));
-  assert.equal(joinBlock(content, [...echo, ...storm], node('twice_told_bolt')), null);
-  assert.ok(canAllocate(content, [...echo, ...storm], 1, 'twice_told_bolt'));
+  const storm: readonly string[] = ['storm_storm_bolt', 'stormcallers_focus', 'storm_1', 'forked_bolt', 'storm_4'];
+  assert.ok(canAllocate(content, storm, 1, 'twice_told_bolt'));
+  assert.equal(joinBlock(content, [...storm, 'storm_lance'], node('twice_told_bolt')), null);
+  assert.ok(canAllocate(content, [...storm, 'storm_lance'], 1, 'twice_told_bolt'));
 });
 
 void test('a place can be given back only while what is left stays joined to its start', (): void => {
@@ -161,14 +160,16 @@ void test('on load a place stays when its part of the holding reaches a starting
 });
 
 void test('a skill learned before the chart gave abilities takes its place when the way is open, and returns a point when it is not', (): void => {
-  assert.deepEqual(adoptLearned(content, ['cleave', 'thunderclap', 'living_wire'], ['storm_storm_bolt']), { allocated: ['storm_storm_bolt', 'stone_thunderclap'], refund: 1 });
+  assert.deepEqual(adoptLearned(content, ['cleave', 'thunderclap', 'held_breath'], ['storm_storm_bolt']), { allocated: ['storm_storm_bolt', 'stone_thunderclap'], refund: 1 });
   assert.deepEqual(adoptLearned(content, ['storm_bolt'], ['storm_storm_bolt']), { allocated: ['storm_storm_bolt'], refund: 0 });
   assert.deepEqual(adoptLearned(content, 'junk', []), { allocated: [], refund: 0 });
+  assert.deepEqual(adoptLearned(content, ['held_breath'], ['stone_thunderclap'], ['stone_thunderclap', 'stone_held_breath']), { allocated: ['stone_thunderclap'], refund: 0 });
 });
 
 void test('a second change of a skill can be taken beside the first', (): void => {
-  assert.ok(canAllocate(content, ['twice_told_bolt', 'echo_storm_mid'], 1, 'storm_lance'));
-  assert.ok(canAllocate(content, ['storm_lance', 'echo_storm_mid', 'echo_4'], 1, 'twice_told_bolt'));
+  const storm: readonly string[] = ['storm_storm_bolt', 'stormcallers_focus', 'storm_1', 'forked_bolt', 'storm_4'];
+  assert.ok(canAllocate(content, [...storm, 'twice_told_bolt'], 1, 'storm_lance'));
+  assert.ok(canAllocate(content, [...storm, 'storm_lance'], 1, 'twice_told_bolt'));
 });
 
 void test('only a held place offers its change, and choices no held place offers are dropped', (): void => {

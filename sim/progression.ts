@@ -195,13 +195,13 @@ export interface AdoptedPlaces {
   readonly refund: number;
 }
 
-export function adoptLearned(content: Content, learned: unknown, allocated: readonly string[]): AdoptedPlaces {
+export function adoptLearned(content: Content, learned: unknown, allocated: readonly string[], saved: readonly string[] = allocated): AdoptedPlaces {
   const taken: string[] = [...allocated];
   let refund: number = 0;
   const list: readonly unknown[] = Array.isArray(learned) ? learned : [];
   for (const skill of list) {
     const node: SkillTreeNodeDef | undefined = content.skillTree.find((entry: SkillTreeNodeDef): boolean => entry.unlock !== null && entry.unlock === skill);
-    if (node === undefined || taken.includes(node.id)) continue;
+    if (node === undefined || taken.includes(node.id) || saved.includes(node.id)) continue;
     const near: readonly string[] = placeLinks(content).get(node.id) ?? [];
     if (isStartingPlace(node) || near.some((id: string): boolean => taken.includes(id))) taken.push(node.id);
     else refund += 1;

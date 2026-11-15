@@ -46,7 +46,7 @@ export const BALANCE_CONTENT: Content = loadContent();
 
 export const BUILDS: readonly Build[] = [
   { name: 'striker', order: ['thunderhead', 'mist_step', 'downdraught', 'thunderclap', 'cleave'] },
-  { name: 'caster', order: ['static_brand', 'living_wire', 'forkline', 'storm_bolt', 'cleave'] },
+  { name: 'caster', order: ['static_brand', 'standing_storm', 'forkline', 'storm_bolt', 'cleave'] },
   { name: 'weather', order: ['held_breath', 'squall', 'downdraught', 'thunderclap', 'forkline', 'cleave'] },
 ];
 

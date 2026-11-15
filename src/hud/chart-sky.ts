@@ -9,7 +9,7 @@ export const CHART_SKY = {
   fallbackDriftMs: 5200,
   minDriftMs: 1000,
   maxDriftMs: 60000,
-  flowPerDrift: 0.047,
+  flowPerDrift: 0.045,
   streakScale: 0.3,
   streakMix: 0.45,
   warpScale: 0.4,

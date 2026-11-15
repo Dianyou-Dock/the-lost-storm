@@ -266,3 +266,20 @@ void test('a hero who stands and spams Cleave at a brute is answered with a Haym
   assert.ok(interrupts < starts, 'not every swing is interrupted');
   assert.ok(landed > 0, 'the brute lands a Haymaker');
 });
+
+void test('a skill with life on hit heals its striker for each enemy it strikes, never past full life', (): void => {
+  const world: World = arena(1);
+  const first: MonsterState = brute(world);
+  const second: MonsterState = place(world, 'test_brute', { x: ARENA_CENTRE.x + 2, z: ARENA_CENTRE.z + 3 });
+  const mending: SkillDef = { ...light, lifeOnHit: 4 };
+  world.player.life = world.player.maxLife - 10;
+  applyHit(world, offenceOf(world.player), first, mending, { x: 0, z: 1 });
+  applyHit(world, offenceOf(world.player), second, mending, { x: 0, z: 1 });
+  assert.equal(world.player.life, world.player.maxLife - 2);
+  applyHit(world, offenceOf(world.player), first, mending, { x: 0, z: 1 });
+  assert.equal(world.player.life, world.player.maxLife);
+  const before: number = world.player.life - 6;
+  world.player.life = before;
+  applyHit(world, offenceOf(world.player), first, light, { x: 0, z: 1 });
+  assert.equal(world.player.life, before);
+});

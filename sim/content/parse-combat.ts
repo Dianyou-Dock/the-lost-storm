@@ -53,6 +53,7 @@ export interface SkillMotion {
   readonly root: number;
   readonly hold: number;
   readonly echo: number;
+  readonly lifeOnHit: number;
   readonly commit: SkillCommit | null;
 }
 
@@ -62,6 +63,7 @@ export function skillMotion(source: Fields, where: string): SkillMotion {
     root: zeroOrMore(source, 'root', where),
     hold: zeroOrMore(source, 'hold', where),
     echo: zeroOrMore(source, 'echo', where),
+    lifeOnHit: zeroOrMore(source, 'lifeOnHit', where),
     commit: optional(source['commit'], `${where}.commit`, commit),
   };
 }

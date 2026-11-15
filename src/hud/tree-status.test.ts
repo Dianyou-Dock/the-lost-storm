@@ -53,7 +53,7 @@ void test('the card lines name the cost and the reason', (): void => {
 });
 
 void test('a place that changes a skill a held place already changes is open like any other place', (): void => {
-  const held: readonly string[] = ['twice_told_bolt', 'echo_storm_mid'];
+  const held: readonly string[] = ['storm_storm_bolt', 'stormcallers_focus', 'storm_1', 'forked_bolt', 'storm_4', 'twice_told_bolt'];
   assert.deepEqual(treeNodeStatus(CONTENT, held, 2, node('storm_lance')), { kind: 'available' });
   assert.deepEqual(treeNodeStatus(CONTENT, held, 0, node('storm_lance')), { kind: 'no_points' });
 });

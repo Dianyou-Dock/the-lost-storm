@@ -7,7 +7,7 @@ import { generateItem } from '../items.ts';
 import { xpToNextLevel } from '../progression.ts';
 import { createRng } from '../rng.ts';
 import { refundCost } from '../progression.ts';
-import { bountyReduction, grantXp, killReduction, killXp } from './character.ts';
+import { bountyReduction, grantXp, killReduction, killXp, refreshPlayer } from './character.ts';
 import { stepWorld } from './step.ts';
 import type { Command, ItemInstance, World, WorldEvent } from './types.ts';
 
@@ -168,6 +168,8 @@ function boltName(world: World): string {
 
 void test('the player picks which held change of a skill is active, only among changes a held place gives, and a refunded choice falls back', (): void => {
   const world: World = armed(worldIn(content, 'hall_of_time', 1));
+  world.player.equipped.weapon = must(generateItem(content, createRng(1), 1, 1, 'stormcaller_stave', 'common'), 'stave');
+  refreshPlayer(world);
   world.player.skillPoints = BOTH_CHANGES.length;
   for (const node of BOTH_CHANGES) send(world, { type: 'allocate', node });
   assert.deepEqual(world.player.allocated, BOTH_CHANGES);

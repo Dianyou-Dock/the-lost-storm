@@ -155,6 +155,13 @@ function knockBack(target: Actor, push: ReadonlyVec2): void {
   target.knock.z = knock.z;
 }
 
+function mendSource(world: World, offence: Offence, target: Actor, skill: SkillDef): void {
+  if (skill.lifeOnHit <= 0) return;
+  const source: Actor | null = findActor(world, offence.sourceId);
+  if (source === null || source === target || !source.alive) return;
+  source.life = Math.min(source.maxLife, source.life + skill.lifeOnHit);
+}
+
 export function applyHit(world: World, offence: Offence, target: Actor, skill: SkillDef, direction: ReadonlyVec2): boolean {
   if (!target.alive || (target.kind === 'player' && (target.invulnerable > 0 || attacksHeld(world)))) return false;
   const guard: GuardOutcome = guardOutcome(target, skill, direction);
@@ -192,6 +199,7 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
     aggroPack(world, target);
   }
   if (!steady) knockBack(target, { x: direction.x * skill.knockback * poise, z: direction.z * skill.knockback * poise });
+  mendSource(world, offence, target, skill);
   const killed: boolean = target.life <= 0;
   world.events.push({
     type: 'damage',

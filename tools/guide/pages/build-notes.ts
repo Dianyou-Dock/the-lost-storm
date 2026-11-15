@@ -233,7 +233,7 @@ function caster(data: GuideData): BuildNotes {
     plays: [
       `Your first point is ${skillName(data, 'storm_bolt')}, and from then on it is the button you press. The Stormcaller walks ${pathName(data, 'storm')}, which makes lightning stronger and gives you the mana to keep casting.`,
       `${name(data, 'forked_bolt')} soon makes each cast throw more bolts. At level ${lance} ${name(data, 'storm_lance')} changes the skill: one straight line of lightning that hits everything along it at once. Step back so the pack comes at you along the line.`,
-      `${skillName(data, 'living_wire')} comes early too. Hold it on a single tough enemy: it burns everything along the line for very little mana while you hold.`,
+      `${skillName(data, 'squall')} comes early too. Drop it where the pack is coming: it strikes everything under it every half second while you keep casting.`,
       `At level ${keystone} you take ${name(data, 'eye_of_the_storm')}. It costs ${lifeCut} of your life and makes your lightning far stronger. After that, keep your distance.`,
     ],
     lean: [
@@ -285,12 +285,12 @@ function echoer(data: GuideData): BuildNotes {
     forWho: 'For players who like to set the ground alight and let the crowd walk into it.',
     plays: [
       `Your first point is ${skillName(data, 'forkline')}: lightning that jumps from enemy to enemy. The Echo Weaver walks ${pathName(data, 'echo')}, the path of skills that hit an area and of skills that happen twice.`,
-      `${skillName(data, 'squall')} comes at level ${placeLevel(data, id, 'echo_squall')}: a storm where you aim that strikes everything under it every half second. Put it down where the pack is going to be, then fork lightning through whatever walks out of it.`,
+      `At level ${placeLevel(data, id, 'twice_swung')} ${name(data, 'twice_swung')} makes your swing happen twice. Fork lightning into the pack, then cut what comes close.`,
       `At level ${placeLevel(data, id, 'echoing_fork')} ${name(data, 'echoing_fork')} makes Forkline happen twice. At level ${keystone} ${name(data, 'twice_remembered')} trades a little damage on everything for bigger, longer area skills and a shorter wait on ${skillName(data, 'held_breath')}.`,
     ],
     lean: [
       `${skillName(data, 'forkline')} is the button you press most. It is best against a crowd, where every jump finds a new enemy.`,
-      `${skillName(data, 'squall')} is what makes the build. It costs a lot of mana and waits several seconds, so put it where it will hit the most.`,
+      `Every echo hits again for free, so a crowd is where the build is strongest.`,
     ],
     lookFor: [
       `A staff that adds mana: ${weaponNames(manaWeapons(data))}.`,
@@ -303,20 +303,20 @@ function echoer(data: GuideData): BuildNotes {
     ],
     avoid: [
       'Attack speed and critical strikes on gear. Your damage comes from your skills.',
-      'Casting Squall where nothing is standing. Wait a moment for the pack to come.',
+      'Forking lightning at a single enemy. Wait a moment for the pack to come.',
     ],
     strengths: [
       `Clearing. It was ${speedRank(data, id, second)} build to reach level ${second}.`,
       `The boss. At level ${second} it was ${bossSpeedRank(data, id, second)} build to win, and played steadily it won ${percent(steadyBossShare(data, id, first))} of its fights at level ${first}.`,
     ],
     weakSpots: [
-      'Mana. Squall and Forkline both cost it; drink the mana flask before you run dry.',
+      'Mana. Forkline costs it every cast; drink the mana flask before you run dry.',
       `Mistakes at the start. Played carelessly it won ${percent(carelessBossShare(data, id, first))} of its fights with the boss at level ${first}.`,
     ],
     thin: [],
     marks: {
       echo_forkline: 'Your first point, and your main skill.',
-      echo_squall: 'The build starts here.',
+      twice_swung: 'Your swing happens twice from here.',
       twice_remembered: 'Bigger, longer area skills for a little less damage on everything.',
       thunder_in_the_bones: `From here the route turns to ${pathName(data, 'storm')}, which makes lightning stronger. Forkline is lightning.`,
     },
