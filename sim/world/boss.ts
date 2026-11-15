@@ -6,6 +6,8 @@ import { rollDrop } from './loot.ts';
 import { dropOnGround } from './ground.ts';
 import type { ItemInstance, MonsterState, World, WorldEvent } from './types.ts';
 
+export const BOSS_DEFEATED: string = 'defeated';
+
 export function phaseAt(boss: BossDef, lifeFraction: number): number {
   let phase: number = 0;
   boss.phases.forEach((entry: BossPhase, index: number): void => {
@@ -59,7 +61,7 @@ function firstVictory(world: World, boss: BossDef): BossFirstKill | null {
 }
 
 function rewardFirst(world: World, monster: MonsterState, first: BossFirstKill): void {
-  writeFlags(world, { [first.flag]: 'defeated' });
+  writeFlags(world, { [first.flag]: BOSS_DEFEATED });
   const xp: number = Math.round(xpToNextLevel(world.content.player.xp, world.player.level) * first.xpShare);
   if (xp > 0) grantXp(world, xp);
   if (first.goldMax > 0) dropOnGround(world, monster.pos, { kind: 'gold', amount: Math.max(1, world.rng.int(first.goldMin, first.goldMax)) });

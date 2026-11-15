@@ -15,3 +15,9 @@ void test('a visited condition reads its zone and its not, and needs a zone', ()
   assert.deepEqual(condition({ type: 'visited', zone: 'hideout', not: true }, 'scene'), { type: 'visited', zone: 'hideout', not: true });
   assert.throws((): unknown => condition({ type: 'visited' }, 'scene'), ContentError);
 });
+
+void test('a defeated condition reads its monster and its not, and needs a monster', (): void => {
+  assert.deepEqual(condition({ type: 'defeated', monster: 'timekeeper_gatekeeper' }, 'pack'), { type: 'defeated', monster: 'timekeeper_gatekeeper', not: false });
+  assert.deepEqual(condition({ type: 'defeated', monster: 'timekeeper_gatekeeper', not: true }, 'pack'), { type: 'defeated', monster: 'timekeeper_gatekeeper', not: true });
+  assert.throws((): unknown => condition({ type: 'defeated' }, 'pack'), ContentError);
+});

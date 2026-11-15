@@ -30,3 +30,15 @@ void test('a visited condition holds once the hero has stood in that zone, and i
   assert.equal(holds(world, been), true);
   assert.equal(holds(world, never), false);
 });
+
+void test('a defeated condition holds once the boss\'s first defeat is recorded, and never for a monster whose defeat nothing records', (): void => {
+  const world: World = createWorld(loadContent(), { seed: 1, save: null });
+  const beaten: Condition = { type: 'defeated', monster: 'timekeeper_gatekeeper', not: false };
+  const standing: Condition = { ...beaten, not: true };
+  assert.equal(holds(world, beaten), false);
+  assert.equal(holds(world, standing), true);
+  world.flags['keeper_defeated'] = 'defeated';
+  assert.equal(holds(world, beaten), true);
+  assert.equal(holds(world, standing), false);
+  assert.equal(holds(world, { type: 'defeated', monster: 'no_such_monster', not: false }), false);
+});

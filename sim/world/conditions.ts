@@ -17,6 +17,11 @@ export function objectiveState(world: World, questId: string, objectiveId: strin
   return index === position ? 'current' : 'done';
 }
 
+export function defeated(world: World, monsterId: string): boolean {
+  const flag: string | undefined = world.content.monsters.get(monsterId)?.boss?.firstKill?.flag;
+  return flag !== undefined && world.flags[flag] !== undefined;
+}
+
 export function holds(world: World, condition: Condition): boolean {
   let held: boolean;
   switch (condition.type) {
@@ -40,6 +45,9 @@ export function holds(world: World, condition: Condition): boolean {
       break;
     case 'visited':
       held = world.visited.includes(condition.zone);
+      break;
+    case 'defeated':
+      held = defeated(world, condition.monster);
       break;
   }
   return held !== condition.not;

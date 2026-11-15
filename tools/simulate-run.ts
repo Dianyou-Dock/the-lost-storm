@@ -3,7 +3,7 @@ import type { BotPlan } from '../sim/bot-plan.ts';
 import { BOT, botFight, botPause, botPlay, botStep, botTravelTo, botWalkTo, createBot } from '../sim/bot.ts';
 import { loadContent } from '../sim/content/content.ts';
 import type { BookDef, PageDef } from '../sim/content/story-types.ts';
-import type { Content, MonsterDef, MonsterScaling, ScalingRamp, ZoneDef, ZoneExit } from '../sim/content/types.ts';
+import type { Content, MonsterDef, MonsterScaling, ScalingRamp, ZoneDef, ZoneExit, ZonePack } from '../sim/content/types.ts';
 import type { Vec2 } from '../sim/math.ts';
 import { distance, normalize } from '../sim/math.ts';
 import type { BossOutcome, Measurement, Meter } from '../sim/measure.ts';
@@ -266,12 +266,17 @@ function bossOutcome(boss: MonsterState, lost: boolean): BossOutcome {
   return lost ? 'lost' : 'timeout';
 }
 
+function standAgain(world: World, lair: BossLair): MonsterState | undefined {
+  const pack: ZonePack | undefined = lair.zone.packs.find((candidate: ZonePack): boolean => candidate.members.some((member): boolean => member.monster === lair.boss.id));
+  return pack === undefined ? undefined : spawnPackNear(world, lair.boss.id, 1, { x: pack.x, z: pack.z })[0];
+}
+
 export function fightBoss(bot: Bot, lair: BossLair, origin: number): Measurement | null {
   const world: World = bot.world;
   const outside: string | undefined = lair.zone.exits[0]?.to;
   if (world.zone.id === lair.zone.id && (outside === undefined || !botTravelTo(bot, outside))) return null;
   if (!botTravelTo(bot, lair.zone.id)) return null;
-  const boss: MonsterState | undefined = world.monsters.find((monster: MonsterState): boolean => monster.alive && monster.def.id === lair.boss.id);
+  const boss: MonsterState | undefined = world.monsters.find((monster: MonsterState): boolean => monster.alive && monster.def.id === lair.boss.id) ?? standAgain(world, lair);
   if (boss === undefined) return null;
   const deaths: number = bot.deaths;
   const approach: number = world.time + RUN.bossApproach;

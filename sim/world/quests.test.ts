@@ -538,6 +538,20 @@ void test('the Gate quest opens after the Warden\'s Lesson, names its level whil
   assert.equal(world.flags['alpha_slice_complete'], 'reached');
 });
 
+void test('a boss beaten before the quest that asks for its defeat began counts as defeated once that quest reaches the step', (): void => {
+  const content: Content = loadContent();
+  const world: World = worldIn(content, 'hall_of_time', 6);
+  world.flags['keeper_defeated'] = 'defeated';
+  for (const quest of content.quests.values()) if (quest.id !== 'the_gate') world.quests[quest.id] = quest.objectives.length;
+  world.player.level = 8;
+  startQuests(world);
+  assert.equal(questState(world, 'the_gate'), 'active');
+  const events: WorldEvent[] = stepWorld(world, [], DT);
+  assert.equal(questState(world, 'the_gate'), 'done');
+  assert.ok(ofType(events, 'quest_completed').some((event): boolean => event.quest === 'the_gate'));
+  assert.equal(world.flags['alpha_slice_complete'], 'reached');
+});
+
 void test('at the fire the first lines the Warden still owes come once before his lesson, and only the lesson answers the step that names it', (): void => {
   const real: Content = loadContent();
   const world: World = worldIn(real, 'hideout', 5);

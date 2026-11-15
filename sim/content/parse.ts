@@ -6,7 +6,7 @@ import { itemProblems } from './item-rules.ts';
 import { powerRuleProblems } from './power-rules.ts';
 import { books } from './parse-story.ts';
 import { storyFlagNames, storyProblems } from './story.ts';
-import { conditionProblems, roadProblems } from './road.ts';
+import { bossPackProblems, conditionProblems, roadProblems } from './road.ts';
 import { parseFlasks } from './flasks.ts';
 import { combatProblems, fieldDelivery, markDelivery, monsterMod, monsterTraits, reviveDelivery, skillMotion } from './parse-combat.ts';
 import { faction, factionProblems } from './parse-factions.ts';
@@ -559,7 +559,7 @@ export function contentProblems(content: Content): string[] {
   const known = (holder: string, list: readonly Condition[]): void => {
     problems.push(...conditionProblems(content, flagNames, holder, list));
   };
-  problems.push(...roadProblems(content, flagNames));
+  problems.push(...roadProblems(content, flagNames), ...bossPackProblems(content));
   for (const act of content.world.acts) for (const place of act.atlas.places) known(`world map place ${place.zone}`, place.when);
   for (const entry of content.player.skillBook) known(`skill book ${entry.skill}`, entry.when);
   for (const grant of content.chart.grants) known(`chart point grant ${grant.id}`, grant.when);

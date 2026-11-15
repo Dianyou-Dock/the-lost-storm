@@ -229,6 +229,13 @@
           "monster": "timekeeper_gatekeeper",
           "count": 1
         }
+      ],
+      "when": [
+        {
+          "type": "defeated",
+          "monster": "timekeeper_gatekeeper",
+          "not": true
+        }
       ]
     }
   ],

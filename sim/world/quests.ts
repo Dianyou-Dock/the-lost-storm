@@ -1,7 +1,7 @@
 import type { ObjectiveDef, PathObjective, QuestDef } from '../content/types.ts';
 import { objectivePaths } from '../content/road.ts';
 import { distance } from '../math.ts';
-import { allHold, questState } from './conditions.ts';
+import { allHold, defeated, questState } from './conditions.ts';
 import { refreshNpcs } from './dialogue.ts';
 import { spawnPacks } from './monsters.ts';
 import { endedActs, reportEndedActs, writeFlags } from './flags.ts';
@@ -66,7 +66,7 @@ function pathMet(world: World, objective: PathObjective, events: readonly WorldE
       done = world.zone.id === objective.zone && world.player.alive && distance(world.player.pos, objective) <= objective.radius;
       break;
     case 'defeat':
-      done = died(world, events, objective.monster);
+      done = died(world, events, objective.monster) || defeated(world, objective.monster);
       break;
     case 'moment':
       done = events.some((event: WorldEvent): boolean => event.type === 'moment_ended' && event.outcome === 'resolved');

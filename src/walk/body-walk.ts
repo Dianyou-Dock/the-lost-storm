@@ -1,6 +1,7 @@
 import type { Object3D } from 'three';
 import type { Condition } from '../../sim/content/condition-types.ts';
 import type { Content, ZoneDef, ZoneExit } from '../../sim/content/types.ts';
+import { BOSS_DEFEATED } from '../../sim/world/boss.ts';
 import { holds } from '../../sim/world/conditions.ts';
 import type { Command, MonsterState, World } from '../../sim/world/types.ts';
 import { drawable } from '../render/actor-guard.ts';
@@ -70,6 +71,11 @@ export function open(world: World, condition: Condition): boolean {
     case 'level':
       if (!condition.not) world.player.level = Math.max(world.player.level, condition.atLeast);
       break;
+    case 'defeated': {
+      const flag: string | undefined = world.content.monsters.get(condition.monster)?.boss?.firstKill?.flag;
+      if (!condition.not && flag !== undefined) world.flags[flag] = BOSS_DEFEATED;
+      break;
+    }
     case 'quest':
     case 'objective':
     case 'shore':

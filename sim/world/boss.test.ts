@@ -15,6 +15,10 @@ import { choicesOpen } from './death.ts';
 import type { MonsterState, World, WorldEvent } from './types.ts';
 import { SKILLS } from './skills.ts';
 import { enterZone } from './zones.ts';
+import { allHold } from './conditions.ts';
+import { createWorld } from './create.ts';
+import { readSave, toSave } from '../save.ts';
+import type { SaveData } from '../save.ts';
 
 const shipped: Content = loadContent();
 const DT: number = 1 / 30;
@@ -380,14 +384,62 @@ void test('the first Gatekeeper kill pays once: a share of a level, a purse of g
   assert.ok(firstDrops.rarities.every((rarity: string): boolean => rarity === block.drop.rarity));
   assert.equal(firstDrops.gold.length, 2);
   assert.ok(firstDrops.gold.some((amount: number): boolean => amount >= first.goldMin && amount <= first.goldMax));
-  enterZone(world, zoneOf(shipped, 'keepers_gate'), { type: 'exit', exit: 'hall' });
-  const again: MonsterState = bossOf(world);
+  const rematch: World = armed(worldIn(room('timekeeper_gatekeeper'), ROOM, 9));
+  rematch.player.level = 9;
+  rematch.flags[first.flag] = 'defeated';
+  const again: MonsterState = bossOf(rematch);
   assert.equal(again.alive, true);
   again.spawnTime = 0;
-  const rewon: WorldEvent[] = hurt(world, again, 0);
+  const rewon: WorldEvent[] = hurt(rematch, again, 0);
   assert.deepEqual(ofType(rewon, 'boss_defeated').map((event): boolean => event.first), [false]);
-  assert.equal(ofType(rewon, 'xp').some((event): boolean => event.amount === Math.round(xpToNextLevel(shipped.player.xp, world.player.level) * first.xpShare)), false);
+  assert.equal(ofType(rewon, 'xp').some((event): boolean => event.amount === Math.round(xpToNextLevel(shipped.player.xp, rematch.player.level) * first.xpShare)), false);
   const laterDrops = bossDrops(rewon);
   assert.equal(laterDrops.items, block.drop.items);
   assert.equal(laterDrops.gold.length, 1);
+});
+
+function bossesIn(world: World): string[] {
+  return world.monsters.filter((monster: MonsterState): boolean => monster.def.boss !== null).map((monster: MonsterState): string => monster.def.id);
+}
+
+void test('a beaten Gatekeeper stays beaten: a fresh entry leaves the lair empty and quiet, and the way on stays open', (): void => {
+  const world: World = armed(worldIn(shipped, 'hall_of_time', 11));
+  world.player.level = 9;
+  enterZone(world, zoneOf(shipped, 'keepers_gate'), { type: 'exit', exit: 'hall' });
+  assert.deepEqual(bossesIn(world), ['timekeeper_gatekeeper']);
+  const boss: MonsterState = bossOf(world);
+  boss.spawnTime = 0;
+  hurt(world, boss, 0);
+  assert.equal(world.flags['keeper_defeated'], 'defeated');
+  enterZone(world, zoneOf(shipped, 'hall_of_time'), { type: 'exit', exit: 'gate' });
+  enterZone(world, zoneOf(shipped, 'keepers_gate'), { type: 'exit', exit: 'hall' });
+  world.events = [];
+  assert.deepEqual(bossesIn(world), []);
+  const heard: WorldEvent[] = [];
+  for (let step: number = 0; step < 90; step += 1) heard.push(...stepWorld(world, [], DT));
+  assert.deepEqual(ofType(heard, 'bark'), []);
+  assert.deepEqual(ofType(heard, 'aggro'), []);
+  assert.deepEqual(bossesIn(world), []);
+  const exits: readonly string[] = zoneOf(shipped, 'keepers_gate').exits.filter((exit): boolean => allHold(world, exit.requires)).map((exit): string => exit.id);
+  assert.deepEqual(exits.toSorted(), ['hall', 'under']);
+});
+
+void test('a beaten Gatekeeper stays beaten through a save, and an older save that only carries its flag counts as beaten', (): void => {
+  const beaten: World = armed(worldIn(shipped, 'keepers_gate', 12));
+  const boss: MonsterState = bossOf(beaten);
+  boss.spawnTime = 0;
+  hurt(beaten, boss, 0);
+  const kept: SaveData = must(readSave(shipped, JSON.parse(JSON.stringify(toSave(beaten)))), 'save');
+  assert.equal(kept.flags['keeper_defeated'], 'defeated');
+  const restored: World = createWorld(shipped, { seed: 13, save: kept });
+  enterZone(restored, zoneOf(shipped, 'keepers_gate'), { type: 'exit', exit: 'hall' });
+  assert.deepEqual(bossesIn(restored), []);
+  const fresh: SaveData = toSave(createWorld(shipped, { seed: 14, save: null }));
+  const older = { ...fresh, zone: 'keepers_gate', flags: { ...fresh.flags, keeper_defeated: 'defeated' }, quests: { ...fresh.quests, the_gate: 1 }, visited: [...fresh.visited, 'hall_of_time', 'keepers_gate'] };
+  const read: SaveData = must(readSave(shipped, JSON.parse(JSON.stringify(older))), 'older save');
+  const arrived: World = createWorld(shipped, { seed: 15, save: read });
+  assert.equal(arrived.zone.id, 'keepers_gate');
+  assert.deepEqual(bossesIn(arrived), []);
+  const untouched: World = createWorld(shipped, { seed: 16, save: must(readSave(shipped, JSON.parse(JSON.stringify({ ...fresh, zone: 'keepers_gate' }))), 'unbeaten save') });
+  assert.deepEqual(bossesIn(untouched), ['timekeeper_gatekeeper']);
 });

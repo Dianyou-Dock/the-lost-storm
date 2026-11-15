@@ -1,6 +1,6 @@
 import { isFloorCell } from '../nav/layout.ts';
 import type { RetiredZones, ZoneDrift } from './road-types.ts';
-import type { Condition, Content, HeroDef, ObjectiveDef, PathObjective, QuestDef, ZoneCheckpoint, ZoneDef, ZoneExit } from './types.ts';
+import type { Condition, Content, HeroDef, MonsterDef, ObjectiveDef, PathObjective, QuestDef, ZoneCheckpoint, ZoneDef, ZoneExit, ZonePack } from './types.ts';
 
 export function objectivePaths(objective: ObjectiveDef): readonly PathObjective[] {
   return objective.type === 'either' ? objective.paths : [objective];
@@ -29,6 +29,12 @@ export function conditionProblems(content: Content, flags: ReadonlySet<string>, 
       continue;
     }
     if (entry.type === 'shore' || entry.type === 'level') continue;
+    if (entry.type === 'defeated') {
+      const def: MonsterDef | undefined = content.monsters.get(entry.monster);
+      if (def === undefined) problems.push(`${holder} names unknown monster ${entry.monster}`);
+      else if ((def.boss?.firstKill ?? null) === null) problems.push(`${holder} names ${entry.monster}, whose defeat nothing records`);
+      continue;
+    }
     if (entry.type === 'visited') {
       if (!content.zones.has(entry.zone)) problems.push(`${holder} names unknown zone ${entry.zone}`);
       continue;
@@ -97,6 +103,23 @@ function driftProblems(zone: ZoneDef, drift: ZoneDrift): string[] {
 
 function overlaps(a: ZoneDrift, b: ZoneDrift): boolean {
   return a.column < b.column + b.columns && b.column < a.column + a.columns && a.row < b.row + b.rows && b.row < a.row + a.rows;
+}
+
+function staysBeaten(pack: ZonePack, monster: string): boolean {
+  return pack.when.some((entry: Condition): boolean => entry.type === 'defeated' && entry.not && entry.monster === monster);
+}
+
+export function bossPackProblems(content: Content): string[] {
+  const problems: string[] = [];
+  for (const zone of content.zones.values()) {
+    for (const pack of zone.packs) {
+      for (const member of pack.members) {
+        const recorded: boolean = (content.monsters.get(member.monster)?.boss?.firstKill ?? null) !== null;
+        if (recorded && !staysBeaten(pack, member.monster)) problems.push(`zone ${zone.id} places boss ${member.monster} without a defeated condition, so it would stand again after its defeat`);
+      }
+    }
+  }
+  return problems;
 }
 
 export function roadProblems(content: Content, flags: ReadonlySet<string>): string[] {

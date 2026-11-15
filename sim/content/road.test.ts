@@ -3,7 +3,7 @@ import { test } from 'node:test';
 import type { Content, QuestDef, ZoneDef } from './types.ts';
 import { roadContent, roadZone, ROAD_CONTENT } from '../../test/road-support.ts';
 import { storyFlagNames } from './story.ts';
-import { roadProblems } from './road.ts';
+import { bossPackProblems, conditionProblems, roadProblems } from './road.ts';
 
 function problemsOf(zone: ZoneDef, extra: Partial<Content> = {}): string[] {
   const content: Content = roadContent(zone, extra);
@@ -53,4 +53,18 @@ void test('a talk objective may name the one talk that answers it, and naming a 
   assert.notEqual(talk, '');
   assert.equal(problemsWith(talk).some((problem: string): boolean => problem.includes('names talk')), false);
   assert.ok(problemsWith('no_such_talk').some((problem: string): boolean => problem.includes(`names talk no_such_talk, which ${npc} does not have`)));
+});
+
+void test('a defeated condition must name a monster whose defeat is recorded, and a boss with a recorded defeat is placed only until then', (): void => {
+  const flags: ReadonlySet<string> = storyFlagNames(ROAD_CONTENT);
+  assert.deepEqual(conditionProblems(ROAD_CONTENT, flags, 'pack', [{ type: 'defeated', monster: 'timekeeper_gatekeeper', not: true }]), []);
+  assert.deepEqual(conditionProblems(ROAD_CONTENT, flags, 'pack', [{ type: 'defeated', monster: 'nobody', not: true }]), ['pack names unknown monster nobody']);
+  const plain: string = [...ROAD_CONTENT.monsters.values()].find((def): boolean => def.boss === null)?.id ?? '';
+  assert.deepEqual(conditionProblems(ROAD_CONTENT, flags, 'pack', [{ type: 'defeated', monster: plain, not: true }]), [`pack names ${plain}, whose defeat nothing records`]);
+  assert.deepEqual(bossPackProblems(ROAD_CONTENT), []);
+  const members = [{ monster: 'timekeeper_gatekeeper', count: 1, mods: [] }];
+  const standing: Content = roadContent(roadZone({ packs: [{ x: 4, z: 4, members, when: [] }] }));
+  assert.deepEqual(bossPackProblems(standing), ['zone road_test places boss timekeeper_gatekeeper without a defeated condition, so it would stand again after its defeat']);
+  const beaten: Content = roadContent(roadZone({ packs: [{ x: 4, z: 4, members, when: [{ type: 'defeated', monster: 'timekeeper_gatekeeper', not: true }] }] }));
+  assert.deepEqual(bossPackProblems(beaten), []);
 });

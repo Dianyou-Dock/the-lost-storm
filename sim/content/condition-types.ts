@@ -50,4 +50,10 @@ export interface VisitedCondition {
   readonly not: boolean;
 }
 
-export type Condition = QuestCondition | ObjectiveCondition | FlagCondition | ShoreCondition | HeroCondition | LevelCondition | VisitedCondition;
+export interface DefeatedCondition {
+  readonly type: 'defeated';
+  readonly monster: string;
+  readonly not: boolean;
+}
+
+export type Condition = QuestCondition | ObjectiveCondition | FlagCondition | ShoreCondition | HeroCondition | LevelCondition | VisitedCondition | DefeatedCondition;
