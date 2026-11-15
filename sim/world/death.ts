@@ -31,6 +31,7 @@ function resetMonster(monster: MonsterState): void {
   monster.knock = { x: 0, z: 0 };
   monster.action = null;
   monster.brand = null;
+  monster.burn = null;
   monster.path = [];
   monster.stance = 'approach';
   monster.blindTime = 0;
@@ -65,6 +66,7 @@ function revive(world: World): void {
   player.tempo = 1;
   player.tempoTime = 0;
   player.brand = null;
+  player.burn = null;
   player.held = [];
   player.momentum = { skill: null, value: 0, quiet: 0 };
   player.invulnerable = world.content.player.respawnInvulnerability;

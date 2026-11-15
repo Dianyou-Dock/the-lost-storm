@@ -420,7 +420,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           case 'damage': {
             if (event.targetTeam !== 'player') targetBar.hit(event.targetId);
             const y: number = floorUp(event.pos.x, hooks.heightOf(event.targetId) * OVERLAYS.numberHeight, event.pos.z);
-            const kind: string = event.targetTeam === 'player' ? 'hurt' : event.crit ? 'crit' : '';
+            const kind: string = event.burn ? 'burn' : event.targetTeam === 'player' ? 'hurt' : event.crit ? 'crit' : '';
             float(event.crit ? `${event.amount}!` : `${event.amount}`, kind, event.pos.x, y, event.pos.z);
             break;
           }
@@ -444,6 +444,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
           case 'chain':
           case 'beam':
           case 'blink':
+          case 'burn':
           case 'brand':
           case 'skill_unlocked':
           case 'chart_point':

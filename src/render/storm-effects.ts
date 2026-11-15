@@ -309,6 +309,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
   };
 
   const onArea = (event: Extract<WorldEvent, { type: 'area' }>): void => {
+    if (event.area.skill.vfx.burn !== null) return;
     if (event.stage === 'start') startArea(event.area);
     else if (event.stage === 'pulse') pulseArea(event.area, event.hits);
     else dropArea(event.area.id);
