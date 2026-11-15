@@ -3227,6 +3227,7 @@
       "id": "folded_hour",
       "name": "Return Thread",
       "slot": null,
+      "keepsake": "thread_ring",
       "material": null,
       "icon": "portal",
       "dropWeight": 0,

@@ -50,6 +50,7 @@ export interface ItemBaseDef {
   readonly name: string;
   readonly slot: ItemSlot | null;
   readonly book: string | null;
+  readonly keepsake: string | null;
   readonly story: boolean;
   readonly material: ArmourMaterial | null;
   readonly weaponKind: WeaponKind | null;

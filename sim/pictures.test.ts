@@ -4,7 +4,7 @@ import { must } from '../test/support.ts';
 import { loadContent } from './content/content.ts';
 import type { Content, ItemBaseDef } from './content/types.ts';
 import { emptyEquipment } from './items.ts';
-import { carriedPictures, hasPicture, nextBatch, pictureKey, pictureSource, picturesOf, PICTURE_BATCH } from './pictures.ts';
+import { carriedPictures, goodsPictures, hasPicture, nextBatch, pictureKey, pictureSource, picturesOf, PICTURE_BATCH } from './pictures.ts';
 import type { Picture } from './pictures.ts';
 import type { ItemInstance } from './world/types.ts';
 
@@ -63,4 +63,10 @@ void test('the pictures wait in batches so each round is small', (): void => {
   assert.equal(split.later.length, 3);
   assert.deepEqual(nextBatch([]).now, []);
   assert.equal(nextBatch(waiting, 2).now.length, 2);
+});
+
+void test('a base that names a keepsake is pictured from that model, and the trader goods are pictured before the panel opens', (): void => {
+  assert.deepEqual(pictureSource(base('folded_hour')), { kind: 'keepsake', model: 'thread_ring' });
+  assert.equal(pictureKey({ kind: 'keepsake', model: 'thread_ring' }), 'keepsake:thread_ring');
+  assert.deepEqual(goodsPictures(content).map((picture: Picture): string => picture.key), ['keepsake:thread_ring']);
 });

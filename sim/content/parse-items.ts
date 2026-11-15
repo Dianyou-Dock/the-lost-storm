@@ -66,6 +66,7 @@ export function itemBase(value: unknown, where: string): ItemBaseDef {
     name: text(source, 'name', where),
     slot,
     book: source['book'] === undefined ? null : text(source, 'book', where),
+    keepsake: source['keepsake'] === undefined ? null : text(source, 'keepsake', where),
     story: source['story'] === undefined ? false : flag(source, 'story', where),
     material: source['material'] === null || source['material'] === undefined ? null : choice(source, 'material', ARMOUR_MATERIALS, where),
     weaponKind: weaponKind(source, slot, where),

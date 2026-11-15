@@ -1,12 +1,14 @@
 import type { Content, ItemBaseDef, ItemSlot } from './content/types.ts';
 import { ITEM_SLOTS } from './content/types.ts';
 import { baseOf } from './items.ts';
+import { goodItem } from './world/trade.ts';
 import type { ItemInstance, PlayerState } from './world/types.ts';
 
 export type PictureSource =
   | { readonly kind: 'held'; readonly attachment: string }
   | { readonly kind: 'worn'; readonly piece: string }
   | { readonly kind: 'book'; readonly base: string }
+  | { readonly kind: 'keepsake'; readonly model: string }
   | { readonly kind: 'none' };
 
 export interface Picture {
@@ -21,6 +23,7 @@ export function pictureSource(base: ItemBaseDef): PictureSource {
   const piece: string | undefined = base.wear[0];
   if (piece !== undefined) return { kind: 'worn', piece };
   if (base.book !== null) return { kind: 'book', base: base.id };
+  if (base.keepsake !== null) return { kind: 'keepsake', model: base.keepsake };
   return { kind: 'none' };
 }
 
@@ -35,6 +38,9 @@ export function pictureKey(source: PictureSource): string | null {
       break;
     case 'book':
       key = `book:${source.base}`;
+      break;
+    case 'keepsake':
+      key = `keepsake:${source.model}`;
       break;
     case 'none':
       break;
@@ -70,6 +76,10 @@ export function picturesOf(content: Content, items: readonly (ItemInstance | nul
 export function carriedPictures(content: Content, player: Pick<PlayerState, 'inventory' | 'equipped'>): Picture[] {
   const worn: (ItemInstance | null)[] = ITEM_SLOTS.map((slot: ItemSlot): ItemInstance | null => player.equipped[slot]);
   return picturesOf(content, [...worn, ...player.inventory]);
+}
+
+export function goodsPictures(content: Content): Picture[] {
+  return picturesOf(content, content.trade.goods.map((_good: unknown, index: number): ItemInstance | null => goodItem(content, index)));
 }
 
 export function nextBatch<T>(waiting: readonly T[], limit: number = PICTURE_BATCH): { readonly now: T[]; readonly later: T[] } {

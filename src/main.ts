@@ -3,7 +3,7 @@ import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { MeshoptDecoder } from 'three/addons/libs/meshopt_decoder.module.js';
 import { cuesForEvent, cuesForLife, cuesForUi, uiActionForCommand, warmSoundIds } from '../sim/audio.ts';
 import { zoneCharacterNeeds } from '../sim/wear.ts';
-import { carriedPictures } from '../sim/pictures.ts';
+import { carriedPictures, goodsPictures } from '../sim/pictures.ts';
 import { heroRig } from '../sim/hero.ts';
 import { noteInConsole, warnInConsole } from './backend/console-log.ts';
 import { keepFrames } from './frame-keeper.ts';
@@ -297,7 +297,7 @@ async function start(): Promise<void> {
   const actors: Actors = createActors(stage.scene, library, world, mobile.quality.tier.msaaSamples > 0, cameraSight(stage.camera), particles);
   const figureGauge: FigureGauge = createFigureGauge(figureJoints(content.rigs.get(heroRig(content, world.player.hero))?.bodyParts ?? {}));
   const pictures = startItemPictures({ content, library, loader, dresser, hero: (): string | null => pick.chosen ?? world.player.hero, refresh: (): void => { hud.refreshItems(); profilePanel?.refreshItems(); } });
-  const wantCarried = (): void => pictures.items.want(carriedPictures(content, world.player));
+  const wantCarried = (): void => pictures.items.want([...carriedPictures(content, world.player), ...goodsPictures(content)]);
   const voice: VoicePlayer = {
     play(line: LineDef): Promise<void> {
       return audio.playVoice(line.speaker, line.id).catch((): void => undefined);

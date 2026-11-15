@@ -10,6 +10,7 @@ import type { CharacterLibrary, LoadedAttachment, LoadedRig, LoadedWearable, Rig
 import { instantiateRig } from './character-loader.ts';
 import type { Keepsake } from './keepsake.ts';
 import { createKeepsake } from './keepsake.ts';
+import { KEEPSAKE_MODELS } from './keepsake-models.ts';
 
 export const THUMBNAIL = {
   size: 128,
@@ -388,6 +389,14 @@ export function createThumbnailStudio(library: CharacterLibrary, skinTint: strin
         const keepsake: Keepsake = createKeepsake();
         keepsakes.push(keepsake);
         shot = { name: picture.key, posed: bookPose(keepsake), frame: boundsOf };
+        break;
+      }
+      case 'keepsake': {
+        const build: (() => Keepsake) | undefined = KEEPSAKE_MODELS.get(source.model);
+        if (build === undefined) break;
+        const keepsake: Keepsake = build();
+        keepsakes.push(keepsake);
+        shot = { name: picture.key, posed: keepsake.group, frame: boundsOf };
         break;
       }
       case 'none':
