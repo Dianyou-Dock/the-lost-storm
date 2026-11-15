@@ -8,6 +8,17 @@ export interface ActorGuard {
   forget(id: number): void;
 }
 
+export interface InspectMoment {
+  readonly checked: boolean;
+  readonly alive: boolean;
+  readonly swapping: boolean;
+  readonly fadingOut: boolean;
+}
+
+export function readyToInspect(moment: InspectMoment): boolean {
+  return !moment.checked && moment.alive && !moment.swapping && !moment.fadingOut;
+}
+
 export function shownMaterial(material: Material): boolean {
   return material.visible && material.colorWrite && (!material.transparent || material.opacity > 0);
 }

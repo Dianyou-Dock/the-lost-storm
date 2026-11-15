@@ -153,6 +153,13 @@ export function readWalk(value: unknown): WalkSummary {
   };
 }
 
+export const WALK_ALARMS: readonly string[] = ['was alive with nothing drawable'];
+
+export function withAlarms(summary: WalkSummary, warnings: readonly string[]): WalkSummary {
+  const alarms: string[] = warnings.filter((warning: string): boolean => WALK_ALARMS.some((alarm: string): boolean => warning.includes(alarm)));
+  return { ok: summary.ok && alarms.length === 0, looks: summary.looks, problems: [...summary.problems, ...alarms.map((alarm: string): string => `the page's safety net fired: ${alarm}`)] };
+}
+
 export function walkLines(summary: WalkSummary): string[] {
   const looks: string[] = summary.looks.map((look: WalkLook): string => `${look.missing.length === 0 ? 'ok  ' : 'FAIL'} ${look.zone.padEnd(14)} +${String(look.afterMs).padStart(5)} ms  ${look.live - look.missing.length}/${look.live} drawn${look.missing.length === 0 ? '' : `  missing: ${look.missing.join(', ')}`}`);
   return [...looks, ...summary.problems.map((problem: string): string => `problem: ${problem}`), summary.ok ? 'BODY WALK OK: every live monster on the route was drawn' : 'BODY WALK FAILED'];

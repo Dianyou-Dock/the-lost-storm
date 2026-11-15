@@ -24,7 +24,7 @@ import type { ParticleSystem } from './particles.ts';
 import type { SpinPose, SpinView } from './spin-view.ts';
 import { createSpinView } from './spin-view.ts';
 import type { ActorGuard } from './actor-guard.ts';
-import { createActorGuard, setOffView } from './actor-guard.ts';
+import { createActorGuard, readyToInspect, setOffView } from './actor-guard.ts';
 import { warnInConsole } from '../backend/console-log.ts';
 import type { BodyChoice } from './body-choice.ts';
 import { bodyArrived, chooseBody } from './body-choice.ts';
@@ -385,7 +385,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
             entry.swap = null;
           }
         }
-        if (!entry.checked && monster.alive && (entry.echo === null || echoFade(current, monster.id) === 0)) {
+        if (readyToInspect({ checked: entry.checked, alive: monster.alive, swapping: entry.swap !== null, fadingOut: entry.echo !== null && echoFade(current, monster.id) !== 0 })) {
           entry.checked = true;
           if (!guard.inspect(monster.id, entry.view.rig.root, monster.def.id)) {
             entry.view.rig.setGear([]);

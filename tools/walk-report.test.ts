@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { patienceFor, PROFILE, profileFor, readWalk, SLOW_WAIT, slowLine, UNSLOWED, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
+import { patienceFor, PROFILE, profileFor, readWalk, SLOW_WAIT, slowLine, UNSLOWED, WALK_DEFAULTS, walkArgs, walkLines, withAlarms } from './walk-report.ts';
 
 void test('the walk takes a build address, a Chrome and a port, and falls back to a local dev server and the usual Chrome', (): void => {
   assert.deepEqual(walkArgs([], {}), { url: null, chrome: WALK_DEFAULTS.chrome, port: WALK_DEFAULTS.port, hero: WALK_DEFAULTS.hero, slow: UNSLOWED });
@@ -59,4 +59,14 @@ void test('a slowed walk waits longer for the world: the slowed factor times the
   assert.equal(patienceFor(walkArgs(['--hold', 'Throw.glb=40000'], {}).slow, 30000), 30000 * SLOW_WAIT.slowedFactor + 40000);
   assert.equal(patienceFor(walkArgs(['--cpu', '4', '--hold', 'a.glb=1000', '--hold', 'b.glb=2000'], {}).slow, 30000), 30000 * 4 * SLOW_WAIT.slowedFactor + 3000);
   assert.ok(patienceFor(walkArgs(['--kbps', '800'], {}).slow, 30000) > 30000);
+});
+
+void test('a walk fails when the page says a live monster had nothing drawable, even if every look counted it drawn', (): void => {
+  const passed = { ok: true, looks: [{ zone: 'hall_of_time', afterMs: 900, live: 4, missing: [] }], problems: [] } as const;
+  const warned: string = 'warning: Monster unfinished_thrower (#21) was alive with nothing drawable; it falls back to its bare body';
+  const failed = withAlarms(passed, ['warning: Rig unfinished arrived late, after 2 tries', warned]);
+  assert.equal(failed.ok, false);
+  assert.deepEqual(failed.problems, [`the page's safety net fired: ${warned}`]);
+  assert.equal(walkLines(failed).at(-1), 'BODY WALK FAILED');
+  assert.deepEqual(withAlarms(passed, ['warning: Rig unfinished arrived late, after 2 tries']), passed);
 });

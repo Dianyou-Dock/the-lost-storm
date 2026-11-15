@@ -2,7 +2,8 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, Scene } from 'three';
 import type { ActorGuard } from './actor-guard.ts';
-import { createActorGuard, drawable, setOffView, shownMaterial } from './actor-guard.ts';
+import { createActorGuard, drawable, readyToInspect, setOffView, shownMaterial } from './actor-guard.ts';
+import { fadeMaterials, startSwap, stepSwap } from './body-swap.ts';
 
 function body(): { readonly root: Group; readonly mesh: Mesh<BoxGeometry, MeshStandardMaterial> } {
   const root: Group = new Group();
@@ -101,4 +102,31 @@ void test('an actor left undrawn off view is still drawable, so its first check 
   assert.equal(root.visible, true);
   root.visible = false;
   assert.equal(drawable(root), false);
+});
+
+void test('a real body that arrives on a still frame is not inspected until its cross-fade has finished, so it keeps its gear', (): void => {
+  const { root, mesh } = body();
+  mesh.material.transparent = true;
+  const swap = startSwap(root);
+  fadeMaterials([mesh.material], stepSwap(swap, 0).incoming);
+  assert.equal(drawable(root), false);
+  const moment = { checked: false, alive: true, swapping: true, fadingOut: false } as const;
+  assert.equal(readyToInspect(moment), false);
+  let done: boolean = false;
+  for (let frame: number = 0; frame < 600 && !done; frame += 1) {
+    const mix = stepSwap(swap, 1 / 60);
+    fadeMaterials([mesh.material], mix.incoming);
+    done = mix.done;
+  }
+  assert.equal(done, true);
+  assert.equal(readyToInspect({ ...moment, swapping: false }), true);
+  assert.equal(drawable(root), true);
+});
+
+void test('a body is inspected once, only while alive and not fading out as an echo', (): void => {
+  const ready = { checked: false, alive: true, swapping: false, fadingOut: false } as const;
+  assert.equal(readyToInspect(ready), true);
+  assert.equal(readyToInspect({ ...ready, checked: true }), false);
+  assert.equal(readyToInspect({ ...ready, alive: false }), false);
+  assert.equal(readyToInspect({ ...ready, fadingOut: true }), false);
 });

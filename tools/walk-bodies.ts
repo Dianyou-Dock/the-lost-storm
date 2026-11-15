@@ -7,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { fields, items, text } from '../sim/content/read.ts';
 import type { Fields } from '../sim/content/read.ts';
 import type { WalkArgs, WalkFail, WalkHold, WalkSlow, WalkSummary } from './walk-report.ts';
-import { patienceFor, profileFor, readWalk, slowLine, WALK_DEFAULTS, walkArgs, walkLines } from './walk-report.ts';
+import { patienceFor, profileFor, readWalk, slowLine, WALK_DEFAULTS, walkArgs, walkLines, withAlarms } from './walk-report.ts';
 
 const WALK = {
   serverWaitMs: 60000,
@@ -230,7 +230,8 @@ async function main(): Promise<number> {
     await listenForWarnings(cdp, warnings);
     await slowDown(cdp, args.slow);
     await enterPlay(cdp, args.url ?? server?.url ?? '', args.hero, patienceFor(args.slow, WALK.stepWaitMs));
-    const summary: WalkSummary = readWalk(await evaluate(cdp, 'window.storm === undefined ? Promise.reject(new Error("no window.storm: walk a dev build")) : window.storm.walk()', patienceFor(args.slow, WALK.walkWaitMs)));
+    const walked: WalkSummary = readWalk(await evaluate(cdp, 'window.storm === undefined ? Promise.reject(new Error("no window.storm: walk a dev build")) : window.storm.walk()', patienceFor(args.slow, WALK.walkWaitMs)));
+    const summary: WalkSummary = withAlarms(walked, warnings);
     for (const line of walkLines(summary)) console.log(line);
     return summary.ok ? 0 : 1;
   } finally {
