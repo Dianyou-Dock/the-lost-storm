@@ -13,7 +13,7 @@ import { resolveSkill } from '../stats.ts';
 import { generateItem } from '../items.ts';
 import { createRng } from '../rng.ts';
 import { stepWorld } from './step.ts';
-import type { AreaState, Command, MonsterState, ProjectileState, World, WorldEvent } from './types.ts';
+import type { ActorState, AreaState, Command, MonsterState, ProjectileState, World, WorldEvent } from './types.ts';
 
 const content: Content = loadContent();
 const DT: number = 1 / 60;
@@ -129,6 +129,10 @@ void test('a leap crouches first, then flies to where the hero stood and lands t
   assert.ok(world.player.life < life, 'the landing hits a hero who stayed');
 });
 
+function burningSkill(actor: ActorState): string | null {
+  return actor.burn === null ? null : actor.burn.skill.id;
+}
+
 void test('a leap that leaves burning ground lays it where it landed, and it burns a hero who stays', (): void => {
   const pounce: SkillDef = must(content.skills.get('cinder_pounce'), 'cinder_pounce');
   const left: SkillDef = must(content.skills.get(must(pounce.leaves, 'what it leaves')), 'patch');
@@ -150,7 +154,7 @@ void test('a leap that leaves burning ground lays it where it landed, and it bur
     world.player.pos = { ...hero };
     stepWorld(world, [], DT);
   }
-  assert.equal(world.player.burn?.skill.id, left.id, 'a hero who stays in it is set alight by the ground');
+  assert.equal(burningSkill(world.player), left.id, 'a hero who stays in it is set alight by the ground');
   assert.equal(world.areas.filter((area: AreaState): boolean => area.skill.id === left.id).length, 1, 'an echo-free leap leaves one patch');
 });
 
