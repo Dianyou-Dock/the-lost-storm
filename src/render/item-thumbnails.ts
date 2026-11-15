@@ -49,8 +49,8 @@ export const THUMBNAIL = {
 } as const;
 
 export const PORTRAIT = {
-  width: 240,
-  height: 360,
+  width: 480,
+  height: 720,
   facing: -0.34,
   padding: 0.06,
 } as const;

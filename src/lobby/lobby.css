@@ -326,27 +326,35 @@
   text-align: right;
 }
 
-.board-place,
-.board-account {
-  grid-row: 1;
-  grid-column: 4;
-  transition:
-    opacity var(--spring-smooth-ms) var(--spring-smooth),
-    transform var(--spring-bouncy-ms) var(--spring-bouncy);
+.board-who {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.board-who .board-name {
+  flex: 0 1 auto;
+  min-width: 0;
 }
 
 .board-account {
-  justify-self: end;
+  flex: 0 100 auto;
+  min-width: 0;
   overflow: hidden;
   max-width: 120px;
   white-space: nowrap;
   text-overflow: ellipsis;
   font-size: 11px;
   letter-spacing: 0.03em;
-  color: var(--lobby-soft);
+  color: var(--lobby-dim);
   opacity: 0;
-  transform: translateY(6px);
+  transform: translateX(-4px);
   pointer-events: none;
+  transition:
+    opacity var(--spring-smooth-ms) var(--spring-smooth),
+    transform var(--spring-bouncy-ms) var(--spring-bouncy);
 }
 
 .board-row[data-account] {
@@ -356,11 +364,6 @@
 .board-row[data-account]:focus-visible {
   outline: none;
   background: rgba(255, 255, 255, 0.05);
-}
-
-.board-row[data-account]:is(:hover, :focus-visible) .board-place {
-  opacity: 0;
-  transform: translateY(-6px);
 }
 
 .board-row[data-account]:is(:hover, :focus-visible) .board-account {

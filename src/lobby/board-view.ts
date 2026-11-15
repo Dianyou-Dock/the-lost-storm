@@ -43,9 +43,10 @@ function makeRow(list: HTMLOListElement): RowParts {
   const item: HTMLLIElement = el('li', 'board-row entering', list);
   const rank: HTMLSpanElement = el('span', 'board-rank', item);
   const dot: HTMLSpanElement = el('span', 'board-dot', item);
-  const name: HTMLSpanElement = el('span', 'board-name', item);
+  const who: HTMLSpanElement = el('span', 'board-who', item);
+  const name: HTMLSpanElement = el('span', 'board-name', who);
+  const account: HTMLSpanElement = el('span', 'board-account', who);
   const place: HTMLSpanElement = el('span', 'board-place', item);
-  const account: HTMLSpanElement = el('span', 'board-account', item);
   const level: HTMLSpanElement = el('span', 'board-level', item);
   return { item, rank, dot, name, place, account, level };
 }

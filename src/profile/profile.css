@@ -3,6 +3,8 @@
   inset: 0;
   z-index: 70;
   pointer-events: none;
+  background: rgba(4, 6, 10, 0);
+  transition: background-color var(--spring-smooth-ms) var(--spring-smooth);
 }
 
 .profile-sheet {
@@ -80,29 +82,6 @@
   margin-top: 2px;
   color: var(--text-dim);
   font-size: 13px;
-}
-
-.profile-note {
-  position: absolute;
-  top: 132px;
-  left: 18px;
-  right: 18px;
-  z-index: 1;
-  text-align: center;
-  color: var(--text);
-  font-size: 14px;
-  text-shadow: var(--legible-shadow);
-  pointer-events: none;
-  opacity: 0;
-  transform: translateY(6px);
-  transition:
-    opacity var(--spring-snappy-ms) var(--spring-snappy),
-    transform var(--spring-smooth-ms) var(--spring-smooth);
-}
-
-.profile-sheet:not([data-state="ok"]) .profile-note {
-  opacity: 1;
-  transform: none;
 }
 
 .profile-body,
@@ -184,7 +163,12 @@
 }
 
 @media (max-width: 640px) {
+  .hud.profile-layer.open {
+    background: rgba(4, 6, 10, 0.55);
+  }
+
   .profile-sheet {
+    background: rgba(10, 13, 20, 0.95);
     top: 16px;
     left: 16px;
     right: 16px;
@@ -210,10 +194,6 @@
   .profile-worn {
     grid-template-columns: repeat(3, 48px);
     gap: 6px 8px;
-  }
-
-  .profile-note {
-    top: 96px;
   }
 
   .profile-record {

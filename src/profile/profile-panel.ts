@@ -102,7 +102,6 @@ export function createProfilePanel(deps: ProfilePanelDeps): ProfilePanel {
   const dot: HTMLSpanElement = el('span', 'profile-dot', nameRow);
   const title: HTMLDivElement = label('profile-name', '', nameRow);
   const headline: HTMLDivElement = label('profile-headline', '', head);
-  const note: HTMLDivElement = label('profile-note', '', sheet);
 
   const body: HTMLDivElement = el('div', 'profile-body', sheet);
   const figure: HTMLDivElement = el('div', 'profile-figure', body);
@@ -187,12 +186,14 @@ export function createProfilePanel(deps: ProfilePanelDeps): ProfilePanel {
 
   const paintState = (state: ProfileState, name: string): void => {
     setData(sheet, 'state', state);
-    setText(note, stateNote(state, name), open);
     setText(title, name, open);
+    if (state === 'ok') return;
+    setText(headline, stateNote(state, name), open);
+    setClass(dot, 'on', false);
   };
 
   const paintProfile = (profile: CharacterProfile | null, asked: number): void => {
-    setText(headline, profile === null ? '' : profileHeadline(content, profile), open);
+    if (profile !== null) setText(headline, profileHeadline(content, profile), open);
     setClass(dot, 'on', profile?.online === true);
     if (profile !== shown) batch += 1;
     shown = profile;
