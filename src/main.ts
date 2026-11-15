@@ -6,7 +6,8 @@ import { zoneCharacterNeeds } from '../sim/wear.ts';
 import { carriedPictures } from '../sim/pictures.ts';
 import { heroRig } from '../sim/hero.ts';
 import { noteInConsole, warnInConsole } from './backend/console-log.ts';
-import { runFrames } from './frame-loop.ts';
+import { keepFrames } from './frame-keeper.ts';
+import type { FrameKeeper } from './frame-keeper.ts';
 import { element } from './dom-element.ts';
 import { startKeepPrompt } from './keep/keep-start.ts';
 import { fadePageOut } from './landing/leave.ts';
@@ -539,6 +540,7 @@ async function start(): Promise<void> {
     const collected: Command[] = gate.collect ? [...input.collect(dt), ...touch.collect(dt)] : [];
     if (gate.queue) queue.push(...collected);
     if (gate.step) {
+      keeper.stepped();
       hitStop = Math.max(0, hitStop - dt);
       if (hitStop <= 0) {
         let remaining: number = dt;
@@ -600,19 +602,19 @@ async function start(): Promise<void> {
 
   window.addEventListener('resize', (): void => stage.resize());
   window.addEventListener('beforeunload', saveNow);
-  document.addEventListener('visibilitychange', (): void => {
-    if (document.hidden) saveNow();
-  });
 
   camera.snap(world.player.pos.x, world.player.pos.z, liftAt(world.zone, world.player.pos.x, world.player.pos.z));
-  runFrames(
+  const keeper: FrameKeeper = keepFrames({
+    hud: element('hud', HTMLDivElement),
     frame,
-    (error: unknown): void => {
+    fault: (error: unknown): void => {
       warnInConsole(`A frame failed: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`);
       touch.fault();
     },
-    { request: (callback: (now: number) => void): void => void requestAnimationFrame(callback) },
-  );
+    inPlay: (): boolean => playing && !transition.blocking && !touch.lost && lobbyFlow?.active !== true,
+    hidden: saveNow,
+    resumed: (): void => void (last = performance.now()),
+  });
   void warmUp(stage, stage.scene, stage.camera, [...actors.standIns(world.zone), ...loot.standIns(world), ...rain.standIns()], zoneView.ready);
   const loadTheRest = async (): Promise<void> => {
     await loadRemainingCharacters(loader, content, dresser, library);

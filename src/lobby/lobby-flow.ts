@@ -5,6 +5,8 @@ import type { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { CharacterLibrary } from '../render/character-loader.ts';
 import type { Veil } from '../transition.ts';
 import { createVeil, VEIL } from '../veil.ts';
+import { BOUNDED_WAIT, framesWithin, within } from '../bounded-wait.ts';
+import { createBrowserFrames, createBrowserTimers } from '../browser-timers.ts';
 import { LOBBY_RESUME } from './lobby-resume.ts';
 import type { CreateCheck } from './character-desk.ts';
 import { createCharacterControls } from './character-controls.ts';
@@ -59,19 +61,11 @@ export interface LobbyFlow {
 
 async function settled(node: HTMLElement): Promise<void> {
   const finite: Animation[] = node.getAnimations({ subtree: true }).filter((animation: Animation): boolean => animation.effect?.getComputedTiming().endTime !== Infinity);
-  await Promise.allSettled(finite.map((animation: Animation): Promise<Animation> => animation.finished));
+  await within(Promise.allSettled(finite.map((animation: Animation): Promise<Animation> => animation.finished)), createBrowserTimers(), BOUNDED_WAIT.settleMs);
 }
 
 function frames(count: number): Promise<void> {
-  return new Promise<void>((resolve: () => void): void => {
-    let left: number = count;
-    const tick = (): void => {
-      left -= 1;
-      if (left <= 0) resolve();
-      else requestAnimationFrame(tick);
-    };
-    requestAnimationFrame(tick);
-  });
+  return framesWithin(createBrowserFrames(), createBrowserTimers(), count, BOUNDED_WAIT.frameMs);
 }
 
 function lend(screen: LobbyScreen, hud: HTMLElement, selector: string, open: () => void): void {
@@ -118,7 +112,7 @@ export function createLobbyFlow(parts: LobbyFlowParts): LobbyFlow {
     screen.setBusy(true);
     if (!into) screen.hide();
     if (!covered) await veil.cover(colour);
-    await hold();
+    await within(hold(), createBrowserTimers(), BOUNDED_WAIT.readyMs);
     middle();
     active = into;
     document.body.toggleAttribute(`data-${LOBBY_FLOW.bodyMark}`, into);
@@ -127,7 +121,7 @@ export function createLobbyFlow(parts: LobbyFlowParts): LobbyFlow {
       parts.restore();
     }
     if (into) {
-      await warmStage();
+      await within(warmStage(), createBrowserTimers(), BOUNDED_WAIT.readyMs);
       screen.setBusy(false);
       screen.show(view());
       void refresh();

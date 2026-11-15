@@ -1,3 +1,6 @@
+import { BOUNDED_WAIT, nextFrameWithin } from '../bounded-wait.ts';
+import { createBrowserFrames, createBrowserTimers } from '../browser-timers.ts';
+
 export const PACED_WORK = {
   frameBudgetMs: 6,
 } as const;
@@ -13,11 +16,7 @@ export function browserPacer(): FramePacer {
       return performance.now();
     },
     next(): Promise<void> {
-      return new Promise<void>((resolve: () => void): void => {
-        requestAnimationFrame((): void => {
-          resolve();
-        });
-      });
+      return nextFrameWithin(createBrowserFrames(), createBrowserTimers(), BOUNDED_WAIT.frameMs);
     },
   };
 }

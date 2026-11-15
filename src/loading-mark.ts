@@ -1,3 +1,5 @@
+import { BOUNDED_WAIT, nextFrameWithin } from './bounded-wait.ts';
+import { createBrowserFrames, createBrowserTimers } from './browser-timers.ts';
 import { LOADER_CYCLE, loaderCycles, loaderExitAt } from './loader-cycle.ts';
 import type { LoaderTiming } from './loader-cycle.ts';
 
@@ -21,9 +23,7 @@ export function markPhase(row: number, column: number): number {
 }
 
 function nextFrame(): Promise<void> {
-  return new Promise<void>((resolve: () => void): void => {
-    requestAnimationFrame((): void => resolve());
-  });
+  return nextFrameWithin(createBrowserFrames(), createBrowserTimers(), BOUNDED_WAIT.frameMs);
 }
 
 export async function untilCycleEnds(element: HTMLElement, timing: LoaderTiming = LOADER_CYCLE): Promise<void> {

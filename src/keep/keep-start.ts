@@ -2,6 +2,7 @@ import type { World } from '../../sim/world/types.ts';
 import type { AccountService } from '../backend/account.ts';
 import type { KeyValueStore } from '../backend/backend.ts';
 import { warnInConsole } from '../backend/console-log.ts';
+import { createBrowserFrameClock, createBrowserScheduler } from '../browser-timers.ts';
 import { runFrames } from '../frame-loop.ts';
 import { startTitleAccount } from '../title-signin.ts';
 import type { TitleSignIn } from '../title-signin.ts';
@@ -55,6 +56,7 @@ export function startKeepPrompt(deps: KeepStartDeps): void {
     (error: unknown): void => {
       warnInConsole(`The sign-in prompt failed: ${String(error)}`);
     },
-    { request: (callback: (now: number) => void): void => void requestAnimationFrame(callback) },
+    createBrowserScheduler(),
+    createBrowserFrameClock(),
   );
 }
