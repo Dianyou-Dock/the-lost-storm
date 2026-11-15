@@ -35,6 +35,8 @@ import type { LifeView } from './life-view.ts';
 import { createLifeView, lifeDensity } from './life-view.ts';
 import { LIFE } from './life-data.ts';
 import { placesFor } from './life-kinds.ts';
+import type { TunnelRoofs } from './tunnel-roofs.ts';
+import { createTunnelRoofs } from './tunnel-roofs.ts';
 import type { Hero } from './life-motion.ts';
 
 export const ZONE_VIEW = {
@@ -344,6 +346,10 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
     }),
   );
 
+  const roofs: TunnelRoofs = createTunnelRoofs(loader, content, zone, (def: PropDef, material: MeshStandardMaterial): MeshStandardMaterial[] => standardMaterials(dressedProp(content, def.surfaces, material, dressing)).map((worn: MeshStandardMaterial): MeshStandardMaterial => carryLook(worn, worn.clone())));
+  await roofs.ready;
+  group.add(roofs.group);
+
   const flicker = (time: number, phase: number): number => {
     const wobble: number = Math.sin(time * ZONE_VIEW.flickerSpeed + phase) * 0.6 + Math.sin(time * ZONE_VIEW.flickerSpeed * 2.7 + phase * 1.7) * 0.4;
     return 1 - ZONE_VIEW.flickerDepth * 0.5 + wobble * ZONE_VIEW.flickerDepth * 0.5;
@@ -380,6 +386,7 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
     },
     dispose(): void {
       resetCutaway();
+      roofs.dispose();
       life.dispose();
       group.removeFromParent();
       ground.dispose();
@@ -397,6 +404,7 @@ export async function buildZoneView(loader: GLTFLoader, content: Content, zone: 
       ground.update(world.time);
       mistWall?.update(time, focus.flash);
       life.update(time, dt, world.player.pos, groundAt);
+      roofs.update(world.player.pos.x, world.player.pos.z, dt);
       for (const conditional of conditionals) {
         const wanted: boolean = conditional.wanted(world);
         if (conditional.on === null) conditional.shown = wanted ? 1 : 0;

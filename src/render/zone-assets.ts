@@ -2,7 +2,7 @@ import type { Content, PropDef, ZoneDef, ZoneExit } from '../../sim/content/type
 
 export function zoneProps(zone: ZoneDef): string[] {
   const walls: string[] = zone.walls === null ? [] : [...zone.walls.tall, zone.walls.low, zone.walls.corner];
-  return [...walls, ...zone.props.map((placed): string => placed.prop), ...(zone.outside?.edge?.props ?? []), ...(zone.outside?.barrier?.rows ?? []).concat(zone.outside?.barrier?.drop ?? []).flatMap((row): readonly string[] => row.far.props.concat(row.near.props)), ...zone.scatter.flatMap((rule): readonly string[] => rule.props), ...(zone.terrain?.cliffs ?? []).flatMap((rule): readonly string[] => rule.props), ...(zone.void?.shore?.props ?? []).map((placed): string => placed.prop)];
+  return [...walls, ...zone.props.map((placed): string => placed.prop), ...(zone.outside?.edge?.props ?? []), ...(zone.outside?.barrier?.rows ?? []).concat(zone.outside?.barrier?.drop ?? []).flatMap((row): readonly string[] => row.far.props.concat(row.near.props)), ...zone.scatter.flatMap((rule): readonly string[] => rule.props), ...(zone.terrain?.cliffs ?? []).flatMap((rule): readonly string[] => rule.props), ...(zone.void?.shore?.props ?? []).map((placed): string => placed.prop), ...zone.tunnels.flatMap((tunnel): string[] => tunnel.roof.map((piece): string => piece.prop))];
 }
 
 function shownProps(content: Content, zone: ZoneDef): string[] {

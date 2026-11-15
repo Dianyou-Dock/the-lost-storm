@@ -1,13 +1,12 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { BoxGeometry, Group, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, ShaderLib, Vector3 } from 'three';
-import type { ReadonlyVec2 } from '../../sim/math.ts';
-import type { CutSpring } from './prop-cutaway.ts';
+import type { CutHero, CutSpring } from './prop-cutaway.ts';
 import { aimCutaway, CUTAWAY, CUTAWAY_UNIFORMS, cutawayChunk, ghostKeep, heroBehind, isTall, patchCutawayShader, setOccluders, springCut, windowMetres, withCutaway } from './prop-cutaway.ts';
 
-function rock(x: number, z: number, height: number): Mesh {
+function rock(x: number, z: number, height: number, floor: number = 0): Mesh {
   const mesh: Mesh = new Mesh(new BoxGeometry(2, height, 2), new MeshStandardMaterial());
-  mesh.position.set(x, height / 2, z);
+  mesh.position.set(x, floor + height / 2, z);
   mesh.updateMatrixWorld(true);
   return mesh;
 }
@@ -51,7 +50,7 @@ void test('only a prop that can hide his head and chest is tall enough to cut aw
 });
 
 void test('he is behind a rock only where it rises between his chest or head and the camera, never behind a low one, one at his back, or a hidden one', (): void => {
-  const hero: ReadonlyVec2 = { x: 0, z: 0 };
+  const hero: CutHero = { x: 0, z: 0, floor: 0 };
   assert.equal(heroBehind(hero, EYE, [rock(1.5, 1.5, 3.4)]), true);
   assert.equal(heroBehind(hero, EYE, [rock(1.5, 1.5, 1)]), false);
   assert.equal(heroBehind(hero, EYE, [rock(-1.5, -1.5, 5)]), false);
@@ -61,6 +60,15 @@ void test('he is behind a rock only where it rises between his chest or head and
   holder.add(hidden);
   holder.visible = false;
   assert.equal(heroBehind(hero, EYE, [hidden]), false);
+});
+
+void test('on a raised terrace he is behind a rock standing on that terrace, a low rock there never hides him, and a probe from the zone floor would miss it', (): void => {
+  const floor: number = 24;
+  const eye: Vector3 = new Vector3(20, floor + 21, 20);
+  const high: CutHero = { x: 0, z: 0, floor };
+  assert.equal(heroBehind(high, eye, [rock(1.5, 1.5, 3.4, floor)]), true);
+  assert.equal(heroBehind(high, eye, [rock(1.5, 1.5, 1, floor)]), false);
+  assert.equal(heroBehind({ ...high, floor: 0 }, eye, [rock(1.5, 1.5, 3.4, floor)]), false);
 });
 
 void test('the window eases open on the spring and closes back to nothing', (): void => {
@@ -82,16 +90,29 @@ void test('aiming at a hero in the middle of the view puts the cutaway in the mi
   const camera: PerspectiveCamera = new PerspectiveCamera(30, 2, 1, 220);
   camera.position.set(20, 20 + CUTAWAY.heroHeight, 20);
   camera.lookAt(0, CUTAWAY.heroHeight, 0);
-  aimCutaway(camera, 0, 0, 1600, 800, 1 / 60);
+  aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
   assert.ok(Math.abs(CUTAWAY_UNIFORMS.uCutCentre.value.x - 800) < 0.5);
   assert.ok(Math.abs(CUTAWAY_UNIFORMS.uCutCentre.value.y - 400) < 0.5);
   assert.ok(Math.abs(CUTAWAY_UNIFORMS.uCutDepth.value - Math.hypot(20, 20, 20)) < 1e-6);
   assert.equal(CUTAWAY_UNIFORMS.uCutRadius.value, CUTAWAY.radius * 800);
   assert.equal(cutLevel(), 0);
   setOccluders([rock(1.5, 1.5, 3.4)]);
-  for (let frame: number = 0; frame < 30; frame += 1) aimCutaway(camera, 0, 0, 1600, 800, 1 / 60);
+  for (let frame: number = 0; frame < 30; frame += 1) aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
   assert.ok(cutLevel() > 0.5);
   setOccluders([]);
+});
+
+void test('the window centres on a hero standing on a raised terrace and the waist is measured from his floor', (): void => {
+  setOccluders([]);
+  const floor: number = 30;
+  const camera: PerspectiveCamera = new PerspectiveCamera(30, 2, 1, 220);
+  camera.position.set(20, floor + 20 + CUTAWAY.heroHeight, 20);
+  camera.lookAt(0, floor + CUTAWAY.heroHeight, 0);
+  aimCutaway(camera, { x: 0, z: 0, floor }, 1600, 800, 1 / 60);
+  assert.ok(Math.abs(CUTAWAY_UNIFORMS.uCutCentre.value.y - 400) < 0.5);
+  assert.equal(CUTAWAY_UNIFORMS.uCutFloor.value, floor);
+  assert.match(cutawayChunk(), /\.y - uCutFloor \)/);
+  aimCutaway(camera, { x: 0, z: 0, floor: 0 }, 1600, 800, 1 / 60);
 });
 
 void test('a prop narrower than the window keeps a faint ghost through its core, and a wide prop opens fully', (): void => {

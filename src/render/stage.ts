@@ -156,6 +156,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
 
   const camera: PerspectiveCamera = new PerspectiveCamera(30, 1, 1, 220);
   const heroAt: Vector2 = new Vector2();
+  let heroFloor: number = 0;
   const drawing: Vector2 = new Vector2();
   let drawnAt: number | null = null;
 
@@ -290,6 +291,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
       hero.distance = Math.max(0, heroRadius.value);
       hero.position.set(x + STAGE.heroToward * Math.SQRT1_2, floor + heroHeight.value, z + STAGE.heroToward * Math.SQRT1_2);
       heroAt.set(x, z);
+      heroFloor = floor;
     },
     setFlash(light: SkyFlash): void {
       const amount: number = light.amount;
@@ -331,7 +333,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
     render(): void {
       renderer.getDrawingBufferSize(drawing);
       const now: number = performance.now();
-      aimCutaway(camera, heroAt.x, heroAt.y, drawing.x, drawing.y, drawnAt === null ? 0 : (now - drawnAt) / 1000);
+      aimCutaway(camera, { x: heroAt.x, z: heroAt.y, floor: heroFloor }, drawing.x, drawing.y, drawnAt === null ? 0 : (now - drawnAt) / 1000);
       drawnAt = now;
       if (composer === null) renderer.render(scene, camera);
       else composer.render();

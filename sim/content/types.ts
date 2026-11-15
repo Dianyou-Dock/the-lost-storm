@@ -15,6 +15,7 @@ import type { ZoneAmbience } from './ambience-types.ts';
 import type { BookDef, StoryFlags, ZoneVoid } from './story-types.ts';
 export type { ZoneAmbience } from './ambience-types.ts';
 import type { ActEnd, RetiredZones, ZoneDrift, ZoneHeroLight, ZoneTrigger, ZoneWeather } from './road-types.ts';
+import type { ZoneTunnel } from './tunnel-types.ts';
 import type { MomentField, MomentLibrary } from './moment-types.ts';
 import type { ChartDef, SkillTarget, SkillVariant } from './chart-types.ts';
 import type { SkillVfx } from './vfx-types.ts';
@@ -414,6 +415,7 @@ export interface ZoneDef {
   readonly moments: MomentField | null;
   readonly weather: ZoneWeather;
   readonly heroLight: ZoneHeroLight;
+  readonly tunnels: readonly ZoneTunnel[];
 }
 
 export interface LineDef {

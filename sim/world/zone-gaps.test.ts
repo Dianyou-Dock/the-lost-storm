@@ -26,17 +26,6 @@ const KNOWN: readonly KnownGap[] = [
   { zone: 'keepers_gate', kind: 'pinch', x: 16.9, z: 42.5, name: 'sliver at the north barrier' },
   { zone: 'keepers_gate', kind: 'pinch', x: 10.5, z: 42.9, name: 'second sliver at the north barrier' },
   { zone: 'keepers_gate', kind: 'narrow', x: 35.6, z: 30.8, name: 'lane by the east barrier' },
-  { zone: 'under_hall', kind: 'pinch', x: 36.3, z: 82.8, name: 'sliver in the middle cave' },
-  { zone: 'under_hall', kind: 'pinch', x: 19.7, z: 106.8, name: 'sliver by the west cliff' },
-  { zone: 'under_hall', kind: 'narrow', x: 111, z: 20.6, name: 'lane in the first cave' },
-  { zone: 'under_hall', kind: 'narrow', x: 144.3, z: 42.4, name: 'lane by the east cliff' },
-  { zone: 'under_hall', kind: 'narrow', x: 20.2, z: 108.4, name: 'lane by the west cliff' },
-  { zone: 'under_hall', kind: 'narrow', x: 40.5, z: 108.8, name: 'lane between the west caves' },
-  { zone: 'under_hall', kind: 'narrow', x: 56.1, z: 118.9, name: 'lane in the north cave' },
-  { zone: 'under_hall', kind: 'narrow', x: 34.2, z: 119.6, name: 'lane in the north-west cave' },
-  { zone: 'under_hall', kind: 'narrow', x: 61.3, z: 123.4, name: 'second lane in the north cave' },
-  { zone: 'under_hall', kind: 'narrow', x: 42.8, z: 147.5, name: 'lane at the far north' },
-  { zone: 'under_hall', kind: 'narrow', x: 126.8, z: 151, name: 'lane in the north-east cave' },
 ];
 
 const WIDE_FOOTPRINTS: readonly string[] = [

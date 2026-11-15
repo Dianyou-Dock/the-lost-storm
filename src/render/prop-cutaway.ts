@@ -1,7 +1,6 @@
 import type { IUniform, Material, PerspectiveCamera, WebGLProgramParametersWithUniforms, WebGLRenderer } from 'three';
 import type { Object3D } from 'three';
 import { Matrix4, MeshStandardMaterial, Raycaster, Vector2, Vector3 } from 'three';
-import type { ReadonlyVec2 } from '../../sim/math.ts';
 
 export const CUTAWAY = {
   radius: 0.115,
@@ -33,6 +32,7 @@ export interface CutawayUniforms {
   readonly uCutDepth: IUniform<number>;
   readonly uCutLevel: IUniform<number>;
   readonly uCutWorld: IUniform<Matrix4>;
+  readonly uCutFloor: IUniform<number>;
 }
 
 export const CUTAWAY_UNIFORMS: CutawayUniforms = {
@@ -41,6 +41,7 @@ export const CUTAWAY_UNIFORMS: CutawayUniforms = {
   uCutDepth: { value: 0 },
   uCutLevel: { value: 0 },
   uCutWorld: { value: new Matrix4() },
+  uCutFloor: { value: 0 },
 };
 
 export interface CutSpring {
@@ -57,11 +58,17 @@ function shown(object: Object3D): boolean {
   return true;
 }
 
-export function heroBehind(hero: ReadonlyVec2, eye: Vector3, list: readonly Object3D[]): boolean {
+export interface CutHero {
+  readonly x: number;
+  readonly z: number;
+  readonly floor: number;
+}
+
+export function heroBehind(hero: CutHero, eye: Vector3, list: readonly Object3D[]): boolean {
   const seen: Object3D[] = list.filter(shown);
   if (seen.length === 0) return false;
   for (const lift of [CUTAWAY.chest, CUTAWAY.head]) {
-    probeFrom.set(hero.x, lift, hero.z);
+    probeFrom.set(hero.x, hero.floor + lift, hero.z);
     probeTo.copy(eye).sub(probeFrom);
     const far: number = probeTo.length();
     if (far <= 0) continue;
@@ -84,7 +91,7 @@ export function cutawayChunk(): string {
   return [
     `float cutRing = 1.0 - smoothstep( uCutRadius * ${(1 - CUTAWAY.feather).toFixed(3)}, uCutRadius, length( ( gl_FragCoord.xy - uCutCentre ) * vec2( ${CUTAWAY.narrow.toFixed(3)}, 1.0 ) ) );`,
     `float cutFront = 1.0 - smoothstep( uCutDepth - ${(CUTAWAY.margin + CUTAWAY.depthFeather).toFixed(3)}, uCutDepth - ${CUTAWAY.margin.toFixed(3)}, vViewPosition.z );`,
-    `float cutHigh = smoothstep( ${CUTAWAY.waist.toFixed(3)}, ${(CUTAWAY.waist + CUTAWAY.waistFeather).toFixed(3)}, ( uCutWorld * vec4( -vViewPosition, 1.0 ) ).y );`,
+    `float cutHigh = smoothstep( ${CUTAWAY.waist.toFixed(3)}, ${(CUTAWAY.waist + CUTAWAY.waistFeather).toFixed(3)}, ( uCutWorld * vec4( -vViewPosition, 1.0 ) ).y - uCutFloor );`,
     'uvec2 cutPixel = uvec2( gl_FragCoord.xy );',
     'uint cutHash = cutPixel.x * 1664525u + cutPixel.y * 1013904223u;',
     'cutHash ^= cutHash >> 16u;',
@@ -108,8 +115,9 @@ export function patchCutawayShader(shader: Pick<WebGLProgramParametersWithUnifor
   shader.uniforms['uCutDepth'] = CUTAWAY_UNIFORMS.uCutDepth;
   shader.uniforms['uCutLevel'] = CUTAWAY_UNIFORMS.uCutLevel;
   shader.uniforms['uCutWorld'] = CUTAWAY_UNIFORMS.uCutWorld;
+  shader.uniforms['uCutFloor'] = CUTAWAY_UNIFORMS.uCutFloor;
   shader.fragmentShader = shader.fragmentShader
-    .replace('void main() {', 'uniform vec2 uCutCentre;\nuniform float uCutRadius;\nuniform float uCutDepth;\nuniform float uCutLevel;\nuniform mat4 uCutWorld;\nuniform float uCutKeep;\nvoid main() {')
+    .replace('void main() {', 'uniform vec2 uCutCentre;\nuniform float uCutRadius;\nuniform float uCutDepth;\nuniform float uCutLevel;\nuniform mat4 uCutWorld;\nuniform float uCutFloor;\nuniform float uCutKeep;\nvoid main() {')
     .replace('#include <dithering_fragment>', `#include <dithering_fragment>\n${cutawayChunk()}`);
 }
 
@@ -162,13 +170,14 @@ export function resetCutaway(): void {
   ghosts = [];
 }
 
-export function aimCutaway(camera: PerspectiveCamera, heroX: number, heroZ: number, width: number, height: number, dt: number): void {
+export function aimCutaway(camera: PerspectiveCamera, hero: CutHero, width: number, height: number, dt: number): void {
   camera.updateMatrixWorld();
   camera.getWorldPosition(eye);
   CUTAWAY_UNIFORMS.uCutWorld.value.copy(camera.matrixWorld);
-  spring = springCut(spring, heroBehind({ x: heroX, z: heroZ }, eye, occluders) ? 1 : 0, dt);
+  spring = springCut(spring, heroBehind(hero, eye, occluders) ? 1 : 0, dt);
   CUTAWAY_UNIFORMS.uCutLevel.value = spring.level;
-  heroPoint.set(heroX, CUTAWAY.heroHeight, heroZ);
+  CUTAWAY_UNIFORMS.uCutFloor.value = hero.floor;
+  heroPoint.set(hero.x, hero.floor + CUTAWAY.heroHeight, hero.z);
   viewPoint.copy(heroPoint).applyMatrix4(camera.matrixWorldInverse);
   heroPoint.project(camera);
   CUTAWAY_UNIFORMS.uCutCentre.value.set((heroPoint.x * 0.5 + 0.5) * width, (heroPoint.y * 0.5 + 0.5) * height);

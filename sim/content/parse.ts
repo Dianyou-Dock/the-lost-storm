@@ -584,6 +584,7 @@ export function contentProblems(content: Content): string[] {
     if (zoneDef.terrain !== null) need(content.surfaces.has(zoneDef.terrain.cliff), `${at} cliff uses unknown surface ${zoneDef.terrain.cliff}`);
     for (const blend of zoneDef.terrain?.blends ?? []) need(content.surfaces.has(blend.surface), `${at} blends unknown surface ${blend.surface}`);
     for (const rule of zoneDef.terrain?.cliffs ?? []) for (const id of rule.props) need(content.props.has(id), `${at} lays unknown cliff rock ${id}`);
+    for (const tunnel of zoneDef.tunnels) for (const piece of tunnel.roof) need(content.props.has(piece.prop), `${at} roofs tunnel ${tunnel.id} with unknown prop ${piece.prop}`);
     const shoreSurface: string | null = zoneDef.void?.shore?.surface ?? null;
     if (shoreSurface !== null) need(content.surfaces.has(shoreSurface), `${at} shore uses unknown surface ${shoreSurface}`);
     const shorePathSurface: string | null = zoneDef.void?.shore?.path?.surface ?? null;
