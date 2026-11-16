@@ -7,6 +7,7 @@ import type { Vec2 } from '../../sim/math.ts';
 import { readyToRepeat } from '../../sim/world/skills.ts';
 import { glidesWith } from '../../sim/world/momentum.ts';
 import type { Command, FlaskState, MonsterState, World } from '../../sim/world/types.ts';
+import { isMoyu } from '../../sim/content/moyu.ts';
 import { cannotStep, isTimeHeld } from '../../sim/world/movement.ts';
 import type { KeyValueStore } from '../backend/backend.ts';
 import { el } from '../hud/dom.ts';
@@ -40,6 +41,7 @@ export interface TouchSetup {
   readonly itemNames: ItemNames;
   zoomBy(wheelDelta: number): void;
   readonly feedback: (() => void) | null;
+  send(command: Command): void;
   openMenu(): void;
 }
 
@@ -191,6 +193,13 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
     button.setAttribute('aria-label', item.label);
     button.innerHTML = iconSvg(item.icon);
     button.addEventListener('click', (): void => hud.togglePanel(item.panel));
+  }
+  if (isMoyu(world.content)) {
+    const randomMap: HTMLButtonElement = el('button', 'tc-random-map', hudRoot);
+    randomMap.type = 'button';
+    randomMap.textContent = '随机进图';
+    randomMap.setAttribute('aria-label', '随机进入一张刷图地图');
+    randomMap.addEventListener('click', (): void => setup.send({ type: 'random_map' }));
   }
   const feedback: (() => void) | null = setup.feedback;
   if (feedback !== null) {

@@ -32,7 +32,8 @@ import { chooseGait } from '../gait.ts';
 import type { GaitChoice } from '../gait.ts';
 import { chooseHero, HERO, heroRig } from '../hero.ts';
 import { stepWaypoints, teleport } from './waypoints.ts';
-import { findExit, stepCheckpoints, travelThrough } from './zones.ts';
+import { enterZone, findExit, stepCheckpoints, travelThrough } from './zones.ts';
+import { isMoyu, MOYU_MAPS } from '../content/moyu.ts';
 import { exitWaits } from './scene.ts';
 import type { PortalEnd } from './portal-types.ts';
 import { sameFloor } from './floors.ts';
@@ -236,6 +237,18 @@ function act(world: World, command: Command): void {
     case 'teleport':
       teleport(world, command.zone);
       return;
+    case 'random_map': {
+      if (!isMoyu(world.content)) return;
+      const choices: readonly string[] = MOYU_MAPS.filter((id: string): boolean => id !== world.zone.id);
+      const id: string | undefined = choices[world.rng.int(0, choices.length - 1)];
+      const zone = id === undefined ? undefined : world.content.zones.get(id);
+      if (zone === undefined) return;
+      const from: string = world.zone.id;
+      world.portal = null;
+      enterZone(world, zone, { type: 'start' });
+      world.events.push({ type: 'zone_changed', from, to: zone.id });
+      return;
+    }
     case 'enter_portal': {
       const end: PortalEnd | null = portalEndHere(world);
       if (end === null) return;
@@ -379,6 +392,7 @@ export function handleCommand(world: World, command: Command): void {
     case 'travel':
     case 'talk':
     case 'teleport':
+    case 'random_map':
     case 'enter_portal':
       if (!player.alive) return;
       if (command.type !== 'skill') closeDialogue(world, false);

@@ -16,6 +16,7 @@ import type { AudioDef, UiAction, ZoneAmbience } from '../sim/content/audio.ts';
 import { loadAudio } from '../sim/content/audio.ts';
 import { lifeSounds } from './life-audio.ts';
 import { loadContent } from '../sim/content/content.ts';
+import { moyuContent } from '../sim/content/moyu.ts';
 import type { Content, LineDef } from '../sim/content/types.ts';
 import type { Vec2 } from '../sim/math.ts';
 import type { SaveData } from '../sim/save.ts';
@@ -172,12 +173,10 @@ const GAME = {
 } as const;
 
 const titleLines: { current: StatusLine | null } = { current: null };
-
 function whenIdle(work: () => void): void {
   if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(work, { timeout: GAME.idleWaitMs });
   else window.setTimeout(work, GAME.idleWaitMs);
 }
-
 async function start(): Promise<void> {
   mountBackdrops();
   const canvas: HTMLCanvasElement = element('scene', HTMLCanvasElement);
@@ -198,7 +197,7 @@ async function start(): Promise<void> {
   statusLine.show('Loading…');
   const unsupported: string | null = unsupportedReason(probeBrowser(window, Array.prototype));
   if (unsupported !== null) throw new UnsupportedBrowser(unsupported);
-  const content: Content = loadContent();
+  const content: Content = import.meta.env.MODE === 'portal' ? moyuContent(loadContent()) : loadContent();
   const backend: Backend = createBrowserBackend(content, import.meta.env.VITE_SERVER_URL);
   const account: AccountService | null = createBrowserAccount(content, import.meta.env.VITE_SERVER_URL);
   const showSync: (state: BackendState) => void = createTitleSync(element('title-sync', HTMLParagraphElement), createBrowserTimers());
@@ -383,7 +382,7 @@ async function start(): Promise<void> {
   };
   gameSettings.subscribe(applyGraphics);
   applyGraphics();
-  const touch: Mobile = startMobile(mobile, { canvas, hudRoot: element('hud', HTMLDivElement), world, input, hud, camera, stage, itemNames: overlays.itemNames, feedback: launch.feedback, openMenu: (): void => {
+  const touch: Mobile = startMobile(mobile, { canvas, hudRoot: element('hud', HTMLDivElement), world, input, hud, camera, stage, itemNames: overlays.itemNames, feedback: launch.feedback, send, openMenu: (): void => {
       if (playing && !transition.blocking) pauseMenu.open(null);
     } });
   const opening: Opening = createOpening({ world, camera, hud: element('hud', HTMLDivElement), touch: mobile.touch, overlays: overlayManager, pageVoice: { busy: (): boolean => audio.speaking().length > 0, soundOn: (): boolean => voiceAudible(controls.get()), say: (line: LineDef): void => void voice.play(line) }, send, nameOf: (): string | null => heroName ?? readHeroName(createBrowserStore()), fetchVoice: (): Promise<SpokenName | null> => (nameVoice === null || heroName === null ? Promise.resolve(null) : nameVoice.fetch()), playVoice: (clip: ArrayBuffer): Promise<void> => audio.playEcho(clip), setAmbience: (light: ZoneLight): void => stage.setAmbience(light), setRain: (amount: number): void => rain.setWeather({ ...world.zone.weather, rain: amount }), refreshName: (): Promise<void> => (lobby === null ? Promise.resolve() : lobby.feed.refresh(true)) });
@@ -593,7 +592,7 @@ async function start(): Promise<void> {
         effects.setTorches(zoneView.torches);
       }
       markers.update(dt, now / 1000, world);
-      objectiveMarker.update(dt, now / 1000, world);
+      if (import.meta.env.MODE !== 'portal') objectiveMarker.update(dt, now / 1000, world);
       stage.setFlash(weather.light);
       minimap.update(dt);
     }

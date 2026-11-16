@@ -1,4 +1,5 @@
 import type { ChartPath, SkillTreeNodeDef } from '../../sim/content/types.ts';
+import { hotWeapon, isMoyu, moyuNode, moyuRequirements } from '../../sim/content/moyu.ts';
 import type { PlayerState } from '../../sim/world/types.ts';
 import { refundBlock, refundCost, refundState, respecCost, respecState } from '../../sim/progression.ts';
 import type { ChartChange } from '../../sim/progression.ts';
@@ -80,6 +81,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
   element.style.setProperty('--variant-rim', `${TREE_NODES.variantRim}px`);
   const head: HTMLDivElement = el('div', 'tree-head', element);
   label('tree-title', content.chart.title, head);
+  if (isMoyu(content)) label('moyu-prototype-note', '当前加点用于路线构筑；战斗词条效果尚未接入', head);
   const points: HTMLDivElement = el('div', 'tree-points', head);
   const pointCount: HTMLSpanElement = el('span', 'tree-points-count', points);
   const pointWord: HTMLSpanElement = el('span', 'tree-points-word', points);
@@ -176,6 +178,9 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
 
   const costLine = (node: SkillTreeNodeDef, status: TreeNodeStatus): string => {
     if (status.kind === 'allocated') return takenLine(refundBlock(content, player().allocated, node.id));
+    if (isMoyu(content) && hotWeapon(node.id)) return '热兵器暂未开放';
+    if (isMoyu(content) && moyuNode(node.id)?.type === 'socket') return '需要连脉石，当前暂未开放';
+    if (isMoyu(content) && player().skillPoints > 0 && !moyuRequirements(player().allocated, node.id)) return '尚未满足五行配比或前置节点';
     const steps: number = chartRoute(content, player().allocated, node.id).length;
     if (status.kind === 'available') return `${statusLine(status, context.api.touch)} · ${TREE_NODE_COST} point`;
     if (status.kind === 'no_points') return `Needs ${TREE_NODE_COST} point · you have none`;

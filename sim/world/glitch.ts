@@ -173,6 +173,7 @@ const WORLDLY: Readonly<Record<Command['type'], boolean>> = {
   use: true,
   flask: true,
   teleport: true,
+  random_map: true,
   trade: true,
   purse: false,
   stop: false,

@@ -1,4 +1,5 @@
 import type { Content, SkillTreeNodeDef, SkillVariant, XpCurve, XpGap, XpReduction } from './content/types.ts';
+import { isMoyu, moyuRequirements } from './content/moyu.ts';
 
 export interface XpResult {
   readonly level: number;
@@ -127,6 +128,7 @@ export function heldChanges(content: Content, allocated: readonly string[], chan
 export function canAllocate(content: Content, allocated: readonly string[], skillPoints: number, nodeId: string): boolean {
   const node: SkillTreeNodeDef | null = findNode(content, nodeId);
   if (node === null || skillPoints <= 0 || allocated.includes(nodeId)) return false;
+  if (isMoyu(content) && !moyuRequirements(allocated, nodeId)) return false;
   return joinBlock(content, allocated, node) === null;
 }
 

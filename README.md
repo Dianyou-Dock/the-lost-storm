@@ -1,5 +1,11 @@
 # The Lost Storm
 
+## 摸鱼游戏离线刷图分支
+
+`npm run build:portal` 会构建 case-music 使用的离线版本。这个版本从藏身处开始，移除任务链，点击“随机进图”可反复进入九张战斗地图；每次进入都会重新生成怪物。手机界面也有独立的刷图入口。
+
+五行天赋图引用 case-music 的 424 个设计节点，支持路径加点、配比前置、50 点上限和存档。等级提供 40 点，初始及九张地图的首次发现提供 10 点。热兵器分支暂不允许加点；连脉石尚未接入，插槽也暂时锁定。当前天赋点亮用于验证构筑路径，文档中的战斗词条效果尚未接入模拟层。
+
 ## Play it now: [theloststorm.com](https://theloststorm.com)
 
 Free, in your browser, on a computer or a phone. Nothing to install and no account needed: open [theloststorm.com](https://theloststorm.com) and press play.
