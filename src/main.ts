@@ -147,6 +147,7 @@ import { createStatusLine, TITLE_NOTICES } from './title-status.ts';
 import { createdOrUnsupported, probeBrowser, RETRY, UnsupportedBrowser, unsupportedReason } from './browser-support.ts';
 import { runStart } from './start-failure.ts';
 import { startLocalization } from './i18n/zh.ts';
+import { createAutoCombat, type AutoCombat } from './auto-combat.ts';
 import { defaultBar } from '../sim/skill-book.ts';
 import type { Bar } from '../sim/skill-book.ts';
 import { shippedKeys, showTitleKeys, skillSlots, TITLE_KEYS, titleKeyRows, titleNames } from './title-keys.ts';
@@ -189,7 +190,6 @@ async function start(): Promise<void> {
   const statusLine: StatusLine = createStatusLine<HTMLSpanElement>(status, (): HTMLSpanElement => document.createElement('span'), createBrowserTimers());
   titleLines.current = statusLine;
   const placeLine: StatusLine = createStatusLine<HTMLSpanElement>(titlePlace, (): HTMLSpanElement => document.createElement('span'), createBrowserTimers());
-
   const mobile: MobileBoot = bootMobile();
   markInput(document.body, mobile.touch);
   wireFolds([{ button: element('title-controls-open', HTMLButtonElement), panel: element('title-controls', HTMLDivElement) }, { button: element('title-credits-open', HTMLButtonElement), panel: element('title-credits', HTMLDivElement) }], element('title-foot', HTMLElement));
@@ -320,7 +320,6 @@ async function start(): Promise<void> {
     life: (): number => world.player.life,
     onTitle: (): void => void leavePlay()?.open(),
   });
-
   const qualityTier = (): string => (mobile.quality.tier.name === 'desktop' ? gameSettings.get().graphics.quality : `${gameSettings.get().graphics.quality} ${mobile.quality.tier.name}`);
   const hudApi: HudApi = {
     world,
@@ -340,6 +339,7 @@ async function start(): Promise<void> {
     auction: startAuction({ content, serverUrl: import.meta.env.VITE_SERVER_URL, backend, world, send, save: (): void => saveNow(), unverified: (item: ItemInstance): boolean => minter?.unverified(world, item) ?? true }),
   };
   const hud: Hud = createHud(element('hud', HTMLDivElement), hudApi);
+  const auto: AutoCombat = createAutoCombat(element('hud', HTMLDivElement), world, send);
   const profilePanel = startProfile(lobby, { api: hudApi, content, pictures, hosts: { play: element('hud', HTMLDivElement), lobby: element('lobby', HTMLDivElement) } });
   const overlays: Overlays = createOverlays(element('overlays', HTMLDivElement), camera, {
     findLabel: findLabel(mobile.touch),
@@ -540,14 +540,14 @@ async function start(): Promise<void> {
     title.classList.remove('gone');
     },
   });
-
   const frame = (now: number): void => {
     const dt: number = Math.min(GAME.maxFrame, Math.max(0, (now - last) / 1000));
     if (last > 0) transition.frame(now - last);
     last = now;
     let events: WorldEvent[] = [];
     const gate: FrameGate = frameGate({ playing, blocking: transition.blocking, lost: touch.lost || elsewhere.replaced, menuOpen: pauseMenu.isOpen, presenting: transition.presenting, gpuQueued: stage.gpuQueued() });
-    const collected: Command[] = gate.collect ? [...input.collect(dt), ...touch.collect(dt)] : [];
+    const manual: Command[] = gate.collect ? [...input.collect(dt), ...touch.collect(dt)] : [];
+    const collected: Command[] = gate.collect ? [...manual, ...auto.collect(dt, manual, hud.coversScene())] : [];
     if (gate.queue) queue.push(...collected);
     if (gate.step) {
       keeper.stepped();
