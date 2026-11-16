@@ -13,7 +13,7 @@ import { promptText, use } from './prompts.ts';
 import { attachTooltip } from './tooltip.ts';
 import type { MomentumMeter } from './momentum-meter.ts';
 import { createMomentumMeter } from './momentum-meter.ts';
-import { isMoyu } from '../../sim/content/moyu.ts';
+import { isMoyu, moyuSkillEffect } from '../../sim/content/moyu.ts';
 
 const SKILL_BAR = {
   pressMs: 110,
@@ -33,6 +33,7 @@ interface SlotView {
   readonly icon: HTMLElement;
   readonly cost: HTMLElement;
   readonly name: HTMLElement;
+  readonly effect: HTMLElement;
   readonly cooldown: HTMLElement;
   readonly keyNode: HTMLElement;
   key: string | null;
@@ -97,7 +98,8 @@ export function createSkillBar(parent: HTMLElement, context: HudContext, track: 
     const keyNode: HTMLDivElement = el('div', 'slot-key', root);
     const cost: HTMLDivElement = el('div', 'slot-cost', root);
     const name: HTMLDivElement = el('div', 'slot-name', root);
-    const view: SlotView = { root, icon, cost, name, cooldown, keyNode, key: null, skill: null, empty: null, iconId: '', angle: -1, cooling: null, dim: null };
+    const effect: HTMLDivElement = el('div', 'slot-effect', root);
+    const view: SlotView = { root, icon, cost, name, effect, cooldown, keyNode, key: null, skill: null, empty: null, iconId: '', angle: -1, cooling: null, dim: null };
     paintKey(view, keyOf(index));
     attachTooltip(context.tooltip, root, (): HTMLElement | null => (picker.slot !== null ? null : view.skill === null ? emptyTooltip(context, index, keyOf(index)) : skillDetails(view.skill, `Skill · ${keyOf(index)} · click to change`, null, weaponNeed(context.api.world.content, view.skill.weapons, context.api.world.player.wielding))));
     return view;
@@ -130,6 +132,7 @@ export function createSkillBar(parent: HTMLElement, context: HudContext, track: 
       slots.forEach((view: SlotView, index: number): void => paintKey(view, keyOf(index)));
     },
     update(player: PlayerState): void {
+      const elemental = isMoyu(context.api.world.content) ? moyuSkillEffect(player.allocated) : null;
       if (slots.length !== player.skills.length) {
         for (const view of slots) view.root.remove();
         slots.length = 0;
@@ -144,6 +147,9 @@ export function createSkillBar(parent: HTMLElement, context: HudContext, track: 
         const held: SkillDef | null = player.skills[index] ?? null;
         const skill: SkillDef | null = held !== null && usable(player, held) ? held : null;
         if (view.skill !== skill || view.empty === null) applySkill(view, skill);
+        setText(view.effect, skill === null ? '' : elemental?.label ?? '', true);
+        view.root.style.setProperty('--moyu-effect', elemental?.color ?? 'transparent');
+        view.root.classList.toggle('elemental', skill !== null && elemental !== null);
         if (skill === null) return;
         const remaining: number = player.cooldowns[skill.id] ?? 0;
         const cooling: boolean = remaining > SKILL_BAR.coolingEpsilon;

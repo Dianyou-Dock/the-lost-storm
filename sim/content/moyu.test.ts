@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { loadContent } from './content.ts';
-import { hotWeapon, isMoyu, MOYU_MAPS, moyuContent, moyuRequirements } from './moyu.ts';
+import { hotWeapon, isMoyu, MOYU_MAPS, moyuContent, moyuRequirements, moyuSkillEffect } from './moyu.ts';
 import { createWorld } from '../world/create.ts';
 import { stepWorld } from '../world/step.ts';
 import { canAllocate } from '../progression.ts';
@@ -124,6 +124,29 @@ void test('the chart contains only basic paths and two or three element effects'
   const second = resolveSkill(content, must(content.skills.get('thunderclap'), 'thunderclap'), ['word-流血'], [], sword.variants, 'blade');
   assert.notEqual(armed.vfx.style, second.vfx.style);
   assert.notEqual(armed.vfx.color, resolveSkill(content, base, ['word-破甲'], [], sword.variants, 'blade').vfx.color);
+});
+
+void test('base points affect skills and every element mix has a stable distinct color', (): void => {
+  const content = moyuContent(loadContent());
+  const base = must(content.skills.get('cleave'), 'cleave');
+  const gold = resolveSkill(content, base, ['base-金-1']);
+  assert.equal(gold.damage.weaponPercent > base.damage.weaponPercent, true);
+  assert.equal(gold.vfx.color, moyuSkillEffect(['base-金-1'])?.color);
+  const elements = ['金', '木', '水', '火', '土'];
+  const combinations = content.skillTree.filter((node) => node.id.startsWith('word-') || node.id.startsWith('confluence-'));
+  const colors = new Map<string, string>();
+  for (const node of combinations) {
+    const effect = must(moyuSkillEffect([node.id]), node.id);
+    colors.set(effect.label, effect.color);
+    assert.equal(resolveSkill(content, base, [node.id]).vfx.color, effect.color);
+  }
+  assert.equal(new Set(colors.values()).size, colors.size);
+  for (const element of elements) {
+    const effect = must(moyuSkillEffect([`base-${element}-1`]), element);
+    assert.equal(effect.count, 1);
+    assert.equal(colors.has(effect.label), false);
+  }
+  assert.equal(resolveSkill(content, base, ['synergy-血芽']).vfx.color, moyuSkillEffect(['synergy-血芽'])?.color);
 });
 
 void test('farming equipment has five exact random affix tiers and respec is free', (): void => {

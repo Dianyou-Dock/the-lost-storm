@@ -54,6 +54,45 @@
   bottom: auto;
 }
 
+.hud-skillbar.moyu .slot.elemental .slot-icon {
+  filter: drop-shadow(0 0 7px var(--moyu-effect));
+}
+
+.hud-skillbar.moyu .slot-effect {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  padding: 1px 4px;
+  color: var(--moyu-effect);
+  background: rgba(10, 13, 20, 0.88);
+  font-size: 9px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.hud-skillbar.moyu .slot-effect:empty {
+  display: none;
+}
+
+body.touch .tc-btn:is(.skill, .attack).elemental .tc-icon {
+  filter: drop-shadow(0 0 8px var(--moyu-effect));
+}
+
+body.touch .tc-btn:is(.skill, .attack)[data-element]:not([data-element=''])::before {
+  content: attr(data-element);
+  position: absolute;
+  top: -13px;
+  left: 50%;
+  padding: 1px 4px;
+  color: var(--moyu-effect);
+  background: rgba(10, 13, 20, 0.88);
+  font-size: 10px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
 body.touch .tc-btn:is(.skill, .attack)[data-skill-name]:not([data-skill-name=''])::after {
   content: attr(data-skill-name);
   position: absolute;

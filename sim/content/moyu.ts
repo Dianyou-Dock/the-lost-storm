@@ -6,12 +6,14 @@ export const MOYU_TITLE: string = '摸鱼之路 · 五行天赋图';
 export const MOYU_MAPS: readonly string[] = ['under_hall', 'under_hall_2', 'under_hall_3', 'lava_depths', 'lava_depths_2', 'ledger_hall', 'ledger_hall_2', 'ledger_hall_3'];
 
 const ELEMENTS = [
-  { id: '金', name: '金', tint: '#e2b86f' },
-  { id: '木', name: '木', tint: '#88c6a2' },
-  { id: '水', name: '水', tint: '#7eb9dc' },
-  { id: '火', name: '火', tint: '#e4967f' },
-  { id: '土', name: '土', tint: '#c3ad8d' },
+  { id: '金', name: '金', tint: '#f4c44f' },
+  { id: '木', name: '木', tint: '#51c878' },
+  { id: '水', name: '水', tint: '#429fe8' },
+  { id: '火', name: '火', tint: '#ef6047' },
+  { id: '土', name: '土', tint: '#9d7957' },
 ] as const;
+const ELEMENT_ORDER: string = '金木水火土';
+const ELEMENT_COLORS: ReadonlyMap<string, string> = new Map(ELEMENTS.map((element): [string, string] => [element.id, element.tint]));
 const COORDS: ReadonlyMap<string, { readonly x: number; readonly y: number }> = new Map(Object.entries(graph.coords));
 const BOSS_TEMPLATES: readonly string[] = ['stormcaller_rival', 'timekeeper_gatekeeper', 'unfinished_colossus'];
 const BOSS_NAMES: readonly string[] = ['下层回响', '洞窟回响', '深窟回响', '熔渊斗士', '熔渊巨像', '账厅守卫', '账厅裁决者', '终厅巨像'];
@@ -91,6 +93,22 @@ export function moyuNode(id: string): (typeof graph.nodes)[number] | null {
   return graph.nodes.find((node): boolean => node.id === id) ?? null;
 }
 
+export interface MoyuSkillEffect {
+  readonly label: string;
+  readonly color: string;
+  readonly count: number;
+}
+
+export function moyuSkillEffect(allocated: readonly string[]): MoyuSkillEffect | null {
+  const nodes = allocated.toReversed().map(moyuNode).filter((node): boolean => node !== null && MOYU_NODE_TYPES.has(node.type));
+  const linked = nodes.find((node): boolean => node !== null && node.type !== 'base') ?? nodes[0];
+  if (linked === undefined || linked === null) return null;
+  const elements = [linked.element, linked.support, linked.third].filter((part): part is string => part !== undefined).toSorted((a: string, b: string): number => ELEMENT_ORDER.indexOf(a) - ELEMENT_ORDER.indexOf(b));
+  const colors = elements.map((element: string): string => ELEMENT_COLORS.get(element) ?? '#ffffff');
+  const channels = [1, 3, 5].map((offset: number): number => Math.round(colors.reduce((sum: number, color: string): number => sum + Number.parseInt(color.slice(offset, offset + 2), 16), 0) / colors.length));
+  return { label: elements.join('·'), color: `#${channels.map((channel: number): string => channel.toString(16).padStart(2, '0')).join('')}`, count: elements.length };
+}
+
 export function hotWeapon(id: string): boolean {
   const node = moyuNode(id);
   return node !== null && ['手枪', '冲锋枪', '霰弹枪', '步枪', '狙击枪'].includes(node.weapon ?? '');
@@ -110,11 +128,11 @@ function graphNodes(): SkillTreeNodeDef[] {
     const path: string = node.element ?? '金';
     const active: boolean = node.type !== 'base';
     const elements: readonly string[] = [node.element, node.support, node.third].filter((entry): entry is string => entry !== undefined);
-    const bonuses = active ? elements.flatMap((element: string) => ELEMENT_BONUS[element] === undefined ? [] : [ELEMENT_BONUS[element]]) : [];
+    const bonuses = elements.flatMap((element: string) => ELEMENT_BONUS[element] === undefined ? [] : [ELEMENT_BONUS[element]]);
     return {
       id: node.id,
       name: node.name,
-      description: active ? `${elements.join('·')}：${bonuses.map((bonus) => bonus.text).join('，')}。装备武器后应用到技能。` : `${node.desc}；同属性装备词条效果提高 3%。`,
+      description: active ? `${elements.join('·')}：${bonuses.map((bonus) => bonus.text).join('，')}。装备武器后应用到技能。` : `${node.desc}；技能${bonuses.map((bonus) => bonus.text).join('，')}；同属性装备词条效果提高 3%。`,
       icon: 'focus',
       kind: active ? 'notable' : 'minor',
       path,
@@ -122,7 +140,7 @@ function graphNodes(): SkillTreeNodeDef[] {
       row: (point?.y ?? 950) / 72 - 950 / 72,
       requires: [...new Set<string>(links)],
       statMods: [],
-      skillMods: active ? MOYU_SKILLS.flatMap((skill: string): SkillMod[] => bonuses.map((bonus): SkillMod => ({ target: { type: 'skill', skill }, field: bonus.field, value: bonus.value }))) : [],
+      skillMods: MOYU_SKILLS.flatMap((skill: string): SkillMod[] => bonuses.map((bonus): SkillMod => ({ target: { type: 'skill', skill }, field: bonus.field, value: bonus.value }))),
       variants: [],
       unlock: null,
       weapon: null,

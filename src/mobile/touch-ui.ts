@@ -7,7 +7,7 @@ import type { Vec2 } from '../../sim/math.ts';
 import { readyToRepeat } from '../../sim/world/skills.ts';
 import { glidesWith } from '../../sim/world/momentum.ts';
 import type { Command, FlaskState, MonsterState, World } from '../../sim/world/types.ts';
-import { isMoyu } from '../../sim/content/moyu.ts';
+import { isMoyu, moyuSkillEffect } from '../../sim/content/moyu.ts';
 import { localizeText } from '../i18n/zh.ts';
 import { cannotStep, isTimeHeld } from '../../sim/world/movement.ts';
 import type { KeyValueStore } from '../backend/backend.ts';
@@ -353,6 +353,10 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
     view.root.classList.toggle('empty', skill === undefined);
     view.root.setAttribute('aria-label', skill?.name ?? 'Empty skill slot');
     view.root.dataset['skillName'] = skill === undefined ? '' : localizeText(skill.name);
+    const elemental = isMoyu(world.content) && skill !== undefined ? moyuSkillEffect(world.player.allocated) : null;
+    view.root.dataset['element'] = elemental?.label ?? '';
+    view.root.style.setProperty('--moyu-effect', elemental?.color ?? 'transparent');
+    view.root.classList.toggle('elemental', elemental !== null);
   };
 
   const createButton = (spec: TouchButton): ButtonView => {
