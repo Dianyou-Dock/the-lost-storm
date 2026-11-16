@@ -5,7 +5,7 @@ import { BufferAttribute, BufferGeometry, Group, Mesh, MeshStandardMaterial, Per
 import type { Timers } from '../backend/backend.ts';
 import type { FramePacer } from './paced-work.ts';
 import type { ShaderCompiler } from './warm-up.ts';
-import { revealHidden, WARM_UP, warmUp, warmUpWithin } from './warm-up.ts';
+import { drawCost, revealHidden, WARM_UP, warmUp, warmUpWithin } from './warm-up.ts';
 
 interface Recorder extends ShaderCompiler {
   readonly seen: boolean[];
@@ -364,4 +364,67 @@ void test('a texture warmed once is not uploaded again by a later warm-up', asyn
   await warmUp(compiler, scene, new PerspectiveCamera(), [], null, countingPacer());
   await warmUp(compiler, scene, new PerspectiveCamera(), [], null, countingPacer());
   assert.equal(uploads, 1);
+});
+
+function pacerThatOnFrame(frame: number, act: () => void): FramePacer {
+  let frames: number = 0;
+  return {
+    now: (): number => 0,
+    next: (): Promise<void> => {
+      frames += 1;
+      if (frames === frame) act();
+      return Promise.resolve();
+    },
+  };
+}
+
+function threeHalfSlices(scene: Scene): Mesh[] {
+  const share: number = Math.floor((WARM_UP.drawCostPerFrame / 2 - WARM_UP.drawFixedCost) / 12) * 12;
+  const meshes: Mesh[] = [sizedMesh(share), sizedMesh(share), sizedMesh(share)];
+  scene.add(...meshes);
+  return meshes;
+}
+
+void test('a child mesh is charged for the holder drawn with it until the holder has been drawn once', (): void => {
+  const holder: Mesh = sizedMesh(1200);
+  const held: Mesh = sizedMesh(120);
+  holder.add(held);
+  assert.equal(drawCost(held), WARM_UP.drawFixedCost * 2 + 1320);
+  assert.equal(drawCost(holder), WARM_UP.drawFixedCost + 1200);
+});
+
+void test('something added to the scene while the slices are paced is hidden from the later slices', async (): Promise<void> => {
+  const scene: Scene = new Scene();
+  threeHalfSlices(scene);
+  const late: Mesh = sizedMesh(12);
+  const shown: boolean[] = [];
+  const compiler: ShaderCompiler = {
+    compileAsync: (target: Object3D): Promise<Object3D> => Promise.resolve(target),
+    drawOnce(): void {
+      shown.push(late.parent !== null && drawnNow(late));
+    },
+    initTexture(): void {},
+  };
+  await warmUp(compiler, scene, new PerspectiveCamera(), [], null, pacerThatOnFrame(2, (): void => {
+    scene.add(late);
+  }));
+  assert.deepEqual(shown, [false, false]);
+  assert.equal(late.visible, true);
+});
+
+void test('a slice whose meshes have all left the scene is not drawn', async (): Promise<void> => {
+  const scene: Scene = new Scene();
+  const meshes: Mesh[] = threeHalfSlices(scene);
+  let draws: number = 0;
+  const compiler: ShaderCompiler = {
+    compileAsync: (target: Object3D): Promise<Object3D> => Promise.resolve(target),
+    drawOnce(): void {
+      draws += 1;
+    },
+    initTexture(): void {},
+  };
+  await warmUp(compiler, scene, new PerspectiveCamera(), [], null, pacerThatOnFrame(2, (): void => {
+    for (const mesh of meshes) mesh.removeFromParent();
+  }));
+  assert.equal(draws, 1);
 });

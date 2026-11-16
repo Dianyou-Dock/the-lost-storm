@@ -146,12 +146,18 @@ export function textureBytes(texture: Texture): number {
   return texels * WARM_UP.bytesPerTexel * (texture.generateMipmaps ? WARM_UP.mipmapShare : 1);
 }
 
-export function drawCost(object: Object3D): number {
+function ownCost(object: Object3D): number {
   const geometry: BufferGeometry | null = geometryOf(object);
   if (geometry === null || warmedGeometries.has(geometry)) return WARM_UP.drawFixedCost;
   let bytes: number = geometry.index === null ? 0 : geometry.index.array.byteLength;
   for (const attribute of Object.values(geometry.attributes)) bytes += attribute.array.byteLength;
   return WARM_UP.drawFixedCost + bytes;
+}
+
+export function drawCost(object: Object3D): number {
+  let cost: number = ownCost(object);
+  for (let holder: Object3D | null = object.parent; holder !== null; holder = holder.parent) if (materialsOf(holder).length > 0) cost += ownCost(holder);
+  return cost;
 }
 
 const TEXTURE_LIMIT: CostLimit<Texture> = { perFrame: WARM_UP.textureBytesPerFrame, cost: textureBytes };
@@ -169,21 +175,28 @@ function withAncestors(slice: readonly Object3D[]): Set<Object3D> {
   return kept;
 }
 
-function drawSlice(compiler: ShaderCompiler, scene: Scene, camera: Camera, standIns: readonly Object3D[], drawables: readonly Object3D[], slice: readonly Object3D[]): void {
+function inScene(scene: Scene, object: Object3D): boolean {
+  let current: Object3D | null = object;
+  while (current !== null && current !== scene) current = current.parent;
+  return current === scene;
+}
+
+function drawSlice(compiler: ShaderCompiler, scene: Scene, camera: Camera, standIns: readonly Object3D[], slice: readonly Object3D[]): void {
   staged(scene, standIns, false, (): void => {
+    if (!slice.some((object: Object3D): boolean => inScene(scene, object))) return;
     const kept: Set<Object3D> = withAncestors(slice);
     const hidden: Object3D[] = [];
-    for (const object of drawables) {
-      if (kept.has(object) || !object.visible) continue;
+    scene.traverse((object: Object3D): void => {
+      if (kept.has(object) || !object.visible || materialsOf(object).length === 0) return;
       hidden.push(object);
       object.visible = false;
-    }
+    });
     try {
       compiler.drawOnce(scene, camera);
     } finally {
       for (const object of hidden) object.visible = true;
     }
-    for (const object of slice) {
+    for (const object of kept) {
       const geometry: BufferGeometry | null = geometryOf(object);
       if (geometry !== null) warmedGeometries.add(geometry);
     }
@@ -203,7 +216,7 @@ async function drawPaced(compiler: ShaderCompiler, scene: Scene, camera: Camera,
     TEXTURE_LIMIT,
   );
   await pacer.next();
-  await workPaced(framesOf(found.drawables, DRAW_LIMIT), (slice: readonly Object3D[]): void => drawSlice(compiler, scene, camera, standIns, found.drawables, slice), pacer, 0);
+  await workPaced(framesOf(found.drawables, DRAW_LIMIT), (slice: readonly Object3D[]): void => drawSlice(compiler, scene, camera, standIns, slice), pacer, 0);
 }
 
 export function warmUp(compiler: ShaderCompiler, scene: Scene, camera: Camera, standIns: readonly Object3D[], later: Promise<void> | null = null, pacer: FramePacer = browserPacer()): Promise<void> {
