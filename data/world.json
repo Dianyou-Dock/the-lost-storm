@@ -90,6 +90,12 @@
             "x": 410,
             "y": 300,
             "when": [{"type": "visited", "zone": "under_hall_3", "not": false}]
+          },
+          {
+            "zone": "lava_depths_2",
+            "x": 455,
+            "y": 265,
+            "when": [{"type": "visited", "zone": "lava_depths", "not": false}]
           }
         ],
         "roads": [
@@ -165,6 +171,16 @@
               {
                 "x": 440,
                 "y": 320
+              }
+            ]
+          },
+          {
+            "from": "lava_depths",
+            "to": "lava_depths_2",
+            "via": [
+              {
+                "x": 430,
+                "y": 280
               }
             ]
           },

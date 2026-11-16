@@ -13,7 +13,7 @@ void test('the shipped world withholds only the columned hall, every way down in
   for (const exit of [...content.zones.values()].flatMap((zone: ZoneDef): ZoneExit[] => zone.exits.filter((entry: ZoneExit): boolean => entry.id !== 'up' && entry.to.startsWith('ledger_hall')))) assert.equal(exit.hiddenWhenLocked && exitWithheld(content, exit), true, exit.id);
   const held: Content = { ...content, world: { ...content.world, withheld: ['keeper_defeated'] } };
   const shut: ReadonlySet<string> = withheldZones(held);
-  assert.deepEqual([...shut], ['under_hall', 'under_hall_2', 'under_hall_3', 'lava_depths']);
+  assert.deepEqual([...shut], ['under_hall', 'under_hall_2', 'under_hall_3', 'lava_depths', 'lava_depths_2']);
   const into: ZoneExit[] = [...content.zones.values()].filter((zone: ZoneDef): boolean => !shut.has(zone.id)).flatMap((zone: ZoneDef): ZoneExit[] => zone.exits.filter((exit: ZoneExit): boolean => shut.has(exit.to)));
   assert.ok(into.length > 0);
   for (const exit of into) {
