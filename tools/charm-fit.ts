@@ -40,7 +40,7 @@ export interface Resting {
 
 export const FIT = {
   tiltStep: 0.5,
-  tiltMost: 50,
+  tiltMost: 70,
   frontPower: 6,
 } as const;
 

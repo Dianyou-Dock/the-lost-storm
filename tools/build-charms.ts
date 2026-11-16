@@ -23,7 +23,8 @@ const BUILD = {
   near: 0.32,
   side: 0.2,
   forward: 0.012,
-  frontBelow: 0.112,
+  frontBelow: 0.07,
+  frontBelowMan: 0.045,
   ceiling: 0.12,
   collarReach: 0.15,
   collarWindow: 10,
@@ -58,16 +59,16 @@ interface MaterialLook {
 
 const LOOKS: Readonly<Record<string, MaterialLook>> = {
   cord: { color: [0.26, 0.18, 0.1, 1], metal: 0, rough: 0.9, glow: [0, 0, 0] },
-  bronze: { color: [0.55, 0.33, 0.12, 1], metal: 0.85, rough: 0.35, glow: [0, 0, 0] },
-  silver: { color: [0.6, 0.62, 0.68, 1], metal: 1, rough: 0.25, glow: [0, 0, 0] },
-  pewter: { color: [0.3, 0.34, 0.44, 1], metal: 0.9, rough: 0.4, glow: [0, 0, 0] },
-  gold: { color: [0.74, 0.46, 0.08, 1], metal: 1, rough: 0.28, glow: [0, 0, 0] },
-  gold_dark: { color: [0.46, 0.28, 0.06, 1], metal: 1, rough: 0.5, glow: [0, 0, 0] },
+  bronze: { color: [0.55, 0.33, 0.12, 1], metal: 0.55, rough: 0.45, glow: [0, 0, 0] },
+  silver: { color: [0.6, 0.62, 0.68, 1], metal: 0.6, rough: 0.4, glow: [0, 0, 0] },
+  pewter: { color: [0.3, 0.34, 0.44, 1], metal: 0.55, rough: 0.45, glow: [0, 0, 0] },
+  gold: { color: [0.74, 0.46, 0.08, 1], metal: 0.55, rough: 0.4, glow: [0, 0, 0] },
+  gold_dark: { color: [0.46, 0.28, 0.06, 1], metal: 0.55, rough: 0.55, glow: [0, 0, 0] },
   ember: { color: [0.72, 0.12, 0.02, 1], metal: 0.2, rough: 0.25, glow: [0, 0, 0] },
   tidestone: { color: [0.03, 0.3, 0.42, 1], metal: 0.25, rough: 0.12, glow: [0, 0, 0] },
   idol: { color: [0.34, 0.35, 0.4, 1], metal: 0.1, rough: 0.6, glow: [0, 0, 0] },
   storm: { color: [0.35, 0.55, 0.95, 1], metal: 0, rough: 0.35, glow: [0, 0, 0] },
-  iron: { color: [0.26, 0.26, 0.3, 1], metal: 0.9, rough: 0.4, glow: [0, 0, 0] },
+  iron: { color: [0.26, 0.26, 0.3, 1], metal: 0.55, rough: 0.5, glow: [0, 0, 0] },
   lantern: { color: [0.86, 0.45, 0.08, 1], metal: 0, rough: 0.3, glow: [0, 0, 0] },
 };
 
@@ -278,7 +279,7 @@ async function buildFrame(io: NodeIO, data: FrameData): Promise<string[]> {
   const report: string[] = [];
   const plan: CordPlan = {
     centre: new Vector3(neck.x, neck.y, neck.z + BUILD.forward),
-    frontY: neck.y - BUILD.frontBelow,
+    frontY: neck.y - (data.frame === 'man' ? BUILD.frontBelowMan : BUILD.frontBelow),
     ceiling: neck.y + BUILD.ceiling,
     samples: BUILD.samples,
     gap: BUILD.cordRadius + BUILD.clearance,
