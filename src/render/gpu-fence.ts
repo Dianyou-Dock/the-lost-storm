@@ -2,6 +2,8 @@ export interface FenceContext {
   readonly SYNC_GPU_COMMANDS_COMPLETE: number;
   readonly SYNC_STATUS: number;
   readonly SIGNALED: number;
+  readonly UNSIGNALED: number;
+  isContextLost(): boolean;
   fenceSync(condition: number, flags: number): WebGLSync | null;
   getSyncParameter(sync: WebGLSync, pname: number): unknown;
   deleteSync(sync: WebGLSync | null): void;
@@ -25,9 +27,13 @@ export function createGpuQueue(context: FenceContext | null): GpuQueue {
     },
     waiting(): number {
       if (context === null) return 0;
+      if (context.isContextLost()) {
+        open.length = 0;
+        return 0;
+      }
       while (open.length > 0) {
         const oldest: WebGLSync | undefined = open[0];
-        if (oldest === undefined || context.getSyncParameter(oldest, context.SYNC_STATUS) !== context.SIGNALED) break;
+        if (oldest === undefined || context.getSyncParameter(oldest, context.SYNC_STATUS) === context.UNSIGNALED) break;
         context.deleteSync(oldest);
         open.shift();
       }
