@@ -1,4 +1,5 @@
 import type { AlarmDef } from '../content/combat-types.ts';
+import type { PackRankDef } from '../content/rank-types.ts';
 import type { MonsterDef, SurgeRules, ZonePack } from '../content/types.ts';
 import type { Vec2 } from '../math.ts';
 import { distance } from '../math.ts';
@@ -15,6 +16,11 @@ export function surgeExtra(world: World): number {
   return rules === null ? 0 : Math.min(rules.maxExtraMonsters, Math.floor((world.surge - 1) / Math.max(1, rules.surgesPerExtraMonster)));
 }
 
+function packRank(world: World, pack: ZonePack, level: number): PackRankDef | null {
+  if (pack.rank === undefined) return rollRank(world.content.packRanks, world.rng, level);
+  return world.content.packRanks.ranks.find((named: PackRankDef): boolean => named.id === pack.rank) ?? null;
+}
+
 export function spawnPack(world: World, pack: ZonePack, extra: number, awake: boolean): void {
   world.spawnedPacks.push(pack);
   const packId: number = world.nextPackId;
@@ -29,7 +35,7 @@ export function spawnPack(world: World, pack: ZonePack, extra: number, awake: bo
     const count: number = member.count + (index === 0 ? extra : 0);
     for (let spawned: number = 0; spawned < count; spawned += 1) defs.push(def);
   });
-  const ranked: MonsterDef[] = world.zone.ranks && ranksHere(defs) ? rankPack(world.content, world.rng, rollRank(world.content.packRanks, world.rng, level), defs) : defs;
+  const ranked: MonsterDef[] = world.zone.ranks && ranksHere(defs) ? rankPack(world.content, world.rng, packRank(world, pack, level), defs) : defs;
   const row: Vec2 = pack.row ?? { x: 0, z: 0 };
   const spawned: MonsterState[] = ranked.map((def: MonsterDef, place: number): MonsterState => spawnMonster(world, def, packId, { x: pack.x + row.x * place, z: pack.z + row.z * place }, { summonerId: null, scatter: pack.row === undefined ? SPAWN.spawnScatter : 0, revived: false, level }));
   const first: MonsterState | undefined = spawned[0];

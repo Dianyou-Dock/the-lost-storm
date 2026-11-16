@@ -2,7 +2,7 @@ import type { Fields } from './read.ts';
 import { colour, ContentError, each, fields, nonNegative, nullableText, positive, share, text, textList } from './read.ts';
 import type { MonsterModDef } from './combat-types.ts';
 import type { PackRankDef, PackRanks, RankChance, RankModChoice, RankScale } from './rank-types.ts';
-import type { Content, RarityDef } from './types.ts';
+import type { Content, MonsterDef, PackMember, RarityDef, ZoneDef, ZonePack } from './types.ts';
 
 function chance(value: unknown, where: string): RankChance | null {
   if (value === null || value === undefined) return null;
@@ -72,6 +72,18 @@ function floorKnown(content: Content, owner: string, scaled: RankScale, need: (o
   );
 }
 
+function rankless(content: Content, member: PackMember): boolean {
+  const monster: MonsterDef | undefined = content.monsters.get(member.monster);
+  return member.mods.length === 0 && (monster?.boss ?? null) === null && (monster?.rank ?? null) === null;
+}
+
+function namedRankProblems(content: Content, zone: ZoneDef, pack: ZonePack, named: string, need: (ok: boolean, problem: string) => void): void {
+  const at: string = `zone ${zone.id} pack at ${pack.x},${pack.z}`;
+  need(content.packRanks.ranks.some((def: PackRankDef): boolean => def.id === named), `${at} names unknown rank ${named}`);
+  need(zone.ranks, `${at} names rank ${named}, but the zone has no ranks`);
+  need(pack.members.every((member: PackMember): boolean => rankless(content, member)), `${at} names rank ${named}, but a boss, a ranked monster or a modded member never takes a rank`);
+}
+
 export function rankProblems(content: Content): string[] {
   const problems: string[] = [];
   const need = (ok: boolean, problem: string): void => {
@@ -94,5 +106,6 @@ export function rankProblems(content: Content): string[] {
     if (mod !== undefined) need(mod.summon === null, `pack rank pool modifier ${entry.mod} summons, and a ranked pack must not call monsters from outside its zone`);
   }
   need(ranks.names.first.length > 0 && ranks.names.second.length > 0, 'pack ranks need names for rare leaders');
+  for (const zone of content.zones.values()) for (const pack of zone.packs) if (pack.rank !== undefined) namedRankProblems(content, zone, pack, pack.rank, need);
   return problems;
 }

@@ -78,7 +78,8 @@ function pack(value: unknown, where: string): ZonePack {
   const base: ZonePack = { x: numeric(source, 'x', where), z: numeric(source, 'z', where), members: each(source['members'], `${where}.members`, packMember), when: conditions(source, 'when', where) };
   const ranked: ZonePack = source['level'] === undefined ? base : { ...base, level: packLevel(source, where) };
   const waiting: ZonePack = source['waits'] === undefined ? ranked : { ...ranked, waits: { near: positive(fields(source['waits'], `${where}.waits`), 'near', `${where}.waits`) } };
-  return row === null ? waiting : { ...waiting, row: { x: numeric(row, 'x', `${where}.row`), z: numeric(row, 'z', `${where}.row`) } };
+  const named: ZonePack = source['rank'] === undefined ? waiting : { ...waiting, rank: text(source, 'rank', where) };
+  return row === null ? named : { ...named, row: { x: numeric(row, 'x', `${where}.row`), z: numeric(row, 'z', `${where}.row`) } };
 }
 
 function packReturn(value: unknown, where: string): PackReturn | null {

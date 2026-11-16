@@ -319,6 +319,7 @@ export interface ZonePack {
   readonly row?: ZonePoint;
   readonly level?: number;
   readonly waits?: PackWait;
+  readonly rank?: string;
 }
 
 export interface PackWait {

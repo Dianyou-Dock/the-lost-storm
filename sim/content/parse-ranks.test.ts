@@ -1,9 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ARENA_CONTENT } from '../../test/arena-support.ts';
+import { must } from '../../test/support.ts';
 import packRanksData from '../../data/pack-ranks.json' with { type: 'json' };
 import { packRanks, rankProblems } from './parse-ranks.ts';
 import type { PackRankDef, PackRanks } from './rank-types.ts';
+import type { Content, PackMember, ZoneDef } from './types.ts';
 
 const RANKS: PackRanks = packRanks(packRanksData, 'packRanks');
 
@@ -33,4 +35,22 @@ void test('rank problems name an unknown floor, an unknown or summoning pool mod
   assert.ok(problems.some((problem: string): boolean => problem.includes('unknown modifier nothing')));
   assert.ok(problems.some((problem: string): boolean => problem.includes('gravecalling summons')));
   assert.ok(problems.some((problem: string): boolean => problem.includes('rolls 9 modifiers')));
+});
+
+function namedRank(ranks: boolean, rank: string, members: readonly PackMember[]): Content {
+  const zone: ZoneDef = { ...must([...ARENA_CONTENT.zones.values()][0], 'a zone'), id: 'ranked_test', ranks, packs: [{ x: 4, z: 6, members, when: [], rank }] };
+  return { ...ARENA_CONTENT, zones: new Map<string, ZoneDef>([...ARENA_CONTENT.zones, [zone.id, zone]]) };
+}
+
+function named(content: Content, text: string): boolean {
+  return rankProblems(content).some((problem: string): boolean => problem.startsWith('zone ranked_test pack at 4,6 ') && problem.includes(text));
+}
+
+void test('a pack names a known rank only in a ranked zone and never on a boss, a ranked monster or a modded member', (): void => {
+  const mended: readonly PackMember[] = [{ monster: 'mended', count: 2, mods: [] }];
+  assert.deepEqual(rankProblems(namedRank(true, 'rare', mended)), []);
+  assert.ok(named(namedRank(true, 'mythic', mended), 'names unknown rank mythic'));
+  assert.ok(named(namedRank(false, 'rare', mended), 'names rank rare, but the zone has no ranks'));
+  assert.ok(named(namedRank(true, 'magic', [{ monster: 'unfinished_colossus', count: 1, mods: [] }]), 'never takes a rank'));
+  assert.ok(named(namedRank(true, 'magic', [{ monster: 'mended', count: 2, mods: ['swift'] }]), 'never takes a rank'));
 });

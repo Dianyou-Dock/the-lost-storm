@@ -109,3 +109,17 @@ void test('a woken pack that is cleared comes back asleep, and only wakes again 
   run(world, STEP.dt);
   assert.equal(packOf(world, SLEEPERS).length, 3);
 });
+
+void test('a pack that names its rank always spawns at that rank, a rare one led by its leader, whatever the roll', (): void => {
+  const named: ZonePack = { x: 30, z: 30, members: [{ monster: 'mended', count: 4, mods: [] }], when: [], level: 12, rank: 'rare' };
+  const hall: ZoneDef = { ...OUTPOST_ZONE, id: 'ranked_hall', ranks: true, surge: null, packReturn: RULES, packs: [named] };
+  const content: Content = { ...OUTPOST_CONTENT, zones: new Map<string, ZoneDef>([...OUTPOST_CONTENT.zones, [hall.id, hall]]) };
+  for (const seed of [1, 2, 3, 4, 5, 6]) {
+    const world: World = createWorld(content, { seed, save: null });
+    enterZone(world, hall, { type: 'start' });
+    const members: MonsterState[] = packOf(world, named);
+    assert.equal(members.length, 4);
+    assert.ok(members.every((monster: MonsterState): boolean => monster.def.rank?.id === 'rare'), `seed ${seed}`);
+    assert.equal(members.filter((monster: MonsterState): boolean => monster.def.rank?.leader === true).length, 1, `seed ${seed}`);
+  }
+});
