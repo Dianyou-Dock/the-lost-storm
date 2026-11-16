@@ -120,6 +120,16 @@
         "fire_burst",
         "banked_fire"
       ]
+    },
+    {
+      "id": "shot",
+      "name": "crossbow shots",
+      "skills": [
+        "quarrel",
+        "quarrel_fan",
+        "quarrel_heave",
+        "ghost_wave"
+      ]
     }
   ],
   "weaponGroups": [
