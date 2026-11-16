@@ -25,6 +25,14 @@ function list(value: string): string[] {
   return value.split(',').filter((entry: string): boolean => entry !== '');
 }
 
+function count(name: string, fallback: number): number {
+  const value: number = Number(option(name, String(fallback)));
+  if (!Number.isInteger(value) || value < 0) throw new Error(`--${name} takes a whole number of at least 0`);
+  return value;
+}
+
+const raise: number = count('raise', CAVE_CLI.raise);
+const enterLevel: number = count('enter', CAVE_CLI.enterLevel);
 const minutes: number = Number(option('minutes', String(CAVE_CLI.minutes)));
 const runs: number = Number(option('runs', String(CAVE_CLI.runs)));
 const rows: CaveRow[] = [];
@@ -32,7 +40,7 @@ for (const build of option('build', CAVE_CLI.builds).split(',')) {
   for (const skill of option('skill', CAVE_CLI.skills).split(',')) {
     const done: CaveRun[] = [];
     for (let seed: number = 1; seed <= runs; seed += 1) {
-      done.push(runCave({ zone: option('zone', CAVE_CLI.zone), through: list(option('through', CAVE_CLI.through)), raise: Number(option('raise', String(CAVE_CLI.raise))), gear: list(option('gear', CAVE_CLI.gear)), enterLevel: Number(option('enter', String(CAVE_CLI.enterLevel))), minutes, skill, build, seed }, POLICIES));
+      done.push(runCave({ zone: option('zone', CAVE_CLI.zone), through: list(option('through', CAVE_CLI.through)), raise, gear: list(option('gear', CAVE_CLI.gear)), enterLevel, minutes, skill, build, seed }, POLICIES));
       process.stderr.write(`${build} ${skill} ${seed}/${runs}\n`);
     }
     const row: CaveRow | null = caveRow(done);

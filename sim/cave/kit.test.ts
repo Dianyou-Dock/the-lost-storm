@@ -12,7 +12,7 @@ const kit: CaveKit = readKit(hourfall, 'hourfall');
 
 void test('the Hourfall kit names only props, caches, monsters and surfaces the game has', (): void => {
   for (const cluster of kit.clusters) for (const piece of cluster) assert.ok(content.props.has(piece.prop), piece.prop);
-  for (const cache of kit.caches) assert.ok(content.props.get(cache)?.cache !== null, cache);
+  for (const cache of kit.caches) assert.notEqual(content.props.get(cache)?.cache ?? null, null, cache);
   assert.ok(content.props.has(kit.stairs.prop));
   for (const family of kit.families) for (const member of family.members) assert.ok(content.monsters.has(member.monster), member.monster);
   const floors = fields(kit.zone['floors'], 'floors');

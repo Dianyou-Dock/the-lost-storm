@@ -15,6 +15,15 @@ void test('the command line names the zone, its doors and its band, and a gated 
   assert.throws((): CaveOptions => caveOptions(['--id', 'deep', '--up', 'above']));
 });
 
+void test('a command line with no band, no packs, a band that falls, too many chambers or no seeds is refused before any cave is made', (): void => {
+  const base: readonly string[] = ['--id', 'deep', '--up', 'above:down'];
+  assert.throws((): CaveOptions => caveOptions([...base, '--to', '17']), /--from and --to/);
+  assert.throws((): CaveOptions => caveOptions([...base, '--from', '14', '--to', '17', '--packs', '0']), /at least one pack/);
+  assert.throws((): CaveOptions => caveOptions([...base, '--from', '17', '--to', '14']), /level band/);
+  assert.throws((): CaveOptions => caveOptions([...base, '--from', '14', '--to', '17', '--chambers', '16']), /chambers/);
+  assert.throws((): CaveOptions => caveOptions([...base, '--from', '14', '--to', '17', '--seeds', '0']), /--seeds/);
+});
+
 void test('a written zone reads back as the same record, one list entry per line', (): void => {
   const record: Record<string, unknown> = { id: 'deep', tiles: ['cc', 'c '], terrain: { rise: 1, levels: ['00', '0/'] }, packs: [{ x: 1, z: 2 }], exits: [] };
   const text: string = formatZone(record);

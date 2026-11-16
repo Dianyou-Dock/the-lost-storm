@@ -209,6 +209,10 @@ function paintPassage(raster: CaveRaster, rng: Rng, kit: CaveKit, from: CaveCham
   return { from: from.index, to: to.index, ramp, landing: point(begin + sign * (piece + 1)) };
 }
 
+export function deepestChambers(): number {
+  return Math.floor(CAVE_LAYOUT.top / CAVE_LAYOUT.step) + 1;
+}
+
 export function shapeCave(rng: Rng, kit: CaveKit, columns: number, rows: number, count: number): CaveShape | null {
   const chambers: CaveChamber[] | null = placeChambers(rng, kit, columns, rows, count);
   if (chambers === null) return null;

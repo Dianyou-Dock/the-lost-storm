@@ -35,3 +35,9 @@ void test('the maker gives up with the reason when no layout passes', (): void =
   const made: MadeResult = makeCave(content, kit, { ...request(1), screen: { monsters: 1, lights: 0 } }, naming);
   assert.equal(made.ok, false);
 });
+
+void test('a kit naming a monster the game lacks is refused with its name before any cave is made', (): void => {
+  const stranger: CaveKit = { ...kit, families: [...kit.families, { members: [{ monster: 'no_such_monster', count: 1 }], waits: null }] };
+  const made: MadeResult = makeCave(content, stranger, request(1), naming);
+  assert.ok(!made.ok && made.problem.includes('no_such_monster'));
+});

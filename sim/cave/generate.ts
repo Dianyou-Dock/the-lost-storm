@@ -6,7 +6,7 @@ import { propBlockers } from '../nav/grid.ts';
 import type { Rng } from '../rng.ts';
 import { createRng } from '../rng.ts';
 import type { CaveChamber, CavePassage, CaveShape } from './layout.ts';
-import { CAVE_LAYOUT, shapeCave } from './layout.ts';
+import { CAVE_LAYOUT, deepestChambers, shapeCave } from './layout.ts';
 import type { CaveKit, KitFamily, KitPiece } from './kit.ts';
 import type { CaveRaster } from './raster.ts';
 import { cellAt, evenRampSides, isFloor, rockDistance, ROCK, wallLevels } from './raster.ts';
@@ -435,7 +435,25 @@ function attempt(rng: Rng, request: CaveRequest, maker: CaveMaker): CaveLayout |
   return { seed: request.seed, columns: request.columns, rows: request.rows, cellSize: CAVE_GEN.cellSize, tiles: tileLines(shape.raster), levels: levelLines(shape.raster, levels), chambers: shape.chambers, passages: shape.passages, props, packs, ...spots };
 }
 
+export function requestProblem(request: Pick<CaveRequest, 'chambers' | 'packs' | 'levels' | 'packScale'>): string | null {
+  if (!Number.isInteger(request.chambers) || request.chambers < 2 || request.chambers > deepestChambers()) return `a cave has 2 to ${deepestChambers()} chambers, not ${request.chambers}`;
+  if (!Number.isInteger(request.packs) || request.packs < 1) return `a cave has at least one pack, not ${request.packs}`;
+  if (!Number.isInteger(request.levels.from) || !Number.isInteger(request.levels.to) || request.levels.from < 1 || request.levels.to < request.levels.from) return `the level band runs from a whole level of at least 1 up, not ${request.levels.from} to ${request.levels.to}`;
+  if (!(request.packScale > 0)) return `the pack scale is above zero, not ${request.packScale}`;
+  return null;
+}
+
+function kitProps(kit: CaveKit, defs: ReadonlyMap<string, PropDef>): string | null {
+  const named: readonly string[] = [kit.stairs.prop, ...kit.caches, ...kit.clusters.flatMap((cluster: readonly KitPiece[]): string[] => cluster.map((piece: KitPiece): string => piece.prop))];
+  const missing: readonly string[] = [...new Set(named.filter((prop: string): boolean => !defs.has(prop)))];
+  if (missing.length > 0) return `kit ${kit.id} names props the game does not have: ${missing.join(', ')}`;
+  const plain: readonly string[] = kit.caches.filter((prop: string): boolean => (defs.get(prop)?.cache ?? null) === null);
+  return plain.length > 0 ? `kit ${kit.id} names caches that are not caches: ${plain.join(', ')}` : null;
+}
+
 export function generateCave(request: CaveRequest, maker: CaveMaker): CaveResult {
+  const refused: string | null = requestProblem(request) ?? kitProps(maker.kit, maker.defs);
+  if (refused !== null) return { ok: false, problem: refused };
   const rng: Rng = createRng(request.seed);
   let last: readonly string[] = [];
   for (let tries: number = 1; tries <= CAVE_GEN.attempts; tries += 1) {

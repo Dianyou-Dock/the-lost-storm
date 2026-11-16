@@ -61,6 +61,17 @@ void test('each level change is one ramp with level ground at both ends and two 
   }
 });
 
+void test('more chambers than the terraces can hold, no packs, or a kit naming a prop the game lacks are refused with the reason', (): void => {
+  const deep: CaveResult = generateCave({ ...request(1), chambers: 16 }, { kit, defs: content.props, judge: null });
+  assert.ok(!deep.ok && deep.problem.includes('chambers'));
+  const empty: CaveResult = generateCave({ ...request(1), packs: 0 }, { kit, defs: content.props, judge: null });
+  assert.ok(!empty.ok && empty.problem.includes('pack'));
+  const typo: CaveResult = generateCave(request(1), { kit: { ...kit, caches: [...kit.caches, 'no_such_cache'] }, defs: content.props, judge: null });
+  assert.ok(!typo.ok && typo.problem.includes('no_such_cache'));
+  const plain: CaveResult = generateCave(request(1), { kit: { ...kit, caches: [kit.stairs.prop] }, defs: content.props, judge: null });
+  assert.ok(!plain.ok && plain.problem.includes('not caches'));
+});
+
 void test('a cave too small for its chambers is refused, not squeezed', (): void => {
   const result: CaveResult = generateCave({ ...request(1), columns: 40, rows: 40 }, { kit, defs: content.props, judge: null });
   assert.equal(result.ok, false);

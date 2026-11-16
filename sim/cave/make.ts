@@ -22,6 +22,8 @@ export function caveZone(layout: CaveLayout, naming: CaveNaming, kit: CaveKit): 
 }
 
 export function makeCave(content: Content, kit: CaveKit, request: CaveRequest, naming: CaveNaming): MadeResult {
+  const strangers: readonly string[] = [...new Set(kit.families.flatMap((family): string[] => family.members.map((member): string => member.monster)).filter((monster: string): boolean => !content.monsters.has(monster)))];
+  if (strangers.length > 0) return { ok: false, problem: `kit ${kit.id} names monsters the game does not have: ${strangers.join(', ')}` };
   const judge = (layout: CaveLayout): readonly string[] => caveProblems(content, caveZone(layout, naming, kit).zone, request.screen);
   const result: CaveResult = generateCave(request, { kit, defs: content.props, judge });
   if (!result.ok) return result;

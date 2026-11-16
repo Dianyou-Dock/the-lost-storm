@@ -6,6 +6,7 @@ import type { Condition } from '../sim/content/condition-types.ts';
 import type { Content, PropDef, ZoneDef, ZoneProp } from '../sim/content/types.ts';
 import { screenLoad } from '../sim/cave/checks.ts';
 import type { CaveRequest, ScreenLimit } from '../sim/cave/generate.ts';
+import { requestProblem } from '../sim/cave/generate.ts';
 import type { MadeResult } from '../sim/cave/make.ts';
 import { makeCave } from '../sim/cave/make.ts';
 import type { CaveKit } from '../sim/cave/kit.ts';
@@ -79,13 +80,18 @@ export function caveOptions(args: readonly string[]): CaveOptions {
   const up: string | null = option(args, 'up');
   if (id === null || up === null) throw new Error('usage: node tools/cave-generate.ts --kit data/kits/<kit>.json --id <zone id> --name <name> --up <zone:exit> [--down <zone:exit>] --from <level> --to <level> [--seed N --seeds N --columns N --rows N --chambers N --packs N --scale X --out FILE]');
   const down: string | null = option(args, 'down');
+  if (option(args, 'from') === null || option(args, 'to') === null) throw new Error('--from and --to set the level band and are required');
+  if (!Number.isInteger(number('seeds', CAVE_CLI.seeds)) || number('seeds', CAVE_CLI.seeds) < 1) throw new Error('--seeds takes a whole number of at least 1');
+  const request: Omit<CaveRequest, 'seed' | 'screen'> = { columns: number('columns', CAVE_CLI.columns), rows: number('rows', CAVE_CLI.rows), chambers: number('chambers', CAVE_CLI.chambers), levels: { from: number('from', 1), to: number('to', 1) }, packs: number('packs', CAVE_CLI.packs), packScale: number('scale', CAVE_CLI.scale) };
+  const refused: string | null = requestProblem(request);
+  if (refused !== null) throw new Error(refused);
   return {
     kit: option(args, 'kit') ?? 'data/kits/hourfall.json',
     id,
     name: option(args, 'name') ?? id,
     seed: number('seed', 1),
     seeds: number('seeds', CAVE_CLI.seeds),
-    request: { columns: number('columns', CAVE_CLI.columns), rows: number('rows', CAVE_CLI.rows), chambers: number('chambers', CAVE_CLI.chambers), levels: { from: number('from', 1), to: number('to', 1) }, packs: number('packs', CAVE_CLI.packs), packScale: number('scale', CAVE_CLI.scale) },
+    request,
     up: door(up, 'up', null),
     down: down === null ? null : door(down, 'down', option(args, 'down-gate')),
     out: option(args, 'out'),
