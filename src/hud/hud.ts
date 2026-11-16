@@ -257,6 +257,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
   const skillBar: SkillBar = createSkillBar(row, context, track);
   buttons.tree = createMenuButton(row, 'tree', isMoyu(api.world.content) ? '五行天赋' : 'Skill Tree', keyOf('tree'), (): void => fromRow((): void => toggle('tree')), track);
   buttons.map = createMenuButton(row, 'map', 'Map', keyOf('map'), (): void => fromRow((): void => toggle('map')), track);
+  let returnHome: HTMLButtonElement | null = null;
   if (isMoyu(api.world.content)) {
     const randomMap: HTMLButtonElement = el('button', 'moyu-random-map', row);
     randomMap.type = 'button';
@@ -264,6 +265,12 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
     randomMap.setAttribute('aria-label', '随机进入一张刷图地图');
     randomMap.addEventListener('click', (): void => fromRow((): void => api.send({ type: 'random_map' })));
     track(randomMap);
+    returnHome = el('button', 'moyu-return-home', row);
+    returnHome.type = 'button';
+    returnHome.textContent = '回城';
+    returnHome.setAttribute('aria-label', '返回藏身处');
+    returnHome.addEventListener('click', (): void => fromRow((): void => api.send({ type: 'return_home' })));
+    track(returnHome);
   }
   const corner: HTMLDivElement = createVolumeButton(row, api.audio, track, (): void => fromRow((): void => api.openSettings('sound')));
   const feedback: (() => void) | null = api.feedback;
@@ -308,6 +315,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
     },
     update(dt: number, view: FrameView): void {
       const world = api.world;
+      if (returnHome !== null) returnHome.hidden = world.zone.id === 'hideout';
       if (warmWanted && warmWait-- <= 0) {
         warmWait = HUD_WARM.retryFrames;
         if (chartPanel.warm()) warmWanted = false;

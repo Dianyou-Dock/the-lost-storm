@@ -249,6 +249,16 @@ function act(world: World, command: Command): void {
       world.events.push({ type: 'zone_changed', from, to: zone.id });
       return;
     }
+    case 'return_home': {
+      if (!isMoyu(world.content) || world.zone.id === 'hideout') return;
+      const zone = world.content.zones.get('hideout');
+      if (zone === undefined) return;
+      const from: string = world.zone.id;
+      world.portal = null;
+      enterZone(world, zone, { type: 'start' });
+      world.events.push({ type: 'zone_changed', from, to: zone.id });
+      return;
+    }
     case 'enter_portal': {
       const end: PortalEnd | null = portalEndHere(world);
       if (end === null) return;
@@ -393,6 +403,7 @@ export function handleCommand(world: World, command: Command): void {
     case 'talk':
     case 'teleport':
     case 'random_map':
+    case 'return_home':
     case 'enter_portal':
       if (!player.alive) return;
       if (command.type !== 'skill') closeDialogue(world, false);

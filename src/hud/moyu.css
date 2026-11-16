@@ -1,4 +1,5 @@
-.moyu-random-map {
+.moyu-random-map,
+.moyu-return-home {
   position: absolute;
   right: 2px;
   bottom: calc(100% + 12px);
@@ -18,13 +19,133 @@
 }
 
 .moyu-random-map:hover,
-.moyu-random-map:focus-visible {
+.moyu-random-map:focus-visible,
+.moyu-return-home:hover,
+.moyu-return-home:focus-visible {
   background: rgba(87, 57, 27, 0.9);
   transform: translateY(-2px);
 }
 
-.moyu-random-map:active {
+.moyu-random-map:active,
+.moyu-return-home:active {
   transform: translateY(1px);
+}
+
+.moyu-return-home {
+  right: 115px;
+  border-color: rgba(107, 174, 227, 0.46);
+  color: #b9ddfb;
+}
+
+.moyu-return-home[hidden],
+.tc-return-home[hidden] {
+  display: none;
+}
+
+.moyu-pickup-filter {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 0 10px;
+  color: #cbd7e7;
+  font-size: 12px;
+}
+
+.moyu-pickup-filter select {
+  min-height: 32px;
+  padding: 3px 9px;
+  border: 1px solid rgba(127, 212, 255, 0.35);
+  border-radius: 6px;
+  background: #182331;
+  color: #eaf5ff;
+}
+
+.moyu-item-detail {
+  display: none;
+  position: fixed;
+  z-index: 120;
+  top: 50%;
+  left: 50%;
+  width: min(90vw, 560px);
+  max-height: min(80vh, 680px);
+  box-sizing: border-box;
+  padding: 16px;
+  overflow: auto;
+  transform: translate(-50%, -50%);
+  border: 1px solid rgba(174, 209, 243, 0.46);
+  border-radius: 12px;
+  background: rgba(11, 17, 27, 0.98);
+  box-shadow: 0 20px 70px rgba(0, 0, 0, 0.75);
+  pointer-events: auto;
+}
+
+.moyu-item-detail.shown {
+  display: block;
+}
+
+.moyu-item-detail-head,
+.moyu-item-detail-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+  color: #e8f3ff;
+  font-size: 15px;
+}
+
+.moyu-item-detail button {
+  min-height: 36px;
+  padding: 6px 14px;
+  border: 1px solid rgba(174, 209, 243, 0.42);
+  border-radius: 6px;
+  background: #1c2a3a;
+  color: #e8f3ff;
+  cursor: pointer;
+}
+
+.moyu-item-detail-actions {
+  justify-content: flex-end;
+  margin: 12px 0 0;
+}
+
+.moyu-item-detail-actions .moyu-item-drop {
+  border-color: rgba(238, 113, 113, 0.65);
+  color: #ffc5c5;
+}
+
+.moyu-item-detail button[hidden] {
+  display: none;
+}
+
+.moyu-item-detail .tip-pair {
+  flex-wrap: wrap;
+}
+
+.moyu-item-detail .tip-equipped {
+  display: flex;
+}
+
+.moyu-item-detail .tip {
+  min-width: min(100%, 210px);
+  flex: 1;
+}
+
+.moyu-sell-all {
+  width: 100%;
+  min-height: 40px;
+  margin: 8px 0 12px;
+  border: 1px solid rgba(244, 196, 79, 0.55);
+  border-radius: 6px;
+  background: rgba(75, 51, 20, 0.9);
+  color: #ffe1a0;
+  cursor: pointer;
+}
+
+.moyu-sell-all:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .moyu-prototype-note {
@@ -152,6 +273,26 @@
 }
 
 @media (max-width: 700px) {
+  body.touch .tc-return-home {
+    position: absolute;
+    bottom: calc(var(--ph-xp-bottom, 4px) + 188px);
+    right: calc(50% + 5px);
+    z-index: 20;
+    min-height: 38px;
+    padding: 0 12px;
+    border: 1px solid rgba(107, 174, 227, 0.46);
+    border-radius: 20px;
+    background: rgba(14, 31, 49, 0.86);
+    color: #b9ddfb;
+    pointer-events: auto;
+  }
+
+  .moyu-item-detail {
+    width: calc(100vw - 24px);
+    max-height: 76vh;
+    padding: 14px;
+  }
+
   .moyu-combo-nav {
     flex-wrap: wrap;
     gap: 4px 8px;

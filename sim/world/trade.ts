@@ -191,6 +191,20 @@ function sell(world: World, vendor: VendorStock, inventoryIndex: number): void {
   changed(world);
 }
 
+function sellAll(world: World, vendor: VendorStock): void {
+  if (!isMoyu(world.content)) return;
+  const player: PlayerState = world.player;
+  let sold: boolean = false;
+  for (const [index, item] of player.inventory.entries()) {
+    if (item === null || !buysBack(world, item)) continue;
+    player.inventory[index] = null;
+    player.gold += sellPrice(world.content, item);
+    vendor.buyback = [item, ...vendor.buyback].slice(0, world.content.trade.buybackSize);
+    sold = true;
+  }
+  if (sold) changed(world);
+}
+
 function buyBack(world: World, vendor: VendorStock, index: number): void {
   const item: ItemInstance | undefined = vendor.buyback[index];
   if (item === undefined) return;
@@ -241,6 +255,9 @@ export function handleTrade(world: World, action: TradeAction): void {
       return;
     case 'sell':
       if (vendor !== null) sell(world, vendor, action.inventoryIndex);
+      return;
+    case 'sell_all':
+      if (vendor !== null) sellAll(world, vendor);
       return;
     case 'buy_back':
       if (vendor !== null) buyBack(world, vendor, action.index);

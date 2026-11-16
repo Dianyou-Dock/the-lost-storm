@@ -289,6 +289,7 @@ export function uiActionForCommand(command: Command): UiAction | null {
     case 'replay':
     case 'teleport':
     case 'random_map':
+    case 'return_home':
     case 'respawn':
     case 'flask':
     case 'use':

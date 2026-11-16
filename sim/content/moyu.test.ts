@@ -13,6 +13,7 @@ import { applyHit, offenceOf } from '../world/combat.ts';
 import { addToInventory } from '../world/character.ts';
 import { generateItem } from '../items.ts';
 import { createRng } from '../rng.ts';
+import { handleTrade, meetNpc, sellPrice } from '../world/trade.ts';
 
 void test('portal content uses the five element chart without quests', (): void => {
   const content = moyuContent(loadContent());
@@ -47,6 +48,9 @@ void test('a random map begins a fresh combat run and can be entered again', ():
   const second = stepWorld(world, [{ type: 'random_map' }], 1 / 30);
   assert.notEqual(world.zone.id, previous);
   assert.equal(second.some((event): boolean => event.type === 'zone_changed'), true);
+  const home = stepWorld(world, [{ type: 'return_home' }], 1 / 30);
+  assert.equal(world.zone.id, 'hideout');
+  assert.equal(home.some((event): boolean => event.type === 'zone_changed' && event.to === 'hideout'), true);
 });
 
 void test('an old low-level save in a high-level map returns to the hideout', (): void => {
@@ -55,6 +59,20 @@ void test('an old low-level save in a high-level map returns to the hideout', ()
   const save = { ...toSave(fresh), zone: 'under_hall_3' };
   const restored = createWorld(content, { seed: 5, save, opening: false });
   assert.equal(restored.zone.id, 'hideout');
+});
+
+void test('the hideout merchant sells all sellable bag items in one action', (): void => {
+  const content = moyuContent(loadContent());
+  const world = createWorld(content, { seed: 5, save: null, opening: false });
+  const vendor = must(world.npcs.find((npc): boolean => npc.def.service === 'vendor'), 'hideout vendor');
+  world.player.pos = { x: vendor.pos.x + 1, z: vendor.pos.z };
+  meetNpc(world, vendor);
+  const item = must(generateItem(content, createRng(9), 123, 1, 'rusted_blade', 'common'), 'blade');
+  world.player.inventory[0] = item;
+  world.player.gold = 0;
+  handleTrade(world, { type: 'sell_all' });
+  assert.equal(world.player.inventory[0], null);
+  assert.equal(world.player.gold, sellPrice(content, item));
 });
 
 void test('an older portal save receives the newly available weapon actions', (): void => {

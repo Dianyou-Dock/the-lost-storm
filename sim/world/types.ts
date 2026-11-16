@@ -477,6 +477,7 @@ export interface OpenChest {
 export type TradeAction =
   | { readonly type: 'buy'; readonly index: number }
   | { readonly type: 'sell'; readonly inventoryIndex: number }
+  | { readonly type: 'sell_all' }
   | { readonly type: 'buy_back'; readonly index: number }
   | { readonly type: 'buy_good'; readonly index: number }
   | { readonly type: 'stash'; readonly inventoryIndex: number }
@@ -509,7 +510,7 @@ export interface OverlayCommand {
   readonly open: boolean;
 }
 
-export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | ChooseChangeCommand | TravelCommand | TalkCommand | AdvanceCommand | ReplayCommand | TeleportCommand | { readonly type: 'random_map' } | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand | UseItemCommand | EnterPortalCommand;
+export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | ChooseChangeCommand | TravelCommand | TalkCommand | AdvanceCommand | ReplayCommand | TeleportCommand | { readonly type: 'random_map' } | { readonly type: 'return_home' } | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand | UseItemCommand | EnterPortalCommand;
 
 export interface StartRespawn {
   readonly type: 'start';

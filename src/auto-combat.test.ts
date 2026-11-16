@@ -11,6 +11,9 @@ import { createWorld } from '../sim/world/create.ts';
 import { stepWorld } from '../sim/world/step.ts';
 import { dropOnGround } from '../sim/world/ground.ts';
 import type { AutoCombatState } from './auto-combat-plan.ts';
+import { setPickupMinimum } from './loot-filter.ts';
+import { generateItem } from '../sim/items.ts';
+import { createRng } from '../sim/rng.ts';
 
 const content: Content = loadContent();
 
@@ -79,4 +82,16 @@ void test('moyu auto combat drinks life medicine and picks up drops', (): void =
   world.player.life = world.player.maxLife;
   const ground = dropOnGround(world, world.player.pos, { kind: 'gold', amount: 5 });
   assert.deepEqual(planAutoCombat(world, state, 1 / 30, [], false), [{ type: 'pickup', groundId: ground.id }]);
+  const item = must(generateItem(world.content, createRng(4), 94, 1, 'rusted_blade', 'common'), 'common blade');
+  world.ground.length = 0;
+  dropOnGround(world, world.player.pos, { kind: 'item', item });
+  setPickupMinimum(2);
+  try {
+    assert.deepEqual(planAutoCombat(world, state, 1 / 30, [], false), []);
+    world.ground.length = 0;
+    const gold = dropOnGround(world, world.player.pos, { kind: 'gold', amount: 2 });
+    assert.deepEqual(planAutoCombat(world, state, 1 / 30, [], false), [{ type: 'pickup', groundId: gold.id }]);
+  } finally {
+    setPickupMinimum(0);
+  }
 });

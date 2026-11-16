@@ -11,6 +11,8 @@ import type { ItemCell } from './item-cell.ts';
 import { createItemCell, showItem } from './item-cell.ts';
 import { promptText, use } from './prompts.ts';
 import { offeredItem, SALE_WORDS, saleCommand, saleEmptyText } from './trade-actions.ts';
+import { isMoyu } from '../../sim/content/moyu.ts';
+import { buysBack } from '../../sim/world/trade.ts';
 
 const SALE_HINT: string = 'take back';
 
@@ -52,6 +54,14 @@ export function createVendorPanel(parent: HTMLElement, context: HudContext): Pan
   const gold: HTMLSpanElement = el('span', 'gold-text', purse);
   const goodsGrid: HTMLDivElement = el('div', 'inv-grid trade-goods', element);
   const stockGrid: HTMLDivElement = el('div', 'inv-grid', element);
+  const sellAll: HTMLButtonElement | null = isMoyu(context.api.world.content) ? el('button', 'moyu-sell-all', element) : null;
+  if (sellAll !== null) {
+    sellAll.type = 'button';
+    sellAll.addEventListener('click', (): void => {
+      context.sale.set(null);
+      context.api.send({ type: 'trade', action: { type: 'sell_all' } });
+    });
+  }
   label('panel-subtitle', 'Buy back', element);
   const backGrid: HTMLDivElement = el('div', 'inv-grid', element);
   label('panel-subtitle', 'Sell', element);
@@ -102,6 +112,12 @@ export function createVendorPanel(parent: HTMLElement, context: HudContext): Pan
         setText(role, shownTitle(npc), false);
       }
       const coins: number = world.player.gold;
+      if (sellAll !== null) {
+        const sellable = world.player.inventory.filter((item): item is ItemInstance => item !== null && buysBack(world, item));
+        const total: number = sellable.reduce((sum: number, item: ItemInstance): number => sum + sellPrice(world.content, item), 0);
+        sellAll.textContent = `一键出售背包（${sellable.length} 件 · ${total} 金币）`;
+        sellAll.disabled = sellable.length === 0;
+      }
       setText(gold, String(coins), true);
       let changed: boolean = false;
       for (const [index, cell] of goodCells.entries()) {

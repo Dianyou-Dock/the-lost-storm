@@ -4,6 +4,7 @@ import { mainSlot } from '../sim/ladder.ts';
 import { isMoyu } from '../sim/content/moyu.ts';
 import { playerMayStrike } from '../sim/world/factions.ts';
 import { blockedReason } from '../sim/world/skills.ts';
+import { autoPickupAllows } from './loot-filter.ts';
 import type { Command, MonsterState, World } from '../sim/world/types.ts';
 
 const AUTO = { manualDelay: 0.8 } as const;
@@ -50,6 +51,7 @@ function nearestGround(world: World): Extract<Command, { readonly type: 'pickup'
   let chosen: typeof world.ground[number] | null = null;
   let best = Number.POSITIVE_INFINITY;
   for (const ground of world.ground) {
+    if (isMoyu(world.content) && !autoPickupAllows(world.content, ground)) continue;
     const gap = distance(world.player.pos, ground.pos);
     if (gap >= best) continue;
     chosen = ground;

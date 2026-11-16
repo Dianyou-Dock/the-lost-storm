@@ -193,10 +193,11 @@ function graphNodes(): SkillTreeNodeDef[] {
     const active: boolean = node.type !== 'base';
     const elements: readonly string[] = [node.element, node.support, node.third].filter((entry): entry is string => entry !== undefined);
     const bonuses = elements.flatMap((element: string) => ELEMENT_BONUS[element] === undefined ? [] : [ELEMENT_BONUS[element]]);
+    const baseDescription: string = node.desc.replace(/[。；]+$/, '');
     return {
       id: node.id,
       name: node.name,
-      description: active ? `${elements.join('·')}：${bonuses.map((bonus) => bonus.text).join('，')}。装备武器后应用到技能。` : `${node.desc}；技能${bonuses.map((bonus) => bonus.text).join('，')}；同属性装备词条效果提高 3%。`,
+      description: active ? `${elements.join('·')}：${bonuses.map((bonus) => bonus.text).join('，')}。装备武器后应用到技能。` : `${baseDescription}；技能${bonuses.map((bonus) => bonus.text).join('，')}；同属性装备词条效果提高 3%。`,
       icon: 'focus',
       kind: active ? 'notable' : 'minor',
       path,
