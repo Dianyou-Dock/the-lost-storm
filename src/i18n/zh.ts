@@ -141,7 +141,7 @@ function subtree(node: Node): void {
 
 export function startLocalization(): void {
   document.documentElement.lang = 'zh-CN';
-  document.title = '失落风暴 · 离线版';
+  document.title = '摸鱼游戏';
   const root: HTMLElement = document.body;
   subtree(root);
   const observer: MutationObserver = new MutationObserver((records: MutationRecord[]): void => {
