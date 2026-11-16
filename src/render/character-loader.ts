@@ -20,6 +20,7 @@ import { addBoxUvs } from './box-uv.ts';
 import { assetUrl } from './asset-url.ts';
 import { fitClip } from './clip-fit.ts';
 import { dressPiece } from './dress-piece.ts';
+import { mergeRigidAlike, mergeSkinnedAlike } from './merge-alike.ts';
 import type { KeepLoadingDeps, NamedLoad } from './keep-loading.ts';
 import { loadAllKeepTrying } from './keep-loading.ts';
 import { fadeMaterials } from './body-swap.ts';
@@ -71,6 +72,7 @@ export interface LoadedWearable {
   readonly frame: string;
   readonly model: string;
   readonly pieces: readonly SkinnedMesh[];
+  readonly drawn: readonly SkinnedMesh[];
   readonly iconWith: readonly SkinnedMesh[];
 }
 
@@ -298,13 +300,11 @@ async function loadWearable(loader: GLTFLoader, dresser: Dresser, def: WearableD
   const path: string = wearModel(def, frame);
   const model: GLTF = await loadKeptModel(loader, path);
   const names: Set<string> = new Set<string>(def.pieces.map((name: string): string => PropertyBinding.sanitizeNodeName(name)));
-  const pieces: SkinnedMesh[] = skinnedMeshes(model.scene)
-    .filter((mesh: SkinnedMesh): boolean => isPiece(mesh, names))
-    .map((mesh: SkinnedMesh): SkinnedMesh => dressPiece(mesh, dresser, def.surfaces));
+  const pieces: SkinnedMesh[] = skinnedMeshes(model.scene).filter((mesh: SkinnedMesh): boolean => isPiece(mesh, names)).map((mesh: SkinnedMesh): SkinnedMesh => dressPiece(mesh, dresser, def.surfaces));
   if (pieces.length === 0) throw new Error(`Wearable "${def.id}" has no skinned mesh in ${path}`);
   const beside: Set<string> = new Set<string>(def.iconWith.map((name: string): string => PropertyBinding.sanitizeNodeName(name)));
   const iconWith: SkinnedMesh[] = beside.size === 0 ? [] : skinnedMeshes(model.scene).filter((mesh: SkinnedMesh): boolean => isPiece(mesh, beside));
-  return { def, frame, model: path, pieces, iconWith };
+  return { def, frame, model: path, pieces, drawn: mergeSkinnedAlike(pieces), iconWith };
 }
 
 interface FramedWearable {
@@ -319,10 +319,9 @@ async function loadAttachment(loader: GLTFLoader, dresser: Dresser, def: Attachm
   model.scene.traverse((object: Object3D): void => {
     if (!(object instanceof Mesh)) return;
     object.castShadow = true;
-    const worn: unknown = object.material;
-    if (worn instanceof MeshStandardMaterial) object.material = dresser(def.surfaces, worn);
+    if (object.material instanceof MeshStandardMaterial) object.material = dresser(def.surfaces, object.material);
   });
-  return { def, template: model.scene };
+  return { def, template: mergeRigidAlike(model.scene) };
 }
 
 function usedRigs(content: Content): Set<string> {
@@ -479,7 +478,7 @@ interface BodyMesh {
 function fittedPieces(rig: LoadedRig, worn: LoadedWearable, anchor: SkinnedMesh): readonly BufferGeometry[] {
   const cached: readonly BufferGeometry[] | undefined = rig.fitted.get(worn.def.id);
   if (cached !== undefined) return cached;
-  const made: BufferGeometry[] = worn.pieces.map((piece: SkinnedMesh): BufferGeometry => fitToSkeleton(piece, anchor.skeleton, `Wearable "${worn.def.id}" on rig "${rig.def.id}"`));
+  const made: BufferGeometry[] = worn.drawn.map((piece: SkinnedMesh): BufferGeometry => fitToSkeleton(piece, anchor.skeleton, `Wearable "${worn.def.id}" on rig "${rig.def.id}"`));
   rig.fitted.set(worn.def.id, made);
   return made;
 }
@@ -539,7 +538,7 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
     if (wearable === undefined) return null;
     const piece: WornPiece = { meshes: [], materials: [], value: 1, velocity: 0, target: 1 };
     const fitted: readonly BufferGeometry[] = fittedPieces(rig, wearable, skinAnchor);
-    wearable.pieces.forEach((source: SkinnedMesh, index: number): void => {
+    wearable.drawn.forEach((source: SkinnedMesh, index: number): void => {
       const geometry: BufferGeometry | undefined = fitted[index];
       const cloned: MeshStandardMaterial[] = flashing(source.material, { tint: wearable.def.tint, glow: WHITE, ghost: look.ghost, feather: look.feather }, glow, wearable.def.wakeLamps, look.tint);
       const first: MeshStandardMaterial | undefined = cloned[0];
