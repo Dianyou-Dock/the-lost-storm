@@ -90,10 +90,16 @@ export interface BuffEffect {
   readonly stacks: number;
 }
 
+export interface EmpowerLook {
+  readonly color: string;
+  readonly shade: number;
+}
+
 export interface EmpowerEffect {
   readonly type: 'empower';
   readonly skillMods: readonly SkillMod[];
   readonly duration: number;
+  readonly look: EmpowerLook | null;
 }
 
 export interface FlaskEffect {

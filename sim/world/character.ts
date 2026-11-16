@@ -1,15 +1,15 @@
-import type { ItemSlot, XpReduction } from '../content/types.ts';
+import type { EmpowerLook, ItemSlot, SkillDef, SkillMod, XpReduction } from '../content/types.ts';
 import { isStoryItem, slotOf } from '../items.ts';
 import { applyXp, canAllocate, findNode, gapScale, heldChanges, offersChange, refundCost, refundState, respecCost, respecState, xpReduction } from '../progression.ts';
 import type { ChartChange } from '../progression.ts';
 import type { XpResult } from '../progression.ts';
 import { assignSlot, chartSkills } from '../skill-book.ts';
-import { computeStats, resolveSkillBar } from '../stats.ts';
+import { computeStats, modTargets, resolveSkillBar, variantChain } from '../stats.ts';
 import { heldGroup } from '../weapons.ts';
 import { buffMods, heldPowers, wornVariants, wouldPassLimit } from '../powers.ts';
 import { dropOnGround } from './ground.ts';
 import { forget, learn } from './learn.ts';
-import type { ItemInstance, PlayerState, World } from './types.ts';
+import type { EmpowerState, ItemInstance, PlayerState, World } from './types.ts';
 
 export function refreshPlayer(world: World): void {
   const player: PlayerState = world.player;
@@ -20,6 +20,15 @@ export function refreshPlayer(world: World): void {
   player.life = Math.min(player.life, player.maxLife);
   player.mana = Math.min(player.mana, player.stats.maxMana);
   world.events.push({ type: 'character_changed' });
+}
+
+export function heldLook(world: World, skillId: string): EmpowerLook | null {
+  const player: PlayerState = world.player;
+  const base: SkillDef | undefined = world.content.skills.get(skillId);
+  if (base === undefined) return null;
+  const through: readonly string[] = variantChain(world.content, base, player.allocated, heldPowers(world.content, player.equipped, player.powers), wornVariants(world.content, player.equipped), player.wielding, player.changes).through;
+  const held: EmpowerState | undefined = player.powers.empowers.find((entry: EmpowerState): boolean => entry.look !== null && entry.skillMods.some((mod: SkillMod): boolean => modTargets(world.content, mod, through)));
+  return held?.look ?? null;
 }
 
 export function killXp(world: World, xp: number, level: number, share: number = gapScale(world.content.player.xp.gap, world.player.level, level)): number {

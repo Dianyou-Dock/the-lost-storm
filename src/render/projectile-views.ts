@@ -3,7 +3,7 @@ import type { VfxStyle } from '../../sim/content/vfx-types.ts';
 import { facingOf } from '../../sim/math.ts';
 import { SKILLS } from '../../sim/world/skills.ts';
 import type { ProjectileState, World, WorldEvent } from '../../sim/world/types.ts';
-import { disposeObject, glow, projectileMesh } from './effect-shapes.ts';
+import { disposeObject, glow, orbHalo, projectileMesh } from './effect-shapes.ts';
 import type { EffectKit } from './effect-kit.ts';
 import { KIT } from './effect-kit.ts';
 import type { GhostWaves } from './ghost-wave.ts';
@@ -23,6 +23,7 @@ export const PROJECTILE_VIEWS = {
   hitLight: 55,
   hitLightHeight: 1.6,
   flightMotes: 2,
+  tintPeak: 0.6,
 } as const;
 
 const END_SPRAY: Partial<BurstOptions> = { speed: { min: 2, max: 9 }, lift: { min: -1, max: 5 }, life: { min: 0.2, max: 0.5 }, size: { min: 0.3, max: 0.8 } };
@@ -44,6 +45,16 @@ export function boltShape(style: VfxStyle, light: number): BoltShape {
   };
 }
 
+export interface ShotTint {
+  readonly core: Color;
+  readonly glow: Color;
+}
+
+export function tintCore(core: Color, light: number): Color {
+  const peak: number = Math.max(core.r, core.g, core.b);
+  return core.clone().multiplyScalar(peak > 0 ? (PROJECTILE_VIEWS.tintPeak * light) / peak : 0);
+}
+
 export interface ProjectileViewDeps {
   readonly scene: Scene;
   readonly kit: EffectKit;
@@ -52,6 +63,7 @@ export interface ProjectileViewDeps {
   readonly ring: (x: number, z: number, radius: number, color: Color, duration: number) => void;
   readonly flashLight: (x: number, y: number, z: number, color: Color, intensity: number) => void;
   readonly colorOf: (hex: string) => Color;
+  readonly tintOf: (projectileId: number) => ShotTint | null;
 }
 
 export interface ProjectileViews {
@@ -67,7 +79,7 @@ interface ProjectileView {
 }
 
 export function createProjectileViews(deps: ProjectileViewDeps): ProjectileViews {
-  const { scene, kit, waves, spray, ring, flashLight, colorOf } = deps;
+  const { scene, kit, waves, spray, ring, flashLight, colorOf, tintOf } = deps;
   const views: Map<number, ProjectileView> = new Map<number, ProjectileView>();
   const flights: Map<number, number> = new Map<number, number>();
 
@@ -76,10 +88,12 @@ export function createProjectileViews(deps: ProjectileViewDeps): ProjectileViews
     if (vfx.lightning !== null || vfx.wave !== null) return null;
     const existing: ProjectileView | undefined = views.get(projectile.id);
     if (existing !== undefined) return existing;
-    const color: Color = colorOf(vfx.color);
+    const tint: ShotTint | null = tintOf(projectile.id);
+    const color: Color = tint?.glow ?? colorOf(vfx.color);
     const shape: BoltShape = boltShape(vfx.style, vfx.light);
-    const mesh: Mesh = projectileMesh(vfx.style === 'orb' ? 'orb' : 'bolt', glow(color, shape.glow));
+    const mesh: Mesh = projectileMesh(vfx.style === 'orb' ? 'orb' : 'bolt', tint === null ? glow(color, shape.glow) : tintCore(tint.core, shape.glow));
     mesh.scale.set(mesh.scale.x * shape.girth, mesh.scale.y * shape.girth, mesh.scale.z * shape.length);
+    if (tint !== null && vfx.style !== 'orb') mesh.add(orbHalo(tint.glow));
     mesh.rotation.y = facingOf(projectile.direction);
     scene.add(mesh);
     const view: ProjectileView = { mesh, color };
@@ -97,6 +111,7 @@ export function createProjectileViews(deps: ProjectileViewDeps): ProjectileViews
     },
     end(event: Extract<WorldEvent, { type: 'projectile_end' }>): void {
       const view: ProjectileView | undefined = views.get(event.id);
+      const color: Color = view?.color ?? colorOf(event.skill.vfx.color);
       if (view !== undefined) {
         disposeObject(view.mesh);
         views.delete(event.id);
@@ -107,7 +122,6 @@ export function createProjectileViews(deps: ProjectileViewDeps): ProjectileViews
         waves.end(event.id, event.pos);
         return;
       }
-      const color: Color = colorOf(event.skill.vfx.color);
       const impact = event.skill.vfx.impact;
       if (impact !== null) {
         kit.impact(event.pos.x, event.pos.z, color, event.hit ? impact : { sparks: impact.sparks * KIT.impactMiss, flash: impact.flash * KIT.impactMiss }, event.skill.vfx.light * (event.hit ? 1 : KIT.impactMiss), 0);

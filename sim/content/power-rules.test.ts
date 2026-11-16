@@ -42,8 +42,8 @@ void test('a power naming things that do not exist is reported', (): void => {
 void test('a tree place whose trigger names a skill that does not exist, or empowers nothing, is reported', (): void => {
   const first = must(content.skillTree[0], 'place');
   const odd: SkillTreeNodeDef = { ...first, id: 'odd_place', triggers: [
-    { on: 'use', skill: { type: 'skill', skill: 'no_such_roll' }, target: 'any', every: 1, cooldown: 0, effect: { type: 'empower', skillMods: [], duration: 2 } },
-    { on: 'use', skill: null, target: 'any', every: 1, cooldown: 0, effect: { type: 'empower', skillMods: [{ target: { type: 'group', group: 'no_such_group' }, field: 'pierce', value: 1 }], duration: 2 } },
+    { on: 'use', skill: { type: 'skill', skill: 'no_such_roll' }, target: 'any', every: 1, cooldown: 0, effect: { type: 'empower', skillMods: [], duration: 2, look: null } },
+    { on: 'use', skill: null, target: 'any', every: 1, cooldown: 0, effect: { type: 'empower', skillMods: [{ target: { type: 'group', group: 'no_such_group' }, field: 'pierce', value: 1 }], duration: 2, look: null } },
     { on: 'hit', skill: null, target: 'any', every: 4, cooldown: 0.5, effect: { type: 'flask', charges: 1.5 } },
   ] };
   const problems: string[] = powerRuleProblems({ ...content, skillTree: [...content.skillTree, odd] });

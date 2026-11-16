@@ -3,7 +3,8 @@ import { Mesh, MeshStandardMaterial } from 'three';
 import type { RigGlow } from './ghost-material.ts';
 import type { VfxShadow } from '../../sim/content/vfx-types.ts';
 import { isInvulnerable } from '../../sim/world/dash.ts';
-import type { ActorState } from '../../sim/world/types.ts';
+import type { EmpowerLook } from '../../sim/content/types.ts';
+import type { ActorState, EmpowerState, PowerState } from '../../sim/world/types.ts';
 
 export const SHADOW_SHADE = {
   floor: 0.06,
@@ -71,6 +72,10 @@ export function seeThrough(materials: readonly Material[], see: boolean): void {
 export function shadowOf(actor: ActorState): VfxShadow | null {
   if (actor.action === null || !isInvulnerable(actor)) return null;
   return actor.action.skill.vfx.shadow;
+}
+
+export function veilOf(powers: PowerState): EmpowerLook | null {
+  return powers.empowers.find((held: EmpowerState): boolean => held.look !== null)?.look ?? null;
 }
 
 export function shadeFragment(source: string): string {

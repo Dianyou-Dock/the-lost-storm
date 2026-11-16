@@ -7,9 +7,11 @@ import type { VfxPunch } from '../../sim/content/vfx-types.ts';
 import type { Vec2 } from '../../sim/math.ts';
 import { areaOf } from '../../sim/world/areas.ts';
 import { chargeOf, SKILLS } from '../../sim/world/skills.ts';
-import type { Actor, AreaState, MonsterState, World, WorldEvent } from '../../sim/world/types.ts';
+import type { Actor, AreaState, EmpowerState, MonsterState, ProjectileState, World, WorldEvent } from '../../sim/world/types.ts';
+import { heldLook } from '../../sim/world/character.ts';
 import { glow, groundArcs, lightningLine, skyBolt } from './effect-shapes.ts';
 import type { GroundLight } from './ground-light.ts';
+import type { ShotTint } from './projectile-views.ts';
 import { createGroundLight, GROUND_LIGHT } from './ground-light.ts';
 import { STRAND } from './strand-shape.ts';
 import { dripsDue, SOAK_COLOR, SOAK_LOOK } from './soak-look.ts';
@@ -66,6 +68,14 @@ export const STORM_EFFECTS = {
   blinkHeight: 1,
   strikeReach: 0.5,
   missShare: 0.4,
+  wakeHeight: 0.9,
+  wakeMotes: 3,
+  veilBurst: 22,
+  veilLight: 40,
+  veilLift: 0.45,
+  veilWake: 1.6,
+  veilCore: 0.35,
+  veilMoteRate: 6,
   lashStagger: 0.035,
   crackleSparks: 6,
   crackleLight: 12,
@@ -86,6 +96,7 @@ export interface StormKit {
 export interface StormEffects {
   handle(event: WorldEvent): void;
   update(dt: number, world: World): void;
+  tintOf(projectileId: number): ShotTint | null;
   clear(): void;
 }
 
@@ -144,6 +155,9 @@ export function createStormEffects(kit: StormKit): StormEffects {
   const areas: Map<number, AreaView> = new Map<number, AreaView>();
   const fading: GroundLight[] = [];
   const brands: Map<number, BrandView> = new Map<number, BrandView>();
+  const veiledShots: Map<number, ShotTint> = new Map<number, ShotTint>();
+  const veil: { color: Color | null; spark: Color; core: Color; wake: Color; skills: Set<string>; heroId: number } = { color: null, spark: new Color(), core: new Color(), wake: new Color(), skills: new Set<string>(), heroId: -1 };
+  const white: Color = new Color(1, 1, 1);
   const wet: Map<number, number> = new Map<number, number>();
   const at: Vector3 = new Vector3();
   const chargeGlow: PointLight = new PointLight(0xffffff, 0, STORM_EFFECTS.chargeLightRange, STORM_EFFECTS.chargeLightDecay);
@@ -430,6 +444,49 @@ export function createStormEffects(kit: StormKit): StormEffects {
     }
   };
 
+  const readVeil = (world: World): void => {
+    const held: EmpowerState | undefined = world.player.powers.empowers.find((entry: EmpowerState): boolean => entry.look !== null);
+    veil.heroId = world.player.id;
+    veil.skills.clear();
+    veil.color = held?.look === undefined || held.look === null ? null : kit.colorOf(held.look.color);
+    if (veil.color === null) return;
+    veil.spark.copy(veil.color).lerp(white, STORM_EFFECTS.veilLift);
+    veil.wake.copy(veil.color).multiplyScalar(STORM_EFFECTS.veilWake);
+    veil.core.copy(veil.color).lerp(white, STORM_EFFECTS.veilCore);
+    for (const skill of world.player.skills) if (skill !== null && heldLook(world, skill.id) !== null) veil.skills.add(skill.id);
+  };
+
+  const onShot = (projectile: ProjectileState): void => {
+    if (veil.color === null || projectile.ownerId !== veil.heroId || !veil.skills.has(projectile.skill.id)) return;
+    veiledShots.set(projectile.id, { core: veil.core.clone(), glow: veil.wake.clone() });
+  };
+
+  const onShotEnd = (event: Extract<WorldEvent, { type: 'projectile_end' }>): void => {
+    const tint: ShotTint | undefined = veiledShots.get(event.id);
+    if (tint === undefined) return;
+    veiledShots.delete(event.id);
+    kit.spray(event.pos.x, STORM_EFFECTS.wakeHeight, event.pos.z, tint.glow, STORM_EFFECTS.veilBurst, { speed: { min: 1, max: 5 }, lift: { min: 0.5, max: 3 }, life: { min: 0.3, max: 0.7 }, size: { min: 0.3, max: 0.6 } });
+    if (event.hit) kit.flashLight(event.pos.x, STORM_EFFECTS.wakeHeight, event.pos.z, tint.glow, STORM_EFFECTS.veilLight);
+  };
+
+  const updateVeil = (dt: number, world: World): void => {
+    readVeil(world);
+    for (const [id, tint] of veiledShots) {
+      const shot: ProjectileState | undefined = world.projectiles.find((projectile: ProjectileState): boolean => projectile.id === id);
+      if (shot === undefined) {
+        veiledShots.delete(id);
+        continue;
+      }
+      kit.spray(shot.pos.x, STORM_EFFECTS.wakeHeight, shot.pos.z, tint.glow, STORM_EFFECTS.wakeMotes, { speed: { min: 0, max: 0.4 }, lift: { min: 0, max: 0.6 }, life: { min: 0.35, max: 0.7 }, size: { min: 0.35, max: 0.7 }, gravity: 0, drag: 1 });
+    }
+    if (veil.color === null) return;
+    const hero = world.player;
+    for (let mote: number = dripsDue(STORM_EFFECTS.veilMoteRate, dt, Math.random()); mote > 0; mote -= 1) {
+      const angle: number = Math.random() * Math.PI * 2;
+      kit.spray(hero.pos.x + Math.sin(angle) * hero.radius, STORM_EFFECTS.bodyHeight * Math.random(), hero.pos.z + Math.cos(angle) * hero.radius, veil.spark, 1, { speed: { min: 0, max: 0.2 }, lift: { min: 0.4, max: 1 }, life: { min: 0.5, max: 0.9 }, size: { min: 0.12, max: 0.25 }, gravity: -0.3, drag: 0.5, jitter: 0.1 });
+    }
+  };
+
   const updateBrands = (dt: number, world: World): void => {
     const marked: readonly Actor[] = [world.player, ...world.monsters];
     for (const actor of marked) {
@@ -489,13 +546,19 @@ export function createStormEffects(kit: StormKit): StormEffects {
       else if (event.type === 'area') onArea(event);
       else if (event.type === 'skill_impact') onRelease(event);
       else if (event.type === 'damage') onLash(event);
+      else if (event.type === 'projectile_spawn') onShot(event.projectile);
+      else if (event.type === 'projectile_end') onShotEnd(event);
       else if (event.type === 'soak') wet.set(event.targetId, Math.max(wet.get(event.targetId) ?? 0, event.duration));
     },
     update(dt: number, world: World): void {
       updateAreas(dt, world);
       updateBrands(dt, world);
       drip(dt, world);
+      updateVeil(dt, world);
       updateCharge(world);
+    },
+    tintOf(projectileId: number): ShotTint | null {
+      return veiledShots.get(projectileId) ?? null;
     },
     clear(): void {
       for (const view of areas.values()) view.light.dispose();
@@ -504,6 +567,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
       for (const view of brands.values()) view.mark.dispose();
       brands.clear();
       wet.clear();
+      veiledShots.clear();
       chargeGlow.intensity = 0;
     },
   };

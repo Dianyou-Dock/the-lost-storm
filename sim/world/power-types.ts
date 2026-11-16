@@ -1,4 +1,4 @@
-import type { SkillMod, StatMod } from '../content/types.ts';
+import type { EmpowerLook, SkillMod, StatMod } from '../content/types.ts';
 
 export interface BuffState {
   readonly key: string;
@@ -10,6 +10,7 @@ export interface BuffState {
 export interface EmpowerState {
   readonly key: string;
   readonly skillMods: readonly SkillMod[];
+  readonly look: EmpowerLook | null;
   timeLeft: number;
 }
 

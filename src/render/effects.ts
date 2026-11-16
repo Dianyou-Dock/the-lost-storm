@@ -37,7 +37,7 @@ import type { EffectKit, KitBudget, MotionWatch } from './effect-kit.ts';
 import { createEffectKit, heft, KIT, kitBudget, watchMotion } from './effect-kit.ts';
 import type { FlashLights } from './flash-lights.ts';
 import { createFlashLights } from './flash-lights.ts';
-import type { ProjectileViews } from './projectile-views.ts';
+import type { ProjectileViews, ShotTint } from './projectile-views.ts';
 import { createProjectileViews, PROJECTILE_VIEWS } from './projectile-views.ts';
 import type { TorchFlames } from './torch-flames.ts';
 import { createTorchFlames } from './torch-flames.ts';
@@ -392,9 +392,9 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
   };
 
   const torches: TorchFlames = createTorchFlames(scene, EMBER, spray);
-  const shots: ProjectileViews = createProjectileViews({ scene, kit, waves, spray, ring, flashLight, colorOf });
-
   const storm: StormEffects = createStormEffects({ add, spray, ring, burst, flashLight, colorOf, kit, addObject: (object: Object3D): void => void scene.add(object), trauma: (amount: number): void => camera.addTrauma(amount) });
+  const shots: ProjectileViews = createProjectileViews({ scene, kit, waves, spray, ring, flashLight, colorOf, tintOf: (projectileId: number): ShotTint | null => storm.tintOf(projectileId) });
+
 
   return {
     get hurt(): number {
