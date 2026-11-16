@@ -34,10 +34,10 @@ const WEAPON_DESCRIPTIONS: Readonly<Record<string, readonly [string, string, str
 
 function weaponName(base: ItemBaseDef): string | null {
   if (base.weaponKind === 'axe') return '斧';
-  if (base.weaponKind === 'staff' || base.weaponKind === 'blunt') return '棍';
-  if (base.weaponKind === 'greatsword' || /sabre|windcutter|tidecut/i.test(base.id)) return '刀';
+  if (base.weaponKind === 'staff') return '棍';
+  if (/sabre|tidecut/i.test(base.id)) return '刀';
   if (/knife|dirk/i.test(base.id)) return '匕首';
-  if (base.weaponKind === 'blade') return '剑';
+  if (base.weaponKind === 'blade' || base.weaponKind === 'greatsword') return '剑';
   return null;
 }
 

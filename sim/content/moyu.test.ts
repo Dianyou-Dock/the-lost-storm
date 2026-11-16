@@ -154,8 +154,9 @@ void test('all five documented cold weapons bind their three matching actions', 
   const content = moyuContent(loadContent());
   const base = must(content.skills.get('cleave'), 'cleave');
   const expected = [
-    ['tempest_greatsword', ['斩', '横扫', '重斩']],
+    ['tidecut_sabre', ['斩', '横扫', '重斩']],
     ['rusted_blade', ['突刺', '连斩', '格挡反击']],
+    ['tempest_greatsword', ['突刺', '连斩', '格挡反击']],
     ['woodsman_hatchet', ['劈砍', '旋斩', '断势']],
     ['driftwood_staff', ['点', '扫', '砸']],
     ['skinning_knife', ['刺', '连刺', '背袭']],
