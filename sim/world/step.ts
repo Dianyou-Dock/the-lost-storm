@@ -33,6 +33,7 @@ import { stepPowerState } from '../powers.ts';
 import { refreshPlayer } from './character.ts';
 import { stepTally } from '../tally.ts';
 import { announceArming } from './arming.ts';
+import { stepMoyuBoss } from './moyu-boss.ts';
 
 export const MAX_STEP: number = 1 / 30;
 
@@ -50,6 +51,7 @@ export function stepWorld(world: World, commands: readonly Command[], dt: number
   const starts: Map<ActorState, Vec2> = new Map<ActorState, Vec2>([[world.player, start]]);
   const strides: Map<ActorState, Vec2> = new Map<ActorState, Vec2>();
   stepPlayer(world, dt);
+  stepMoyuBoss(world);
   strides.set(world.player, strideOf(world.player, start));
   stepFlasks(world, dt);
   if (stepPowerState(world.player.powers, dt)) refreshPlayer(world);

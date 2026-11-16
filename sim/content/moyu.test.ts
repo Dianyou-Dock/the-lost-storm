@@ -6,6 +6,8 @@ import { createWorld } from '../world/create.ts';
 import { stepWorld } from '../world/step.ts';
 import { canAllocate } from '../progression.ts';
 import { toSave } from '../save.ts';
+import { monsterLevel, spawnMonster } from '../world/spawn.ts';
+import { must } from '../../test/support.ts';
 
 void test('portal content uses the five element chart without quests', (): void => {
   const content = moyuContent(loadContent());
@@ -38,6 +40,45 @@ void test('an old low-level save in a high-level map returns to the hideout', ()
   const save = { ...toSave(fresh), zone: 'under_hall_2' };
   const restored = createWorld(content, { seed: 5, save, opening: false });
   assert.equal(restored.zone.id, 'hideout');
+});
+
+void test('every farming map has one scaled boss with a modest guaranteed drop', (): void => {
+  const content = moyuContent(loadContent());
+  for (const id of MOYU_MAPS) {
+    const zone = must(content.zones.get(id), id);
+    const bossPacks = zone.packs.filter((pack) => pack.members.some((member) => content.monsters.get(member.monster)?.boss !== null));
+    assert.equal(bossPacks.length, 1, id);
+    const pack = must(bossPacks[0], 'boss pack');
+    const member = must(pack.members[0], 'boss member');
+    const def = must(content.monsters.get(member.monster), 'boss');
+    const boss = must(def.boss, 'boss properties');
+    assert.equal(boss.drop.items, 1);
+    assert.equal(boss.drop.rarity, 'magic');
+    assert.equal(boss.firstKill, null);
+    assert.equal(pack.when.some((condition) => condition.type === 'flag' && condition.flag === `moyu_boss_${id}_active`), true);
+    assert.equal(zone.npcs.some((npc) => npc.npc === `moyu_challenger_${id}`), true);
+  }
+  const world = createWorld(content, { seed: 13, save: null, opening: false });
+  stepWorld(world, [{ type: 'random_map' }], 1 / 30);
+  const def = must(content.monsters.get(`moyu_boss_${world.zone.id}`), 'boss');
+  const boss = spawnMonster(world, def, world.nextPackId, world.player.pos, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(world) });
+  assert.equal(boss.maxLife, Math.round(world.player.maxLife * 2.4));
+  assert.equal(boss.damageMax, world.player.maxLife * 0.19);
+});
+
+void test('a map boss waits for the challenger conversation before spawning', (): void => {
+  const world = createWorld(moyuContent(loadContent()), { seed: 21, save: null, opening: false });
+  stepWorld(world, [{ type: 'random_map' }], 1 / 30);
+  const bossId = `moyu_boss_${world.zone.id}`;
+  const challenger = must(world.npcs.find((npc) => npc.def.id === `moyu_challenger_${world.zone.id}`), 'challenger');
+  assert.equal(world.monsters.some((monster) => monster.def.id === bossId), false);
+  world.player.pos = { ...challenger.pos };
+  stepWorld(world, [{ type: 'talk', npcId: challenger.id }], 1 / 30);
+  assert.equal(world.monsters.some((monster) => monster.def.id === bossId), false);
+  assert.equal(world.dialogue?.talk.id, `${challenger.def.id}_challenge`);
+  stepWorld(world, [{ type: 'advance' }], 1 / 30);
+  assert.equal(world.monsters.filter((monster) => monster.def.id === bossId).length, 1);
+  assert.equal(world.npcs.some((npc) => npc.id === challenger.id), false);
 });
 
 void test('cold routes can start while hot weapons and unimplemented sockets cannot spend points', (): void => {

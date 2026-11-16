@@ -1,6 +1,7 @@
 import { distance } from '../sim/math.ts';
 import type { Vec2 } from '../sim/math.ts';
 import { mainSlot } from '../sim/ladder.ts';
+import { isMoyu } from '../sim/content/moyu.ts';
 import { playerMayStrike } from '../sim/world/factions.ts';
 import { sameFloor } from '../sim/world/floors.ts';
 import { blockedReason } from '../sim/world/skills.ts';
@@ -28,7 +29,7 @@ function nearest(world: World, home: Vec2): MonsterState | null {
   let chosen: MonsterState | null = null;
   let best: number = AUTO.search;
   for (const monster of world.monsters) {
-    if (!monster.alive || !playerMayStrike(world, monster) || !sameFloor(world, world.player.pos, monster.pos) || distance(home, monster.pos) > AUTO.search) continue;
+    if (!monster.alive || (isMoyu(world.content) && monster.def.boss !== null) || !playerMayStrike(world, monster) || !sameFloor(world, world.player.pos, monster.pos) || distance(home, monster.pos) > AUTO.search) continue;
     const gap: number = distance(world.player.pos, monster.pos);
     if (gap >= best) continue;
     chosen = monster;

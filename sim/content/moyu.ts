@@ -1,5 +1,5 @@
 import graph from '../../data/moyu-graph.json' with { type: 'json' };
-import type { Content, SkillTreeNodeDef, ZoneDef, ZonePack } from './types.ts';
+import type { Content, LineDef, MonsterDef, NpcDef, SkillTreeNodeDef, ZoneDef, ZonePack, ZonePoint } from './types.ts';
 
 export const MOYU_TITLE: string = '摸鱼 · 五行天赋图';
 export const MOYU_MAPS: readonly string[] = ['hall_of_time', 'keepers_gate', 'under_hall', 'under_hall_2', 'under_hall_3', 'lava_depths', 'lava_depths_2', 'ledger_hall', 'ledger_hall_2', 'ledger_hall_3'];
@@ -12,9 +12,15 @@ const ELEMENTS = [
   { id: '土', name: '土', tint: '#c3ad8d' },
 ] as const;
 const COORDS: ReadonlyMap<string, { readonly x: number; readonly y: number }> = new Map(Object.entries(graph.coords));
+const BOSS_TEMPLATES: readonly string[] = ['stormcaller_rival', 'timekeeper_gatekeeper', 'unfinished_colossus'];
+const BOSS_NAMES: readonly string[] = ['时厅巡守', '门庭裁决者', '下层回响', '洞窟回响', '深窟回响', '熔渊斗士', '熔渊巨像', '账厅守卫', '账厅裁决者', '终厅巨像'];
 
 export function isMoyu(content: Content): boolean {
   return content.chart.title === MOYU_TITLE;
+}
+
+export function moyuBossFlag(zoneId: string): string {
+  return `moyu_boss_${zoneId}_active`;
 }
 
 export function moyuNode(id: string): (typeof graph.nodes)[number] | null {
@@ -73,10 +79,54 @@ function freshPack(pack: ZonePack): ZonePack {
   return fresh;
 }
 
+function squaredDistance(point: ZonePack, origin: ZonePoint): number {
+  return (point.x - origin.x) ** 2 + (point.z - origin.z) ** 2;
+}
+
+function bossPack(zone: ZoneDef, bossId: string): ZonePack[] {
+  const packs: ZonePack[] = zone.packs.map(freshPack);
+  if (packs.length === 0) return packs;
+  const start = zone.playerStart;
+  const farthest = packs.reduce((chosen: number, pack: ZonePack, index: number): number => {
+    const previous: ZonePack | undefined = packs[chosen];
+    return previous === undefined || squaredDistance(pack, start) > squaredDistance(previous, start) ? index : chosen;
+  }, 0);
+  const site: ZonePack | undefined = packs[farthest];
+  if (site === undefined) return packs;
+  const boss: ZonePack = { ...site, members: [{ monster: bossId, count: 1, mods: [] }], when: [{ type: 'flag', flag: moyuBossFlag(zone.id), is: 'active', not: false }], waits: { near: 12 } };
+  Reflect.deleteProperty(boss, 'rank');
+  packs[farthest] = boss;
+  return packs;
+}
+
 export function moyuContent(content: Content): Content {
-  const zones: Map<string, ZoneDef> = new Map<string, ZoneDef>([...content.zones].map(([id, zone]: [string, ZoneDef]): [string, ZoneDef] => [id, MOYU_MAPS.includes(id) ? { ...zone, levelUpTo: 41, packs: zone.packs.map(freshPack), exits: zone.exits.map((exit) => ({ ...exit, requires: [] })) } : zone]));
+  const monsters: Map<string, MonsterDef> = new Map(content.monsters);
+  const npcs: Map<string, NpcDef> = new Map(content.npcs);
+  const lines: Map<string, LineDef> = new Map(content.lines);
+  const zones: Map<string, ZoneDef> = new Map<string, ZoneDef>([...content.zones].map(([id, zone]: [string, ZoneDef]): [string, ZoneDef] => {
+    const index: number = MOYU_MAPS.indexOf(id);
+    if (index < 0) return [id, zone];
+    const templateId: string | undefined = BOSS_TEMPLATES[index % BOSS_TEMPLATES.length];
+    const template: MonsterDef | undefined = templateId === undefined ? undefined : content.monsters.get(templateId);
+    if (template === undefined || template.boss === null) throw new Error(`Missing boss template for ${id}`);
+    const bossId = `moyu_boss_${id}`;
+    const name: string = BOSS_NAMES[index] ?? '地图守卫';
+    monsters.set(bossId, { ...template, id: bossId, name, boss: { ...template.boss, title: name, firstKill: null, drop: { items: 1, rarity: 'magic', goldMin: 10 + zone.level * 2, goldMax: 18 + zone.level * 2 } } });
+    const packs: ZonePack[] = bossPack(zone, bossId);
+    const site: ZonePack | undefined = packs.find((pack: ZonePack): boolean => pack.members.some((member): boolean => member.monster === bossId));
+    const npcId = `moyu_challenger_${id}`;
+    const lineId = `${npcId}_challenge`;
+    const guide: NpcDef | undefined = content.npcs.get('warden_guide');
+    if (guide === undefined || site === undefined) throw new Error(`Missing challenger for ${id}`);
+    npcs.set(npcId, { ...guide, id: npcId, name: '首领挑战', title: name, service: null, talks: [{ id: lineId, once: false, when: [], lines: [lineId] }] });
+    lines.set(lineId, { id: lineId, speaker: npcId, text: `这里的首领是${name}。准备好后继续对话，战斗才会开始。` });
+    return [id, { ...zone, levelUpTo: 41, packs, npcs: [...zone.npcs, { npc: npcId, x: site.x, z: site.z, facingDegrees: 180, when: [{ type: 'flag', flag: moyuBossFlag(id), is: null, not: true }] }], exits: zone.exits.map((exit) => ({ ...exit, requires: [] })) }];
+  }));
   return {
     ...content,
+    monsters,
+    npcs,
+    lines,
     skillTree: graphNodes(),
     chart: {
       ...content.chart,

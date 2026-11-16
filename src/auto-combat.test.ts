@@ -6,6 +6,7 @@ import { monsterLevel, spawnMonster } from '../sim/world/spawn.ts';
 import type { MonsterState, World } from '../sim/world/types.ts';
 import { armed, must, worldIn } from '../test/support.ts';
 import { createAutoCombatState, planAutoCombat } from './auto-combat-plan.ts';
+import { moyuContent } from '../sim/content/moyu.ts';
 import type { AutoCombatState } from './auto-combat-plan.ts';
 
 const content: Content = loadContent();
@@ -23,6 +24,17 @@ void test('auto combat selects a nearby hostile target with the main attack', ()
   const { world, state, target } = scene();
   const commands = planAutoCombat(world, state, 1 / 30, [], false);
   assert.deepEqual(commands, [{ type: 'skill', slot: 0, aim: target.pos, targetId: target.id }]);
+});
+
+void test('auto combat leaves farming bosses for manual play', (): void => {
+  const portal = moyuContent(content);
+  const world: World = armed(worldIn(portal, 'hall_of_time', 7));
+  const def = must(portal.monsters.get('moyu_boss_hall_of_time'), 'boss');
+  const boss = spawnMonster(world, def, world.nextPackId, { x: world.player.pos.x + 3, z: world.player.pos.z }, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(world) });
+  world.monsters = [boss];
+  const state = createAutoCombatState(world.zone.id);
+  state.enabled = true;
+  assert.deepEqual(planAutoCombat(world, state, 1 / 30, [], false), []);
 });
 
 void test('manual movement takes priority and pauses automatic attacks', (): void => {

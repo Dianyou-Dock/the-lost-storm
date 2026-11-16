@@ -1,5 +1,6 @@
 import { ContentError } from '../content/read.ts';
 import type { Content, ZoneCheckpoint, ZoneDef, ZoneExit, ZonePoint } from '../content/types.ts';
+import { isMoyu, moyuBossFlag } from '../content/moyu.ts';
 import type { Vec2 } from '../math.ts';
 import { distance } from '../math.ts';
 import { buildNavGrid } from '../nav/grid.ts';
@@ -94,6 +95,7 @@ export function enterZone(world: World, zone: ZoneDef, respawn: RespawnPoint): v
   world.ground = [];
   world.surgeTimer = null;
   world.zone = zone;
+  if (isMoyu(world.content)) delete world.flags[moyuBossFlag(zone.id)];
   world.grid = buildNavGrid(zone, world.content.props, world.content.surfaces, world.content.player.radius);
   world.respawn = respawn;
   world.shift = { x: 0, z: 0 };
