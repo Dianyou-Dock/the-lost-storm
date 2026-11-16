@@ -1331,7 +1331,8 @@
     {"x":143,"z":125,"members":[{"monster":"unfinished_thrower","count":1},{"monster":"unfinished_taker","count":1}],"level":19,"rank":"rare"}
   ],
   "exits": [
-    {"id":"up","x":106.9,"z":16.2,"radius":2.2,"to":"under_hall_2","toExit":"down","arrival":{"x":109,"z":25},"requires":[],"lockedHint":"","hiddenWhenLocked":false}
+    {"id":"up","x":106.9,"z":16.2,"radius":2.2,"to":"under_hall_2","toExit":"down","arrival":{"x":109,"z":25},"requires":[],"lockedHint":"","hiddenWhenLocked":false},
+    {"id":"down","x":159,"z":104,"radius":2.2,"to":"lava_depths","toExit":"up","arrival":{"x":157,"z":111},"requires":[],"lockedHint":"","hiddenWhenLocked":false}
   ],
   "checkpoints": [
     {"id":"under_hall_3_c1","x":67,"z":201,"radius":2.5},

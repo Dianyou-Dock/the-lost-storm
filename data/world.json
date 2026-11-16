@@ -84,6 +84,12 @@
             "x": 640,
             "y": 240,
             "when": [{"type": "visited", "zone": "ledger_hall_3", "not": false}]
+          },
+          {
+            "zone": "lava_depths",
+            "x": 410,
+            "y": 300,
+            "when": [{"type": "visited", "zone": "under_hall_3", "not": false}]
           }
         ],
         "roads": [
@@ -149,6 +155,16 @@
               {
                 "x": 515,
                 "y": 350
+              }
+            ]
+          },
+          {
+            "from": "under_hall_3",
+            "to": "lava_depths",
+            "via": [
+              {
+                "x": 440,
+                "y": 320
               }
             ]
           },
