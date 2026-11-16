@@ -207,7 +207,7 @@ export function moyuContent(content: Content): Content {
       revision: content.chart.revision + 2,
       pointsPerLevel: 1,
       paths: ELEMENTS.map((element) => ({ id: element.id, name: element.name, tint: element.tint, description: `${element.name}属性与武器联动` })),
-      grants: [{ id: 'moyu_start', when: [], points: 2 }, ...MOYU_MAPS.map((zone: string) => ({ id: `moyu_visit_${zone}`, when: [{ type: 'visited' as const, zone, not: false }], points: 1 }))],
+      grants: [{ id: 'moyu_start', when: [], points: 1 }, { id: 'moyu_start_bonus', when: [], points: 1 }, ...MOYU_MAPS.map((zone: string) => ({ id: `moyu_visit_${zone}`, when: [{ type: 'visited' as const, zone, not: false }], points: 1 }))],
     },
     player: { ...content.player, skillBook: [{ skill: 'cleave', level: 1, when: [] }, { skill: 'thunderclap', level: 1, when: [] }, { skill: 'storm_bolt', level: 1, when: [] }, { skill: 'dodge_roll', level: 1, when: [] }], skillBar: content.player.skillBar.map((binding, index: number) => ({ ...binding, skill: MOYU_SKILLS[index] ?? null })), xp: { ...content.player.xp, maxLevel: 41 } },
     quests: new Map(),
