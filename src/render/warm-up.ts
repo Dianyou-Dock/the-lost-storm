@@ -1,16 +1,33 @@
 import type { Camera, Object3D, Scene } from 'three';
-import { Group, Light } from 'three';
+import { BufferGeometry, Group, Light, Line, Material, Mesh, Points, Sprite, Texture } from 'three';
 import { warnInConsole } from '../backend/console-log.ts';
 import type { Timers } from '../backend/backend.ts';
+import type { CostLimit, FramePacer } from './paced-work.ts';
+import { browserPacer, framesOf, PACED_WORK, workPaced } from './paced-work.ts';
 
 export const WARM_UP = {
   zoneWaitMs: 2500,
+  textureBytesPerFrame: 12 * 1024 * 1024,
+  drawCostPerFrame: 4 * 1024 * 1024,
+  drawFixedCost: 128 * 1024,
+  bytesPerTexel: 4,
+  mipmapShare: 4 / 3,
+  unknownTextureBytes: 1024 * 1024,
 } as const;
 
 export interface ShaderCompiler {
   compileAsync(target: Object3D, viewer: Camera): Promise<Object3D>;
   drawOnce(target: Object3D, viewer: Camera): void;
+  initTexture(texture: Texture): void;
 }
+
+export interface WarmSurvey {
+  readonly textures: readonly Texture[];
+  readonly drawables: readonly Object3D[];
+}
+
+const warmedTextures: WeakSet<Texture> = new WeakSet<Texture>();
+const warmedGeometries: WeakSet<BufferGeometry> = new WeakSet<BufferGeometry>();
 
 export function revealHidden(root: Object3D): () => void {
   const lit: Set<Object3D> = new Set<Object3D>();
@@ -59,16 +76,151 @@ function staged<T>(scene: Scene, standIns: readonly Object3D[], culled: boolean,
   }
 }
 
-function drawEverything(compiler: ShaderCompiler, scene: Scene, camera: Camera, standIns: readonly Object3D[]): void {
-  try {
-    staged(scene, standIns, false, (): void => compiler.drawOnce(scene, camera));
-  } catch (error: unknown) {
-    warnInConsole(`Warming the scene by drawing it once failed: ${String(error)}`);
-  }
+function isMaterial(value: unknown): value is Material {
+  return value instanceof Material;
 }
 
-export function warmUp(compiler: ShaderCompiler, scene: Scene, camera: Camera, standIns: readonly Object3D[], later: Promise<void> | null = null): Promise<void> {
-  if (later !== null) void later.then((): Promise<void> => warmUp(compiler, scene, camera, standIns));
+function isTexture(value: unknown): value is Texture {
+  return value instanceof Texture;
+}
+
+function materialsOf(object: Object3D): readonly Material[] {
+  if (!(object instanceof Mesh || object instanceof Points || object instanceof Line || object instanceof Sprite)) return [];
+  const held: unknown = object.material;
+  const list: readonly unknown[] = Array.isArray(held) ? held : [held];
+  return list.filter(isMaterial);
+}
+
+function geometryOf(object: Object3D): BufferGeometry | null {
+  if (!(object instanceof Mesh || object instanceof Points || object instanceof Line || object instanceof Sprite)) return null;
+  const geometry: unknown = object.geometry;
+  return geometry instanceof BufferGeometry ? geometry : null;
+}
+
+function texturesIn(value: unknown, into: Set<Texture>): void {
+  if (isTexture(value)) {
+    into.add(value);
+    return;
+  }
+  if (value === null || typeof value !== 'object') return;
+  const held: unknown = Reflect.get(value, 'value');
+  if (isTexture(held)) into.add(held);
+}
+
+function materialTextures(material: Material, into: Set<Texture>): void {
+  for (const value of Object.values(material)) texturesIn(value, into);
+  const uniforms: unknown = Reflect.get(material, 'uniforms');
+  if (uniforms !== null && typeof uniforms === 'object') for (const uniform of Object.values(uniforms)) texturesIn(uniform, into);
+}
+
+function uploadable(texture: Texture): boolean {
+  if (warmedTextures.has(texture) || texture.isRenderTargetTexture) return false;
+  const image: unknown = texture.image;
+  return image !== null && image !== undefined;
+}
+
+export function survey(scene: Scene, camera: Camera): WarmSurvey {
+  const textures: Set<Texture> = new Set<Texture>();
+  const drawables: Object3D[] = [];
+  scene.traverseVisible((object: Object3D): void => {
+    const materials: readonly Material[] = materialsOf(object);
+    if (materials.length === 0 || !object.layers.test(camera.layers)) return;
+    drawables.push(object);
+    for (const material of materials) materialTextures(material, textures);
+  });
+  return { textures: [...textures].filter(uploadable), drawables };
+}
+
+function dimension(image: unknown, key: string): number {
+  if (image === null || typeof image !== 'object') return 0;
+  const value: unknown = Reflect.get(image, key);
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+export function textureBytes(texture: Texture): number {
+  const image: unknown = texture.image;
+  const data: unknown = image !== null && typeof image === 'object' ? Reflect.get(image, 'data') : null;
+  if (ArrayBuffer.isView(data)) return data.byteLength;
+  const texels: number = dimension(image, 'width') * dimension(image, 'height');
+  if (texels === 0) return WARM_UP.unknownTextureBytes;
+  return texels * WARM_UP.bytesPerTexel * (texture.generateMipmaps ? WARM_UP.mipmapShare : 1);
+}
+
+function ownCost(object: Object3D): number {
+  const geometry: BufferGeometry | null = geometryOf(object);
+  if (geometry === null || warmedGeometries.has(geometry)) return WARM_UP.drawFixedCost;
+  let bytes: number = geometry.index === null ? 0 : geometry.index.array.byteLength;
+  for (const attribute of Object.values(geometry.attributes)) bytes += attribute.array.byteLength;
+  return WARM_UP.drawFixedCost + bytes;
+}
+
+export function drawCost(object: Object3D): number {
+  let cost: number = ownCost(object);
+  for (let holder: Object3D | null = object.parent; holder !== null; holder = holder.parent) if (materialsOf(holder).length > 0) cost += ownCost(holder);
+  return cost;
+}
+
+const TEXTURE_LIMIT: CostLimit<Texture> = { perFrame: WARM_UP.textureBytesPerFrame, cost: textureBytes };
+const DRAW_LIMIT: CostLimit<Object3D> = { perFrame: WARM_UP.drawCostPerFrame, cost: drawCost };
+
+function withAncestors(slice: readonly Object3D[]): Set<Object3D> {
+  const kept: Set<Object3D> = new Set<Object3D>();
+  for (const object of slice) {
+    let current: Object3D | null = object;
+    while (current !== null && !kept.has(current)) {
+      kept.add(current);
+      current = current.parent;
+    }
+  }
+  return kept;
+}
+
+function inScene(scene: Scene, object: Object3D): boolean {
+  let current: Object3D | null = object;
+  while (current !== null && current !== scene) current = current.parent;
+  return current === scene;
+}
+
+function drawSlice(compiler: ShaderCompiler, scene: Scene, camera: Camera, standIns: readonly Object3D[], slice: readonly Object3D[]): void {
+  staged(scene, standIns, false, (): void => {
+    if (!slice.some((object: Object3D): boolean => inScene(scene, object))) return;
+    const kept: Set<Object3D> = withAncestors(slice);
+    const hidden: Object3D[] = [];
+    scene.traverse((object: Object3D): void => {
+      if (kept.has(object) || !object.visible || materialsOf(object).length === 0) return;
+      hidden.push(object);
+      object.visible = false;
+    });
+    try {
+      compiler.drawOnce(scene, camera);
+    } finally {
+      for (const object of hidden) object.visible = true;
+    }
+    for (const object of kept) {
+      const geometry: BufferGeometry | null = geometryOf(object);
+      if (geometry !== null) warmedGeometries.add(geometry);
+    }
+  });
+}
+
+async function drawPaced(compiler: ShaderCompiler, scene: Scene, camera: Camera, standIns: readonly Object3D[], pacer: FramePacer): Promise<void> {
+  const found: WarmSurvey = staged(scene, standIns, false, (): WarmSurvey => survey(scene, camera));
+  await workPaced(
+    found.textures,
+    (texture: Texture): void => {
+      compiler.initTexture(texture);
+      warmedTextures.add(texture);
+    },
+    pacer,
+    PACED_WORK.frameBudgetMs,
+    TEXTURE_LIMIT,
+  );
+  await pacer.next();
+  await workPaced(framesOf(found.drawables, DRAW_LIMIT), (slice: readonly Object3D[]): void => drawSlice(compiler, scene, camera, standIns, slice), pacer, 0);
+}
+
+export function warmUp(compiler: ShaderCompiler, scene: Scene, camera: Camera, standIns: readonly Object3D[], later: Promise<void> | null = null, pacer: FramePacer = browserPacer()): Promise<void> {
+  if (later !== null) void later.then((): Promise<void> => warmUp(compiler, scene, camera, standIns, null, pacer));
   let compiling: Promise<Object3D>;
   try {
     compiling = staged(scene, standIns, true, (): Promise<Object3D> => compiler.compileAsync(scene, camera));
@@ -76,17 +228,20 @@ export function warmUp(compiler: ShaderCompiler, scene: Scene, camera: Camera, s
     compiling = Promise.resolve(scene);
   }
   return compiling.then(
-    (): void => drawEverything(compiler, scene, camera, standIns),
+    (): Promise<void> =>
+      drawPaced(compiler, scene, camera, standIns, pacer).catch((error: unknown): void => {
+        warnInConsole(`Warming the scene by drawing it in slices failed: ${String(error)}`);
+      }),
     (): void => undefined,
   );
 }
 
-export function warmUpWithin(compiler: ShaderCompiler, scene: Scene, camera: Camera, standIns: readonly Object3D[], timers: Timers, ms: number, later: Promise<void> | null = null): Promise<void> {
+export function warmUpWithin(compiler: ShaderCompiler, scene: Scene, camera: Camera, standIns: readonly Object3D[], timers: Timers, ms: number, later: Promise<void> | null = null, pacer: FramePacer = browserPacer()): Promise<void> {
   const cancels: (() => void)[] = [];
   const waited: Promise<void> = new Promise<void>((resolve: () => void): void => {
     cancels.push(timers.after(ms, resolve));
   });
-  const warmed: Promise<void> = warmUp(compiler, scene, camera, standIns, later).finally((): void => {
+  const warmed: Promise<void> = warmUp(compiler, scene, camera, standIns, later, pacer).finally((): void => {
     for (const cancel of cancels) cancel();
   });
   return Promise.race([warmed, waited]);

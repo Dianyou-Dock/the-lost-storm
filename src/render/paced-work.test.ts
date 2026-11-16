@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import type { FramePacer } from './paced-work.ts';
-import { workPaced } from './paced-work.ts';
+import type { CostLimit, FramePacer } from './paced-work.ts';
+import { framesOf, workPaced } from './paced-work.ts';
 
 interface FakePacer extends FramePacer {
   readonly frames: number[];
@@ -52,4 +52,22 @@ void test('an unlimited budget does everything in the first frame', async (): Pr
   const pacer: FakePacer = fakePacer();
   await workPaced([5, 5, 5, 5], (ms: number): void => pacer.spend(ms), pacer, Number.POSITIVE_INFINITY);
   assert.deepEqual(pacer.frames, [0, 0, 0, 0]);
+});
+
+void test('a cost limit ends a frame before the item that would pass it, even with time to spare', async (): Promise<void> => {
+  const pacer: FakePacer = fakePacer();
+  await workPaced([3, 3, 3, 5, 1], (): void => pacer.spend(0), pacer, 6, { perFrame: 6, cost: (size: number): number => size });
+  assert.deepEqual(pacer.frames, [0, 0, 1, 2, 2]);
+});
+
+void test('one item costlier than the whole frame still runs, alone in its frame', async (): Promise<void> => {
+  const pacer: FakePacer = fakePacer();
+  await workPaced([9, 1], (): void => pacer.spend(0), pacer, 6, { perFrame: 6, cost: (size: number): number => size });
+  assert.deepEqual(pacer.frames, [0, 1]);
+});
+
+void test('frames are cut by cost, keeping order and never leaving an empty frame', (): void => {
+  const limit: CostLimit<number> = { perFrame: 6, cost: (size: number): number => size };
+  assert.deepEqual(framesOf([2, 2, 2, 7, 1, 5, 1], limit), [[2, 2, 2], [7], [1, 5], [1]]);
+  assert.deepEqual(framesOf([], limit), []);
 });
