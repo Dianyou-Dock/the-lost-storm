@@ -1,0 +1,33 @@
+.auto-combat-button {
+  white-space: nowrap;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.auto-combat-button.open {
+  color: #aee8ff;
+  border-color: rgba(127, 212, 255, 0.55);
+  box-shadow: 0 0 12px rgba(127, 212, 255, 0.18);
+}
+
+.auto-combat-mobile {
+  display: none;
+}
+
+body.touch .auto-combat-mobile {
+  display: block;
+  position: absolute;
+  top: calc(70px + env(safe-area-inset-top));
+  right: calc(12px + env(safe-area-inset-right));
+  z-index: 20;
+  padding: 8px 11px;
+  pointer-events: auto;
+  color: #efe6d6;
+  background: rgba(12, 16, 24, 0.84);
+  border: 1px solid rgba(127, 212, 255, 0.25);
+  border-radius: 5px;
+}
+
+body:not(.playing) .auto-combat-button {
+  display: none;
+}
