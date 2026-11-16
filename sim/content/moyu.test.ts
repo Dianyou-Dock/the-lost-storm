@@ -5,6 +5,7 @@ import { hotWeapon, isMoyu, MOYU_MAPS, moyuContent, moyuRequirements } from './m
 import { createWorld } from '../world/create.ts';
 import { stepWorld } from '../world/step.ts';
 import { canAllocate } from '../progression.ts';
+import { toSave } from '../save.ts';
 
 void test('portal content uses the five element chart without quests', (): void => {
   const content = moyuContent(loadContent());
@@ -29,6 +30,14 @@ void test('a random map begins a fresh combat run and can be entered again', ():
   const second = stepWorld(world, [{ type: 'random_map' }], 1 / 30);
   assert.notEqual(world.zone.id, previous);
   assert.equal(second.some((event): boolean => event.type === 'zone_changed'), true);
+});
+
+void test('an old low-level save in a high-level map returns to the hideout', (): void => {
+  const content = moyuContent(loadContent());
+  const fresh = createWorld(content, { seed: 5, save: null, opening: false });
+  const save = { ...toSave(fresh), zone: 'under_hall_2' };
+  const restored = createWorld(content, { seed: 5, save, opening: false });
+  assert.equal(restored.zone.id, 'hideout');
 });
 
 void test('cold routes can start while hot weapons and unimplemented sockets cannot spend points', (): void => {

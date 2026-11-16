@@ -1,6 +1,7 @@
 import type { GlitchDef } from '../content/glitches.ts';
 import { loadGlitches } from '../content/glitches.ts';
 import type { Content, ZoneDef } from '../content/types.ts';
+import { isMoyu } from '../content/moyu.ts';
 import { heroOf } from '../hero.ts';
 import { emptyEquipment, slotOf } from '../items.ts';
 import { emptyLedger, makeItem } from './ledger.ts';
@@ -128,7 +129,10 @@ function giveStartingItems(world: World, emptyHanded: boolean): void {
 }
 
 function savedZone(content: Content, save: SaveData | null, opening: boolean): ZoneDef {
-  if (save !== null) return content.zones.get(save.zone) ?? startZone(content);
+  if (save !== null) {
+    const zone: ZoneDef | undefined = content.zones.get(save.zone);
+    return zone !== undefined && (!isMoyu(content) || zone.level <= save.level + 2) ? zone : startZone(content);
+  }
   const first: ZoneDef | undefined = opening && content.world.opening !== null ? content.zones.get(content.world.opening) : undefined;
   return first ?? startZone(content);
 }
