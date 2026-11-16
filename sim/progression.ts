@@ -110,6 +110,11 @@ export function holdingTrunk(content: Content, allocated: readonly string[]): st
 export type JoinBlock = 'begin' | 'connect' | 'branch';
 
 export function joinBlock(content: Content, allocated: readonly string[], node: SkillTreeNodeDef): JoinBlock | null {
+  if (isMoyu(content)) {
+    if (isStartingPlace(node)) return null;
+    const near: readonly string[] = placeLinks(content).get(node.id) ?? [];
+    return near.some((id: string): boolean => allocated.includes(id)) ? null : 'connect';
+  }
   const trunk: readonly string[] = holdingTrunk(content, allocated);
   if (trunk.length === 0) return isStartingPlace(node) ? null : 'begin';
   const near: readonly string[] = placeLinks(content).get(node.id) ?? [];

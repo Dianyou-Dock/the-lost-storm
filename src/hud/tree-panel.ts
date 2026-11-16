@@ -158,6 +158,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
   const names: NameView[] = pathLabels(content).map((entry: PathLabel): NameView => createNameView(viewport, entry.path.name, entry.path.tint, place(entry.at)));
   const prompt: HTMLDivElement = el('div', 'chart-prompt', viewport);
   const card: HTMLDivElement = el('div', 'chart-card', viewport);
+  if (context.api.touch) element.appendChild(card);
   const cardBody: HTMLDivElement = el('div', 'chart-card-body', card);
   const action: HTMLButtonElement = el('button', 'chart-action', card);
   action.type = 'button';
@@ -496,6 +497,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
       switch (status.kind) {
         case 'available':
           context.api.send({ type: 'allocate', node: node.id });
+          if (context.api.touch) sendCard({ type: 'clear' });
           break;
         case 'no_points':
         case 'locked':
