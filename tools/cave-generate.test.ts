@@ -9,6 +9,8 @@ void test('the command line names the zone, its doors and its band, and a gated 
   assert.equal(options.seed, 5);
   assert.deepEqual(options.request.levels, { from: 14, to: 17 });
   assert.equal(options.request.packs, 30);
+  assert.deepEqual(options.request.ranks, []);
+  assert.deepEqual(caveOptions(['--id', 'deep', '--up', 'above:down', '--from', '14', '--to', '17', '--ranks', 'rare:0.2,magic:0.35']).request.ranks, [{ rank: 'rare', share: 0.2 }, { rank: 'magic', share: 0.35 }]);
   assert.deepEqual(options.up, { id: 'up', to: 'above', toExit: 'down', requires: [], lockedHint: '', hiddenWhenLocked: false });
   assert.deepEqual(options.down?.requires, [{ type: 'visited', zone: 'below', not: false }]);
   assert.throws((): CaveOptions => caveOptions(['--id', 'deep']));
@@ -22,6 +24,8 @@ void test('a command line with no band, no packs, a band that falls, too many ch
   assert.throws((): CaveOptions => caveOptions([...base, '--from', '17', '--to', '14']), /level band/);
   assert.throws((): CaveOptions => caveOptions([...base, '--from', '14', '--to', '17', '--chambers', '16']), /chambers/);
   assert.throws((): CaveOptions => caveOptions([...base, '--from', '14', '--to', '17', '--seeds', '0']), /--seeds/);
+  assert.throws((): CaveOptions => caveOptions([...base, '--from', '14', '--to', '17', '--ranks', 'rare']), /--ranks/);
+  assert.throws((): CaveOptions => caveOptions([...base, '--from', '14', '--to', '17', '--ranks', 'rare:0.7,magic:0.7']), /rank shares/);
 });
 
 void test('a written zone reads back as the same record, one list entry per line', (): void => {

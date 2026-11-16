@@ -84,6 +84,15 @@ function namedRankProblems(content: Content, zone: ZoneDef, pack: ZonePack, name
   need(pack.members.every((member: PackMember): boolean => rankless(content, member)), `${at} names rank ${named}, but a boss, a ranked monster or a modded member never takes a rank`);
 }
 
+export function zoneRankProblems(content: Content, zone: ZoneDef): string[] {
+  const problems: string[] = [];
+  const need = (ok: boolean, problem: string): void => {
+    if (!ok) problems.push(problem);
+  };
+  for (const pack of zone.packs) if (pack.rank !== undefined) namedRankProblems(content, zone, pack, pack.rank, need);
+  return problems;
+}
+
 export function rankProblems(content: Content): string[] {
   const problems: string[] = [];
   const need = (ok: boolean, problem: string): void => {
@@ -106,6 +115,6 @@ export function rankProblems(content: Content): string[] {
     if (mod !== undefined) need(mod.summon === null, `pack rank pool modifier ${entry.mod} summons, and a ranked pack must not call monsters from outside its zone`);
   }
   need(ranks.names.first.length > 0 && ranks.names.second.length > 0, 'pack ranks need names for rare leaders');
-  for (const zone of content.zones.values()) for (const pack of zone.packs) if (pack.rank !== undefined) namedRankProblems(content, zone, pack, pack.rank, need);
+  for (const zone of content.zones.values()) problems.push(...zoneRankProblems(content, zone));
   return problems;
 }

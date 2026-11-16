@@ -33,7 +33,8 @@ function rounded(point: Vec2): Vec2 {
 
 function packRecord(pack: CavePack): Record<string, unknown> {
   const base: Record<string, unknown> = { x: pack.x, z: pack.z, members: pack.members.map((member): Record<string, unknown> => ({ monster: member.monster, count: member.count })), level: pack.level };
-  return pack.waits === null ? base : { ...base, waits: { near: pack.waits } };
+  const waiting: Record<string, unknown> = pack.waits === null ? base : { ...base, waits: { near: pack.waits } };
+  return pack.rank === null ? waiting : { ...waiting, rank: pack.rank };
 }
 
 function exitRecord(door: CaveDoor, at: Vec2, arrival: Vec2): Record<string, unknown> {

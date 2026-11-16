@@ -1,6 +1,7 @@
 import type { Content, PropDef, ZoneDef, ZonePack, ZoneProp } from '../content/types.ts';
 import type { ReadonlyVec2, Vec2 } from '../math.ts';
 import { distance } from '../math.ts';
+import { zoneRankProblems } from '../content/parse-ranks.ts';
 import type { NavGrid } from '../nav/grid.ts';
 import { buildNavGrid, cellIndex, isWalkable, propBlockers, setDriftOpen } from '../nav/grid.ts';
 import type { ScreenLimit } from './generate.ts';
@@ -135,5 +136,6 @@ export function caveProblems(content: Content, zone: ZoneDef, limit: ScreenLimit
   const load: ScreenLimit = screenLoad(content, zone);
   if (load.monsters > limit.monsters) problems.push(`${load.monsters} monsters fit on one screen, more than ${limit.monsters}`);
   if (load.lights > limit.lights) problems.push(`${load.lights} lights fit on one screen, more than ${limit.lights}`);
+  problems.push(...zoneRankProblems(content, zone));
   return problems;
 }

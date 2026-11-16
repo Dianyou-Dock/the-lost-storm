@@ -60,7 +60,13 @@ export interface CaveRequest {
   readonly packs: number;
   readonly packScale: number;
   readonly roomScale: number;
+  readonly ranks: readonly CaveRankShare[];
   readonly screen: ScreenLimit;
+}
+
+export interface CaveRankShare {
+  readonly rank: string;
+  readonly share: number;
 }
 
 export interface CaveMaker {
@@ -88,6 +94,7 @@ export interface CavePack {
   readonly level: number;
   readonly members: readonly CaveMember[];
   readonly waits: number | null;
+  readonly rank: string | null;
 }
 
 export interface CaveLayout {
@@ -285,7 +292,7 @@ function placePacks(rng: Rng, ground: Ground, shape: CaveShape, spots: Spots, re
       const members: CaveMember[] = scaledMembers(template, request.packScale);
       const weighed: { readonly at: Vec2; readonly weight: number }[] = [...packs.map((pack: CavePack): { readonly at: Vec2; readonly weight: number } => ({ at: { x: pack.x, z: pack.z }, weight: memberCount(pack.members) })), { at: spot, weight: memberCount(members) }];
       if (screenPeak(weighed, spot) > request.screen.monsters) continue;
-      packs.push({ x: spot.x, z: spot.z, level: Math.round(request.levels.from + (request.levels.to - request.levels.from) * share), members, waits: template.waits });
+      packs.push({ x: spot.x, z: spot.z, level: Math.round(request.levels.from + (request.levels.to - request.levels.from) * share), members, waits: template.waits, rank: null });
       placed += 1;
     }
   }
@@ -457,27 +464,46 @@ function levelLines(raster: CaveRaster, levels: Int16Array): string[] {
   return lines;
 }
 
+export function rankDeepest(packs: readonly CavePack[], ranks: readonly CaveRankShare[]): CavePack[] {
+  const named: (string | null)[] = packs.map((): string | null => null);
+  let from: number = packs.length;
+  for (const entry of ranks) {
+    const until: number = Math.max(0, from - Math.ceil(entry.share * packs.length));
+    for (let at: number = until; at < from; at += 1) named[at] = entry.rank;
+    from = until;
+  }
+  return packs.map((pack: CavePack, at: number): CavePack => ({ ...pack, rank: named[at] ?? null }));
+}
+
 function attempt(rng: Rng, request: CaveRequest, maker: CaveMaker): CaveLayout | null {
   const shape: CaveShape | null = shapeCave(rng, maker.kit, request.columns, request.rows, request.chambers, request.roomScale);
   if (shape === null) return null;
   const ground: Ground = { raster: shape.raster, clear: rockDistance(shape.raster), size: CAVE_GEN.cellSize };
   const spots: Spots | null = placeSpots(ground, shape);
   if (spots === null) return null;
-  const packs: CavePack[] | null = placePacks(rng, ground, shape, spots, request, maker.kit);
-  if (packs === null) return null;
+  const placed: CavePack[] | null = placePacks(rng, ground, shape, spots, request, maker.kit);
+  if (placed === null) return null;
+  const packs: CavePack[] = rankDeepest(placed, request.ranks);
   const props: CaveProp[] = dress(rng, ground, shape, spots, packs, request, maker);
   const levels: Int16Array = wallLevels(shape.raster, maker.kit.walls.band, maker.kit.walls, CAVE_GEN.rockTop);
   for (const passage of shape.passages) evenRampSides(shape.raster, levels, passage.ramp);
   return { seed: request.seed, columns: request.columns, rows: request.rows, cellSize: CAVE_GEN.cellSize, tiles: tileLines(shape.raster), levels: levelLines(shape.raster, levels), chambers: shape.chambers, passages: shape.passages, props, packs, ...spots };
 }
 
-export function requestProblem(request: Pick<CaveRequest, 'chambers' | 'packs' | 'levels' | 'packScale' | 'roomScale'>): string | null {
+function rankShareProblem(ranks: readonly CaveRankShare[]): string | null {
+  const bad: CaveRankShare | undefined = ranks.find((entry: CaveRankShare): boolean => entry.rank === '' || !(entry.share >= 0 && entry.share <= 1));
+  if (bad !== undefined) return `a rank share names a rank and a share from 0 to 1, not ${bad.rank === '' ? 'no rank' : bad.rank} at ${bad.share}`;
+  const total: number = ranks.reduce((sum: number, entry: CaveRankShare): number => sum + entry.share, 0);
+  return total > 1 ? `the rank shares add up to ${total}, more than every pack` : null;
+}
+
+export function requestProblem(request: Pick<CaveRequest, 'chambers' | 'packs' | 'levels' | 'packScale' | 'roomScale' | 'ranks'>): string | null {
   if (!Number.isInteger(request.chambers) || request.chambers < 2 || request.chambers > deepestChambers()) return `a cave has 2 to ${deepestChambers()} chambers, not ${request.chambers}`;
   if (!Number.isInteger(request.packs) || request.packs < 1) return `a cave has at least one pack, not ${request.packs}`;
   if (!Number.isInteger(request.levels.from) || !Number.isInteger(request.levels.to) || request.levels.from < 1 || request.levels.to < request.levels.from) return `the level band runs from a whole level of at least 1 up, not ${request.levels.from} to ${request.levels.to}`;
   if (!(request.packScale > 0)) return `the pack scale is above zero, not ${request.packScale}`;
   if (!(request.roomScale > 0)) return `the room scale is above zero, not ${request.roomScale}`;
-  return null;
+  return rankShareProblem(request.ranks);
 }
 
 function kitProps(kit: CaveKit, defs: ReadonlyMap<string, PropDef>): string | null {

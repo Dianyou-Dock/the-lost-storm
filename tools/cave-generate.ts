@@ -5,7 +5,7 @@ import { zone as readZone } from '../sim/content/parse-world.ts';
 import type { Condition } from '../sim/content/condition-types.ts';
 import type { Content, PropDef, ZoneDef, ZoneProp } from '../sim/content/types.ts';
 import { screenLoad } from '../sim/cave/checks.ts';
-import type { CaveRequest, ScreenLimit } from '../sim/cave/generate.ts';
+import type { CaveRankShare, CaveRequest, ScreenLimit } from '../sim/cave/generate.ts';
 import { requestProblem } from '../sim/cave/generate.ts';
 import type { MadeResult } from '../sim/cave/make.ts';
 import { makeCave } from '../sim/cave/make.ts';
@@ -70,6 +70,15 @@ function door(spec: string, id: string, gate: string | null): CaveDoor {
   return { id, to, toExit, requires, lockedHint: '', hiddenWhenLocked: gate !== null };
 }
 
+function rankShares(spec: string | null): CaveRankShare[] {
+  if (spec === null) return [];
+  return spec.split(',').map((part: string): CaveRankShare => {
+    const [rank, share] = part.split(':');
+    if (rank === undefined || share === undefined || rank === '' || share === '' || !Number.isFinite(Number(share))) throw new Error(`--ranks takes rank:share pairs, deepest first, not ${part}`);
+    return { rank, share: Number(share) };
+  });
+}
+
 export function caveOptions(args: readonly string[]): CaveOptions {
   const number = (name: string, fallback: number): number => {
     const raw: string | null = option(args, name);
@@ -79,11 +88,11 @@ export function caveOptions(args: readonly string[]): CaveOptions {
   };
   const id: string | null = option(args, 'id');
   const up: string | null = option(args, 'up');
-  if (id === null || up === null) throw new Error('usage: node tools/cave-generate.ts --kit data/kits/<kit>.json --id <zone id> --name <name> --up <zone:exit> [--down <zone:exit>] --from <level> --to <level> [--seed N --seeds N --columns N --rows N --chambers N --packs N --scale X --rooms X --out FILE]');
+  if (id === null || up === null) throw new Error('usage: node tools/cave-generate.ts --kit data/kits/<kit>.json --id <zone id> --name <name> --up <zone:exit> [--down <zone:exit>] --from <level> --to <level> [--seed N --seeds N --columns N --rows N --chambers N --packs N --scale X --rooms X --ranks rank:share,... --out FILE]');
   const down: string | null = option(args, 'down');
   if (option(args, 'from') === null || option(args, 'to') === null) throw new Error('--from and --to set the level band and are required');
   if (!Number.isInteger(number('seeds', CAVE_CLI.seeds)) || number('seeds', CAVE_CLI.seeds) < 1) throw new Error('--seeds takes a whole number of at least 1');
-  const request: Omit<CaveRequest, 'seed' | 'screen'> = { columns: number('columns', CAVE_CLI.columns), rows: number('rows', CAVE_CLI.rows), chambers: number('chambers', CAVE_CLI.chambers), levels: { from: number('from', 1), to: number('to', 1) }, packs: number('packs', CAVE_CLI.packs), packScale: number('scale', CAVE_CLI.scale), roomScale: number('rooms', CAVE_CLI.rooms) };
+  const request: Omit<CaveRequest, 'seed' | 'screen'> = { columns: number('columns', CAVE_CLI.columns), rows: number('rows', CAVE_CLI.rows), chambers: number('chambers', CAVE_CLI.chambers), levels: { from: number('from', 1), to: number('to', 1) }, packs: number('packs', CAVE_CLI.packs), packScale: number('scale', CAVE_CLI.scale), roomScale: number('rooms', CAVE_CLI.rooms), ranks: rankShares(option(args, 'ranks')) };
   const refused: string | null = requestProblem(request);
   if (refused !== null) throw new Error(refused);
   return {

@@ -6,7 +6,7 @@ import { TERRAIN_MARKS } from '../content/terrain-types.ts';
 import type { Content, ZoneDef } from '../content/types.ts';
 import { distance } from '../math.ts';
 import { screenLoad } from './checks.ts';
-import type { CaveLayout, CaveProp, CaveRequest, CaveResult, ScreenLimit } from './generate.ts';
+import type { CaveLayout, CavePack, CaveProp, CaveRequest, CaveResult, ScreenLimit } from './generate.ts';
 import { CAVE_GEN, generateCave } from './generate.ts';
 import type { CellBox } from './layout.ts';
 import { CAVE_LAYOUT, chamberBox } from './layout.ts';
@@ -21,7 +21,7 @@ const limit: ScreenLimit = screenLoad(content, reference);
 const SEEDS: readonly number[] = [1, 2, 3, 4, 5, 6];
 
 function request(seed: number): CaveRequest {
-  return { seed, columns: 110, rows: 110, chambers: 10, levels: { from: 14, to: 17 }, packs: 20, packScale: 1, roomScale: 1, screen: limit };
+  return { seed, columns: 110, rows: 110, chambers: 10, levels: { from: 14, to: 17 }, packs: 20, packScale: 1, roomScale: 1, ranks: [], screen: limit };
 }
 
 function made(seed: number): CaveLayout {
@@ -115,5 +115,28 @@ void test('a rect kit builds whole rectangular rooms at their own level, square 
     const columns: readonly CaveProp[] = layout.props.filter((placed: CaveProp): boolean => placed.prop === 'hall_column');
     const paired: number = columns.filter((placed: CaveProp): boolean => columns.some((other: CaveProp): boolean => (other.z === placed.z && Math.abs(Math.abs(other.x - placed.x) - 6) < 0.02) || (other.x === placed.x && Math.abs(Math.abs(other.z - placed.z) - 6) < 0.02))).length;
     assert.ok(columns.length > 0 && paired * 2 >= columns.length, `seed ${seed}: ${paired} of ${columns.length} columns stand one step from a neighbour in their line`);
+  }
+});
+
+const RANKED: CaveRequest['ranks'] = [{ rank: 'rare', share: 0.25 }, { rank: 'magic', share: 0.25 }];
+
+void test('rank shares name the deepest quarter rare and the next quarter magic, leave the rest to roll, and change nothing else', (): void => {
+  for (const [at, seed] of SEEDS.entries()) {
+    const result: CaveResult = generateCave({ ...request(seed), ranks: RANKED }, { kit, defs: content.props, judge: null });
+    assert.ok(result.ok, result.ok ? '' : result.problem);
+    const plain: CaveLayout | undefined = layouts[at];
+    assert.ok(plain !== undefined);
+    assert.deepEqual({ ...result.layout, packs: result.layout.packs.map((pack: CavePack): CavePack => ({ ...pack, rank: null })) }, plain);
+    assert.deepEqual(result.layout.packs.map((pack: CavePack): string | null => pack.rank), [...Array.from({ length: 10 }, (): null => null), ...Array.from({ length: 5 }, (): string => 'magic'), ...Array.from({ length: 5 }, (): string => 'rare')]);
+    const rolled: readonly number[] = result.layout.packs.filter((pack: CavePack): boolean => pack.rank === null).map((pack: CavePack): number => pack.level);
+    const rare: readonly number[] = result.layout.packs.filter((pack: CavePack): boolean => pack.rank === 'rare').map((pack: CavePack): number => pack.level);
+    assert.ok(Math.min(...rare) >= Math.max(...rolled), `seed ${seed}`);
+  }
+});
+
+void test('a rank share outside 0 to 1, shares above every pack, or a share with no rank are refused', (): void => {
+  for (const ranks of [[{ rank: 'rare', share: 1.5 }], [{ rank: 'rare', share: 0.6 }, { rank: 'magic', share: 0.6 }], [{ rank: '', share: 0.2 }], [{ rank: 'rare', share: -0.1 }]]) {
+    const result: CaveResult = generateCave({ ...request(1), ranks }, { kit, defs: content.props, judge: null });
+    assert.ok(!result.ok && result.problem.includes('rank'), JSON.stringify(ranks));
   }
 });
