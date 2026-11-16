@@ -102,6 +102,8 @@ The creatures, each a body and its own clips on its own skeleton:
 | `public/models/animations/standing_clock/Clock_Death.glb`, `public/models/animations/standing_clock/Clock_Hit.glb`, `public/models/animations/standing_clock/Clock_Idle.glb` | The Standing Clock's clips, one clip per file: the pendulum swinging once every 1.6 seconds while the hand ticks, a shudder, and the case cracking and toppling onto its back | Made for this game: written by `blender/build_struck_bodies.py`, split by the commands below | CC0 1.0 |
 | `public/models/creatures/ledger_plinth.glb` | The Ledger Plinth body (a stone plinth with a slanted top and a large open book on it), its six flat colour materials and its skeleton (root, plinth, lectern, book, leaf, page), with no clips | Made for this game: original geometry and clips written by `blender/build_struck_bodies.py` in Blender 4.4, split by the commands below | CC0 1.0 |
 | `public/models/animations/ledger_plinth/Ledger_Death.glb`, `public/models/animations/ledger_plinth/Ledger_Hit.glb`, `public/models/animations/ledger_plinth/Ledger_Idle.glb` | The Ledger Plinth's clips, one clip per file: a page barely stirring, a shudder, and the book slamming shut and sliding off onto the floor while the top cracks | Made for this game: written by `blender/build_struck_bodies.py`, split by the commands below | CC0 1.0 |
+| `public/models/creatures/stegosaurus.glb` | The Stegosaurus body, its three colour materials and its skeleton, with no clips | "Stegosaurus" by Quaternius on Poly Pizza (https://poly.pizza/m/eFcNbOlpvl), the GLB download, built by the commands below | CC0 1.0 |
+| `public/models/animations/stegosaurus/Stegosaurus_Death.glb`, `public/models/animations/stegosaurus/Stegosaurus_Idle.glb`, `public/models/animations/stegosaurus/Stegosaurus_Jump.glb`, `public/models/animations/stegosaurus/Stegosaurus_Run.glb`, `public/models/animations/stegosaurus/Stegosaurus_Walk.glb` | The Stegosaurus clips, one clip per file | "Stegosaurus" by Quaternius on Poly Pizza (https://poly.pizza/m/eFcNbOlpvl), the GLB download, built by the commands below | CC0 1.0 |
 
 Build a creature from its pack file into a body and a clip folder. `tools/build-creature.ts` drops the clips from the body, writes each clip on bare joints under its plain action name (Blender writes `Armature|Armature|Action`), makes any material that a conversion left see-through or glowing opaque and unlit, and holds a clip of a single pose for a second so it can loop; `--flat #rrggbb` drops every texture and paints the body one colour; keep only the clip files the rig names. A pack that ships only FBX is first converted in Blender 4.4: import the FBX with automatic bone orientation off, then export GLB with every action as its own animation and sampling forced:
 
@@ -121,6 +123,8 @@ node tools/build-creature.ts <scratch>/standing_clock.glb public/models/creature
 node tools/compress-models.ts public/models/creatures/standing_clock.glb public/models/animations/standing_clock/*.glb
 node tools/build-creature.ts <scratch>/ledger_plinth.glb public/models/creatures/ledger_plinth.glb public/models/animations/ledger_plinth
 node tools/compress-models.ts public/models/creatures/ledger_plinth.glb public/models/animations/ledger_plinth/*.glb
+node tools/build-creature.ts <Stegosaurus.glb from Poly Pizza> public/models/creatures/stegosaurus.glb public/models/animations/stegosaurus
+node tools/compress-models.ts public/models/creatures/stegosaurus.glb public/models/animations/stegosaurus/*.glb
 ```
 
 The skeleton monsters' rig and clips:

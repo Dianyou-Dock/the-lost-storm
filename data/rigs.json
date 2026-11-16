@@ -2427,6 +2427,42 @@
     "bodyParts": {}
   },
   {
+    "id": "stegosaurus",
+    "url": "models/creatures/stegosaurus.glb",
+    "clipFolder": "models/animations/stegosaurus",
+    "scale": 0.1,
+    "yawOffsetDegrees": 0,
+    "height": 11,
+    "rootMotionBone": null,
+    "gaits": [
+      {
+        "clip": "Stegosaurus_Walk",
+        "groundSpeed": 0.178
+      },
+      {
+        "clip": "Stegosaurus_Run",
+        "groundSpeed": 1.609
+      }
+    ],
+    "clips": {
+      "idle": "Stegosaurus_Idle",
+      "run": "Stegosaurus_Run",
+      "hit": [],
+      "death": [
+        "Stegosaurus_Death"
+      ],
+      "actions": {
+        "pounce": {
+          "clip": "Stegosaurus_Jump",
+          "impactFraction": 0.54
+        }
+      }
+    },
+    "sockets": {},
+    "hiddenNodes": [],
+    "bodyParts": {}
+  },
+  {
     "id": "crawler",
     "url": "models/creatures/crawler.glb",
     "clipFolder": "models/animations/crawler",

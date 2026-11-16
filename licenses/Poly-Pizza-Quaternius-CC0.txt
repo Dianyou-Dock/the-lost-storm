@@ -42,6 +42,8 @@ public/models/shore/statue_stag_plinth.glb  <-  https://poly.pizza/m/F2LAK03B0r 
 public/models/shore/stone_steps.glb  <-  https://poly.pizza/m/F2LAK03B0r  ("Modular Ruins Pack", object Stairs_2)
 public/models/shore/rock_spire_tall.glb  <-  https://poly.pizza/m/XY4ej3Zg3I  ("Mountain")
 public/models/shore/rock_pillar_faceted.glb  <-  https://poly.pizza/m/d2VWOdthtR  ("Rock Large")
+public/models/creatures/stegosaurus.glb  <-  https://poly.pizza/m/eFcNbOlpvl  ("Stegosaurus")
+public/models/animations/stegosaurus/*.glb  <-  https://poly.pizza/m/eFcNbOlpvl  ("Stegosaurus")
 
 ----
 
