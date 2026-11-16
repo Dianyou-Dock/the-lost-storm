@@ -1,7 +1,8 @@
 import type { Fields } from './read.ts';
 import { ContentError, fields, flag, nullableText, numeric, positive, text, textList } from './read.ts';
-import type { AlarmDef, DormantDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, SkillCommit, SkillLeap, SummonDef } from './combat-types.ts';
+import type { AlarmDef, BodyCrust, DormantDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, SkillCommit, SkillLeap, SummonDef } from './combat-types.ts';
 import type { MonsterRank } from './rank-types.ts';
+import { bodyCrust } from './parse-crust.ts';
 import type { Content, MonsterDef, SkillDef } from './types.ts';
 
 const STEADY: MonsterPoise = { knockback: 1, stagger: 1, resolve: 0 };
@@ -122,6 +123,7 @@ export interface MonsterTraits {
   readonly regen: number;
   readonly rank: MonsterRank | null;
   readonly heatproof: boolean;
+  readonly crust: BodyCrust | null;
 }
 
 export function monsterTraits(source: Fields, where: string): MonsterTraits {
@@ -139,6 +141,7 @@ export function monsterTraits(source: Fields, where: string): MonsterTraits {
     regen: zeroOrMore(source, 'regen', where),
     rank: null,
     heatproof: source['heatproof'] === undefined ? false : flag(source, 'heatproof', where),
+    crust: source['crust'] === undefined || source['crust'] === null ? null : bodyCrust(source['crust'], `${where}.crust`),
   };
 }
 

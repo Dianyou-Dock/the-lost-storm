@@ -123,3 +123,10 @@ export interface UnisonDef {
   readonly flinch: number;
   readonly flinchRange: number;
 }
+
+export interface BodyCrust {
+  readonly cells: number;
+  readonly seam: number;
+  readonly strength: number;
+  readonly rim: number;
+}

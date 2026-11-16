@@ -38,6 +38,7 @@ import type { VfxShadow } from '../../sim/content/vfx-types.ts';
 import type { EmpowerLook } from '../../sim/content/types.ts';
 import type { BodySwap, SwapMix } from './body-swap.ts';
 import { startSwap, stepSwap } from './body-swap.ts';
+import { crustBody } from './body-crust.ts';
 
 export const ACTORS = {
   monsterFlash: 1,
@@ -222,6 +223,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   const makeMonsterView = (def: MonsterDef, facing: number, echo: EchoLook | null, partial: boolean = false, rig: LoadedRig | undefined = library.rigs.get(def.rig)): ActorView | null => {
     if (rig === undefined || (!partial && !hasWear(library, rig.def.frame, wornWearables(content, def.rig, def.wear, null), def.gear))) return null;
     const view: ActorView = createActorView(instantiateRig(rig, library, { tint: echo === null ? def.tint : '#ffffff', glow: echo === null ? def.color : '#ffffff', ghost: echo?.ghost ?? null, feather }), def.scale, facing);
+    if (echo === null && def.crust !== null) crustBody(view.rig.root, def.crust, def.color);
     view.rig.setGear(partial ? def.gear.filter((id: string): boolean => library.attachments.has(id)) : def.gear);
     dress(content, def.rig, view.rig, partial ? def.wear.filter((id: string): boolean => library.wearables.has(wearKey(rig.def.frame, id))) : def.wear, null);
     view.rig.setOpacity(ACTORS.echoOpacity);

@@ -5,7 +5,7 @@ import type { AffixDef, FamilyDef, ItemBaseDef, ItemScaling, PowerTriggerDef, Ra
 export type { WeaponKind } from './item-types.ts';
 import type { FlaskDef } from './flasks.ts';
 import type { AttachmentDef, RigDef } from './rig-types.ts';
-import type { AlarmDef, AmbushBehaviour, DormantDef, FactionDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, StalkerBehaviour, SummonDef, SwarmBehaviour } from './combat-types.ts';
+import type { AlarmDef, AmbushBehaviour, BodyCrust, DormantDef, FactionDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, StalkerBehaviour, SummonDef, SwarmBehaviour } from './combat-types.ts';
 import type { AreaDelivery, BeamDelivery, BlinkDelivery, ChainDelivery, SkillShape, SkillUnlock } from './shape-types.ts';
 import type { ServiceKind, TradeDef } from './trade-types.ts';
 import type { PropDef, SurfaceDef } from './prop-types.ts';
@@ -226,6 +226,7 @@ export interface MonsterDef {
   readonly regen: number;
   readonly rank: MonsterRank | null;
   readonly heatproof: boolean;
+  readonly crust: BodyCrust | null;
 }
 
 export const ITEM_SLOTS = ['weapon', 'head', 'chest', 'hands', 'legs', 'feet', 'charm'] as const;
