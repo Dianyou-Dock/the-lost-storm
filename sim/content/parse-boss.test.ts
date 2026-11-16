@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { must } from '../../test/support.ts';
 import type { BossDef } from './boss-types.ts';
-import { boss } from './parse-boss.ts';
+import { boss, pieceStrikes } from './parse-boss.ts';
 
 const BASE = {
   title: 'Timekeeper',
@@ -42,4 +42,10 @@ void test('a phase may play a measure instead of weighted skills, held, unsealin
 void test('a phase with neither skills nor a measure, or a negative beat, is refused', (): void => {
   assert.throws(() => boss({ ...BASE, phases: [{ below: 1, barks: [] }] }, 'b'), /skill or a measure/);
   assert.throws(() => boss({ ...BASE, phases: [{ below: 1, measure: ['a'], beat: -1, barks: [] }] }, 'b'), /zero or more/);
+});
+
+void test('strikes are a whole count of one or more and a gap above zero', (): void => {
+  assert.deepEqual(pieceStrikes({ count: 8, gap: 4 }, 'p'), { count: 8, gap: 4 });
+  assert.throws(() => pieceStrikes({ count: 2.5, gap: 4 }, 'p'), /whole number/);
+  assert.throws(() => pieceStrikes({ count: 3, gap: 0 }, 'p'), /p\.gap/);
 });

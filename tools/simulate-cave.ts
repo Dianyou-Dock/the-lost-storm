@@ -10,6 +10,10 @@ import { waiting } from '../sim/world/packs.ts';
 import type { PackTimer } from '../sim/world/pack-return.ts';
 import type { FlaskState, MonsterState, PlayerState, World, WorldEvent } from '../sim/world/types.ts';
 import { enterZone } from '../sim/world/zones.ts';
+import { addToInventory, equipFromInventory, grantXp } from '../sim/world/character.ts';
+import { makeItem } from '../sim/world/ledger.ts';
+import { xpToNextLevel } from '../sim/progression.ts';
+import type { ItemInstance } from '../sim/world/types.ts';
 import type { BuildPolicy, Policies, SkillPolicy } from './simulate-policies.ts';
 import { planFor } from './simulate-policies.ts';
 import { CONTENT, farm, playOpening } from './simulate-run.ts';
@@ -28,12 +32,17 @@ export const CAVE = {
   calm: 14,
   shunFor: 180,
   shunReach: 24,
+  throughMinutes: 30,
+  gearRarity: 'stormtouched',
 } as const;
 
 export const REFILL_AT: Readonly<Record<string, number>> = { careful: 0.9, average: 0.6, poor: 0.25 };
 
 export interface CaveJob {
   readonly zone: string;
+  readonly through: readonly string[];
+  readonly raise: number;
+  readonly gear: readonly string[];
   readonly enterLevel: number;
   readonly minutes: number;
   readonly skill: string;
@@ -252,13 +261,79 @@ function goTo(bot: Bot, zone: string, target: Vec2): boolean {
   return hunted(world) || distance(world.player.pos, target) <= CAVE.engage + CAVE.legArrive;
 }
 
+interface Sweep {
+  readonly zone: ZoneDef;
+  readonly tally: Tally;
+  readonly skill: string;
+  readonly stopWhenClear: boolean;
+}
+
+function sweepZone(bot: Bot, sweep: Sweep, until: number): number | null {
+  const world: World = bot.world;
+  const { zone, tally } = sweep;
+  enterZone(world, zone, { type: 'start' });
+  tally.start = world.time;
+  const end: Vec2 = farthestPoint(world.grid, walkDistances(world.grid, zone.playerStart));
+  const cleared: Set<ZonePack> = new Set<ZonePack>();
+  let farEndMinutes: number | null = null;
+  let refilledAt: number = 0;
+  const skipped: Map<string, number> = new Map<string, number>();
+  while (world.time < until) {
+    if (world.zone.id !== zone.id) enterZone(world, zone, { type: 'start' });
+    if (!world.player.alive) {
+      botStep(bot, []);
+      continue;
+    }
+    markCleared(world, cleared);
+    const fallen: boolean = tally.deaths > refilledAt;
+    if (dry(world, REFILL_AT[sweep.skill] ?? 0, fallen)) {
+      refill(bot, zone);
+      refilledAt = tally.deaths;
+      continue;
+    }
+    if (fallen) refilledAt = tally.deaths;
+    if (farEndMinutes === null && distance(world.player.pos, end) <= CAVE.farEnd) farEndMinutes = (world.time - tally.start) / 60;
+    const first: boolean = farEndMinutes === null;
+    const target: Vec2 | null = pick(world, first ? cleared : null, skipped, tally) ?? (first ? end : null);
+    if (target === null) {
+      if (!first && sweep.stopWhenClear) return farEndMinutes;
+      botStep(bot, []);
+      continue;
+    }
+    if (!goTo(bot, zone.id, target)) {
+      skipped.set(`${Math.round(target.x)},${Math.round(target.z)}`, world.time + CAVE.skipFor);
+      continue;
+    }
+    botFight(bot, (): boolean => false, null);
+  }
+  return farEndMinutes;
+}
+
+function emptyTally(): Tally {
+  return { start: 0, deaths: 0, kills: 0, levelMinutes: {}, open: new Map<number, OpenFight>(), fights: [], deathsAt: [], hurt: [] };
+}
+
+function raiseTo(world: World, level: number): void {
+  while (world.player.level < Math.min(level, world.content.player.xp.maxLevel)) grantXp(world, xpToNextLevel(world.content.player.xp, world.player.level) - world.player.xp);
+}
+
+function wear(world: World, bases: readonly string[]): void {
+  for (const base of bases) {
+    const item: ItemInstance | null = makeItem(world, world.player.level, base, CAVE.gearRarity, { kind: 'start', base });
+    if (item === null || !addToInventory(world.player, item)) throw new Error(`cannot give ${base}`);
+    equipFromInventory(world, world.player.inventory.indexOf(item));
+    if (!Object.values(world.player.equipped).includes(item)) throw new Error(`${base} could not be worn`);
+  }
+}
+
 export function runCave(job: CaveJob, policies: Policies): CaveRun {
   const skill: SkillPolicy | undefined = policies.skills.get(job.skill);
   const build: BuildPolicy | undefined = policies.builds.get(job.build);
   const zone: ZoneDef | undefined = CONTENT.zones.get(job.zone);
-  if (skill === undefined || build === undefined || zone === undefined) throw new Error(`no policy ${job.skill}/${job.build} or zone ${job.zone}`);
+  const through: (ZoneDef | undefined)[] = job.through.map((id: string): ZoneDef | undefined => CONTENT.zones.get(id));
+  if (skill === undefined || build === undefined || zone === undefined || through.includes(undefined)) throw new Error(`no policy ${job.skill}/${job.build} or zone ${[job.zone, ...job.through].join(', ')}`);
   const world: World = createWorld(CONTENT, build.hero === null ? { seed: job.seed, save: null, opening: true } : { seed: job.seed, save: null, opening: true, hero: build.hero });
-  const tally: Tally = { start: 0, deaths: 0, kills: 0, levelMinutes: {}, open: new Map<number, OpenFight>(), fights: [], deathsAt: [], hurt: [] };
+  const tally: Tally = emptyTally();
   let inside: boolean = false;
   const ignored: Map<number, number>[] = [];
   const bot: Bot = createBot(world, skill.habits, (events: readonly WorldEvent[]): void => {
@@ -270,42 +345,11 @@ export function runCave(job: CaveJob, policies: Policies): CaveRun {
   if (!playOpening(bot, skill)) return empty(false);
   botPlay(bot);
   farm(bot, world.time + CAVE.climbMinutes * 60, skill.loot, (): boolean => world.player.level >= job.enterLevel);
+  for (const before of through) if (before !== undefined) sweepZone(bot, { zone: before, tally: emptyTally(), skill: job.skill, stopWhenClear: true }, world.time + CAVE.throughMinutes * 60);
+  raiseTo(world, job.raise);
+  wear(world, job.gear);
   const enteredAtLevel: number = world.player.level;
-  enterZone(world, zone, { type: 'start' });
   inside = true;
-  tally.start = world.time;
-  const end: Vec2 = farthestPoint(world.grid, walkDistances(world.grid, zone.playerStart));
-  const cleared: Set<ZonePack> = new Set<ZonePack>();
-  let farEndMinutes: number | null = null;
-  let refilledAt: number = 0;
-  const skipped: Map<string, number> = new Map<string, number>();
-  const until: number = world.time + job.minutes * 60;
-  while (world.time < until) {
-    if (world.zone.id !== zone.id) enterZone(world, zone, { type: 'start' });
-    if (!world.player.alive) {
-      botStep(bot, []);
-      continue;
-    }
-    markCleared(world, cleared);
-    const fallen: boolean = tally.deaths > refilledAt;
-    if (dry(world, REFILL_AT[job.skill] ?? 0, fallen)) {
-      refill(bot, zone);
-      refilledAt = tally.deaths;
-      continue;
-    }
-    if (fallen) refilledAt = tally.deaths;
-    if (farEndMinutes === null && distance(world.player.pos, end) <= CAVE.farEnd) farEndMinutes = (world.time - tally.start) / 60;
-    const first: boolean = farEndMinutes === null;
-    const target: Vec2 | null = pick(world, first ? cleared : null, skipped, tally) ?? (first ? end : null);
-    if (target === null) {
-      botStep(bot, []);
-      continue;
-    }
-    if (!goTo(bot, zone.id, target)) {
-      skipped.set(`${Math.round(target.x)},${Math.round(target.z)}`, world.time + CAVE.skipFor);
-      continue;
-    }
-    botFight(bot, (): boolean => false, null);
-  }
+  const farEndMinutes: number | null = sweepZone(bot, { zone, tally, skill: job.skill, stopWhenClear: false }, world.time + job.minutes * 60);
   return { job, entered: true, enteredAtLevel, levelMinutes: tally.levelMinutes, deaths: tally.deaths, kills: tally.kills, minutes: (world.time - tally.start) / 60, farEndMinutes, fights: tally.fights, deathsAt: tally.deathsAt };
 }

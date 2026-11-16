@@ -9,7 +9,7 @@ import { books } from './parse-story.ts';
 import { storyFlagNames, storyProblems } from './story.ts';
 import { bossPackProblems, conditionProblems, roadProblems } from './road.ts';
 import { parseFlasks } from './flasks.ts';
-import { boss } from './parse-boss.ts';
+import { boss, pieceStrikes } from './parse-boss.ts';
 import { combatProblems, fieldDelivery, markDelivery, monsterMod, monsterTraits, reviveDelivery, skillMotion } from './parse-combat.ts';
 import { faction, factionProblems } from './parse-factions.ts';
 import { momentLibrary } from './parse-moments.ts';
@@ -174,7 +174,7 @@ function behaviour(value: unknown, where: string): MonsterBehaviour {
   const source: Fields = fields(value, where);
   const type: MonsterBehaviour['type'] = choice(source, 'type', ['chaser', 'ranged', 'stalker', 'swarm', 'ambush', 'fixed'] as const, where);
   if (type === 'chaser') return { type };
-  if (type === 'fixed') return { type, sealed: source['sealed'] === undefined ? false : flag(source, 'sealed', where), collateral: source['collateral'] === undefined ? 0 : share(source, 'collateral', where) };
+  if (type === 'fixed') return { type, sealed: source['sealed'] === undefined ? false : flag(source, 'sealed', where), collateral: source['collateral'] === undefined ? 0 : share(source, 'collateral', where), strikes: source['strikes'] === undefined ? null : pieceStrikes(source['strikes'], `${where}.strikes`) };
   if (type === 'stalker') return { type, orbitRange: positive(source, 'orbitRange', where) };
   if (type === 'swarm') return { type, ring: positive(source, 'ring', where) };
   if (type === 'ambush') return { type, spring: positive(source, 'spring', where) };

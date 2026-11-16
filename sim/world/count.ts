@@ -1,4 +1,4 @@
-import type { BossAnchor, BossDef, BossPhase, SkillDef } from '../content/types.ts';
+import type { BossAnchor, BossDef, BossPhase, PieceStrikes, SkillDef } from '../content/types.ts';
 import type { ReadonlyVec2, Vec2 } from '../math.ts';
 import { distance } from '../math.ts';
 import type { MonsterState, World } from './types.ts';
@@ -36,6 +36,18 @@ export function heldAtLine(world: World, monster: MonsterState): boolean {
 export function openScale(world: World, monster: MonsterState): number {
   const broken = monster.def.boss?.countBreak ?? null;
   return broken !== null && world.time < monster.openUntil ? broken.damageTaken : 1;
+}
+
+export function strikesOf(monster: MonsterState): PieceStrikes | null {
+  return monster.def.behaviour.type === 'fixed' ? monster.def.behaviour.strikes : null;
+}
+
+export function strike(world: World, monster: MonsterState, amount: number): number {
+  const strikes: PieceStrikes | null = strikesOf(monster);
+  if (strikes === null) return amount;
+  if (amount <= 0 || world.time < monster.strikeReady) return 0;
+  monster.strikeReady = world.time + strikes.gap;
+  return Math.min(monster.life, Math.ceil(monster.maxLife / strikes.count));
 }
 
 export function holdLine(world: World, monster: MonsterState, amount: number): number {

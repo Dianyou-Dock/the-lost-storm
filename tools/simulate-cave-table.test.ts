@@ -6,7 +6,7 @@ import type { CaveRow } from './simulate-cave-table.ts';
 import { caveRow, caveTable, median } from './simulate-cave-table.ts';
 
 function run(seed: number, levelMinutes: Readonly<Record<string, number>>, deaths: number, farEndMinutes: number | null, fights: readonly CaveFight[]): CaveRun {
-  return { job: { zone: 'under_hall', enterLevel: 8, minutes: 30, skill: 'average', build: 'mixed', seed }, entered: true, enteredAtLevel: 8, levelMinutes, deaths, kills: 300, minutes: 30, farEndMinutes, fights, deathsAt: [] };
+  return { job: { zone: 'under_hall', through: [], raise: 0, gear: [], enterLevel: 8, minutes: 30, skill: 'average', build: 'mixed', seed }, entered: true, enteredAtLevel: 8, levelMinutes, deaths, kills: 300, minutes: 30, farEndMinutes, fights, deathsAt: [] };
 }
 
 void test('the median of an even count is the mean of the middle two', (): void => {

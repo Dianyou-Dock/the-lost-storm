@@ -29,8 +29,8 @@ const CONTENT: Content = {
   monsters: new Map<string, MonsterDef>([
     ...ARENA_CONTENT.monsters,
     ['l_keeper', { ...thrall, id: 'l_keeper', life: 1000, scalesLife: false, boss: KEEPER }],
-    ['l_clock', { ...thrall, id: 'l_clock', life: 200, scalesLife: false, behaviour: { type: 'fixed', sealed: false, collateral: 1 } }],
-    ['l_book', { ...thrall, id: 'l_book', life: 200, scalesLife: false, behaviour: { type: 'fixed', sealed: true, collateral: 0 } }],
+    ['l_clock', { ...thrall, id: 'l_clock', life: 200, scalesLife: false, behaviour: { type: 'fixed', sealed: false, collateral: 1, strikes: null } }],
+    ['l_book', { ...thrall, id: 'l_book', life: 200, scalesLife: false, behaviour: { type: 'fixed', sealed: true, collateral: 0, strikes: null } }],
   ]),
 };
 

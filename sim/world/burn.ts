@@ -1,6 +1,6 @@
 import { attacksHeld } from './glitch-hold.ts';
 import { kill, teamOf } from './combat.ts';
-import { holdLine } from './count.ts';
+import { holdLine, strikesOf } from './count.ts';
 import type { Actor, BurnState, World } from './types.ts';
 
 export const BURN = {
@@ -9,7 +9,7 @@ export const BURN = {
 
 function scorch(world: World, target: Actor, burn: BurnState): boolean {
   if (target.kind === 'player' && (target.invulnerable > 0 || attacksHeld(world))) return true;
-  const amount: number = target.kind === 'monster' ? holdLine(world, target, burn.perTick) : burn.perTick;
+  const amount: number = target.kind === 'monster' ? holdLine(world, target, strikesOf(target) === null ? burn.perTick : 0) : burn.perTick;
   target.life -= amount;
   const killed: boolean = target.life <= 0;
   world.events.push({

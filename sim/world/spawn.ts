@@ -103,6 +103,7 @@ export function spawnMonster(world: World, def: MonsterDef, packId: number, cent
     beatAt: 0,
     sealed: def.behaviour.type === 'fixed' && def.behaviour.sealed,
     openUntil: 0,
+    strikeReady: 0,
     held: false,
     yielded: false,
     summonerId: origin.summonerId,
