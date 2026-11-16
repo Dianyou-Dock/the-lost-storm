@@ -28,13 +28,15 @@ import hideout from '../../data/zones/hideout.json' with { type: 'json' };
 import keepersGate from '../../data/zones/keepers_gate.json' with { type: 'json' };
 import underHall from '../../data/zones/under_hall.json' with { type: 'json' };
 import ledgerHall from '../../data/zones/ledger_hall.json' with { type: 'json' };
+import underHall2 from '../../data/zones/under_hall_2.json' with { type: 'json' };
+import underHall3 from '../../data/zones/under_hall_3.json' with { type: 'json' };
 import { contentProblems, parseContent } from './parse.ts';
 import type { RawContent } from './parse.ts';
 import { ContentError } from './read.ts';
 import type { Content } from './types.ts';
 import { modelFootprints, withFootprints } from './footprints.ts';
 
-export const RAW_CONTENT: RawContent = { skills, monsters, monsterMods, factions, items, skillTree, chart, rigs, attachments, wearables, baseLayers, surfaces, props, zones: [between, hallOfTime, hideout, keepersGate, underHall, ledgerHall], world, npcs, lines, quests, player, flasks, trade, books, moments, packRanks };
+export const RAW_CONTENT: RawContent = { skills, monsters, monsterMods, factions, items, skillTree, chart, rigs, attachments, wearables, baseLayers, surfaces, props, zones: [between, hallOfTime, hideout, keepersGate, underHall, ledgerHall, underHall2, underHall3], world, npcs, lines, quests, player, flasks, trade, books, moments, packRanks };
 
 export function loadContent(): Content {
   const parsed: Content = parseContent(RAW_CONTENT);

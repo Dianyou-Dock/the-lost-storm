@@ -87,10 +87,10 @@
     "                                           gggggg                      lllkkkkkll       ",
     "                                           gggggg                      llllkkkkl        ",
     "                                             ggg                        lllllll         ",
-    "                                                                                        ",
-    "                                                                                        ",
-    "                                                                                        ",
-    "                                                                                        ",
+    "                                                                         llll           ",
+    "                                                                         llll           ",
+    "                                                                         llll           ",
+    "                                                                         llll           ",
     "                                                                                        "
   ],
   "floors": {"c": "cave_floor", "s": "cave_stone", "g": "cave_gravel", "w": "cave_water", "m": "mud", "k": "black_rock", "l": "lichen_stone"},
@@ -174,10 +174,10 @@
     "uuuuuuuuuuujjjjljjjlllllllllllllllluhhgggggffffffhjjjjjjuuuuddddffddddcbbbbbbbbbbffffffu",
     "uuuuuuuuuuuujjjjjllllllllllllllllluuhhgggggffffffjjjjjjuuuuudddddfdffccbbbbbbbbbfffffffu",
     "uuuuuuuuuuuuuujjjjlllllllluuuuuuuuuuuhgghhhhgfffjjjjjjuuuuuudddffddddddcbbbbbbbffffffffu",
-    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuhhhhjhhhhjjjjjjjuuuuuuddddfdfdddddddddddfffffffffu",
-    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuhhhhhhjjjjjjjjjjuuuuuuuuuddddddddffffffffffffffffu",
-    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuhhhjhhhjjjjjjjjjuuuuuuuuuuuuddddddffffffffffffffuu",
-    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuhhhhhjjjjjjjjjjjuuuuuuuuuuuuddddfffffffffffffffuuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuhhhhjhhhhjjjjjjjuuuuuuddddfdfddddddbbbbbfffffffffu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuhhhhhhjjjjjjjjjjuuuuuuuuuddddddddffbbbbbfffffffffu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuhhhjhhhjjjjjjjjjuuuuuuuuuuuuddddddfbbbbbffffffffuu",
+    "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuhhhhhjjjjjjjjjjjuuuuuuuuuuuuddddfffbbbbbfffffffuuu",
     "uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuhhhhjjjjjjjjjuuuuuuuuuuuuuuddddfffffffffffffuuuu"
   ]},
   "outside": {"surface": "cave_bed", "reach": 3, "barrier": null},
@@ -458,14 +458,15 @@
     {"x": 119, "z": 116, "members": [{"monster": "unfinished_thrower", "count": 1}, {"monster": "unfinished_taker", "count": 1}], "level": 13},
     {"x": 130, "z": 123, "members": [{"monster": "wolf", "count": 4}, {"monster": "spider", "count": 2}], "level": 13},
     {"x": 109, "z": 128, "members": [{"monster": "unfinished_thrower", "count": 1}, {"monster": "unfinished_taker", "count": 1}], "level": 13},
-    {"x": 150, "z": 148, "members": [{"monster": "wolf", "count": 4}, {"monster": "spider", "count": 2}, {"monster": "rat", "count": 6}], "level": 13},
+    {"x": 151, "z": 144, "members": [{"monster": "wolf", "count": 4}, {"monster": "spider", "count": 2}, {"monster": "rat", "count": 6}], "level": 13},
     {"x": 140, "z": 149, "members": [{"monster": "unfinished_thrower", "count": 1}, {"monster": "unfinished_taker", "count": 1}], "level": 13},
     {"x": 160, "z": 139, "members": [{"monster": "wolf", "count": 4}, {"monster": "spider", "count": 2}], "level": 13}
   ],
   "packReturn": {"after": 90, "away": 30},
   "surge": null,
   "exits": [
-    {"id": "lair", "x": 141.6, "z": 18.4, "radius": 2.2, "to": "keepers_gate", "toExit": "under", "arrival": {"x": 136.6, "z": 23.4}, "requires": []}
+    {"id": "lair", "x": 141.6, "z": 18.4, "radius": 2.2, "to": "keepers_gate", "toExit": "under", "arrival": {"x": 136.6, "z": 23.4}, "requires": []},
+    {"id": "down", "x": 151, "z": 164, "radius": 2.2, "to": "under_hall_2", "toExit": "up", "arrival": {"x": 151, "z": 160}, "requires": []}
   ],
   "checkpoints": [
     {"id": "under_t3", "x": 60.5, "z": 56, "radius": 2.5},
