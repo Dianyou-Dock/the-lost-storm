@@ -1,8 +1,8 @@
 import graph from '../../data/moyu-graph.json' with { type: 'json' };
-import type { Content, SkillTreeNodeDef, ZoneDef } from './types.ts';
+import type { Content, SkillTreeNodeDef, ZoneDef, ZonePack } from './types.ts';
 
 export const MOYU_TITLE: string = '摸鱼 · 五行天赋图';
-export const MOYU_MAPS: readonly string[] = ['keepers_gate', 'under_hall', 'ledger_hall', 'under_hall_2', 'under_hall_3', 'ledger_hall_2', 'ledger_hall_3', 'lava_depths', 'lava_depths_2'];
+export const MOYU_MAPS: readonly string[] = ['hall_of_time', 'keepers_gate', 'under_hall', 'under_hall_2', 'under_hall_3', 'lava_depths', 'lava_depths_2', 'ledger_hall', 'ledger_hall_2', 'ledger_hall_3'];
 
 const ELEMENTS = [
   { id: '金', name: '金', tint: '#e2b86f' },
@@ -67,8 +67,14 @@ function graphNodes(): SkillTreeNodeDef[] {
   });
 }
 
+function freshPack(pack: ZonePack): ZonePack {
+  const fresh: ZonePack = { ...pack, when: [] };
+  Reflect.deleteProperty(fresh, 'level');
+  return fresh;
+}
+
 export function moyuContent(content: Content): Content {
-  const zones: Map<string, ZoneDef> = new Map<string, ZoneDef>([...content.zones].map(([id, zone]: [string, ZoneDef]): [string, ZoneDef] => [id, MOYU_MAPS.includes(id) ? { ...zone, packs: zone.packs.map((pack) => ({ ...pack, when: [] })), exits: zone.exits.map((exit) => ({ ...exit, requires: [] })) } : zone]));
+  const zones: Map<string, ZoneDef> = new Map<string, ZoneDef>([...content.zones].map(([id, zone]: [string, ZoneDef]): [string, ZoneDef] => [id, MOYU_MAPS.includes(id) ? { ...zone, levelUpTo: 41, packs: zone.packs.map(freshPack), exits: zone.exits.map((exit) => ({ ...exit, requires: [] })) } : zone]));
   return {
     ...content,
     skillTree: graphNodes(),
@@ -78,7 +84,7 @@ export function moyuContent(content: Content): Content {
       revision: content.chart.revision + 1,
       pointsPerLevel: 1,
       paths: ELEMENTS.map((element) => ({ id: element.id, name: element.name, tint: element.tint, description: `${element.name}属性与武器联动` })),
-      grants: [{ id: 'moyu_start', when: [], points: 1 }, ...MOYU_MAPS.map((zone: string) => ({ id: `moyu_visit_${zone}`, when: [{ type: 'visited' as const, zone, not: false }], points: 1 }))],
+      grants: [{ id: 'moyu_start', when: [], points: 1 }, ...MOYU_MAPS.filter((zone: string): boolean => zone !== 'hall_of_time').map((zone: string) => ({ id: `moyu_visit_${zone}`, when: [{ type: 'visited' as const, zone, not: false }], points: 1 }))],
     },
     player: { ...content.player, xp: { ...content.player.xp, maxLevel: 41 } },
     quests: new Map(),

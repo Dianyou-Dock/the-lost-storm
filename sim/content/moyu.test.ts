@@ -14,6 +14,8 @@ void test('portal content uses the five element chart without quests', (): void 
   assert.equal(content.chart.pointsPerLevel, 1);
   assert.equal(content.player.xp.maxLevel, 41);
   assert.equal(content.chart.grants.reduce((sum, grant): number => sum + grant.points, 0), 10);
+  assert.equal(content.zones.get('ledger_hall')?.packs.every((pack): boolean => pack.level === undefined), true);
+  assert.equal(content.zones.get('ledger_hall')?.levelUpTo, 41);
 });
 
 void test('a random map begins a fresh combat run and can be entered again', (): void => {
@@ -21,6 +23,7 @@ void test('a random map begins a fresh combat run and can be entered again', ():
   assert.equal(world.zone.id, 'hideout');
   const first = stepWorld(world, [{ type: 'random_map' }], 1 / 30);
   assert.equal(MOYU_MAPS.includes(world.zone.id), true);
+  assert.equal(world.zone.level <= 3, true);
   assert.equal(first.some((event): boolean => event.type === 'zone_changed'), true);
   const previous = world.zone.id;
   const second = stepWorld(world, [{ type: 'random_map' }], 1 / 30);

@@ -239,7 +239,7 @@ function act(world: World, command: Command): void {
       return;
     case 'random_map': {
       if (!isMoyu(world.content)) return;
-      const choices: readonly string[] = MOYU_MAPS.filter((id: string): boolean => id !== world.zone.id);
+      const choices: readonly string[] = MOYU_MAPS.filter((id: string): boolean => id !== world.zone.id && (world.content.zones.get(id)?.level ?? Number.POSITIVE_INFINITY) <= world.player.level + 2);
       const id: string | undefined = choices[world.rng.int(0, choices.length - 1)];
       const zone = id === undefined ? undefined : world.content.zones.get(id);
       if (zone === undefined) return;
