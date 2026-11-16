@@ -4,7 +4,7 @@ import { loadContent } from '../../sim/content/content.ts';
 import type { Content } from '../../sim/content/types.ts';
 import { LOBBY_ORBIT } from './lobby-orbit.ts';
 import { LOBBY_SETS, pickSet, readLobbySets, setMounds } from './lobby-sets.ts';
-import type { LobbySet, SetPiece } from './lobby-sets.ts';
+import type { LobbySet, SetPiece, Skyline, SkylinePiece } from './lobby-sets.ts';
 
 const content: Content = loadContent();
 
@@ -13,16 +13,34 @@ void test('every lobby set dresses its ground and pieces from surfaces and props
     assert.ok(content.surfaces.has(set.ground), `${set.id} ground ${set.ground}`);
     if (set.stone !== null) assert.ok(content.surfaces.has(set.stone), `${set.id} stone ${set.stone}`);
     for (const piece of set.pieces) assert.ok(content.props.has(piece.prop), `${set.id} piece ${piece.prop}`);
+    const rubble: string | undefined = set.skirt?.rubble?.prop;
+    if (rubble !== undefined) assert.ok(content.props.has(rubble), `${set.id} rubble ${rubble}`);
   }
 });
 
-void test('there is a set for the first lobby and three more to choose from, and the first is still the one shown', (): void => {
+void test('every set blends its pieces into the ground they stand on', (): void => {
+  for (const set of LOBBY_SETS.sets.values()) {
+    assert.ok(set.skirt !== null, `${set.id} has no ground skirt`);
+    assert.ok(set.skirt.height > 0 && set.skirt.darken > 0 && set.skirt.rubble !== null, set.id);
+  }
+});
+
+void test('the lobby shows the road before the Keeper\'s Gate, and any other set can still be asked for by name', (): void => {
   assert.deepEqual([...LOBBY_SETS.sets.keys()], ['stones', 'hall', 'cave', 'gate']);
-  assert.equal(LOBBY_SETS.chosen, 'stones');
+  assert.equal(LOBBY_SETS.chosen, 'gate');
   assert.deepEqual([...LOBBY_SETS.sets.values()].filter((set: LobbySet): boolean => set.shadows).map((set: LobbySet): string => set.id), ['stones']);
-  assert.equal(pickSet(LOBBY_SETS, '').id, 'stones');
+  assert.equal(pickSet(LOBBY_SETS, '').id, 'gate');
   assert.equal(pickSet(LOBBY_SETS, '?lobby-set=cave').id, 'cave');
-  assert.equal(pickSet(LOBBY_SETS, '?lobby-set=nowhere').id, 'stones');
+  assert.equal(pickSet(LOBBY_SETS, '?lobby-set=nowhere').id, 'gate');
+});
+
+void test('the gate road has a horizon in depth: walls, then ruined towers, then hills, each farther and paler', (): void => {
+  const gate: LobbySet | undefined = LOBBY_SETS.sets.get('gate');
+  assert.ok(gate !== undefined);
+  const radii: readonly number[] = gate.skylines.map((skyline: Skyline): number => skyline.radius);
+  assert.ok(radii.length >= 3);
+  assert.ok(gate.skylines.some((skyline: Skyline): boolean => skyline.pieces.some((piece: SkylinePiece): boolean => piece.kind === 'hill' || piece.kind === 'cliff')));
+  assert.ok(gate.skylines.some((skyline: Skyline): boolean => skyline.pieces.some((piece: SkylinePiece): boolean => piece.lit > 0)));
 });
 
 function blocksView(piece: SetPiece): boolean {
@@ -42,7 +60,7 @@ void test('nothing tall stands in the ring the camera turns on, so the orbit nev
 function coverage(set: LobbySet): number {
   const seen: Set<number> = new Set<number>();
   for (const piece of set.pieces) if (Math.hypot(piece.x, piece.z) > LOBBY_ORBIT.far.distance) seen.add(Math.floor(((Math.atan2(piece.x, -piece.z) * 180) / Math.PI + 360) / 30) % 12);
-  for (const piece of set.skyline?.pieces ?? []) seen.add(Math.floor((((piece.angleDegrees % 360) + 360) % 360) / 30));
+  for (const piece of set.skylines.flatMap((skyline: Skyline): readonly SkylinePiece[] => skyline.pieces)) seen.add(Math.floor((((piece.angleDegrees % 360) + 360) % 360) / 30));
   return seen.size;
 }
 
@@ -55,7 +73,7 @@ void test('each new set dresses the whole way round, so the slow turn of the lob
 });
 
 void test('a set is read strictly: a missing chosen set, reversed fog or lightning, or an unknown skyline shape is refused', (): void => {
-  const good = { chosen: 'a', sets: [{ id: 'a', ground: 'black_rock', stone: null, shade: 0.5, fogNear: 10, fogFar: 20, haze: 0, pieces: [{ prop: 'rock_1', x: 1, z: 2, mound: true }], skyline: null, flash: null }] };
+  const good = { chosen: 'a', sets: [{ id: 'a', ground: 'black_rock', stone: null, shade: 0.5, fogNear: 10, fogFar: 20, haze: 0, pieces: [{ prop: 'rock_1', x: 1, z: 2, mound: true }], flash: null }] };
   const read = readLobbySets(good);
   const set: LobbySet | undefined = read.sets.get('a');
   assert.ok(set !== undefined);
@@ -64,7 +82,10 @@ void test('a set is read strictly: a missing chosen set, reversed fog or lightni
   assert.throws((): void => void readLobbySets({ ...good, zones: { hall_of_time: 'b' } }));
   assert.throws((): void => void readLobbySets({ ...good, sets: [{ ...good.sets[0], fogFar: 5 }] }));
   assert.throws((): void => void readLobbySets({ ...good, sets: [{ ...good.sets[0], flash: { everyMin: 9, everyMax: 3, strength: 1 } }] }));
-  assert.throws((): void => void readLobbySets({ ...good, sets: [{ ...good.sets[0], skyline: { radius: 30, pieces: [{ kind: 'dome', angle: 0, width: 1, height: 1 }] } }] }));
+  assert.throws((): void => void readLobbySets({ ...good, sets: [{ ...good.sets[0], skylines: [{ radius: 30, pieces: [{ kind: 'dome', angle: 0, width: 1, height: 1 }] }] }] }));
+  assert.throws((): void => void readLobbySets({ ...good, sets: [{ ...good.sets[0], skirt: { height: 0.4, contact: 0.5, darken: 0.4, hue: 0.2, rubble: { prop: 'rubble_chip', count: 3, sizeMin: 1, sizeMax: 0.5, from: 1, to: 1.4, minRadius: 1 } } }] }));
+  assert.equal(set.skirt, null);
+  assert.deepEqual(set.skylines, []);
 });
 
 void test('a zone can name the set the lobby shows for a character who last stood there, and a set asked for by name still wins', (): void => {
