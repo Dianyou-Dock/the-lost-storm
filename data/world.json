@@ -72,6 +72,18 @@
             "x": 470,
             "y": 335,
             "when": [{"type": "visited", "zone": "under_hall_2", "not": false}]
+          },
+          {
+            "zone": "ledger_hall_2",
+            "x": 600,
+            "y": 270,
+            "when": [{"type": "visited", "zone": "ledger_hall_2", "not": false}]
+          },
+          {
+            "zone": "ledger_hall_3",
+            "x": 640,
+            "y": 240,
+            "when": [{"type": "visited", "zone": "ledger_hall_3", "not": false}]
           }
         ],
         "roads": [
@@ -139,6 +151,16 @@
                 "y": 350
               }
             ]
+          },
+          {
+            "from": "ledger_hall",
+            "to": "ledger_hall_2",
+            "via": []
+          },
+          {
+            "from": "ledger_hall_2",
+            "to": "ledger_hall_3",
+            "via": []
           }
         ],
         "features": [

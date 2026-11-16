@@ -290,6 +290,24 @@
       "stingers": [
         { "sound": "clock_tick_great", "volume": 0.35, "minDelay": 14, "maxDelay": 30 }
       ]
+    },
+    "ledger_hall_2": {
+      "loops": [
+        { "sound": "ambience_hall_1", "volume": 0.55 },
+        { "sound": "ambience_drone_dark", "volume": 0.2 }
+      ],
+      "stingers": [
+        { "sound": "clock_tick_great", "volume": 0.35, "minDelay": 14, "maxDelay": 30 }
+      ]
+    },
+    "ledger_hall_3": {
+      "loops": [
+        { "sound": "ambience_hall_1", "volume": 0.55 },
+        { "sound": "ambience_drone_dark", "volume": 0.2 }
+      ],
+      "stingers": [
+        { "sound": "clock_tick_great", "volume": 0.35, "minDelay": 14, "maxDelay": 30 }
+      ]
     }
   }
 }
