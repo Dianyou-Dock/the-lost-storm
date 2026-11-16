@@ -33,7 +33,7 @@ import { readAssetBase } from './audio/manifest.ts';
 import type { Placement } from './audio/mix.ts';
 import { CENTRE } from './audio/mix.ts';
 import type { AudioControls } from './audio/settings.ts';
-import { browserSettingsStorage, createSettingsStore, voiceAudible } from './audio/settings.ts';
+import { browserSettingsStorage, createSettingsStore, PORTAL_SETTINGS, voiceAudible } from './audio/settings.ts';
 import type { AudioSystem, Trigger } from './audio/system.ts';
 import { createAudioSystem } from './audio/system.ts';
 import type { AccountService } from './backend/account.ts';
@@ -249,7 +249,8 @@ async function start(): Promise<void> {
   stage.setHeroLight(world.zone.heroLight);
   placeLine.show(world.zone.name);
   const audioDef: AudioDef = loadAudio(content);
-  const controls: AudioControls = createSettingsStore(browserSettingsStorage());
+  const portalAudio: boolean = import.meta.env.MODE === 'portal';
+  const controls: AudioControls = createSettingsStore(browserSettingsStorage(portalAudio), portalAudio ? PORTAL_SETTINGS : undefined);
   const audio: AudioSystem = createAudioSystem({
     base: readAssetBase(import.meta.env['VITE_ASSET_BASE']),
     controls,

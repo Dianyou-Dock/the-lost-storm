@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { AudioControls, AudioSettings, SettingsStorage } from './settings.ts';
-import { createSettingsStore, DEFAULT_SETTINGS, parseSettings, voiceAudible } from './settings.ts';
+import { createSettingsStore, DEFAULT_SETTINGS, parseSettings, PORTAL_SETTINGS, voiceAudible } from './settings.ts';
 
 function memory(initial: string | null): SettingsStorage & { saved: string | null; writes: number } {
   const storage = {
@@ -53,6 +53,14 @@ void test('changes are saved, clamped, announced once and survive a reload', ():
   assert.equal(controls.get().muted, true);
   const reloaded: AudioControls = createSettingsStore(storage);
   assert.deepEqual(reloaded.get(), controls.get());
+});
+
+void test('the offline portal starts silent and keeps a player choice to enable sound', (): void => {
+  const storage = memory(null);
+  const controls: AudioControls = createSettingsStore(storage, PORTAL_SETTINGS);
+  assert.equal(controls.get().muted, true);
+  controls.setMuted(false);
+  assert.equal(createSettingsStore(storage, PORTAL_SETTINGS).get().muted, false);
 });
 
 void test('a voice is heard only when sound is not muted and neither the master nor the voice level is at zero', (): void => {
