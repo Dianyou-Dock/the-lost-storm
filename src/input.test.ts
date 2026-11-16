@@ -71,7 +71,7 @@ function noPlayers(): PlayerHooks {
   return { at: null, takes: (): boolean => false, pressed: [], hovered: [] };
 }
 
-function rig(world: World, overUi: () => boolean = (): boolean => false, players: PlayerHooks = noPlayers()): Rig {
+function rig(world: World, overUi: () => boolean = (): boolean => false, players: PlayerHooks = noPlayers(), label: () => number | null = (): number | null => null): Rig {
   const heard: Heard = new Map<string, EventListenerOrEventListenerObject[]>();
   const canvas: InputSurface = { addEventListener: hearing(heard), getBoundingClientRect: rect, setPointerCapture: (): void => undefined, style: { cursor: 'default' } };
   const keys: KeySource = { addEventListener: hearing(heard) };
@@ -91,7 +91,7 @@ function rig(world: World, overUi: () => boolean = (): boolean => false, players
   const hud: InputHud = { isPointerOverUi: overUi, closePanels: (): boolean => false, togglePanel: (): void => undefined, requestMap: (): void => undefined };
   const store: KeyValueStore = { read: (): null => null, write: (): boolean => true, remove: (): void => undefined };
   const settings: SettingsStore = createSettingsStore(store, SLOTS, { flasks: 0, ladder: false });
-  const hooks: InputHooks = { heightOf: (): number => 1.8, boundsOf: (): boolean => false, labelHover: (): null => null, clickMarker: (): void => undefined, aimExit: (): void => undefined, aimItem: (): void => undefined,
+  const hooks: InputHooks = { heightOf: (): number => 1.8, boundsOf: (): boolean => false, labelHover: label, clickMarker: (): void => undefined, aimExit: (): void => undefined, aimItem: (): void => undefined,
     playerAt: (): string | null => players.at,
     hoverPlayer: (id: string | null): void => {
       players.hovered.push(id);
@@ -457,5 +457,17 @@ void test('a press on an exit that is released and pressed again within one fram
   setup.fire('pointermove', at(ground, -1, 0));
   setup.fire('pointerdown', at(ground, LEFT.button, LEFT.bit));
   assert.equal(freshMoves(setup.input.collect(DT)).length, 1);
+});
+
+void test('a name label that is still reported hovered never turns a click on open ground into a talk with that person', (): void => {
+  const world: World = hideoutWorld();
+  const lookout = must(world.npcs.find((npc): boolean => npc.def.id === 'warden_lookout'), 'lookout');
+  const setup: Rig = rig(world, (): boolean => false, noPlayers(), (): number | null => lookout.id);
+  const ground: Vec2 = { x: world.player.pos.x - 6, z: world.player.pos.z + 1 };
+  assert.ok(Math.hypot(ground.x - lookout.pos.x, ground.z - lookout.pos.z) > 3, 'the ground is away from the lookout');
+  const commands: Command[] = clickOn(setup, screenOf(world, ground));
+  assert.deepEqual(commands.filter((command: Command): boolean => command.type === 'talk'), []);
+  assert.equal(freshMoves(commands).length, 1);
+  assert.equal(setup.input.hoveredId, null);
 });
 
