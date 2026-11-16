@@ -64,9 +64,9 @@ function appendHeadline(parent: HTMLElement, headline: Headline): void {
   if (headline.row.deltaText !== null) label(`tip-delta${deltaClass(headline.row.delta)}`, headline.row.deltaText, block);
 }
 
-function appendVerdict(parent: HTMLElement, verdict: Verdict): void {
+function appendVerdict(parent: HTMLElement, verdict: Verdict, moyu: boolean): void {
   const line: HTMLDivElement = el('div', `tip-verdict ${verdict.kind}`, parent);
-  label('tip-verdict-word', VERDICT_WORDS[verdict.kind], line);
+  label('tip-verdict-word', moyu && verdict.kind === 'trade' ? '各有优劣' : VERDICT_WORDS[verdict.kind], line);
   const parts: readonly string[] = verdictParts(verdict);
   if (parts.length > 0) label('tip-verdict-detail', parts.join(' · '), line);
 }
@@ -120,7 +120,7 @@ function itemCard(api: HudApi, item: ItemInstance, equipped: ItemInstance | null
   if (family !== null) appendPower(root, family);
   if (compare) {
     const verdict: Verdict | null = itemVerdict(content, api.world.player, api.world.zone, item);
-    if (verdict !== null) appendVerdict(root, verdict);
+    if (verdict !== null) appendVerdict(root, verdict, isMoyu(content));
   }
   if (hint !== null) label('tip-hint', hint, root);
   return root;

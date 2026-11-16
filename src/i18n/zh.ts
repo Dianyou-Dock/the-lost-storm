@@ -29,10 +29,39 @@ const overrides: Dictionary = {
   'Critical Chance': '暴击率',
   'Critical chance': '暴击率',
   'Damage': '伤害',
+  'Maximum Life': '最大生命',
+  'Maximum Mana': '最大法力',
+  'Life Regenerated per Second': '每秒生命恢复',
+  'Mana Regenerated per Second': '每秒法力恢复',
+  'Minimum Damage': '最小伤害',
+  'Maximum Damage': '最大伤害',
+  'Attack Speed': '攻击速度',
+  'Critical Strike Chance': '暴击率',
+  'Critical Strike Damage': '暴击伤害',
+  'Movement Speed': '移动速度',
+  'Gold Found': '金币掉落',
+  'Storm Resistance': '风暴抗性',
+  'Frost Resistance': '冰霜抗性',
+  'Headgear': '头盔',
+  'Body Armour': '胸甲',
+  'Leggings': '护腿',
+  'Charm': '护符',
+  'Cloth': '布甲',
+  'Leather': '皮甲',
+  'Mail': '锁甲',
+  'Plate': '板甲',
+  'Better': '更强',
+  'Worse': '更弱',
+  'Trade': '交易',
+  'Same': '相当',
+  'Equipped': '已装备',
+  'average hit': '平均单次伤害',
+  'damage': '伤害',
+  'toughness': '生存',
+  'attack speed': '攻击速度',
   'Damage per second': '每秒伤害',
   'Drop?': '丢弃？',
   'Close Inventory': '关闭背包',
-  'Charm': '护符',
   'Biggest hit': '最高单次伤害',
   'Gold looted': '获得金币',
   'Critical multiplier': '暴击伤害倍率',
@@ -103,7 +132,15 @@ function phrase(value: string): string {
   if (lastSeen !== null) return `上次位于${phrase(lastSeen[1] ?? '')}`;
   const points: RegExpMatchArray | null = /^(\d+) points$/.exec(value);
   if (points !== null) return `${points[1]} 点可用`;
-  const stat: RegExpMatchArray | null = /^([+-]\d+(?:\.\d+)?%?) (.+)$/.exec(value);
+  const itemLevel: RegExpMatchArray | null = /^Item level (\d+)$/.exec(value);
+  if (itemLevel !== null) return `物品等级 ${itemLevel[1]}`;
+  const rarity: RegExpMatchArray | null = /^(普通|精良|优秀|史诗|传说) (.+)$/.exec(value);
+  if (rarity !== null) return `${rarity[1]} ${phrase(rarity[2] ?? '')}`;
+  const armourKind: RegExpMatchArray | null = /^(Cloth|Leather|Mail|Plate) (Headgear|Body Armour|Gloves|Leggings|Boots)$/.exec(value);
+  if (armourKind !== null) return `${phrase(armourKind[1] ?? '')}${phrase(armourKind[2] ?? '')}`;
+  const range: RegExpMatchArray | null = /^(\d+(?:\.\d+)?)–(\d+(?:\.\d+)?) Damage$/.exec(value);
+  if (range !== null) return `${range[1]}–${range[2]} 伤害`;
+  const stat: RegExpMatchArray | null = /^([+−-]\d+(?:\.\d+)?%?) (.+)$/.exec(value);
   if (stat !== null) return `${stat[1]} ${phrase(stat[2] ?? '')}`;
   if (value.includes(' · ')) return value.split(' · ').map(phrase).join(' · ');
   return value;
