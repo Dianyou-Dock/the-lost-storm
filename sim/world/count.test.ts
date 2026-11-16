@@ -39,8 +39,9 @@ const KEEPER: BossDef = {
 const MONSTERS: readonly MonsterDef[] = [
   { ...thrall, id: 't_keeper', life: 1000, scalesLife: false, moveSpeed: 4, skill: 'k_cut', boss: KEEPER },
   { ...thrall, id: 't_reacher', life: 1000, scalesLife: false, moveSpeed: 4, skill: 'k_cut', boss: { ...KEEPER, phases: [phase(1, { measure: ['k_cut', 'k_far'], beat: 1 })] } },
-  { ...thrall, id: 't_clock', life: 200, scalesLife: false, xp: 0, behaviour: { type: 'fixed', sealed: false, collateral: 1 }, poise: { knockback: 0, stagger: 0, resolve: 0 } },
-  { ...thrall, id: 't_book', life: 200, scalesLife: false, xp: 0, behaviour: { type: 'fixed', sealed: true, collateral: 0 }, poise: { knockback: 0, stagger: 0, resolve: 0 } },
+  { ...thrall, id: 't_clock', life: 200, scalesLife: false, xp: 0, behaviour: { type: 'fixed', sealed: false, collateral: 1, strikes: null }, poise: { knockback: 0, stagger: 0, resolve: 0 } },
+  { ...thrall, id: 't_tally', life: 300, scalesLife: false, xp: 0, behaviour: { type: 'fixed', sealed: false, collateral: 1, strikes: { count: 3, gap: 2 } }, poise: { knockback: 0, stagger: 0, resolve: 0 } },
+  { ...thrall, id: 't_book', life: 200, scalesLife: false, xp: 0, behaviour: { type: 'fixed', sealed: true, collateral: 0, strikes: null }, poise: { knockback: 0, stagger: 0, resolve: 0 } },
 ];
 
 const CONTENT: Content = {
@@ -226,4 +227,31 @@ void test('a measure step he cannot reach is passed over after a beat, and the n
   assert.ok(starts.length > 0, 'the measure moved on');
   assert.ok(starts.every((start): boolean => start.skill === 'k_far'), 'the step out of reach is never struck');
   assert.ok(must(starts[0], 'first start').time <= 2.5, `first ranged step at ${must(starts[0], 'first start').time}`);
+});
+
+function strikeWith(world: World, target: MonsterState, damage: number): number {
+  const before: number = target.life;
+  applyHit(world, { ...offenceOf(world.player), damageMin: damage, damageMax: damage, damagePercent: 0, critChance: 0 }, target, must(CONTENT.skills.get('k_cut'), 'k_cut'), { x: 1, z: 0 });
+  return before - target.life;
+}
+
+void test('a piece that takes strikes loses a set share to any hit, once a gap, and breaks on its last strike', (): void => {
+  const { world } = hall(9);
+  const tally: MonsterState = place(world, 't_tally', { x: ARENA_CENTRE.x - 7, z: ARENA_CENTRE.z });
+  assert.equal(strikeWith(world, tally, 1), 100, 'a light hit strikes a full share');
+  assert.equal(strikeWith(world, tally, 5000), 0, 'a heavy hit inside the gap does nothing');
+  run(world, 2.1);
+  assert.equal(strikeWith(world, tally, 5000), 100, 'a heavy hit strikes no more than a share');
+  run(world, 2.1);
+  strikeWith(world, tally, 1);
+  assert.equal(tally.alive, false);
+});
+
+void test('a burn never wears down a piece that takes strikes', (): void => {
+  const { world } = hall(10);
+  const tally: MonsterState = place(world, 't_tally', { x: ARENA_CENTRE.x - 7, z: ARENA_CENTRE.z });
+  const skill: SkillDef = must(CONTENT.skills.get('k_cut'), 'k_cut');
+  tally.burn = { source: skill.id, skill, offence: offenceOf(world.player), perTick: 50, tickLeft: 0.1, ticksLeft: 10 };
+  run(world, 2);
+  assert.equal(tally.life, tally.maxLife);
 });

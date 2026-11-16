@@ -21,7 +21,7 @@ import { steadiness } from './poise.ts';
 import { steadied } from './momentum.ts';
 import { flinchTogether } from './unison.ts';
 import { dealtScale } from './weaken.ts';
-import { holdLine, openScale } from './count.ts';
+import { holdLine, openScale, strike } from './count.ts';
 import type { ActionState, Actor, BrandState, BurnState, GuardOutcome, ItemInstance, MonsterState, Offence, Team, World } from './types.ts';
 import { sameFloor } from './floors.ts';
 
@@ -187,7 +187,7 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
   const weakened: number = striker === null ? 1 : dealtScale(world, striker);
   const exposed: number = target.kind === 'monster' ? openScale(world, target) * collateralScale(offence, target) : 1;
   const rolled: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded * weakened * exposed));
-  const amount: number = target.kind === 'monster' ? holdLine(world, target, rolled) : rolled;
+  const amount: number = target.kind === 'monster' ? holdLine(world, target, strike(world, target, rolled)) : rolled;
   target.life -= amount;
   const poise: number = steadiness(target) * (guard === 'blocked' ? COMBAT.guardedKnockback : 1);
   const steady: boolean = steadied(target) || rollsSteady(target);

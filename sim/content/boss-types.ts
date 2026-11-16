@@ -19,6 +19,11 @@ export interface BossPhase {
   readonly anchor: BossAnchor | null;
 }
 
+export interface PieceStrikes {
+  readonly count: number;
+  readonly gap: number;
+}
+
 export interface CountBreak {
   readonly stagger: number;
   readonly open: number;

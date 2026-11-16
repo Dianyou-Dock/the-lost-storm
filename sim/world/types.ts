@@ -238,6 +238,7 @@ export interface MonsterState extends ActorState {
   beatAt: number;
   sealed: boolean;
   openUntil: number;
+  strikeReady: number;
   held: boolean;
   yielded: boolean;
   readonly summonerId: number | null;

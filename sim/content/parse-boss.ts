@@ -1,6 +1,6 @@
 import type { Fields } from './read.ts';
 import { ContentError, each, fields, flag, fraction, numeric, positive, text, textList } from './read.ts';
-import type { BossAnchor, BossDef, BossFirstKill, BossPhase, BossSkill, CountBreak } from './boss-types.ts';
+import type { BossAnchor, BossDef, BossFirstKill, BossPhase, BossSkill, CountBreak, PieceStrikes } from './boss-types.ts';
 
 function bossSkill(value: unknown, where: string): BossSkill {
   const source: Fields = fields(value, where);
@@ -54,6 +54,13 @@ function firstKill(value: unknown, where: string): BossFirstKill | null {
   if (goldMin < 0) throw new ContentError(`${where}.goldMin`, 'expected zero or more');
   if (goldMax < goldMin) throw new ContentError(`${where}.goldMax`, 'expected at least goldMin');
   return { flag: text(source, 'flag', where), xpShare: fraction(source, 'xpShare', where), goldMin, goldMax };
+}
+
+export function pieceStrikes(value: unknown, where: string): PieceStrikes {
+  const source: Fields = fields(value, where);
+  const count: number = numeric(source, 'count', where);
+  if (!Number.isInteger(count) || count < 1) throw new ContentError(`${where}.count`, 'expected a whole number, one or more');
+  return { count, gap: positive(source, 'gap', where) };
 }
 
 function countBreak(value: unknown, where: string): CountBreak | null {
