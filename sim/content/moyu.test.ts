@@ -149,6 +149,19 @@ void test('base points affect skills and every element mix has a stable distinct
   assert.equal(resolveSkill(content, base, ['synergy-血芽']).vfx.color, moyuSkillEffect(['synergy-血芽'])?.color);
 });
 
+void test('the five element chart groups basic paths, two element effects and three element effects into clear rings', (): void => {
+  const nodes = moyuContent(loadContent()).skillTree;
+  const radius = (node: typeof nodes[number]): number => Math.hypot(node.column, node.row) * 72;
+  const bases = nodes.filter((node) => node.id.startsWith('base-'));
+  const pairs = nodes.filter((node) => node.id.startsWith('word-') || node.id.startsWith('synergy-'));
+  const triples = nodes.filter((node) => node.id.startsWith('variant-') || node.id.startsWith('confluence-'));
+  assert.equal(Math.max(...bases.map(radius)) < Math.min(...pairs.map(radius)), true);
+  assert.equal(Math.max(...pairs.map(radius)) < Math.min(...triples.map(radius)), true);
+  let closest: number = Number.POSITIVE_INFINITY;
+  for (const [index, node] of nodes.entries()) for (const other of nodes.slice(index + 1)) closest = Math.min(closest, Math.hypot(node.column - other.column, node.row - other.row) * 72);
+  assert.equal(closest >= 60, true);
+});
+
 void test('farming equipment has five exact random affix tiers and respec is free', (): void => {
   const content = moyuContent(loadContent());
   assert.deepEqual(content.rarities.map((rarity) => [rarity.name, rarity.affixMin, rarity.affixMax]), [['普通', 1, 1], ['精良', 2, 2], ['优秀', 3, 3], ['史诗', 4, 4], ['传说', 5, 5]]);

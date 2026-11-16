@@ -14,7 +14,71 @@ const ELEMENTS = [
 ] as const;
 const ELEMENT_ORDER: string = '金木水火土';
 const ELEMENT_COLORS: ReadonlyMap<string, string> = new Map(ELEMENTS.map((element): [string, string] => [element.id, element.tint]));
-const COORDS: ReadonlyMap<string, { readonly x: number; readonly y: number }> = new Map(Object.entries(graph.coords));
+const MOYU_LAYOUT = {
+  centreX: 1000,
+  centreY: 950,
+  baseStart: 130,
+  baseStep: 82,
+  wordRadius: 850,
+  synergyRadius: 950,
+  synergyStep: 85,
+  variantRadius: 1250,
+  variantStep: 85,
+  confluenceRadius: 1435,
+  pairSpread: 78,
+  tripleSpread: 100,
+} as const;
+type MoyuGraphNode = (typeof graph.nodes)[number];
+
+function nodeElements(node: MoyuGraphNode): string[] {
+  return [node.element, node.support, node.third].filter((part): part is string => part !== undefined).toSorted((a: string, b: string): number => ELEMENT_ORDER.indexOf(a) - ELEMENT_ORDER.indexOf(b));
+}
+
+function elementAngle(element: string): number {
+  return -Math.PI / 2 + ELEMENT_ORDER.indexOf(element) * Math.PI * 2 / ELEMENT_ORDER.length;
+}
+
+function comboAngle(elements: readonly string[]): number {
+  const x: number = elements.reduce((sum: number, element: string): number => sum + Math.cos(elementAngle(element)), 0);
+  const y: number = elements.reduce((sum: number, element: string): number => sum + Math.sin(elementAngle(element)), 0);
+  return Math.atan2(y, x);
+}
+
+function layoutPoint(angle: number, radius: number, tangent: number = 0): { readonly x: number; readonly y: number } {
+  return { x: MOYU_LAYOUT.centreX + Math.cos(angle) * radius - Math.sin(angle) * tangent, y: MOYU_LAYOUT.centreY + Math.sin(angle) * radius + Math.cos(angle) * tangent };
+}
+
+function layoutCoords(): ReadonlyMap<string, { readonly x: number; readonly y: number }> {
+  const placed: Map<string, { readonly x: number; readonly y: number }> = new Map();
+  for (const element of ELEMENT_ORDER) {
+    const bases = graph.nodes.filter((node): boolean => node.type === 'base' && node.element === element);
+    bases.forEach((node, index: number): void => { placed.set(node.id, layoutPoint(elementAngle(element), MOYU_LAYOUT.baseStart + index * MOYU_LAYOUT.baseStep)); });
+  }
+  const groups: Map<string, MoyuGraphNode[]> = new Map();
+  for (const node of graph.nodes) {
+    if (!['word', 'synergy', 'variant', 'confluence'].includes(node.type)) continue;
+    const key: string = nodeElements(node).join('');
+    const group: MoyuGraphNode[] = groups.get(key) ?? [];
+    group.push(node);
+    groups.set(key, group);
+  }
+  for (const [key, group] of groups) {
+    const angle: number = comboAngle(key.split(''));
+    for (const type of ['word', 'synergy', 'variant', 'confluence']) {
+      const tier = group.filter((node): boolean => node.type === type);
+      tier.forEach((node, index: number): void => {
+        const triple: boolean = key.length === 3;
+        const radius: number = type === 'word' ? MOYU_LAYOUT.wordRadius : type === 'synergy' ? MOYU_LAYOUT.synergyRadius + Math.floor(index / 2) * MOYU_LAYOUT.synergyStep : type === 'variant' ? MOYU_LAYOUT.variantRadius + Math.floor(index / 3) * MOYU_LAYOUT.variantStep : MOYU_LAYOUT.confluenceRadius;
+        const across: number = type === 'synergy' ? index % 2 : type === 'variant' ? index % 3 : index;
+        const width: number = type === 'synergy' ? Math.min(2, tier.length) : type === 'variant' || type === 'confluence' ? Math.min(3, tier.length) : tier.length;
+        placed.set(node.id, layoutPoint(angle, radius, (across - (width - 1) / 2) * (triple ? MOYU_LAYOUT.tripleSpread : MOYU_LAYOUT.pairSpread)));
+      });
+    }
+  }
+  return placed;
+}
+
+const COORDS: ReadonlyMap<string, { readonly x: number; readonly y: number }> = layoutCoords();
 const BOSS_TEMPLATES: readonly string[] = ['stormcaller_rival', 'timekeeper_gatekeeper', 'unfinished_colossus'];
 const BOSS_NAMES: readonly string[] = ['下层回响', '洞窟回响', '深窟回响', '熔渊斗士', '熔渊巨像', '账厅守卫', '账厅裁决者', '终厅巨像'];
 const MOYU_NODE_TYPES: ReadonlySet<string> = new Set(['base', 'word', 'synergy', 'variant', 'confluence']);
@@ -103,7 +167,7 @@ export function moyuSkillEffect(allocated: readonly string[]): MoyuSkillEffect |
   const nodes = allocated.toReversed().map(moyuNode).filter((node): boolean => node !== null && MOYU_NODE_TYPES.has(node.type));
   const linked = nodes.find((node): boolean => node !== null && node.type !== 'base') ?? nodes[0];
   if (linked === undefined || linked === null) return null;
-  const elements = [linked.element, linked.support, linked.third].filter((part): part is string => part !== undefined).toSorted((a: string, b: string): number => ELEMENT_ORDER.indexOf(a) - ELEMENT_ORDER.indexOf(b));
+  const elements = nodeElements(linked);
   const colors = elements.map((element: string): string => ELEMENT_COLORS.get(element) ?? '#ffffff');
   const channels = [1, 3, 5].map((offset: number): number => Math.round(colors.reduce((sum: number, color: string): number => sum + Number.parseInt(color.slice(offset, offset + 2), 16), 0) / colors.length));
   return { label: elements.join('·'), color: `#${channels.map((channel: number): string => channel.toString(16).padStart(2, '0')).join('')}`, count: elements.length };

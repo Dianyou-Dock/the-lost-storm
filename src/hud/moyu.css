@@ -33,6 +33,141 @@
   white-space: nowrap;
 }
 
+.tree-panel.moyu {
+  background: radial-gradient(ellipse at 50% 50%, rgba(35, 46, 63, 0.55), rgba(5, 7, 11, 0.95) 75%), #05070b;
+}
+
+.tree-panel.moyu .tree-track:not(.route) {
+  stroke: color-mix(in srgb, var(--tint) 18%, transparent);
+  stroke-width: 1.1;
+}
+
+.tree-panel.moyu .tree-flow.open {
+  opacity: 0.28;
+}
+
+.moyu-combo-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 10px;
+  background: rgba(5, 8, 14, 0.88);
+  border-bottom: 1px solid rgba(155, 177, 198, 0.14);
+}
+
+.moyu-combo-caption {
+  flex: none;
+  color: #b8c6d2;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.moyu-combo-tabs,
+.moyu-combo-chips {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.moyu-combo-tabs {
+  flex: none;
+}
+
+.moyu-combo-chips {
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.moyu-combo-chips::-webkit-scrollbar {
+  display: none;
+}
+
+.moyu-combo-tab,
+.moyu-combo-reset,
+.moyu-combo-chip {
+  flex: none;
+  min-height: 30px;
+  padding: 3px 8px;
+  border: 1px solid rgba(160, 180, 195, 0.2);
+  border-radius: 4px;
+  background: rgba(20, 26, 36, 0.75);
+  color: #b8c6d2;
+  font-size: 11px;
+  cursor: pointer;
+  transition: background var(--spring-smooth-ms) var(--spring-smooth), color var(--spring-smooth-ms) var(--spring-smooth), border-color var(--spring-smooth-ms) var(--spring-smooth);
+}
+
+.moyu-combo-tab.selected,
+.moyu-combo-chip.selected {
+  background: rgba(51, 64, 82, 0.9);
+  color: #fff;
+}
+
+.moyu-combo-chip {
+  color: var(--combo-color);
+  border-color: color-mix(in srgb, var(--combo-color) 38%, transparent);
+}
+
+.moyu-combo-chip.ready {
+  box-shadow: inset 0 -2px 0 var(--combo-color);
+}
+
+.moyu-combo-chip.taken {
+  background: color-mix(in srgb, var(--combo-color) 24%, #0b1018);
+}
+
+.moyu-combo-chip[hidden] {
+  display: none;
+}
+
+.tree-panel.moyu .tree-socket.moyu-combo-node .tree-socket-well {
+  box-shadow: inset 0 0 0 1px var(--tint), 0 0 9px color-mix(in srgb, var(--tint) 35%, transparent);
+}
+
+.moyu-combo-node-name {
+  display: none;
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 50%;
+  z-index: 2;
+  padding: 1px 4px;
+  background: rgba(6, 9, 15, 0.92);
+  color: var(--tint);
+  font-size: 10px;
+  white-space: nowrap;
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+.tree-viewport.moyu-combo-focus .tree-socket.match .moyu-combo-node-name {
+  display: block;
+}
+
+.tree-panel.moyu .tree-viewport.searching .tree-track:not(.route),
+.tree-panel.moyu .tree-viewport.searching .tree-shade {
+  opacity: 0.12;
+}
+
+@media (max-width: 700px) {
+  .moyu-combo-nav {
+    flex-wrap: wrap;
+    gap: 4px 8px;
+    padding: 5px 8px;
+  }
+
+  .moyu-combo-chips {
+    flex-basis: 100%;
+  }
+
+  .moyu-combo-chip {
+    min-height: 34px;
+    min-width: 42px;
+  }
+}
+
 .hud-skillbar.moyu .slot-name {
   position: absolute;
   left: 1px;

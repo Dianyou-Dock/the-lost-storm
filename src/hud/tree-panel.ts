@@ -1,5 +1,5 @@
 import type { ChartPath, SkillTreeNodeDef } from '../../sim/content/types.ts';
-import { hotWeapon, isMoyu, moyuNode, moyuRequirements } from '../../sim/content/moyu.ts';
+import { hotWeapon, isMoyu, moyuNode, moyuRequirements, moyuSkillEffect } from '../../sim/content/moyu.ts';
 import type { PlayerState } from '../../sim/world/types.ts';
 import { refundBlock, refundCost, refundState, respecCost, respecState } from '../../sim/progression.ts';
 import type { ChartChange } from '../../sim/progression.ts';
@@ -36,11 +36,13 @@ import type { CardEvent, CardState, CardStep } from './tree-card.ts';
 const CHART = {
   unit: TREE_NODES.unit,
   margin: 4,
+  moyuMargin: 16,
   dragThreshold: 5,
   velocityBlend: 0.35,
   wheelLine: 32,
   zoomStep: 360,
   findZoom: 1.2,
+  comboZoom: 1.65,
   confirmMs: 3200,
   hoverGraceMs: 320,
   hoverDwellMs: 120,
@@ -70,9 +72,22 @@ interface LinkView {
   readonly to: string;
 }
 
+interface ComboEntry {
+  readonly key: string;
+  readonly count: number;
+  readonly button: HTMLButtonElement;
+  readonly nodes: readonly SkillTreeNodeDef[];
+}
+
+function comboOf(node: SkillTreeNodeDef): string | null {
+  const effect = moyuSkillEffect([node.id]);
+  return effect !== null && effect.count > 1 ? effect.label.replaceAll('·', '') : null;
+}
+
 export function createTreePanel(parent: HTMLElement, context: HudContext, close: () => void): ChartPanel {
   const content = context.api.world.content;
   const element: HTMLDivElement = el('div', 'hud-panel left tree-panel', parent);
+  element.classList.toggle('moyu', isMoyu(content));
   element.style.setProperty('--socket', `${TREE_NODES.minor}px`);
   element.style.setProperty('--notable', `${TREE_NODES.notable}px`);
   element.style.setProperty('--keystone', `${TREE_NODES.keystone}px`);
@@ -81,7 +96,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
   element.style.setProperty('--variant-rim', `${TREE_NODES.variantRim}px`);
   const head: HTMLDivElement = el('div', 'tree-head', element);
   label('tree-title', content.chart.title, head);
-  if (isMoyu(content)) label('moyu-prototype-note', '双属性与三属性节点会强化当前装备武器的技能', head);
+  if (isMoyu(content)) label('moyu-prototype-note', '选择组合可直接定位对应节点', head);
   const points: HTMLDivElement = el('div', 'tree-points', head);
   const pointCount: HTMLSpanElement = el('span', 'tree-points-count', points);
   const pointWord: HTMLSpanElement = el('span', 'tree-points-word', points);
@@ -112,11 +127,14 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
     close();
   });
 
+  const comboNav: HTMLDivElement | null = isMoyu(content) ? el('div', 'moyu-combo-nav', element) : null;
+
   const nodes: readonly SkillTreeNodeDef[] = content.skillTree;
   const bounds: ChartBounds = chartBounds(nodes);
-  const mapWidth: number = (bounds.right - bounds.left + CHART.margin * 2) * CHART.unit;
-  const mapHeight: number = (bounds.bottom - bounds.top + CHART.margin * 2) * CHART.unit;
-  const place = (point: ChartPoint): ChartPoint => ({ x: (point.x - bounds.left + CHART.margin) * CHART.unit, y: (point.y - bounds.top + CHART.margin) * CHART.unit });
+  const margin: number = isMoyu(content) ? CHART.moyuMargin : CHART.margin;
+  const mapWidth: number = (bounds.right - bounds.left + margin * 2) * CHART.unit;
+  const mapHeight: number = (bounds.bottom - bounds.top + margin * 2) * CHART.unit;
+  const place = (point: ChartPoint): ChartPoint => ({ x: (point.x - bounds.left + margin) * CHART.unit, y: (point.y - bounds.top + margin) * CHART.unit });
   const centreOf = (node: SkillTreeNodeDef): ChartPoint => place({ x: node.column, y: node.row });
   const eye: ChartPoint = place({ x: 0, y: 0 });
 
@@ -129,7 +147,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
   svg.setAttribute('viewBox', `0 0 ${mapWidth} ${mapHeight}`);
   board.appendChild(svg);
 
-  const sky: ChartSky | null = createChartSky(viewport, {
+  const sky: ChartSky | null = isMoyu(content) ? null : createChartSky(viewport, {
     eyeX: eye.x,
     eyeY: eye.y,
     unit: CHART.unit,
@@ -482,7 +500,12 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
     button.setAttribute('aria-label', node.name);
     button.style.left = `${centre.x}px`;
     button.style.top = `${centre.y}px`;
-    button.style.setProperty('--tint', pathTint(content, node.path));
+    const elemental = isMoyu(content) ? moyuSkillEffect([node.id]) : null;
+    button.style.setProperty('--tint', elemental?.color ?? pathTint(content, node.path));
+    if (elemental !== null && elemental.count > 1) {
+      button.classList.add('moyu-combo-node');
+      label('moyu-combo-node-name', node.name, button);
+    }
     if (node.variants.length > 0) button.classList.add('variant');
     if (node.unlock !== null) button.classList.add('ability');
     el('span', 'tree-socket-rim', button);
@@ -523,14 +546,77 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
     if (event.pointerType !== 'touch') sendCard({ type: 'point', node: null });
   });
 
+  let activeCombo: string | null = null;
+  let comboMode: number = 2;
+  const comboEntries: ComboEntry[] = [];
   const showMatches = (): void => {
-    const found: ReadonlySet<string> | null = chartMatches(content, search.value);
+    const found: ReadonlySet<string> | null = activeCombo === null ? chartMatches(content, search.value) : new Set(nodes.filter((node: SkillTreeNodeDef): boolean => comboOf(node) === activeCombo).map((node: SkillTreeNodeDef): string => node.id));
     viewport.classList.toggle('searching', found !== null);
+    viewport.classList.toggle('moyu-combo-focus', activeCombo !== null);
     for (const view of views) view.button.classList.toggle('match', found !== null && found.has(view.def.id));
+    for (const entry of comboEntries) entry.button.classList.toggle('selected', entry.key === activeCombo);
   };
+  if (comboNav !== null) {
+    label('moyu-combo-caption', '定位组合', comboNav);
+    const tabs: HTMLDivElement = el('div', 'moyu-combo-tabs', comboNav);
+    const chips: HTMLDivElement = el('div', 'moyu-combo-chips', comboNav);
+    const modes: HTMLButtonElement[] = [];
+    for (const count of [2, 3]) {
+      const button: HTMLButtonElement = el('button', 'moyu-combo-tab', tabs);
+      button.type = 'button';
+      button.textContent = count === 2 ? '双元素' : '三元素';
+      button.addEventListener('click', (): void => {
+        comboMode = count;
+        for (const mode of modes) mode.classList.toggle('selected', mode === button);
+        for (const entry of comboEntries) entry.button.hidden = entry.count !== count;
+      });
+      button.classList.toggle('selected', count === comboMode);
+      modes.push(button);
+    }
+    const reset: HTMLButtonElement = el('button', 'moyu-combo-reset', tabs);
+    reset.type = 'button';
+    reset.textContent = '全图';
+    reset.addEventListener('click', (): void => {
+      activeCombo = null;
+      search.value = '';
+      showMatches();
+      moved = false;
+      target = frameChart(frame, openingView());
+      sendCard({ type: 'clear' });
+    });
+    const groups: Map<string, SkillTreeNodeDef[]> = new Map();
+    for (const node of nodes) {
+      const key: string | null = comboOf(node);
+      if (key === null) continue;
+      const group: SkillTreeNodeDef[] = groups.get(key) ?? [];
+      group.push(node);
+      groups.set(key, group);
+    }
+    for (const [key, group] of groups) {
+      const effect = moyuSkillEffect([group[0]?.id ?? '']);
+      if (effect === null) continue;
+      const button: HTMLButtonElement = el('button', 'moyu-combo-chip', chips);
+      button.type = 'button';
+      button.textContent = key;
+      button.style.setProperty('--combo-color', effect.color);
+      button.hidden = effect.count !== comboMode;
+      button.setAttribute('aria-label', `定位${effect.label}组合`);
+      button.addEventListener('click', (): void => {
+        activeCombo = key;
+        search.value = '';
+        showMatches();
+        const centre: ChartPoint = group.reduce((sum: ChartPoint, node: SkillTreeNodeDef): ChartPoint => ({ x: sum.x + centreOf(node).x, y: sum.y + centreOf(node).y }), { x: 0, y: 0 });
+        moved = true;
+        target = clampChart({ x: centre.x / group.length, y: centre.y / group.length, scale: Math.max(target.scale, CHART.comboZoom) }, frame);
+        sendCard({ type: 'clear' });
+      });
+      comboEntries.push({ key, count: effect.count, button, nodes: group });
+    }
+  }
   let findIndex: number = 0;
   search.addEventListener('input', (): void => {
     findIndex = 0;
+    activeCombo = null;
     showMatches();
   });
   search.addEventListener('keydown', (event: KeyboardEvent): void => {
@@ -561,11 +647,23 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
     sendCard({ type: 'close' });
   }).observe(element, { attributes: true, attributeFilter: ['class'] });
   const openingView = (): ChartPoint[] => {
+    if (activeCombo !== null) {
+      const group: ComboEntry | undefined = comboEntries.find((entry: ComboEntry): boolean => entry.key === activeCombo);
+      if (group !== undefined) {
+        const centre: ChartPoint = group.nodes.reduce((sum: ChartPoint, node: SkillTreeNodeDef): ChartPoint => ({ x: sum.x + centreOf(node).x, y: sum.y + centreOf(node).y }), { x: 0, y: 0 });
+        return [{ x: centre.x / group.nodes.length, y: centre.y / group.nodes.length }];
+      }
+    }
     const at: string | null = chartHere(content, player().allocated);
     const hereNode: SkillTreeNodeDef | undefined = at === null ? undefined : byId.get(at);
+    if (isMoyu(content)) return [hereNode === undefined ? eye : centreOf(hereNode)];
     const open: ChartPoint[] = nodes.filter((node: SkillTreeNodeDef): boolean => reachable(statusOf(node))).map(centreOf);
     if (hereNode === undefined) return open.length > 0 ? [eye, ...open] : [eye];
     return [centreOf(hereNode), ...open];
+  };
+  const reopenView = (): AtlasView => {
+    const view: AtlasView = reopenChart(frame, { last: lastView, choosing: player().skillPoints > 0, points: openingView() });
+    return activeCombo === null ? view : clampChart({ ...view, scale: Math.max(view.scale, CHART.comboZoom) }, frame);
   };
 
   const sync = (): void => {
@@ -577,7 +675,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
     const fresh: boolean = you.skillPoints === 0 && you.allocated.length === 0;
     prompt.classList.toggle('shown', you.skillPoints > 0 || fresh);
     prompt.classList.toggle('empty', fresh);
-    if (you.skillPoints > 0) setText(prompt, pointsPrompt(you.skillPoints, you.allocated.length), true);
+    if (you.skillPoints > 0) setText(prompt, isMoyu(content) ? '选择基础点，或用上方组合导航定位' : pointsPrompt(you.skillPoints, you.allocated.length), true);
     else if (fresh) setText(prompt, CHART.emptyLine, false);
     restart.classList.toggle('shown', you.allocated.length > 0);
     restart.classList.toggle('free', you.freeReset);
@@ -592,6 +690,10 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
       const toTaken: boolean = you.allocated.includes(link.to);
       link.path.classList.toggle('lit', fromTaken && toTaken);
       link.path.classList.toggle('open', fromTaken !== toTaken);
+    }
+    for (const entry of comboEntries) {
+      entry.button.classList.toggle('taken', entry.nodes.some((node: SkillTreeNodeDef): boolean => you.allocated.includes(node.id)));
+      entry.button.classList.toggle('ready', entry.nodes.some((node: SkillTreeNodeDef): boolean => statusOf(node).kind === 'available'));
     }
     measureFoot();
     fillCard();
@@ -612,7 +714,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
           holding = false;
           board.classList.add('releasing');
         }
-        target = reopenChart(frame, { last: lastView, choosing: player().skillPoints > 0, points: openingView() });
+        target = reopenView();
         motion = still(target);
         measureNames();
         apply();
@@ -626,7 +728,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
       warmed = true;
       frame = measured();
       frameDirty = false;
-      target = reopenChart(frame, { last: lastView, choosing: player().skillPoints > 0, points: openingView() });
+      target = reopenView();
       motion = still(target);
       sync();
       measureNames();
@@ -662,7 +764,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
         const now: AtlasFrame = measured();
         if (!sameFrame(now, frame)) {
           frame = now;
-          target = moved ? clampChart(target, frame) : reopenChart(frame, { last: lastView, choosing: player().skillPoints > 0, points: openingView() });
+          target = moved ? clampChart(target, frame) : reopenView();
           motion = still(moved ? clampChart(motion.view, frame) : target);
           measureNames();
           measureCard();

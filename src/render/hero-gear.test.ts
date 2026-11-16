@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { AnimationClip, Bone, BufferGeometry, Group, Mesh, MeshStandardMaterial } from 'three';
+import { AnimationClip, Bone, BufferGeometry, Group, Mesh, MeshStandardMaterial, PointLight } from 'three';
 import { must } from '../../test/support.ts';
 import { loadContent } from '../../sim/content/content.ts';
 import type { AttachmentDef, Content, RigDef, ZoneDef } from '../../sim/content/types.ts';
@@ -14,7 +14,7 @@ import { enterZone } from '../../sim/world/zones.ts';
 import type { ActorView } from './actor-view.ts';
 import { createActorView } from './actor-view.ts';
 import type { CharacterLibrary, LoadedAttachment, LoadedRig, RigClipSet, RigInstance } from './character-loader.ts';
-import { instantiateRig } from './character-loader.ts';
+import { instantiateRig, WEAPON_GLOW } from './character-loader.ts';
 import { holdEquipped } from './hero-gear.ts';
 
 const content: Content = loadContent();
@@ -111,6 +111,30 @@ void test('a blade whose model loads late is picked up on the next frame', (): v
   held.attachments.set(visual, bladeAttachment());
   holdEquipped(content, rig, world.player.equipped);
   assert.equal(rig.armed(), true);
+});
+
+void test('a held weapon glows in the active combination color and clears after a reset', (): void => {
+  const world: World = armedWorld();
+  const rig: RigInstance = hero(library(true));
+  holdEquipped(content, rig, world.player.equipped);
+  const materials: MeshStandardMaterial[] = [];
+  rig.root.traverse((object): void => {
+    if (object instanceof Mesh && object.material instanceof MeshStandardMaterial) materials.push(object.material);
+  });
+  const weapon: MeshStandardMaterial = must(materials[0], 'held weapon material');
+  assert.equal(weapon.emissive.getHexString(), '000000');
+  rig.setWeaponGlow('#a2c664', WEAPON_GLOW.pair);
+  assert.equal(weapon.emissive.getHexString(), 'a2c664');
+  assert.equal(weapon.emissiveIntensity, WEAPON_GLOW.pair);
+  const lamps: PointLight[] = [];
+  rig.root.traverse((object): void => { if (object instanceof PointLight) lamps.push(object); });
+  assert.equal(lamps.length, 1);
+  assert.equal(lamps[0]?.intensity, WEAPON_GLOW.pair * WEAPON_GLOW.lightShare);
+  rig.setWeaponGlow('#82b990', WEAPON_GLOW.triple);
+  assert.equal(weapon.emissive.getHexString(), '82b990');
+  rig.setWeaponGlow(null, 0);
+  assert.equal(weapon.emissive.getHexString(), '000000');
+  assert.equal(lamps[0].intensity, 0);
 });
 
 void test('a weapon held in its own stance plays that stance\'s idle and shot, and falls back to the rig\'s own clips for the rest', (): void => {
