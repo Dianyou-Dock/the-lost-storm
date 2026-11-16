@@ -366,6 +366,7 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
       } finally {
         renderer.setRenderTarget(previous);
       }
+      gpu.mark();
     },
     initTexture(texture: Texture): void {
       renderer.initTexture(texture);
