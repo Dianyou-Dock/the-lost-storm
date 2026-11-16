@@ -25,10 +25,19 @@
 
 .boss-title {
   margin-top: 1px;
+  max-height: 18px;
+  overflow: hidden;
   font-size: 12.5px;
   font-style: italic;
   color: var(--text-dim);
   text-shadow: var(--legible-shadow);
+  transition: max-height var(--spring-smooth-ms) var(--spring-smooth), opacity var(--spring-smooth-ms) var(--spring-smooth), margin-top var(--spring-smooth-ms) var(--spring-smooth);
+}
+
+.boss-title.absent {
+  max-height: 0;
+  margin-top: 0;
+  opacity: 0;
 }
 
 .boss-track {

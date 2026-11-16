@@ -2,7 +2,7 @@ import type { BossDef } from '../../sim/content/types.ts';
 import type { MonsterState, World } from '../../sim/world/types.ts';
 import { pickTarget } from '../../sim/world/target.ts';
 import type { Target } from '../../sim/world/target.ts';
-import { clamp01, el, setText } from './dom.ts';
+import { clamp01, el, setClass, setText } from './dom.ts';
 
 const BOSS_BAR = {
   step: 0.002,
@@ -11,6 +11,11 @@ const BOSS_BAR = {
 export interface BossBar {
   readonly element: HTMLElement;
   update(world: World): void;
+}
+
+export function plateTitle(name: string, title: string): string | null {
+  const shown: string = title.trim();
+  return shown === '' || shown.toLocaleLowerCase() === name.trim().toLocaleLowerCase() ? null : shown;
 }
 
 function fighting(world: World): MonsterState | null {
@@ -32,7 +37,9 @@ export function createBossBar(root: HTMLElement): BossBar {
 
   const describe = (monster: MonsterState, boss: BossDef): void => {
     setText(name, monster.def.name, false);
-    setText(title, boss.title, false);
+    const shown: string | null = plateTitle(monster.def.name, boss.title);
+    if (shown !== null) setText(title, shown, false);
+    setClass(title, 'absent', shown === null);
     marks.replaceChildren();
     for (const phase of boss.phases.slice(1)) {
       const mark: HTMLElement = el('i', 'boss-mark', marks);

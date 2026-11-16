@@ -34,6 +34,8 @@ import type { Soaking } from './soak-look.ts';
 import { SOAK_COLOR, SOAK_LOOK, soakDried, soakedFor, stepSoak } from './soak-look.ts';
 import type { CountLook, CountShade } from './count-look.ts';
 import { countShadeOf, createCountLook } from './count-look.ts';
+import { createPresenceLook } from './presence-look.ts';
+import type { PresenceLook } from './presence-look.ts';
 import type { VfxShadow } from '../../sim/content/vfx-types.ts';
 import type { EmpowerLook } from '../../sim/content/types.ts';
 import type { BodySwap, SwapMix } from './body-swap.ts';
@@ -172,6 +174,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   const shadeColor: Color = new Color();
   const soaks: Map<number, Soaking> = new Map<number, Soaking>();
   const countLook: CountLook = createCountLook(scene);
+  const presenceLook: PresenceLook = createPresenceLook(scene);
   const countShades: Map<number, { readonly motion: ShadeMotion; color: Color }> = new Map<number, { readonly motion: ShadeMotion; color: Color }>();
   const standChosen = (current: World): void => {
     const wanted: string = heroRig(content, current.player.hero);
@@ -358,6 +361,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       };
       standChosen(current);
       countLook.update(dt, current);
+      presenceLook.update(dt, current);
       if (librarySize() !== dressedWith) {
         dressedWith = librarySize();
         dressHero(current);

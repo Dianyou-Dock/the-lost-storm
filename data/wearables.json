@@ -447,6 +447,17 @@
     "hides": []
   },
   {
+    "id": "ledger_mantle",
+    "model": "models/wear/{frame}/peasant.glb",
+    "pieces": [
+      "Peasant_Body",
+      "Peasant_Arms"
+    ],
+    "region": "chest",
+    "tint": "#6b4a1c",
+    "hides": []
+  },
+  {
     "id": "keeper_robe",
     "model": "models/wear/{frame}/peasant.glb",
     "pieces": [

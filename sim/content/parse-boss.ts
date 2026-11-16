@@ -1,6 +1,6 @@
 import type { Fields } from './read.ts';
-import { ContentError, each, fields, flag, fraction, numeric, positive, text, textList } from './read.ts';
-import type { BossAnchor, BossDef, BossFirstKill, BossPhase, BossSkill, CountBreak, PieceStrikes } from './boss-types.ts';
+import { ContentError, colour, each, fields, flag, fraction, numeric, positive, text, textList } from './read.ts';
+import type { BossAnchor, BossDef, BossFirstKill, BossPhase, BossPresence, BossSkill, CountBreak, PieceStrikes } from './boss-types.ts';
 
 function bossSkill(value: unknown, where: string): BossSkill {
   const source: Fields = fields(value, where);
@@ -69,6 +69,14 @@ function countBreak(value: unknown, where: string): CountBreak | null {
   return { stagger: positive(source, 'stagger', where), open: positive(source, 'open', where), damageTaken: positive(source, 'damageTaken', where) };
 }
 
+export function bossPresence(value: unknown, where: string): BossPresence | null {
+  if (value === undefined || value === null) return null;
+  const source: Fields = fields(value, where);
+  const glow: number = positive(source, 'glow', where);
+  if (glow > 1) throw new ContentError(`${where}.glow`, 'expected a number above 0, at most 1');
+  return { color: colour(source, 'color', where), radius: positive(source, 'radius', where), glow };
+}
+
 export function boss(value: unknown, where: string): BossDef | null {
   if (value === undefined || value === null) return null;
   const source: Fields = fields(value, where);
@@ -89,5 +97,6 @@ export function boss(value: unknown, where: string): BossDef | null {
     barks: { aggro: textList(barks, 'aggro', `${where}.barks`), death: textList(barks, 'death', `${where}.barks`) },
     countBreak: countBreak(source['countBreak'], `${where}.countBreak`),
     yields: source['yields'] === undefined ? false : flag(source, 'yields', where),
+    presence: bossPresence(source['presence'], `${where}.presence`),
   };
 }

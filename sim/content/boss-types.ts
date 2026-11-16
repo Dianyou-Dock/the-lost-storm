@@ -62,4 +62,11 @@ export interface BossDef {
   readonly barks: BossBarks;
   readonly countBreak: CountBreak | null;
   readonly yields: boolean;
+  readonly presence: BossPresence | null;
+}
+
+export interface BossPresence {
+  readonly color: string;
+  readonly radius: number;
+  readonly glow: number;
 }

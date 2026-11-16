@@ -4,7 +4,7 @@ import type { BufferAttribute, InterleavedBufferAttribute, Material } from 'thre
 import { BoxGeometry, Color, Mesh, NormalBlending, ShaderMaterial, Vector3 } from 'three';
 import type { Delivery } from '../../sim/content/types.ts';
 import { loadContent } from '../../sim/content/content.ts';
-import { groundArcs, lightningLine, pillarMesh, programKeepers, projectileMesh, scorchMesh, skyBolt, slashMesh, telegraphFor } from './effect-shapes.ts';
+import { groundArcs, lightningLine, pillarMesh, programKeepers, projectileMesh, scorchMesh, skyBolt, slashMesh, SHAPES, spotLook, telegraphFor, telegraphLook } from './effect-shapes.ts';
 import type { Telegraph } from './effect-shapes.ts';
 import type { GroundLight } from './ground-light.ts';
 import { createGroundLight, GROUND_LIGHT_FRAGMENT } from './ground-light.ts';
@@ -88,4 +88,11 @@ void test('a leap that shows its path lays a feathered lane from where it spring
   assert.equal(lane.mesh.material.uniforms['uLaneSpan']?.value, 4);
   assert.ok(Math.abs(Number(lane.mesh.material.uniforms['uRadius']?.value) - 1) < 1e-9);
   assert.ok(lane.mesh.scale.x / 2 > 4, 'the plane reaches back to where the leap began');
+});
+
+void test('a small round telegraph is lit solid to its middle, and a wide one keeps its hollow centre', (): void => {
+  assert.equal(spotLook(0.8).hollow, 0);
+  assert.equal(spotLook(SHAPES.spotOpen).hollow, telegraphLook(SHAPES.spotOpen).hollow);
+  const between: number = spotLook((SHAPES.spotSolid + SHAPES.spotOpen) / 2).hollow ?? 0;
+  assert.ok(between > 0 && between < SHAPES.telegraphHollow);
 });

@@ -790,8 +790,8 @@
     "rig": "timekeeper",
     "bodyMaterial": "flesh",
     "faction": "timekeepers",
-    "scale": 1.45,
-    "radius": 0.55,
+    "scale": 1.7,
+    "radius": 0.65,
     "life": 5800,
     "damageMin": 16,
     "damageMax": 18,
@@ -814,8 +814,8 @@
       "keeper_blade"
     ],
     "wear": [
-      "keeper_robe",
-      "lens_mask",
+      "ledger_mantle",
+      "crown_tines",
       "keeper_gloves"
     ],
     "boss": {
@@ -899,7 +899,12 @@
         "open": 5,
         "damageTaken": 1.5
       },
-      "yields": true
+      "yields": true,
+      "presence": {
+        "color": "#e8c46a",
+        "radius": 2.6,
+        "glow": 0.32
+      }
     }
   },
   {

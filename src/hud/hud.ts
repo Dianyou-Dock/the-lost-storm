@@ -14,7 +14,7 @@ import { armedLine } from './armed-line.ts';
 import type { ArmedLine } from './armed-line.ts';
 import { createBarkStrip } from './bark-strip.ts';
 import type { BarkStrip } from './bark-strip.ts';
-import { createBossBar } from './boss-bar.ts';
+import { createBossBar, plateTitle } from './boss-bar.ts';
 import type { BossBar } from './boss-bar.ts';
 import bossCss from './boss.css?inline';
 import bannersCss from './banners.css?inline';
@@ -389,7 +389,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
             break;
           case 'boss_defeated': {
             const def: MonsterDef | undefined = api.world.content.monsters.get(event.monster);
-            if (def !== undefined) banners.show(`${def.name} defeated`, event.first ? 'First victory' : (def.boss?.title ?? null), 'boss');
+            if (def !== undefined) banners.show(`${def.name} defeated`, event.first ? 'First victory' : def.boss === null ? null : plateTitle(def.name, def.boss.title), 'boss');
             break;
           }
           case 'bark':

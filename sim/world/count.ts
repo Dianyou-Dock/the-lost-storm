@@ -42,6 +42,10 @@ export function strikesOf(monster: MonsterState): PieceStrikes | null {
   return monster.def.behaviour.type === 'fixed' ? monster.def.behaviour.strikes : null;
 }
 
+export function strikeWaiting(world: World, monster: MonsterState): boolean {
+  return strikesOf(monster) !== null && world.time < monster.strikeReady;
+}
+
 export function strike(world: World, monster: MonsterState, amount: number): number {
   const strikes: PieceStrikes | null = strikesOf(monster);
   if (strikes === null) return amount;

@@ -22,6 +22,7 @@ const KEEPER: BossDef = {
   ],
   countBreak: null,
   yields: true,
+  presence: null,
 };
 
 const CONTENT: Content = {

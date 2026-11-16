@@ -29,6 +29,8 @@ export const SHAPES = {
   telegraphWobble: 0.12,
   telegraphHollow: 0.6,
   telegraphGrain: 0.6,
+  spotSolid: 1.2,
+  spotOpen: 3,
   laneStart: 0.7,
 } as const;
 
@@ -177,13 +179,18 @@ export function telegraphLook(reach: number): GroundLightLook {
   return { fill: 1, band: 0, width: Math.max(SHAPES.telegraphWidthMin, reach * SHAPES.telegraphWidth), wobble: reach * SHAPES.telegraphWobble, hollow: SHAPES.telegraphHollow, grain: SHAPES.telegraphGrain };
 }
 
+export function spotLook(radius: number): GroundLightLook {
+  const open: number = Math.min(1, Math.max(0, (radius - SHAPES.spotSolid) / (SHAPES.spotOpen - SHAPES.spotSolid)));
+  return { ...telegraphLook(radius), hollow: SHAPES.telegraphHollow * open };
+}
+
 function ahead(light: GroundLight): GroundLight {
   light.mesh.rotation.z = Math.PI;
   return light;
 }
 
 function roundTelegraph(arc: number, inner: number, radius: number, color: Color): GroundLight {
-  return ahead(createGroundLight(color, { kind: 'round', radius, inner, arc }, telegraphLook(radius)));
+  return ahead(createGroundLight(color, { kind: 'round', radius, inner, arc }, spotLook(radius)));
 }
 
 function laneTelegraph(halfWidth: number, length: number, color: Color): GroundLight {

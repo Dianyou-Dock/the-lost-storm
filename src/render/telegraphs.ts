@@ -15,6 +15,7 @@ export const TELEGRAPHS = {
   easeShare: 0.3,
   faint: 0.09,
   peak: 0.2,
+  hazardFloor: 0.17,
   flare: 0.08,
   flareTime: 0.1,
   grainFrom: 0.45,
@@ -80,6 +81,10 @@ export function telegraphFlare(remaining: number): number {
 export function telegraphGlow(progress: number, remaining: number, age: number): number {
   const breath: number = 1 - TELEGRAPHS.breathe * (0.5 + 0.5 * Math.cos(age * TELEGRAPHS.breatheRate));
   return (TELEGRAPHS.faint + (TELEGRAPHS.peak - TELEGRAPHS.faint) * progress * progress) * breath + TELEGRAPHS.flare * telegraphFlare(remaining);
+}
+
+export function hazardGlow(glow: number): number {
+  return Math.max(glow, TELEGRAPHS.hazardFloor);
 }
 
 export function telegraphGrain(progress: number): number {
@@ -191,8 +196,9 @@ export function createTelegraphs(parent: Object3D, echoColor: Color | null = nul
         if (entry.settling >= 0) entry.settling += dt;
         const remaining: number = (1 - entry.progress) / Math.max(1e-3, entry.rate);
         const level: number = telegraphEase(entry.age, entry.windup) * settleLevel(entry.settling);
+        const glow: number = telegraphGlow(entry.progress, remaining, entry.age);
         for (const light of entry.shape.lights) {
-          light.pose(telegraphGlow(entry.progress, remaining, entry.age) * level, entry.age);
+          light.pose((entry.source === 'hazard' ? hazardGlow(glow) : glow) * level, entry.age);
           setGrain(light, telegraphGrain(entry.progress));
         }
         if (entry.settling >= TELEGRAPHS.settle) {

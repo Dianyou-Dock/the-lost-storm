@@ -9,7 +9,7 @@ import { placeHazard } from '../../sim/world/hazards.ts';
 import { arena, place } from '../../test/arena-support.ts';
 import { must } from '../../test/support.ts';
 import type { Telegraphs } from './telegraphs.ts';
-import { createTelegraphs, echoesToShow, echoProgress, fieldGlow, settleLevel, telegraphEase, telegraphFlare, telegraphGlow, telegraphGrain, TELEGRAPHS } from './telegraphs.ts';
+import { createTelegraphs, echoesToShow, echoProgress, fieldGlow, hazardGlow, settleLevel, telegraphEase, telegraphFlare, telegraphGlow, telegraphGrain, TELEGRAPHS } from './telegraphs.ts';
 
 const RED: Color = new Color(0xc65a4a);
 const STEP: number = 1 / 60;
@@ -53,6 +53,12 @@ void test('the light gathers as the hit nears and flares only in its last moment
   assert.equal(telegraphFlare(0), 1);
   assert.ok(telegraphGlow(1, 0, 0) <= TELEGRAPHS.peak + TELEGRAPHS.flare);
   assert.ok(telegraphGrain(1) > telegraphGrain(0));
+});
+
+void test('a mark laid on the ground shows its shape from its first moment, and still gathers toward the hit', (): void => {
+  assert.ok(telegraphGlow(0, 1, 0) < TELEGRAPHS.hazardFloor);
+  assert.equal(hazardGlow(telegraphGlow(0, 1, 0)), TELEGRAPHS.hazardFloor);
+  assert.equal(hazardGlow(telegraphGlow(1, 0, 0)), telegraphGlow(1, 0, 0));
 });
 
 void test('a field breathes slowly and never goes dark while it lasts', (): void => {

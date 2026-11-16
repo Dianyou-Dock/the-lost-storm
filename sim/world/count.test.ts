@@ -35,10 +35,12 @@ const KEEPER: BossDef = {
   phases: [phase(1, { measure: ['k_cut', 'k_ring', 'k_cut'], beat: 1.5, holds: ['t_clock'] }), phase(0.5, { holds: ['t_book'], unseal: ['t_book'], anchor: { monster: 't_book', radius: 3 } })],
   countBreak: { stagger: 2, open: 4, damageTaken: 1.5 },
   yields: true,
+  presence: null,
 };
 
 const MONSTERS: readonly MonsterDef[] = [
   { ...thrall, id: 't_keeper', life: 1000, scalesLife: false, moveSpeed: 4, skill: 'k_cut', boss: KEEPER },
+  { ...thrall, id: 't_counter', life: 1000, scalesLife: false, moveSpeed: 0, skill: 'k_cut', boss: { ...KEEPER, phases: [phase(1, { holds: ['t_clock', 't_tally'] })] } },
   { ...thrall, id: 't_reacher', life: 1000, scalesLife: false, moveSpeed: 4, skill: 'k_cut', boss: { ...KEEPER, phases: [phase(1, { measure: ['k_cut', 'k_far'], beat: 1 })] } },
   { ...thrall, id: 't_clock', life: 200, scalesLife: false, xp: 0, behaviour: { type: 'fixed', sealed: false, collateral: 1, strikes: null }, poise: { knockback: 0, stagger: 0, resolve: 0 } },
   { ...thrall, id: 't_tally', life: 300, scalesLife: false, xp: 0, behaviour: { type: 'fixed', sealed: false, collateral: 1, strikes: { count: 3, gap: 2 } }, poise: { knockback: 0, stagger: 0, resolve: 0 } },
@@ -277,4 +279,26 @@ void test('a burn never wears down a piece that takes strikes', (): void => {
   tally.burn = { source: skill.id, skill, offence: offenceOf(world.player), perTick: 50, tickLeft: 0.1, ticksLeft: 10 };
   run(world, 2);
   assert.equal(tally.life, tally.maxLife);
+});
+
+void test('the bot turns from a holder that is waiting out its strike gap to one it can strike, and back once the gap has passed', (): void => {
+  const world: World = arena(14, CONTENT);
+  world.player.maxLife = 1e6;
+  world.player.life = 1e6;
+  const counter: MonsterState = place(world, 't_counter', { x: ARENA_CENTRE.x, z: ARENA_CENTRE.z + 6 });
+  const clock: MonsterState = place(world, 't_clock', { x: ARENA_CENTRE.x + 7, z: ARENA_CENTRE.z });
+  const tally: MonsterState = place(world, 't_tally', { x: ARENA_CENTRE.x - 3, z: ARENA_CENTRE.z });
+  clock.aggro = false;
+  tally.aggro = false;
+  world.player.pos = { x: ARENA_CENTRE.x, z: ARENA_CENTRE.z };
+  hit(world, counter, 12);
+  assert.ok(heldAtLine(world, counter));
+  assert.equal(aimAt(world, [], []), tally);
+  strikeWith(world, tally, 1);
+  assert.equal(aimAt(world, [], []), clock);
+  const cleave: SkillDef = must(ARENA_CONTENT.skills.get('cleave'), 'cleave');
+  const aim = spinAim(world, cleave);
+  assert.ok(aim !== null && distance(aim, clock.pos) < 0.01, JSON.stringify(aim));
+  world.time = tally.strikeReady;
+  assert.equal(aimAt(world, [], []), tally);
 });

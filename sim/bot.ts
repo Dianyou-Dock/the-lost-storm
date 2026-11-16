@@ -13,7 +13,7 @@ import { choicesOpen } from './world/death.ts';
 import { stepWorld } from './world/step.ts';
 import { fightZones, nearestFight } from './world/moments.ts';
 import { heldIn } from './world/bubble.ts';
-import { heldAtLine, holdersOf } from './world/count.ts';
+import { heldAtLine, holdersOf, strikeWaiting } from './world/count.ts';
 import { markRow } from './world/hazards.ts';
 import { playerMayStrike } from './world/factions.ts';
 import type { Command, EchoState, ItemInstance, HazardState, MomentState, MonsterState, NpcState, World, WorldEvent } from './world/types.ts';
@@ -291,7 +291,9 @@ function retreating(bot: Bot, hostile: readonly MonsterState[]): boolean {
 
 export function aimAt(world: World, hostile: readonly MonsterState[], wanted: readonly MonsterState[]): MonsterState | null {
   const held: MonsterState | undefined = world.monsters.find((monster: MonsterState): boolean => monster.def.boss !== null && heldAtLine(world, monster));
-  const holder: MonsterState | null = held === undefined ? null : nearest(world, holdersOf(world, held));
+  const holders: MonsterState[] = held === undefined ? [] : holdersOf(world, held);
+  const open: MonsterState[] = holders.filter((monster: MonsterState): boolean => !strikeWaiting(world, monster));
+  const holder: MonsterState | null = nearest(world, open.length > 0 ? open : holders);
   if (holder !== null) return holder;
   const foes: MonsterState[] = hostile.filter((monster: MonsterState): boolean => monster.def.behaviour.type !== 'fixed');
   return nearest(world, foes.length > 0 ? foes : wanted.length > 0 ? wanted : hostile);
