@@ -34,6 +34,10 @@ export const INPUT = {
   holdInterval: 0.09,
   leftBinding: 'mouse_left',
   rightBinding: 'mouse_right',
+  mouseButtons: [
+    { binding: 'mouse_left', button: 0, bit: 1 },
+    { binding: 'mouse_right', button: 2, bit: 2 },
+  ],
   closeKey: 'Escape',
   advanceKeys: ['Space', 'Enter'],
 } as const;
@@ -59,6 +63,17 @@ export interface Input {
   releaseHold(): void;
   readonly hoveredId: number | null;
   readonly look: Vec2 | null;
+}
+
+export interface MouseButton {
+  readonly binding: string;
+  readonly button: number;
+  readonly bit: number;
+}
+
+export interface PointerReport {
+  readonly button: number;
+  readonly buttons: number;
 }
 
 export interface InputSurface {
@@ -94,6 +109,7 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
   let pressedItem: boolean = false;
   let pressedExit: string | null = null;
   let pressedPlayer: boolean = false;
+  let enteredZone: string = world.zone.id;
   const extra: Command[] = [];
   const canvasRect: SurfaceRect = surfaceRect(canvas);
 
@@ -113,18 +129,35 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
     trackPoint(event.clientX, event.clientY);
   };
 
+  const lift = (binding: string): void => {
+    if (!held.delete(binding)) return;
+    lifted.push(binding);
+  };
+  const liftMouse = (): void => {
+    for (const mouseButton of INPUT.mouseButtons) lift(mouseButton.binding);
+  };
+  const follow = (event: PointerReport): void => {
+    for (const mouseButton of INPUT.mouseButtons) {
+      if (!buttonDown(event.buttons, mouseButton)) lift(mouseButton.binding);
+      else if (event.button === mouseButton.button) {
+        held.add(mouseButton.binding);
+        pressed.push(mouseButton.binding);
+      }
+    }
+  };
+
   canvas.addEventListener('pointerdown', (event: PointerEvent): void => {
     track(event);
     shift = event.shiftKey;
+    follow(event);
     canvas.setPointerCapture(event.pointerId);
-    if (event.button === 0) press(INPUT.leftBinding);
-    if (event.button === 2) press(INPUT.rightBinding);
   });
   canvas.addEventListener('pointermove', (event: PointerEvent): void => {
     track(event);
     mouse = event.pointerType === 'mouse';
     shift = event.shiftKey;
     pointerInside = true;
+    follow(event);
   });
   canvas.addEventListener('pointerenter', (): void => {
     canvasRect.stale();
@@ -135,16 +168,9 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
   canvas.addEventListener('pointerleave', (): void => {
     pointerInside = false;
   });
-  const lift = (binding: string): void => {
-    if (!held.delete(binding)) return;
-    lifted.push(binding);
-  };
-  const release = (event: PointerEvent): void => {
-    if (event.button === 0) lift(INPUT.leftBinding);
-    if (event.button === 2) lift(INPUT.rightBinding);
-  };
-  canvas.addEventListener('pointerup', release);
-  canvas.addEventListener('pointercancel', release);
+  canvas.addEventListener('pointerup', follow);
+  canvas.addEventListener('pointercancel', liftMouse);
+  canvas.addEventListener('lostpointercapture', liftMouse);
   canvas.addEventListener('contextmenu', (event: MouseEvent): void => event.preventDefault());
   canvas.addEventListener(
     'wheel',
@@ -178,11 +204,13 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
     shift = event.shiftKey;
     lift(event.code);
   });
-  windowEvents.addEventListener('blur', (): void => {
+  const releaseAll = (): void => {
     for (const binding of held) lifted.push(binding);
     held.clear();
     shift = false;
-  });
+  };
+  windowEvents.addEventListener('blur', releaseAll);
+  windowEvents.addEventListener('visibilitychange', releaseAll);
 
   const screenRect = (id: number): ScreenRect | null => {
     if (!hooks.boundsOf(id, box)) return null;
@@ -295,6 +323,13 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
     },
     collect(dt: number): Command[] {
       const commands: Command[] = extra.splice(0, extra.length);
+      if (world.zone.id !== enteredZone) {
+        enteredZone = world.zone.id;
+        liftMouse();
+        pressedExit = null;
+        pressedItem = false;
+        pressedPlayer = false;
+      }
       const picked: PickCandidate | null = pickActors();
       const target: MonsterState | null = picked?.kind === 'monster' ? (world.monsters.find((monster: MonsterState): boolean => monster.id === picked.id) ?? null) : null;
       const person: NpcState | null = picked?.kind === 'npc' ? (world.npcs.find((npc: NpcState): boolean => npc.id === picked.id) ?? null) : null;
@@ -321,6 +356,7 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
       const aim: Vec2 | null = target === null ? ground : { x: target.pos.x, z: target.pos.z };
       const fresh: Set<string> = new Set<string>(pressed.splice(0, pressed.length));
       const up: Set<string> = new Set<string>(lifted.splice(0, lifted.length));
+      if (fresh.has(INPUT.leftBinding)) pressedPlayer = false;
       if (fresh.has(INPUT.leftBinding) && !shift && world.dialogue === null && hooks.pressPlayer(other)) {
         fresh.delete(INPUT.leftBinding);
         pressedPlayer = true;
@@ -412,4 +448,8 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
       return commands;
     },
   };
+}
+
+export function buttonDown(buttons: number, mouseButton: MouseButton): boolean {
+  return Math.floor(buttons / mouseButton.bit) % 2 === 1;
 }

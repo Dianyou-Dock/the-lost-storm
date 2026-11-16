@@ -35,6 +35,25 @@ const SLOTS: readonly SlotDefault[] = [{ name: 'Cleave', bindings: ['mouse_left'
 interface Rig {
   readonly world: World;
   readonly input: Input;
+  readonly fire: (type: string, pointer?: Partial<FakePointer>) => void;
+}
+
+interface FakePointer {
+  readonly button: number;
+  readonly buttons: number;
+  readonly clientX: number;
+  readonly clientY: number;
+  readonly pointerId: number;
+  readonly pointerType: string;
+  readonly shiftKey: boolean;
+}
+
+type Heard = Map<string, EventListenerOrEventListenerObject[]>;
+
+function hearing(heard: Heard): (type: string, listener: EventListenerOrEventListenerObject | null) => void {
+  return (type: string, listener: EventListenerOrEventListenerObject | null): void => {
+    if (listener !== null) heard.set(type, [...(heard.get(type) ?? []), listener]);
+  };
 }
 
 function rect(): DOMRect {
@@ -53,8 +72,16 @@ function noPlayers(): PlayerHooks {
 }
 
 function rig(world: World, overUi: () => boolean = (): boolean => false, players: PlayerHooks = noPlayers()): Rig {
-  const canvas: InputSurface = { addEventListener: (): void => undefined, getBoundingClientRect: rect, setPointerCapture: (): void => undefined, style: { cursor: 'default' } };
-  const keys: KeySource = { addEventListener: (): void => undefined };
+  const heard: Heard = new Map<string, EventListenerOrEventListenerObject[]>();
+  const canvas: InputSurface = { addEventListener: hearing(heard), getBoundingClientRect: rect, setPointerCapture: (): void => undefined, style: { cursor: 'default' } };
+  const keys: KeySource = { addEventListener: hearing(heard) };
+  const fire = (type: string, pointer: Partial<FakePointer> = {}): void => {
+    const event: Event = Object.assign(new Event(type), { button: -1, buttons: 0, clientX: 0, clientY: 0, pointerId: 1, pointerType: 'mouse', shiftKey: false }, pointer);
+    for (const listener of heard.get(type) ?? []) {
+      if (typeof listener === 'function') listener(event);
+      else listener.handleEvent(event);
+    }
+  };
   const camera: InputCamera = {
     groundPoint: (pointer: Vector2): Vector3 => new Vector3(world.player.pos.x + pointer.x * VIEW.span, 0, world.player.pos.z - pointer.y * VIEW.span),
     project: (): boolean => false,
@@ -75,7 +102,7 @@ function rig(world: World, overUi: () => boolean = (): boolean => false, players
     },
     pause: (): void => undefined,
   };
-  return { world, input: createInput(canvas, keys, world, camera, hud, settings, hooks) };
+  return { world, input: createInput(canvas, keys, world, camera, hud, settings, hooks), fire };
 }
 
 function screenOf(world: World, ground: Vec2): Vec2 {
@@ -299,3 +326,136 @@ void test('a press that closes an open player menu is taken by it, and the next 
   assert.equal(setup.input.collect(DT).filter((command: Command): boolean => command.type === 'move').length, 1);
   assert.deepEqual(players.pressed, [null, null]);
 });
+
+const LEFT = { button: 0, bit: 1 } as const;
+const RIGHT = { button: 2, bit: 2 } as const;
+
+function at(point: Vec2, button: number, buttons: number): Partial<FakePointer> {
+  return { clientX: point.x, clientY: point.z, button, buttons };
+}
+
+function clickOn(setup: Rig, point: Vec2): Command[] {
+  setup.fire('pointermove', at(point, -1, 0));
+  setup.fire('pointerdown', at(point, LEFT.button, LEFT.bit));
+  const commands: Command[] = setup.input.collect(DT);
+  setup.fire('pointerup', at(point, LEFT.button, 0));
+  return [...commands, ...setup.input.collect(DT)];
+}
+
+function freshMoves(commands: readonly Command[]): Command[] {
+  return commands.filter((command: Command): boolean => command.type === 'move' && !command.held);
+}
+
+function besideDownExit(): { readonly world: World; readonly exit: ZoneExit } {
+  const world: World = worldIn(content, 'under_hall', 21);
+  const exit: ZoneExit = must(world.zone.exits.find((entry: ZoneExit): boolean => entry.to === 'under_hall_2'), 'under_hall down exit');
+  world.player.pos.x = exit.x;
+  world.player.pos.z = exit.z - exit.radius - 2;
+  world.monsters = [];
+  return { world, exit };
+}
+
+function floorAhead(world: World): Vec2 {
+  return screenOf(world, { x: world.player.pos.x + 3, z: world.player.pos.z + 3 });
+}
+
+void test('a chorded press (left down, right down, left up, right up) leaves no button held, so the next left click walks', (): void => {
+  const world: World = worldIn(content, 'under_hall_2', 22);
+  const setup: Rig = rig(world);
+  const point: Vec2 = floorAhead(world);
+  setup.fire('pointerdown', at(point, LEFT.button, LEFT.bit));
+  setup.input.collect(DT);
+  setup.fire('pointermove', at(point, RIGHT.button, LEFT.bit + RIGHT.bit));
+  setup.input.collect(DT);
+  setup.fire('pointermove', at(point, LEFT.button, RIGHT.bit));
+  setup.input.collect(DT);
+  setup.fire('pointerup', at(point, RIGHT.button, 0));
+  setup.input.collect(DT);
+  assert.deepEqual(setup.input.collect(DT).filter((command: Command): boolean => command.type === 'move'), []);
+  assert.equal(freshMoves(clickOn(setup, point)).length, 1);
+});
+
+void test('a chorded press that began on the exit down out of Hourfall Caves never swallows the clicks after it', (): void => {
+  const { world, exit } = besideDownExit();
+  const setup: Rig = rig(world);
+  const onExit: Vec2 = screenOf(world, exit);
+  setup.fire('pointermove', at(onExit, -1, 0));
+  setup.fire('pointerdown', at(onExit, LEFT.button, LEFT.bit));
+  setup.fire('pointermove', at(onExit, RIGHT.button, LEFT.bit + RIGHT.bit));
+  setup.fire('pointermove', at(onExit, LEFT.button, RIGHT.bit));
+  setup.fire('pointerup', at(onExit, RIGHT.button, 0));
+  run(setup, 30, (): boolean => world.zone.id !== 'under_hall');
+  assert.equal(world.zone.id, 'under_hall_2');
+  run(setup, 0.5, (): boolean => false);
+  assert.equal(freshMoves(clickOn(setup, floorAhead(world))).length, 1);
+});
+
+void test('a release that never reaches the canvas is healed by the next pointer event, and the next press is a fresh click', (): void => {
+  const world: World = worldIn(content, 'under_hall_2', 23);
+  const setup: Rig = rig(world);
+  const point: Vec2 = floorAhead(world);
+  setup.fire('pointerdown', at(point, LEFT.button, LEFT.bit));
+  setup.input.collect(DT);
+  setup.fire('pointermove', at(point, -1, 0));
+  setup.input.collect(DT);
+  assert.deepEqual(setup.input.collect(DT).filter((command: Command): boolean => command.type === 'move'), []);
+  setup.fire('pointerdown', at(point, LEFT.button, LEFT.bit));
+  assert.equal(freshMoves(setup.input.collect(DT)).length, 1);
+  setup.fire('pointerdown', at(point, LEFT.button, LEFT.bit));
+  assert.equal(freshMoves(setup.input.collect(DT)).length, 1);
+});
+
+void test('a lost pointer capture, a cancelled pointer, a blur or a hidden tab each end the press', (): void => {
+  for (const ending of ['lostpointercapture', 'pointercancel', 'blur', 'visibilitychange']) {
+    const world: World = worldIn(content, 'under_hall_2', 24);
+    const setup: Rig = rig(world);
+    const point: Vec2 = floorAhead(world);
+    setup.fire('pointerdown', at(point, LEFT.button, LEFT.bit));
+    setup.input.collect(DT);
+    setup.fire(ending, at(point, -1, LEFT.bit));
+    setup.input.collect(DT);
+    const after: Command[] = [];
+    for (let frame: number = 0; frame < 20; frame += 1) after.push(...setup.input.collect(DT));
+    assert.deepEqual(after.filter((command: Command): boolean => command.type === 'move'), [], ending);
+  }
+});
+
+void test('a press on the exit down out of Hourfall Caves held through the zone change ends there, wherever it is released', (): void => {
+  for (const release of ['under the veil', 'after arrival', 'over the HUD', 'never']) {
+    const { world, exit } = besideDownExit();
+    let overHud: boolean = false;
+    const setup: Rig = rig(world, (): boolean => overHud);
+    const onExit: Vec2 = screenOf(world, exit);
+    setup.fire('pointermove', at(onExit, -1, 0));
+    setup.fire('pointerdown', at(onExit, LEFT.button, LEFT.bit));
+    stepWorld(world, setup.input.collect(DT), DT);
+    if (release === 'over the HUD') {
+      overHud = true;
+      setup.fire('pointermove', at({ x: VIEW.size / 2, z: VIEW.size - 4 }, -1, LEFT.bit));
+    }
+    run(setup, 30, (): boolean => world.zone.id !== 'under_hall');
+    assert.equal(world.zone.id, 'under_hall_2', release);
+    if (release === 'under the veil' || release === 'over the HUD') setup.fire('pointerup', at(onExit, LEFT.button, 0));
+    const held: Command[] = [];
+    for (let frame: number = 0; frame < 30; frame += 1) held.push(...setup.input.collect(DT));
+    assert.deepEqual(held.filter((command: Command): boolean => command.type === 'move' || command.type === 'travel'), [], release);
+    if (release === 'after arrival') setup.fire('pointerup', at(onExit, LEFT.button, 0));
+    overHud = false;
+    assert.equal(freshMoves(clickOn(setup, floorAhead(world))).length, 1, release);
+  }
+});
+
+void test('a press on an exit that is released and pressed again within one frame on the ground walks', (): void => {
+  const { world, exit } = besideDownExit();
+  const setup: Rig = rig(world);
+  const onExit: Vec2 = screenOf(world, exit);
+  setup.fire('pointermove', at(onExit, -1, 0));
+  setup.fire('pointerdown', at(onExit, LEFT.button, LEFT.bit));
+  assert.ok(setup.input.collect(DT).some((command: Command): boolean => command.type === 'travel'));
+  const ground: Vec2 = screenOf(world, { x: world.player.pos.x - 3, z: world.player.pos.z - 2 });
+  setup.fire('pointerup', at(onExit, LEFT.button, 0));
+  setup.fire('pointermove', at(ground, -1, 0));
+  setup.fire('pointerdown', at(ground, LEFT.button, LEFT.bit));
+  assert.equal(freshMoves(setup.input.collect(DT)).length, 1);
+});
+
