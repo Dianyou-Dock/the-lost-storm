@@ -56,6 +56,16 @@ void test('a skill starting plays its start sound where the actor stands', (): v
   assert.deepEqual(theirs[0]?.position, thrall.pos);
 });
 
+void test('the hero catching fire sizzles where they stand, and a monster catching fire is silent', (): void => {
+  const world: World = fresh();
+  const thrall: MonsterState = monster(world, 'mended');
+  const burning: SkillDef = skill('cinder_patch');
+  const own: readonly SoundCue[] = cuesForEvent(audio, world, { type: 'burn', targetId: world.player.id, skill: burning, pos: world.player.pos, duration: 2 });
+  assert.deepEqual(sounds(own), ['burn_sizzle']);
+  assert.deepEqual(own[0]?.position, world.player.pos);
+  assert.deepEqual(cuesForEvent(audio, world, { type: 'burn', targetId: thrall.id, skill: burning, pos: thrall.pos, duration: 2 }), []);
+});
+
 void test('a person in the world swinging a skill is heard where they stand', (): void => {
   const world: World = worldIn(content, 'hideout', 1);
   const guide = must(world.npcs.find((npc): boolean => npc.def.id === 'warden_guide'), 'the Guide');
@@ -295,14 +305,14 @@ void test('a cue filtered by weapon kind plays only for that kind, for the shot 
   assert.deepEqual(sounds(theirs), ['hero_hurt']);
 });
 
-void test('a hit picks the sound of what the target is made of', (): void => {
+void test('a hit picks the sound of the monster itself, else of what the target is made of', (): void => {
   const world: World = fresh();
   const expected: Readonly<Record<BodyMaterial, string>> = { flesh: 'hit_flesh', bone: 'bone_hit', hide: 'hit_flesh', chitin: 'hit_flesh', armour: 'hit_flesh' };
   for (const def of content.monsters.values()) {
     const target: MonsterState = place(world, def.id, { x: ARENA_CENTRE.x + 2, z: ARENA_CENTRE.z });
     const heard: string[] = hitSounds(world, target, 'cleave', false);
     assert.equal(heard.length, 1, def.id);
-    assert.equal(heard[0], expected[def.bodyMaterial], def.id);
+    assert.equal(heard[0], audio.hit.get(def.id)?.[0]?.sound ?? expected[def.bodyMaterial], def.id);
   }
 });
 

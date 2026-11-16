@@ -176,6 +176,9 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
     case 'encounter_shown':
       found = cues(audio.encounterShown, event.encounter, null);
       break;
+    case 'burn':
+      if (event.targetId === world.player.id) found = worldCues(audio, 'hero_burn', event.pos);
+      break;
     case 'hazard':
       if (event.burst) found = cues(audio.skillImpact, event.hazard.skill.id, event.hazard.pos);
       break;
@@ -184,7 +187,6 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
     case 'chain':
     case 'beam':
     case 'blink':
-    case 'burn':
     case 'soak':
     case 'brand':
     case 'skill_unlocked':
