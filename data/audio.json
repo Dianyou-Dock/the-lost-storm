@@ -16,6 +16,12 @@
     "custodian_push": [{ "sound": "hex_charge", "volume": 0.55, "maxVoices": 2 }],
     "tally_mark": [{ "sound": "tally_scratch", "volume": 0.8, "maxVoices": 2 }],
     "marshal_sweep": [{ "sound": "clock_strike", "volume": 0.75, "maxVoices": 1 }, { "sound": "sword_swing_heavy", "volume": 0.7, "maxVoices": 2 }],
+    "ledger_sweep": [{"sound": "clock_strike", "volume": 0.6, "maxVoices": 1, "cooldown": 1}, {"sound": "sword_swing_heavy", "volume": 0.75, "maxVoices": 2}],
+    "ledger_line": [{"sound": "clock_strike", "volume": 0.55, "maxVoices": 1, "cooldown": 1}, {"sound": "sword_swing_light", "volume": 0.7, "maxVoices": 2}],
+    "ledger_hour": [{"sound": "clock_strike", "volume": 0.95, "maxVoices": 1}],
+    "ledger_tally": [{"sound": "tally_scratch", "volume": 0.85, "maxVoices": 2}],
+    "ledger_hands": [{"sound": "clock_strike", "volume": 0.7, "maxVoices": 1, "cooldown": 1}, {"sound": "sword_swing_heavy", "volume": 0.6, "maxVoices": 2}],
+    "ledger_counted": [{"sound": "tally_scratch", "volume": 0.7, "maxVoices": 2}],
     "rank_thrust": [{ "sound": "sword_swing_light", "volume": 0.8, "maxVoices": 3, "pitch": [0.9, 1.0] }],
     "slag_crash": [{ "sound": "growl_brute", "volume": 0.55, "maxVoices": 2, "cooldown": 1.5 }],
     "elder_crash": [{ "sound": "growl_brute", "volume": 0.7, "maxVoices": 1, "cooldown": 2 }],
@@ -308,6 +314,13 @@
       "stingers": [
         { "sound": "clock_tick_great", "volume": 0.35, "minDelay": 14, "maxDelay": 30 }
       ]
+    },
+    "ledger_court": {
+      "loops": [
+        { "sound": "ambience_hall_1", "volume": 0.5 },
+        { "sound": "ambience_drone_dark", "volume": 0.3 }
+      ],
+      "stingers": []
     }
   }
 }

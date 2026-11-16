@@ -56,10 +56,11 @@ void test('a knockback is a short hop back: it lifts and leans from nothing, pea
   assert.deepEqual(knockPose(0, 0), { lift: 0, lean: 0 });
 });
 
-void test('every monster walks, strafes, backs off and circles at speeds its rig has a gait for, without racing or crawling the clip', (): void => {
+void test('every monster that is not fixed in place walks, strafes, backs off and circles at speeds its rig has a gait for, without racing or crawling the clip', (): void => {
   const problems: string[] = [];
   for (const monster of content.monsters.values()) {
     const def: MonsterDef = monster;
+    if (def.behaviour.type === 'fixed') continue;
     const rig: RigDef = must(content.rigs.get(def.rig), def.rig);
     for (const pace of BAND.paces) {
       const speed: number = def.moveSpeed * pace;

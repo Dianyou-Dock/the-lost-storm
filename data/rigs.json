@@ -2033,6 +2033,10 @@
           "clip": "Sword_Slam_Charged",
           "impactFraction": 0.38
         }
+      },
+      "unarmed": {
+        "idle": "Idle_Loop",
+        "actions": {}
       }
     },
     "sockets": {

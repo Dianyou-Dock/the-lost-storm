@@ -3,6 +3,7 @@ import { test } from 'node:test';
 import { ARENA_CENTRE, ARENA_CONTENT, arena, place } from '../../test/arena-support.ts';
 import { must } from '../../test/support.ts';
 import { aimAt } from '../bot.ts';
+import { spinAim } from '../bot-plan.ts';
 import type { BossDef, BossPhase, Content, MonsterDef, SkillDef } from '../content/types.ts';
 import { distance } from '../math.ts';
 import { stepBosses } from './boss.ts';
@@ -210,6 +211,28 @@ void test('the bot strikes what holds a held foe instead of the foe', (): void =
   assert.equal(aimAt(world, [keeper], [keeper]), keeper);
   hit(world, keeper, 12);
   assert.equal(aimAt(world, [keeper], [keeper]), clock);
+});
+
+void test('the bot goes to the holder of a held boss even when the boss is out of its sight and the holder has never been struck', (): void => {
+  const { world, keeper, clock } = hall(12);
+  hit(world, keeper, 12);
+  assert.equal(clock.aggro, false);
+  assert.equal(aimAt(world, [], []), clock);
+});
+
+void test('a spinning hero steers past a boss held at his line to the holder, and turns back on the boss once the holder is gone', (): void => {
+  const { world, keeper, clock, book } = hall(12);
+  hit(world, keeper, 12);
+  assert.ok(heldAtLine(world, keeper));
+  const cleave: SkillDef = must(ARENA_CONTENT.skills.get('cleave'), 'cleave');
+  world.player.pos = { x: keeper.pos.x, z: keeper.pos.z - 1.5 };
+  book.alive = false;
+  const aim = spinAim(world, cleave);
+  assert.ok(aim !== null && distance(aim, clock.pos) < 0.01, JSON.stringify(aim));
+  clock.alive = false;
+  assert.ok(!heldAtLine(world, keeper));
+  const back = spinAim(world, cleave);
+  assert.ok(back !== null && distance(back, keeper.pos) < 0.01, JSON.stringify(back));
 });
 
 void test('a measure step he cannot reach is passed over after a beat, and the next step he can reach is played', (): void => {

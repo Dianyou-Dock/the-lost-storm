@@ -7,6 +7,7 @@ import { wornPowers, wornVariants } from './powers.ts';
 import { armourReduction, computeStats, damagePerSecond, resolveSkill } from './stats.ts';
 import type { ChangeChoice } from './stats.ts';
 import { heldGroup } from './weapons.ts';
+import { heldAtLine } from './world/count.ts';
 import { canDash } from './world/dash.ts';
 import { playerMayStrike } from './world/factions.ts';
 import { blockedFlask } from './world/flasks.ts';
@@ -252,7 +253,7 @@ function reachOf(skill: SkillDef): number {
 export function spinAim(world: World, skill: SkillDef): ReadonlyVec2 | null {
   const player: PlayerState = world.player;
   const reach: number = reachOf(spunSkill(player, skill));
-  const foes: MonsterState[] = world.monsters.filter((monster: MonsterState): boolean => monster.alive && playerMayStrike(world, monster) && distance(monster.pos, player.pos) <= BOT_PLAN.spinSight);
+  const foes: MonsterState[] = world.monsters.filter((monster: MonsterState): boolean => monster.alive && playerMayStrike(world, monster) && !heldAtLine(world, monster) && distance(monster.pos, player.pos) <= BOT_PLAN.spinSight);
   let best: MonsterState | null = null;
   let bestScore: number = -Infinity;
   for (const foe of foes) {

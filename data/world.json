@@ -86,6 +86,12 @@
             "when": [{"type": "visited", "zone": "ledger_hall_3", "not": false}]
           },
           {
+            "zone": "ledger_court",
+            "x": 680,
+            "y": 215,
+            "when": [{"type": "visited", "zone": "ledger_court", "not": false}]
+          },
+          {
             "zone": "lava_depths",
             "x": 410,
             "y": 300,
@@ -192,6 +198,11 @@
           {
             "from": "ledger_hall_2",
             "to": "ledger_hall_3",
+            "via": []
+          },
+          {
+            "from": "ledger_hall_3",
+            "to": "ledger_court",
             "via": []
           }
         ],

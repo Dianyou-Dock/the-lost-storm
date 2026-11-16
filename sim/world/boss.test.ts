@@ -5,6 +5,7 @@ import { armed, must, worldIn, zoneOf } from '../../test/support.ts';
 import { botFight, botInDanger, createBot } from '../bot.ts';
 import type { Bot } from '../bot.ts';
 import { loadContent } from '../content/content.ts';
+import { withheldZones } from '../content/withheld.ts';
 import type { BossDef, BossPhase, Condition, Content, LineDef, MonsterDef, QuestDef, ZoneDef, ZonePack } from '../content/types.ts';
 import { distance } from '../math.ts';
 import { xpToNextLevel } from '../progression.ts';
@@ -64,6 +65,11 @@ function sturdy(world: World): World {
   return world;
 }
 
+function phaseSkills(phase: BossPhase | undefined, name: string): Set<string> {
+  const read: BossPhase = must(phase, name);
+  return new Set<string>([...read.skills.map((entry): string => entry.skill), ...read.measure]);
+}
+
 function bosses(): MonsterDef[] {
   return [...shipped.monsters.values()].filter((monster: MonsterDef): boolean => monster.boss !== null);
 }
@@ -99,11 +105,11 @@ void test('the act ships at least two bosses, each with more than one skill and 
   for (const def of bosses()) {
     const boss: BossDef = must(def.boss, def.id);
     assert.ok(boss.phases.length >= 2, `${def.id} phases`);
-    const first: Set<string> = new Set<string>(must(boss.phases[0], 'first phase').skills.map((entry): string => entry.skill));
-    const last: Set<string> = new Set<string>(must(boss.phases.at(-1), 'last phase').skills.map((entry): string => entry.skill));
+    const first: Set<string> = phaseSkills(boss.phases[0], 'first phase');
+    const last: Set<string> = phaseSkills(boss.phases.at(-1), 'last phase');
     assert.ok(first.size >= 2, `${def.id} opens with one skill`);
     assert.ok([...last].some((skill: string): boolean => !first.has(skill)), `${def.id} gains nothing in its last phase`);
-    for (const phase of boss.phases) for (const entry of phase.skills) assert.ok(must(shipped.skills.get(entry.skill), entry.skill).windup >= 0.7, `${entry.skill} has too short a wind-up to read`);
+    for (const phase of boss.phases) for (const skill of phaseSkills(phase, 'phase')) assert.ok(must(shipped.skills.get(skill), skill).windup >= 0.7, `${skill} has too short a wind-up to read`);
   }
 });
 
@@ -121,14 +127,14 @@ void test('a boss uses more than one skill in a fight, and only skills of its ac
     const boss: MonsterState = bossOf(world);
     const block: BossDef = must(def.boss, def.id);
     world.player.pos = { x: 28, z: 22 };
-    const opening: Set<string> = new Set<string>(must(block.phases[0], 'phase').skills.map((entry): string => entry.skill));
+    const opening: Set<string> = phaseSkills(block.phases[0], 'phase');
     const used: string[] = ofType(run(world, 40), 'skill_start').filter((event): boolean => event.actorId === boss.id).map((event): string => event.skill.id);
     assert.ok(new Set<string>(used).size >= 2, `${def.id} used ${[...new Set<string>(used)].join(', ')}`);
     assert.ok(used.every((skill: string): boolean => opening.has(skill)), `${def.id} used a later phase's skill at full life`);
-    hurt(world, boss, 0.4);
+    hurt(world, boss, (must(block.phases[1], 'second phase').below + (block.phases[2]?.below ?? 0)) / 2);
     assert.equal(boss.phase, 1);
     const later: string[] = ofType(run(world, 60), 'skill_start').filter((event): boolean => event.actorId === boss.id).map((event): string => event.skill.id);
-    const second: Set<string> = new Set<string>(must(block.phases[1], 'phase').skills.map((entry): string => entry.skill));
+    const second: Set<string> = phaseSkills(block.phases[1], 'phase');
     assert.ok(later.every((skill: string): boolean => second.has(skill)));
     assert.ok(later.some((skill: string): boolean => !opening.has(skill)), `${def.id} never used its new skill in 60s`);
   }
@@ -307,10 +313,11 @@ void test('a pack whose condition fails does not spawn, so a beaten boss is not 
 
 function gated(def: MonsterDef): boolean {
   const lairs: ZoneDef[] = [...shipped.zones.values()].filter((zone: ZoneDef): boolean => zone.packs.some((pack: ZonePack): boolean => pack.members.some((member): boolean => member.monster === def.id)));
-  return lairs.some((lair: ZoneDef): boolean => [...shipped.zones.values()].some((zone: ZoneDef): boolean => zone.exits.some((exit): boolean => exit.to === lair.id && exit.requires.some((entry: Condition): boolean => entry.type === 'level'))));
+  const withheld: ReadonlySet<string> = withheldZones(shipped);
+  return lairs.every((lair: ZoneDef): boolean => withheld.has(lair.id)) || lairs.some((lair: ZoneDef): boolean => [...shipped.zones.values()].some((zone: ZoneDef): boolean => zone.exits.some((exit): boolean => exit.to === lair.id && exit.requires.some((entry: Condition): boolean => entry.type === 'level'))));
 }
 
-void test('the bot beats each boss the act does not keep behind a level, at the level it is met, and reading the telegraph is what keeps it alive', (): void => {
+void test('the bot beats each boss the act does not keep behind a level or withhold, at the level it is met, and reading the telegraph is what keeps it alive', (): void => {
   for (const def of bosses().filter((candidate: MonsterDef): boolean => !gated(candidate))) {
     const fight = (dodges: boolean): { readonly won: boolean; readonly deaths: number; readonly lifeLeft: number } => {
       const world: World = armed(worldIn(room(def.id), ROOM, 21));

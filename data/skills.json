@@ -1581,5 +1581,251 @@
   {"id": "dodge_roll_shoulder", "name": "Shoulder Through", "description": "Drive your shoulder toward the cursor. Nothing hits you early in the charge, and where you stop the ground flares, throwing enemies back and setting them alight.", "icon": "dodge_roll", "animation": "roll", "manaCost": 0, "cooldown": 1.1, "windup": 0.36, "recovery": 0.12, "scalesWithAttackSpeed": false, "engageRange": 6, "delivery": {"type": "dash", "distance": 4.5, "duration": 0.36, "invulnerable": 0.24, "passThrough": true, "steady": true}, "damage": {"weaponPercent": 0, "flatMin": 0, "flatMax": 0}, "knockback": 0, "stagger": 0, "shake": 0, "hitStop": 0, "vfx": {"style": "roll", "color": "#c9733a", "cue": "none", "shadow": {"color": "#e0602a", "strength": 0.9}}},
   {"id": "shoulder_flare", "name": "Flare", "description": "The ground flares where a shoulder charge stops.", "icon": "thunderclap", "animation": "cast", "weapons": [], "manaCost": 0, "cooldown": 0, "windup": 0, "recovery": 0, "scalesWithAttackSpeed": false, "engageRange": 2.4, "delivery": {"type": "nova", "radius": 2.4}, "damage": {"weaponPercent": 0.5, "flatMin": 2, "flatMax": 4}, "burn": {"duration": 1.25, "tick": 0.25, "share": 0.06}, "knockback": 9, "stagger": 0.3, "shake": 0.25, "hitStop": 0.04, "category": "area", "vfx": {"style": "fire", "color": "#ff7a1a", "cue": "none", "light": 0.6, "impact": {"sparks": 10, "flash": 0.6}}},
   {"id": "gathered_embers", "name": "Gathered Embers", "description": "The ground a gathered clap leaves burning, dragging enemies back into it.", "icon": "thunderclap", "animation": "cast", "weapons": [], "manaCost": 0, "cooldown": 0, "windup": 0, "recovery": 0, "scalesWithAttackSpeed": false, "engageRange": 0, "delivery": {"type": "area", "range": 0, "radius": 3.2, "duration": 1.5, "pulse": 0.5, "pull": 7, "slow": 1, "anchor": "ground"}, "damage": {"weaponPercent": 0.15, "flatMin": 1, "flatMax": 2}, "burn": {"duration": 1, "tick": 0.25, "share": 0.1}, "knockback": 0, "stagger": 0.05, "shake": 0, "hitStop": 0, "category": "area", "vfx": {"style": "fire", "color": "#ff6a1c", "cue": "none", "light": 0.4, "impact": {"sparks": 4, "flash": 0.1}}},
-  {"id": "banked_fire", "name": "Banked Fire", "description": "A fire banked around you strikes everything close every second, and burns hotter with every strike.", "icon": "banked_fire", "animation": "slam", "weapons": [], "manaCost": 16, "cooldown": 9, "windup": 0.2, "recovery": 0.3, "scalesWithAttackSpeed": false, "engageRange": 3.5, "delivery": {"type": "area", "range": 0, "radius": 4, "duration": 6, "pulse": 1, "pull": 0, "slow": 1, "anchor": "caster", "stoke": {"perPulse": 0.2, "max": 1}}, "damage": {"weaponPercent": 0.3, "flatMin": 1, "flatMax": 2}, "burn": {"duration": 1, "tick": 0.25, "share": 0.1}, "knockback": 0, "stagger": 0.05, "shake": 0.04, "hitStop": 0, "category": "lasting", "vfx": {"style": "fire", "color": "#ff8a3a", "cue": "ground", "light": 0.5, "impact": {"sparks": 6, "flash": 0.2}}}
+  {"id": "banked_fire", "name": "Banked Fire", "description": "A fire banked around you strikes everything close every second, and burns hotter with every strike.", "icon": "banked_fire", "animation": "slam", "weapons": [], "manaCost": 16, "cooldown": 9, "windup": 0.2, "recovery": 0.3, "scalesWithAttackSpeed": false, "engageRange": 3.5, "delivery": {"type": "area", "range": 0, "radius": 4, "duration": 6, "pulse": 1, "pull": 0, "slow": 1, "anchor": "caster", "stoke": {"perPulse": 0.2, "max": 1}}, "damage": {"weaponPercent": 0.3, "flatMin": 1, "flatMax": 2}, "burn": {"duration": 1, "tick": 0.25, "share": 0.1}, "knockback": 0, "stagger": 0.05, "shake": 0.04, "hitStop": 0, "category": "lasting", "vfx": {"style": "fire", "color": "#ff8a3a", "cue": "ground", "light": 0.5, "impact": {"sparks": 6, "flash": 0.2}}},
+  {
+    "id": "ledger_sweep",
+    "category": "melee",
+    "name": "Measured Sweep",
+    "description": "A wide sweep, then the same sweep again.",
+    "icon": "cleave",
+    "animation": "sweep",
+    "manaCost": 0,
+    "cooldown": 0,
+    "windup": 0.9,
+    "recovery": 0.5,
+    "scalesWithAttackSpeed": false,
+    "engageRange": 3.0,
+    "delivery": {
+      "type": "arc",
+      "reach": 4.2,
+      "arcDegrees": 150
+    },
+    "damage": {
+      "weaponPercent": 0.8,
+      "flatMin": 0,
+      "flatMax": 0
+    },
+    "knockback": 9,
+    "stagger": 0.4,
+    "shake": 0.45,
+    "hitStop": 0.08,
+    "vfx": {
+      "style": "slash",
+      "color": "#d8b46a",
+      "light": 0.5,
+      "impact": {
+        "sparks": 5,
+        "flash": 0.2
+      }
+    },
+    "echo": 0.7
+  },
+  {
+    "id": "ledger_line",
+    "category": "area",
+    "name": "Held Line",
+    "description": "A straight brass line that holds what it touches.",
+    "icon": "thunderclap",
+    "animation": "cast",
+    "manaCost": 0,
+    "cooldown": 0,
+    "windup": 0.8,
+    "recovery": 0.5,
+    "scalesWithAttackSpeed": false,
+    "engageRange": 14,
+    "delivery": {
+      "type": "projectile",
+      "speed": 22,
+      "radius": 0.6,
+      "range": 18,
+      "pierce": 1,
+      "count": 1,
+      "spreadDegrees": 0
+    },
+    "damage": {
+      "type": "frost",
+      "weaponPercent": 0.9,
+      "flatMin": 0,
+      "flatMax": 0
+    },
+    "knockback": 4,
+    "stagger": 0.2,
+    "shake": 0.35,
+    "hitStop": 0.06,
+    "vfx": {
+      "style": "bolt",
+      "color": "#d8b46a",
+      "light": 0.5,
+      "impact": {
+        "sparks": 8,
+        "flash": 0.5
+      },
+      "trail": 0.8
+    },
+    "hold": 0.6
+  },
+  {
+    "id": "ledger_hour",
+    "category": "area",
+    "name": "Struck Hour",
+    "description": "A ring of force bursts out, then bursts again.",
+    "icon": "thunderclap",
+    "animation": "slam_charged",
+    "manaCost": 0,
+    "cooldown": 0,
+    "windup": 1.4,
+    "recovery": 0.7,
+    "scalesWithAttackSpeed": false,
+    "engageRange": 4.5,
+    "delivery": {
+      "type": "nova",
+      "radius": 6
+    },
+    "damage": {
+      "type": "storm",
+      "weaponPercent": 1.6,
+      "flatMin": 0,
+      "flatMax": 0
+    },
+    "knockback": 13,
+    "stagger": 0.5,
+    "shake": 0.65,
+    "hitStop": 0.1,
+    "vfx": {
+      "style": "shockwave",
+      "color": "#d8b46a",
+      "light": 0.5,
+      "impact": {
+        "sparks": 10,
+        "flash": 0.5
+      }
+    },
+    "echo": 1.0
+  },
+  {
+    "id": "ledger_tally",
+    "category": "area",
+    "name": "Tally Row",
+    "description": "A row of marks laid through where you stand, struck one after another.",
+    "icon": "thunderclap",
+    "animation": "cast",
+    "manaCost": 0,
+    "cooldown": 0,
+    "windup": 0.7,
+    "recovery": 0.5,
+    "scalesWithAttackSpeed": false,
+    "engageRange": 12,
+    "delivery": {
+      "type": "mark",
+      "range": 14,
+      "radius": 0.8,
+      "delay": 1.1,
+      "count": 5,
+      "spacing": 1.6,
+      "step": 0.12
+    },
+    "damage": {
+      "type": "storm",
+      "weaponPercent": 1.0,
+      "flatMin": 0,
+      "flatMax": 0
+    },
+    "knockback": 6,
+    "stagger": 0.2,
+    "shake": 0.3,
+    "hitStop": 0.05,
+    "vfx": {
+      "style": "shockwave",
+      "color": "#d8b46a",
+      "light": 0.5,
+      "impact": {
+        "sparks": 6,
+        "flash": 0.4
+      }
+    }
+  },
+  {
+    "id": "ledger_hands",
+    "category": "area",
+    "name": "Quarter Hands",
+    "description": "Four lines thrown crosswise, then four more turned between them.",
+    "icon": "thunderclap",
+    "animation": "cast",
+    "manaCost": 0,
+    "cooldown": 0,
+    "windup": 1.0,
+    "recovery": 0.6,
+    "scalesWithAttackSpeed": false,
+    "engageRange": 12,
+    "delivery": {
+      "type": "projectile",
+      "speed": 16,
+      "radius": 0.5,
+      "range": 15,
+      "pierce": 1,
+      "count": 4,
+      "spreadDegrees": 90
+    },
+    "damage": {
+      "type": "frost",
+      "weaponPercent": 0.8,
+      "flatMin": 0,
+      "flatMax": 0
+    },
+    "knockback": 5,
+    "stagger": 0.2,
+    "shake": 0.4,
+    "hitStop": 0.06,
+    "vfx": {
+      "style": "bolt",
+      "color": "#d8b46a",
+      "light": 0.5,
+      "impact": {
+        "sparks": 8,
+        "flash": 0.5
+      },
+      "trail": 0.8
+    },
+    "echo": 0.9,
+    "echoTurn": 45
+  },
+  {
+    "id": "ledger_counted",
+    "category": "area",
+    "name": "Counted",
+    "description": "A mark under your feet that strikes once it is counted.",
+    "icon": "thunderclap",
+    "animation": "cast",
+    "manaCost": 0,
+    "cooldown": 0,
+    "windup": 0.7,
+    "recovery": 0.4,
+    "scalesWithAttackSpeed": false,
+    "engageRange": 14,
+    "delivery": {
+      "type": "mark",
+      "range": 16,
+      "radius": 1.1,
+      "delay": 1.0
+    },
+    "damage": {
+      "type": "storm",
+      "weaponPercent": 1.2,
+      "flatMin": 0,
+      "flatMax": 0
+    },
+    "knockback": 8,
+    "stagger": 0.3,
+    "shake": 0.4,
+    "hitStop": 0.07,
+    "vfx": {
+      "style": "shockwave",
+      "color": "#d8b46a",
+      "light": 0.5,
+      "impact": {
+        "sparks": 8,
+        "flash": 0.5
+      }
+    }
+  }
 ]

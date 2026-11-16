@@ -290,10 +290,11 @@ function retreating(bot: Bot, hostile: readonly MonsterState[]): boolean {
 }
 
 export function aimAt(world: World, hostile: readonly MonsterState[], wanted: readonly MonsterState[]): MonsterState | null {
+  const held: MonsterState | undefined = world.monsters.find((monster: MonsterState): boolean => monster.def.boss !== null && heldAtLine(world, monster));
+  const holder: MonsterState | null = held === undefined ? null : nearest(world, holdersOf(world, held));
+  if (holder !== null) return holder;
   const foes: MonsterState[] = hostile.filter((monster: MonsterState): boolean => monster.def.behaviour.type !== 'fixed');
-  const first: MonsterState | null = nearest(world, foes.length > 0 ? foes : wanted.length > 0 ? wanted : hostile);
-  if (first === null || !heldAtLine(world, first)) return first;
-  return nearest(world, holdersOf(world, first)) ?? first;
+  return nearest(world, foes.length > 0 ? foes : wanted.length > 0 ? wanted : hostile);
 }
 
 function fightStep(bot: Bot, prefer: string | null): boolean {

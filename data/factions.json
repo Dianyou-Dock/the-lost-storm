@@ -222,5 +222,20 @@
     "regards": {
       "player": "hostile"
     }
+  },
+  {
+    "id": "timekeeper_works",
+    "name": "The Timekeepers",
+    "palette": {
+      "tints": [
+        "#fff4e6"
+      ],
+      "glow": "#d8b46a"
+    },
+    "wearables": [],
+    "weapons": [],
+    "regards": {
+      "player": "hostile"
+    }
   }
 ]
