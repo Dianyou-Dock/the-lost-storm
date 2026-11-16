@@ -48,7 +48,7 @@ function freshPlayer(content: Content, save: SaveData | null, chosen: string | n
   const level: number = save?.level ?? 1;
   const bar: (string | null)[] = save === null ? defaultBar(content) : [...save.bar];
   const stats = computeStats(content, level, equipped, allocated);
-  const inventory: (ItemInstance | null)[] = Array.from({ length: content.player.inventorySize }, (_: unknown, index: number): ItemInstance | null => save?.inventory[index] ?? null);
+  const inventory: (ItemInstance | null)[] = Array.from({ length: Math.max(content.player.inventorySize, save?.inventory.length ?? 0) }, (_: unknown, index: number): ItemInstance | null => save?.inventory[index] ?? null);
   return {
     kind: 'player',
     hero: heroOf(content, save === null ? chosen : save.hero).id,

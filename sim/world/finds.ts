@@ -1,6 +1,7 @@
 import { distance } from '../math.ts';
 import type { Vec2 } from '../math.ts';
 import { addToInventory } from './character.ts';
+import { isMoyu } from '../content/moyu.ts';
 import { removeGround } from './ground.ts';
 import type { GroundItem, PlayerState, World } from './types.ts';
 
@@ -8,7 +9,7 @@ export function pickUp(world: World, ground: GroundItem): void {
   const player: PlayerState = world.player;
   if (ground.content.kind === 'gold') {
     player.gold += ground.content.amount;
-  } else if (!addToInventory(player, ground.content.item)) {
+  } else if (!addToInventory(player, ground.content.item, isMoyu(world.content))) {
     world.events.push({ type: 'notice', reason: 'inventory_full' });
     return;
   }

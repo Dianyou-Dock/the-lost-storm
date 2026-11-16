@@ -17,15 +17,18 @@
 body.touch .auto-combat-mobile {
   display: block;
   position: absolute;
-  top: calc(70px + env(safe-area-inset-top));
-  right: calc(12px + env(safe-area-inset-right));
+  top: auto;
+  bottom: calc(var(--ph-xp-bottom, 4px) + 142px);
+  right: auto;
+  left: calc(50% + 5px);
   z-index: 20;
   padding: 8px 11px;
   pointer-events: auto;
   color: #efe6d6;
   background: rgba(12, 16, 24, 0.84);
   border: 1px solid rgba(127, 212, 255, 0.25);
-  border-radius: 5px;
+  border-radius: 20px;
+  min-height: 38px;
 }
 
 body:not(.playing) .auto-combat-button {

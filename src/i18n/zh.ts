@@ -17,6 +17,7 @@ const terminology: readonly (readonly [string, string])[] = [
   ['道奇', '闪避'],
   ['航路点', '传送点'],
   ['路径点', '传送点'],
+  ['接机', '拾取'],
 ];
 const overrides: Dictionary = {
   'A name, then who wakes': '取个名字，再选择角色',
@@ -51,6 +52,14 @@ const overrides: Dictionary = {
   'Delete character': '删除角色',
   'Discord': 'Discord',
   'Flasks': '药剂',
+  'Stash': '仓库',
+  'Your bag': '你的背包',
+  'Dodge Roll': '闪避翻滚',
+  'Unverified': '未认证',
+  'Story items cannot be traded': '剧情物品不能交易',
+  'Only items in the ledger can be traded': '仅认证装备可交易',
+  'Open the skill tree from the top bar to choose a place': '点击顶部天赋按钮选择节点',
+  'Open the skill tree with T to choose a place': '按 T 打开天赋图选择节点',
   'Inventory is full': '背包已满',
   'Ladder': '天梯',
   'Life flask': '生命药剂',
@@ -86,6 +95,10 @@ function phrase(value: string): string {
   if (uses !== null) return `${phrase(uses[1] ?? '')}，剩余 ${uses[2]}/${uses[3]} 次`;
   const played: RegExpMatchArray | null = /^Played (\d+) min$/.exec(value);
   if (played !== null) return `已游玩 ${played[1]} 分钟`;
+  const playedHours: RegExpMatchArray | null = /^Played (\d+) h$/.exec(value);
+  if (playedHours !== null) return `已游玩 ${playedHours[1]} 小时`;
+  const bag: RegExpMatchArray | null = /^Your bag: (.+)$/.exec(value);
+  if (bag !== null) return `你的背包：${phrase(bag[1] ?? '')}`;
   const lastSeen: RegExpMatchArray | null = /^Last seen in (.+)$/.exec(value);
   if (lastSeen !== null) return `上次位于${phrase(lastSeen[1] ?? '')}`;
   const points: RegExpMatchArray | null = /^(\d+) points$/.exec(value);

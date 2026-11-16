@@ -9,6 +9,7 @@ import { createAutoCombatState, planAutoCombat } from './auto-combat-plan.ts';
 import { moyuContent } from '../sim/content/moyu.ts';
 import { createWorld } from '../sim/world/create.ts';
 import { stepWorld } from '../sim/world/step.ts';
+import { dropOnGround } from '../sim/world/ground.ts';
 import type { AutoCombatState } from './auto-combat-plan.ts';
 
 const content: Content = loadContent();
@@ -67,4 +68,15 @@ void test('auto combat crosses terrain levels to find monsters in a large farmin
   stepWorld(world, commands, 1 / 30);
   assert.equal(world.player.intent.type, 'attack');
   assert.equal(world.player.path.length > 0, true);
+});
+
+void test('moyu auto combat drinks life medicine and picks up drops', (): void => {
+  const world = createWorld(moyuContent(content), { seed: 11, save: null, opening: false });
+  const state = createAutoCombatState(world.zone.id);
+  state.enabled = true;
+  world.player.life = world.player.maxLife * 0.4;
+  assert.equal(planAutoCombat(world, state, 1 / 30, [], false)[0]?.type, 'flask');
+  world.player.life = world.player.maxLife;
+  const ground = dropOnGround(world, world.player.pos, { kind: 'gold', amount: 5 });
+  assert.deepEqual(planAutoCombat(world, state, 1 / 30, [], false), [{ type: 'pickup', groundId: ground.id }]);
 });

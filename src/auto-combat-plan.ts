@@ -37,6 +37,27 @@ function nearest(world: World): MonsterState | null {
   return chosen;
 }
 
+function upkeep(world: World): Command | null {
+  for (const [slot, flask] of world.player.flasks.entries()) {
+    const current = flask.def.resource === 'life' ? world.player.life : world.player.mana;
+    const maximum = flask.def.resource === 'life' ? world.player.maxLife : world.player.stats.maxMana;
+    if (maximum > 0 && current / maximum < (flask.def.resource === 'life' ? 0.6 : 0.3) && flask.charges >= flask.def.chargesPerUse && flask.cooldown <= 0) return { type: 'flask', slot };
+  }
+  return null;
+}
+
+function nearestGround(world: World): Extract<Command, { readonly type: 'pickup' }> | null {
+  let chosen: typeof world.ground[number] | null = null;
+  let best = Number.POSITIVE_INFINITY;
+  for (const ground of world.ground) {
+    const gap = distance(world.player.pos, ground.pos);
+    if (gap >= best) continue;
+    chosen = ground;
+    best = gap;
+  }
+  return chosen === null ? null : { type: 'pickup', groundId: chosen.id };
+}
+
 export function planAutoCombat(world: World, state: AutoCombatState, dt: number, manual: readonly Command[], blocked: boolean): Command[] {
   if (state.zone !== world.zone.id) {
     state.zone = world.zone.id;
@@ -52,6 +73,10 @@ export function planAutoCombat(world: World, state: AutoCombatState, dt: number,
   }
   state.delay = Math.max(0, state.delay - dt);
   if (blocked || state.delay > 0 || !world.player.alive || world.dialogue !== null || world.death !== null) return [];
+  if (isMoyu(world.content)) {
+    const flask = upkeep(world);
+    if (flask !== null) return [flask];
+  }
   const intent = world.player.intent;
   if (intent.type === 'attack') {
     if (intent.targetId !== state.focus) return [];
@@ -62,7 +87,14 @@ export function planAutoCombat(world: World, state: AutoCombatState, dt: number,
   const skill = world.player.skills[slot];
   if (skill === null || skill === undefined || skill.press !== null || skill.delivery.type === 'dash' || blockedReason(world.player, skill) !== null) return [];
   const target: MonsterState | null = nearest(world);
-  if (target === null) return [];
+  if (isMoyu(world.content) && (target === null || distance(world.player.pos, target.pos) > 8)) {
+    const pickup = nearestGround(world);
+    if (pickup !== null && world.ground.some((ground): boolean => ground.id === pickup.groundId && distance(world.player.pos, ground.pos) < 5)) return [pickup];
+  }
+  if (target === null) {
+    const pickup = isMoyu(world.content) ? nearestGround(world) : null;
+    return pickup === null ? [] : [pickup];
+  }
   state.focus = target.id;
   return [{ type: 'skill', slot, aim: { x: target.pos.x, z: target.pos.z }, targetId: target.id }];
 }

@@ -24,6 +24,7 @@ import { dealtScale } from './weaken.ts';
 import { holdLine, openScale, strike } from './count.ts';
 import type { ActionState, Actor, BrandState, BurnState, GuardOutcome, ItemInstance, MonsterState, Offence, Team, World } from './types.ts';
 import { sameFloor } from './floors.ts';
+import { isMoyu } from '../content/moyu.ts';
 
 export const COMBAT = {
   guardedKnockback: 0.2,
@@ -177,6 +178,7 @@ function mendSource(world: World, offence: Offence, target: Actor, skill: SkillD
 
 export function applyHit(world: World, offence: Offence, target: Actor, skill: SkillDef, direction: ReadonlyVec2): boolean {
   if (!target.alive || (target.kind === 'player' && (target.invulnerable > 0 || attacksHeld(world)))) return false;
+  const counter = target.kind === 'player' && target.action?.phase === 'windup' && target.action.skill.name === '格挡反击' ? target.action.skill : null;
   const guard: GuardOutcome = guardOutcome(target, skill, direction);
   const guarded: number = guard === 'blocked' && target.kind === 'monster' ? (target.def.guard?.damageTaken ?? 1) : 1;
   const weapon: number = world.rng.range(offence.damageMin, offence.damageMax) * (1 + offence.damagePercent) * skill.damage.weaponPercent;
@@ -186,9 +188,15 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
   const striker: Actor | null = findActor(world, offence.sourceId);
   const weakened: number = striker === null ? 1 : dealtScale(world, striker);
   const exposed: number = target.kind === 'monster' ? openScale(world, target) * collateralScale(offence, target) : 1;
-  const rolled: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded * weakened * exposed));
-  const amount: number = target.kind === 'monster' ? holdLine(world, target, strike(world, target, rolled)) : rolled;
+  const behind = target.kind === 'monster' && skill.name === '背袭' && dot(directionOf(target.facing), direction) > 0.5 ? 1.8 : 1;
+  const rolled: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded * weakened * exposed * behind * (counter === null ? 1 : 0.1)));
+  const amount: number = target.kind === 'monster' ? holdLine(world, target, strike(world, target, rolled)) : isMoyu(world.content) && striker?.kind === 'monster' && striker.def.boss === null ? Math.min(rolled, Math.max(0, target.life - 1)) : rolled;
   target.life -= amount;
+  if (counter !== null && striker?.kind === 'monster' && striker.alive) {
+    const back = { x: -direction.x, z: -direction.z };
+    applyHit(world, offenceOf(target), striker, counter, back);
+    target.action = null;
+  }
   const poise: number = steadiness(target) * (guard === 'blocked' ? COMBAT.guardedKnockback : 1);
   const steady: boolean = steadied(target) || rollsSteady(target);
   if (skill.root > 0 && target.kind === 'player' && target.rootGrace <= 0 && !steady) {

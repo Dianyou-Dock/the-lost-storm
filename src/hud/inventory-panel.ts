@@ -129,7 +129,7 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
         return;
     }
   };
-  for (let index: number = 0; index < context.api.world.content.player.inventorySize; index += 1) {
+  const addCell = (index: number): void => {
     const view: CellView = buildCell(grid, 'cell');
     label('cell-drop', INVENTORY.dropAsk, view.cell);
     inventoryCells.push(view);
@@ -193,7 +193,8 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
       disarm();
       act(index, view, action);
     });
-  }
+  };
+  for (let index: number = 0; index < context.api.world.player.inventory.length; index += 1) addCell(index);
 
   const markOffered = (uid: number | null): void => {
     for (const view of inventoryCells) view.cell.classList.toggle('offered', uid !== null && view.current !== null && view.current.uid === uid);
@@ -204,6 +205,7 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
     element,
     refresh(): void {
       const player: PlayerState = context.api.world.player;
+      while (inventoryCells.length < player.inventory.length) addCell(inventoryCells.length);
       let changed: boolean = false;
       for (const slot of ITEM_SLOTS) {
         const view: CellView | undefined = equipCells.get(slot);

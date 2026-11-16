@@ -2,6 +2,7 @@ import { attacksHeld } from './glitch-hold.ts';
 import { kill, teamOf } from './combat.ts';
 import { holdLine, strikesOf } from './count.ts';
 import type { Actor, BurnState, World } from './types.ts';
+import { isMoyu } from '../content/moyu.ts';
 
 export const BURN = {
   fallDirection: { x: 0, z: 1 },
@@ -9,7 +10,8 @@ export const BURN = {
 
 function scorch(world: World, target: Actor, burn: BurnState): boolean {
   if (target.kind === 'player' && (target.invulnerable > 0 || attacksHeld(world))) return true;
-  const amount: number = target.kind === 'monster' ? holdLine(world, target, strikesOf(target) === null ? burn.perTick : 0) : burn.perTick;
+  const source = world.monsters.find((monster): boolean => monster.id === burn.offence.sourceId);
+  const amount: number = target.kind === 'monster' ? holdLine(world, target, strikesOf(target) === null ? burn.perTick : 0) : isMoyu(world.content) && source?.def.boss === null ? Math.min(burn.perTick, Math.max(0, target.life - 1)) : burn.perTick;
   target.life -= amount;
   const killed: boolean = target.life <= 0;
   world.events.push({

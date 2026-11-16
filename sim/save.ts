@@ -265,9 +265,10 @@ interface Stashed {
 
 function readStash(content: Content, value: unknown): Stashed {
   const list: readonly unknown[] = Array.isArray(value) ? value : [];
-  const stash: (ItemInstance | null)[] = Array.from({ length: content.trade.stashSize }, (_: unknown, index: number): ItemInstance | null => readItem(content, list[index]));
+  const size = isMoyu(content) ? Math.max(content.trade.stashSize, list.length) : content.trade.stashSize;
+  const stash: (ItemInstance | null)[] = Array.from({ length: size }, (_: unknown, index: number): ItemInstance | null => readItem(content, list[index]));
   const overflow: ItemInstance[] = list
-    .slice(content.trade.stashSize)
+    .slice(size)
     .map((entry: unknown): ItemInstance | null => readItem(content, entry))
     .filter((entry: ItemInstance | null): entry is ItemInstance => entry !== null);
   return { stash, overflow };
@@ -329,7 +330,7 @@ export function readSave(content: Content, value: unknown): SaveData | null {
   if (!Array.isArray(allocated) || !Array.isArray(inventory)) return null;
   const allocatedList: readonly unknown[] = allocated;
   const inventoryList: readonly unknown[] = inventory;
-  const size: number = content.player.inventorySize;
+  const size: number = isMoyu(content) ? Math.max(content.player.inventorySize, inventoryList.length) : content.player.inventorySize;
   const savedZone: unknown = value['zone'];
   const held: ReadonlySet<string> = withheldZones(content);
   const known: boolean = typeof savedZone === 'string' && content.zones.has(savedZone) && !held.has(savedZone);

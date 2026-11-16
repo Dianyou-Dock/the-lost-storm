@@ -6,6 +6,7 @@ import type { XpResult } from '../progression.ts';
 import { assignSlot, chartSkills } from '../skill-book.ts';
 import { computeStats, modTargets, resolveSkillBar, variantChain } from '../stats.ts';
 import { heldGroup } from '../weapons.ts';
+import { isMoyu } from '../content/moyu.ts';
 import { buffMods, heldPowers, wornVariants, wouldPassLimit } from '../powers.ts';
 import { dropOnGround } from './ground.ts';
 import { forget, learn } from './learn.ts';
@@ -61,9 +62,15 @@ export function grantXp(world: World, amount: number, reduced: XpReduction | nul
   world.events.push({ type: 'level_up', level: player.level });
 }
 
-export function addToInventory(player: PlayerState, item: ItemInstance): boolean {
+export function addToInventory(player: PlayerState, item: ItemInstance, unlimited: boolean = false): boolean {
   const free: number = player.inventory.indexOf(null);
-  if (free < 0) return false;
+  if (free < 0) {
+    if (unlimited) {
+      player.inventory.push(item);
+      return true;
+    }
+    return false;
+  }
   player.inventory[free] = item;
   return true;
 }
@@ -87,7 +94,7 @@ export function unequip(world: World, slot: ItemSlot): void {
   const player: PlayerState = world.player;
   const item: ItemInstance | null = player.equipped[slot];
   if (item === null) return;
-  if (!addToInventory(player, item)) {
+  if (!addToInventory(player, item, isMoyu(world.content))) {
     world.events.push({ type: 'notice', reason: 'inventory_full' });
     return;
   }

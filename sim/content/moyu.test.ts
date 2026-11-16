@@ -9,6 +9,10 @@ import { readSave, toSave } from '../save.ts';
 import { monsterLevel, spawnMonster } from '../world/spawn.ts';
 import { must } from '../../test/support.ts';
 import { resolveSkill } from '../stats.ts';
+import { applyHit, offenceOf } from '../world/combat.ts';
+import { addToInventory } from '../world/character.ts';
+import { generateItem } from '../items.ts';
+import { createRng } from '../rng.ts';
 
 void test('portal content uses the five element chart without quests', (): void => {
   const content = moyuContent(loadContent());
@@ -114,6 +118,65 @@ void test('the chart contains only basic paths and two or three element effects'
   assert.equal(boosted.lifeOnHit > base.lifeOnHit, true);
   const sword = must(content.itemBases.get('rusted_blade'), 'sword');
   const armed = resolveSkill(content, base, ['word-流血'], [], sword.variants, 'blade');
-  assert.equal(armed.name, '剑刃连斩');
+  assert.equal(armed.name, '突刺');
+  assert.equal(armed.delivery.type, 'arc');
   assert.equal(armed.damage.weaponPercent > base.damage.weaponPercent, true);
+  const second = resolveSkill(content, must(content.skills.get('thunderclap'), 'thunderclap'), ['word-流血'], [], sword.variants, 'blade');
+  assert.notEqual(armed.vfx.style, second.vfx.style);
+  assert.notEqual(armed.vfx.color, resolveSkill(content, base, ['word-破甲'], [], sword.variants, 'blade').vfx.color);
+});
+
+void test('farming equipment has five exact random affix tiers and respec is free', (): void => {
+  const content = moyuContent(loadContent());
+  assert.deepEqual(content.rarities.map((rarity) => [rarity.name, rarity.affixMin, rarity.affixMax]), [['普通', 1, 1], ['精良', 2, 2], ['优秀', 3, 3], ['史诗', 4, 4], ['传说', 5, 5]]);
+  assert.equal(content.chart.respec.goldPerPoint, 0);
+  assert.equal(content.chart.respec.goldPerLevel, 0);
+  for (const [count, rarity] of content.rarities.entries()) {
+    const item = must(generateItem(content, createRng(400 + count), count, 5, 'rusted_blade', rarity.id), rarity.id);
+    assert.equal(item.affixes.length, count + 1);
+    assert.equal(new Set(item.affixes.map((affix) => affix.affix)).size, count + 1);
+  }
+});
+
+void test('ordinary map monsters cannot finish the player while boss damage remains lethal', (): void => {
+  const content = moyuContent(loadContent());
+  const world = createWorld(content, { seed: 19, save: null, opening: false });
+  const ordinary = spawnMonster(world, must(content.monsters.get('wolf'), 'wolf'), world.nextPackId, { x: world.player.pos.x + 2, z: world.player.pos.z }, { summonerId: null, scatter: 0, revived: false, level: 1 });
+  world.player.life = 1;
+  applyHit(world, offenceOf(ordinary), world.player, must(content.skills.get(ordinary.def.skill), 'monster skill'), { x: 1, z: 0 });
+  assert.equal(world.player.life, 1);
+  const boss = spawnMonster(world, must(content.monsters.get('moyu_boss_under_hall'), 'boss'), world.nextPackId + 1, { x: world.player.pos.x + 2, z: world.player.pos.z }, { summonerId: null, scatter: 0, revived: false, level: 1 });
+  applyHit(world, offenceOf(boss), world.player, must(content.skills.get(boss.def.skill), 'boss skill'), { x: 1, z: 0 });
+  assert.equal(world.player.alive, false);
+});
+
+void test('all five documented cold weapons bind their three matching actions', (): void => {
+  const content = moyuContent(loadContent());
+  const base = must(content.skills.get('cleave'), 'cleave');
+  const expected = [
+    ['tempest_greatsword', ['斩', '横扫', '重斩']],
+    ['rusted_blade', ['突刺', '连斩', '格挡反击']],
+    ['woodsman_hatchet', ['劈砍', '旋斩', '断势']],
+    ['driftwood_staff', ['点', '扫', '砸']],
+    ['skinning_knife', ['刺', '连刺', '背袭']],
+  ] as const;
+  for (const [id, names] of expected) {
+    const weapon = must(content.itemBases.get(id), id);
+    const actual = ['cleave', 'thunderclap', 'storm_bolt'].map((skill) => resolveSkill(content, must(content.skills.get(skill), skill), [], [], weapon.variants, weapon.weaponKind).name);
+    assert.deepEqual(actual, names, id);
+  }
+  assert.equal(base.name, 'Cleave');
+});
+
+void test('expanded moyu bag and stash survive a save round trip', (): void => {
+  const content = moyuContent(loadContent());
+  const world = createWorld(content, { seed: 13, save: null, opening: false });
+  const item = must(generateItem(content, createRng(9), 700, 1, 'rusted_blade', 'common'), 'item');
+  world.player.inventory.forEach((_, index): void => { world.player.inventory[index] = { ...item, uid: 800 + index }; });
+  assert.equal(addToInventory(world.player, { ...item, uid: 701 }, true), true);
+  world.stash.push({ ...item, uid: 702 });
+  const saved = readSave(content, toSave(world));
+  assert.ok(saved);
+  assert.equal(saved.inventory.length, content.player.inventorySize + 1);
+  assert.equal(saved.stash.length, content.trade.stashSize + 1);
 });

@@ -4,6 +4,7 @@ import { linesFor } from './content/item-rules.ts';
 import type { Rng } from './rng.ts';
 import { pickWeighted } from './rng.ts';
 import { describeMod, roundStat } from './stat-text.ts';
+import { isMoyu } from './content/moyu.ts';
 import type { Equipment, ItemInstance, RolledAffix } from './world/types.ts';
 
 export interface ItemLine {
@@ -125,6 +126,7 @@ interface Pick {
 }
 
 function settle(content: Content, rng: Rng, level: number, base: ItemBaseDef, rarity: RarityDef, forced: boolean): Pick | null {
+  if (isMoyu(content)) return { base, rarity };
   if (base.power !== null) {
     const powered: RarityDef | null = poweredRarity(content);
     return powered === null ? null : { base, rarity: powered };

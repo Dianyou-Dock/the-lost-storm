@@ -8,6 +8,7 @@ import { readyToRepeat } from '../../sim/world/skills.ts';
 import { glidesWith } from '../../sim/world/momentum.ts';
 import type { Command, FlaskState, MonsterState, World } from '../../sim/world/types.ts';
 import { isMoyu } from '../../sim/content/moyu.ts';
+import { localizeText } from '../i18n/zh.ts';
 import { cannotStep, isTimeHeld } from '../../sim/world/movement.ts';
 import type { KeyValueStore } from '../backend/backend.ts';
 import { el } from '../hud/dom.ts';
@@ -351,7 +352,7 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
     }
     view.root.classList.toggle('empty', skill === undefined);
     view.root.setAttribute('aria-label', skill?.name ?? 'Empty skill slot');
-    view.root.dataset['skillName'] = skill?.name ?? '';
+    view.root.dataset['skillName'] = skill === undefined ? '' : localizeText(skill.name);
   };
 
   const createButton = (spec: TouchButton): ButtonView => {

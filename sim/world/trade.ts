@@ -5,6 +5,7 @@ import type { TradeGood } from '../content/trade-types.ts';
 import type { Vec2 } from '../math.ts';
 import { distance, facingOf } from '../math.ts';
 import { createRng, pickWeighted } from '../rng.ts';
+import { isMoyu } from '../content/moyu.ts';
 import { allHold } from './conditions.ts';
 import { hasNews, nextTalk, openDialogue } from './dialogue.ts';
 import type { ItemInstance, NoticeReason, NpcState, PlayerState, TradeAction, VendorStock, World } from './types.ts';
@@ -126,6 +127,10 @@ function changed(world: World): void {
 function receive(world: World, item: ItemInstance): boolean {
   const free: number = world.player.inventory.indexOf(null);
   if (free < 0) {
+    if (isMoyu(world.content)) {
+      world.player.inventory.push(item);
+      return true;
+    }
     notice(world, 'inventory_full');
     return false;
   }
@@ -202,6 +207,12 @@ function stash(world: World, inventoryIndex: number): void {
   if (item === null) return;
   const free: number = world.stash.indexOf(null);
   if (free < 0) {
+    if (isMoyu(world.content)) {
+      world.stash.push(item);
+      player.inventory[inventoryIndex] = null;
+      changed(world);
+      return;
+    }
     notice(world, 'stash_full');
     return;
   }
