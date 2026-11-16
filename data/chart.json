@@ -1,7 +1,7 @@
 {
   "title": "The Skill Tree",
   "pointsPerLevel": 2,
-  "revision": 6,
+  "revision": 7,
   "twist": 0.08,
   "respec": {
     "goldPerPoint": 10,
