@@ -8,7 +8,19 @@ export interface KitLetters {
   readonly shore: string;
 }
 
+export type KitForm = 'blob' | 'rect';
+
+export type KitRowSide = 'long' | 'aisle';
+
+export interface KitRow {
+  readonly prop: string;
+  readonly step: number;
+  readonly inset: number;
+  readonly sides: readonly KitRowSide[];
+}
+
 export interface KitShape {
+  readonly form: KitForm;
   readonly radiusLeast: number;
   readonly radiusMost: number;
   readonly alcoves: number;
@@ -56,6 +68,7 @@ export interface CaveKit {
   readonly walls: KitWalls;
   readonly stairs: KitStairs;
   readonly clusters: readonly (readonly KitPiece[])[];
+  readonly rows: readonly KitRow[];
   readonly caches: readonly string[];
   readonly density: KitDensity;
   readonly families: readonly KitFamily[];
@@ -80,7 +93,37 @@ function kitShape(value: unknown, where: string): KitShape {
   const radiusLeast: number = positive(source, 'radiusLeast', where);
   const radiusMost: number = positive(source, 'radiusMost', where);
   if (radiusMost < radiusLeast) throw new ContentError(`${where}.radiusMost`, 'must be at least radiusLeast');
-  return { radiusLeast, radiusMost, alcoves: nonNegative(source, 'alcoves', where), pondChance: share(source, 'pondChance', where) };
+  return { form: kitForm(source['form'], `${where}.form`), radiusLeast, radiusMost, alcoves: nonNegative(source, 'alcoves', where), pondChance: share(source, 'pondChance', where) };
+}
+
+function kitForm(value: unknown, where: string): KitForm {
+  switch (value) {
+    case undefined:
+    case 'blob':
+      return 'blob';
+    case 'rect':
+      return 'rect';
+    default:
+      throw new ContentError(where, 'expected "blob" or "rect"');
+  }
+}
+
+function kitRowSide(value: unknown, where: string): KitRowSide {
+  switch (value) {
+    case 'long':
+      return 'long';
+    case 'aisle':
+      return 'aisle';
+    default:
+      throw new ContentError(where, 'expected "long" or "aisle"');
+  }
+}
+
+function kitRow(value: unknown, where: string): KitRow {
+  const source: Fields = fields(value, where);
+  const sides: KitRowSide[] = each(source['sides'], `${where}.sides`, kitRowSide);
+  if (sides.length === 0) throw new ContentError(`${where}.sides`, 'a row stands along at least one side');
+  return { prop: text(source, 'prop', where), step: positive(source, 'step', where), inset: nonNegative(source, 'inset', where), sides };
 }
 
 function kitWalls(value: unknown, where: string): KitWalls {
@@ -127,13 +170,17 @@ export function readKit(value: unknown, where: string): CaveKit {
   if (families.length === 0) throw new ContentError(`${where}.families`, 'a kit needs at least one monster family');
   const clusters: KitPiece[][] = each(source['clusters'], `${where}.clusters`, kitCluster);
   const stairs: Fields = fields(source['stairs'], `${where}.stairs`);
+  const shape: KitShape = kitShape(source['shape'], `${where}.shape`);
+  const rows: KitRow[] = source['rows'] === undefined ? [] : each(source['rows'], `${where}.rows`, kitRow);
+  if (rows.length > 0 && shape.form !== 'rect') throw new ContentError(`${where}.rows`, 'rows stand along the straight walls of rect rooms; set shape.form to "rect"');
   return {
     id: text(source, 'id', where),
     letters,
-    shape: kitShape(source['shape'], `${where}.shape`),
+    shape,
     walls: kitWalls(source['walls'], `${where}.walls`),
     stairs: { prop: text(stairs, 'prop', `${where}.stairs`), y: numeric(stairs, 'y', `${where}.stairs`) },
     clusters,
+    rows,
     caches: textList(source, 'caches', where),
     density: kitDensity(source['density'], `${where}.density`),
     families,

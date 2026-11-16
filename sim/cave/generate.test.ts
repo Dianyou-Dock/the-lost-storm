@@ -6,8 +6,10 @@ import { TERRAIN_MARKS } from '../content/terrain-types.ts';
 import type { Content, ZoneDef } from '../content/types.ts';
 import { distance } from '../math.ts';
 import { screenLoad } from './checks.ts';
-import type { CaveLayout, CaveRequest, CaveResult, ScreenLimit } from './generate.ts';
+import type { CaveLayout, CaveProp, CaveRequest, CaveResult, ScreenLimit } from './generate.ts';
 import { CAVE_GEN, generateCave } from './generate.ts';
+import type { CellBox } from './layout.ts';
+import { CAVE_LAYOUT, chamberBox } from './layout.ts';
 import type { CaveKit } from './kit.ts';
 import { readKit } from './kit.ts';
 
@@ -19,7 +21,7 @@ const limit: ScreenLimit = screenLoad(content, reference);
 const SEEDS: readonly number[] = [1, 2, 3, 4, 5, 6];
 
 function request(seed: number): CaveRequest {
-  return { seed, columns: 110, rows: 110, chambers: 10, levels: { from: 14, to: 17 }, packs: 20, packScale: 1, screen: limit };
+  return { seed, columns: 110, rows: 110, chambers: 10, levels: { from: 14, to: 17 }, packs: 20, packScale: 1, roomScale: 1, screen: limit };
 }
 
 function made(seed: number): CaveLayout {
@@ -70,9 +72,48 @@ void test('more chambers than the terraces can hold, no packs, or a kit naming a
   assert.ok(!typo.ok && typo.problem.includes('no_such_cache'));
   const plain: CaveResult = generateCave(request(1), { kit: { ...kit, caches: [kit.stairs.prop] }, defs: content.props, judge: null });
   assert.ok(!plain.ok && plain.problem.includes('not caches'));
+  const lostRow: CaveResult = generateCave(request(1), { kit: { ...kit, shape: { ...kit.shape, form: 'rect' }, rows: [{ prop: 'no_such_column', step: 6, inset: 3, sides: ['long'] }] }, defs: content.props, judge: null });
+  assert.ok(!lostRow.ok && lostRow.problem.includes('no_such_column'));
 });
 
 void test('a cave too small for its chambers is refused, not squeezed', (): void => {
   const result: CaveResult = generateCave({ ...request(1), columns: 40, rows: 40 }, { kit, defs: content.props, judge: null });
   assert.equal(result.ok, false);
+});
+
+const halls: CaveKit = readKit({ ...hourfall, shape: { ...hourfall.shape, form: 'rect' }, rows: [{ prop: 'hall_column', step: 6, inset: 3, sides: ['long'] }], zone: { ...hourfall.zone, terrain: { ...hourfall.zone.terrain, rough: null } } }, 'halls');
+
+function hall(seed: number): CaveLayout {
+  const result: CaveResult = generateCave(request(seed), { kit: halls, defs: content.props, judge: null });
+  assert.ok(result.ok, result.ok ? '' : `seed ${seed}: ${result.problem}`);
+  return result.layout;
+}
+
+void test('a rect kit builds whole rectangular rooms at their own level, square corridors as wide as the ramp, and columns in even lines along the long walls', (): void => {
+  for (const seed of SEEDS.slice(0, 4)) {
+    const layout: CaveLayout = hall(seed);
+    for (const chamber of layout.chambers) {
+      const box: CellBox = chamberBox(chamber);
+      for (let row: number = box.top; row <= box.bottom; row += 1) {
+        for (let column: number = box.left; column <= box.right; column += 1) {
+          assert.notEqual(layout.tiles[row]?.charAt(column), ' ', `seed ${seed} chamber ${chamber.index} cell ${column},${row}`);
+          assert.equal(Number.parseInt(layout.levels[row]?.charAt(column) ?? '', 36), chamber.level, `seed ${seed} chamber ${chamber.index} cell ${column},${row}`);
+        }
+      }
+    }
+    for (const passage of layout.passages) {
+      const { ramp } = passage;
+      const ends: readonly (readonly [number, number])[] = [[ramp.start - ramp.sign * (CAVE_LAYOUT.lead + 1), layout.chambers[passage.from]?.level ?? -1], [ramp.start + ramp.sign * (ramp.length + CAVE_LAYOUT.lead), layout.chambers[passage.to]?.level ?? -1]];
+      for (const [step, level] of ends) {
+        for (let across: number = 0; across < ramp.width; across += 1) {
+          const side: number = ramp.line - ramp.width / 2 + across;
+          const mark: string | undefined = ramp.axis === 'z' ? layout.levels[step]?.charAt(side) : layout.levels[side]?.charAt(step);
+          assert.equal(Number.parseInt(mark ?? '', 36), level, `seed ${seed} passage ${passage.from} corridor cell ${side} at ${step}`);
+        }
+      }
+    }
+    const columns: readonly CaveProp[] = layout.props.filter((placed: CaveProp): boolean => placed.prop === 'hall_column');
+    const paired: number = columns.filter((placed: CaveProp): boolean => columns.some((other: CaveProp): boolean => (other.z === placed.z && Math.abs(Math.abs(other.x - placed.x) - 6) < 0.02) || (other.x === placed.x && Math.abs(Math.abs(other.z - placed.z) - 6) < 0.02))).length;
+    assert.ok(columns.length > 0 && paired * 2 >= columns.length, `seed ${seed}: ${paired} of ${columns.length} columns stand one step from a neighbour in their line`);
+  }
 });

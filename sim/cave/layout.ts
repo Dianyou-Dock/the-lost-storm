@@ -9,6 +9,7 @@ export const CAVE_LAYOUT = {
   step: 2,
   border: 5,
   stretch: { least: 0.85, most: 1.2 },
+  rectStretch: { least: 0.7, most: 1.45 },
   wobble: [0.12, 0.1, 0.07],
   passage: { least: 9, most: 13 },
   spread: 1.12,
@@ -51,6 +52,13 @@ export interface CavePassage {
   readonly landing: Vec2;
 }
 
+export interface CellBox {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
 export interface CaveShape {
   readonly raster: CaveRaster;
   readonly chambers: readonly CaveChamber[];
@@ -66,11 +74,23 @@ function inside(columns: number, rows: number, centre: ReadonlyVec2, reach: numb
   return centre.x >= edge && centre.z >= edge && centre.x <= columns - edge && centre.z <= rows - edge;
 }
 
-function reachOf(radius: number, stretch: number): number {
-  return radius * Math.max(stretch, 1 / stretch) * CAVE_LAYOUT.spread;
+function reachOf(kit: CaveKit, radius: number, stretch: number): number {
+  return kit.shape.form === 'rect' ? Math.hypot(radius * stretch, radius / stretch) : radius * Math.max(stretch, 1 / stretch) * CAVE_LAYOUT.spread;
 }
 
-function nextChamber(rng: Rng, kit: CaveKit, columns: number, rows: number, chambers: readonly CaveChamber[]): CaveChamber | null {
+export function chamberBox(chamber: CaveChamber): CellBox {
+  const halfX: number = chamber.radius * chamber.stretch;
+  const halfZ: number = chamber.radius / chamber.stretch;
+  return { left: Math.ceil(chamber.centre.x - halfX - 0.5), right: Math.floor(chamber.centre.x + halfX - 0.5), top: Math.ceil(chamber.centre.z - halfZ - 0.5), bottom: Math.floor(chamber.centre.z + halfZ - 0.5) };
+}
+
+function paintBox(raster: CaveRaster, box: CellBox, level: number, feature: number, letter: number): void {
+  for (let row: number = box.top; row <= box.bottom; row += 1) {
+    for (let column: number = box.left; column <= box.right; column += 1) paintCell(raster, column, row, level, feature, letter);
+  }
+}
+
+function nextChamber(rng: Rng, kit: CaveKit, columns: number, rows: number, chambers: readonly CaveChamber[], rooms: number): CaveChamber | null {
   const last: CaveChamber | undefined = chambers.at(-1);
   if (last === undefined) return null;
   const index: number = chambers.length;
@@ -78,16 +98,16 @@ function nextChamber(rng: Rng, kit: CaveKit, columns: number, rows: number, cham
   let bestScore: number = -Infinity;
   for (let tries: number = 0; tries < CAVE_LAYOUT.candidates; tries += 1) {
     const angle: number = rng.range(0, Math.PI * 2);
-    const shaped: CaveChamber = makeChamber(rng, kit, index, last.centre);
-    const reach: number = reachOf(shaped.radius, shaped.stretch);
-    const hop: number = reach + reachOf(last.radius, last.stretch) + rng.range(CAVE_LAYOUT.passage.least, CAVE_LAYOUT.passage.most);
+    const shaped: CaveChamber = makeChamber(rng, kit, index, last.centre, rooms);
+    const reach: number = reachOf(kit, shaped.radius, shaped.stretch);
+    const hop: number = reach + reachOf(kit, last.radius, last.stretch) + rng.range(CAVE_LAYOUT.passage.least, CAVE_LAYOUT.passage.most);
     const candidate: CaveChamber = { ...shaped, centre: { x: last.centre.x + Math.cos(angle) * hop, z: last.centre.z + Math.sin(angle) * hop } };
     if (!inside(columns, rows, candidate.centre, reach)) continue;
     let nearest: number = CAVE_LAYOUT.roomy;
     let clear: boolean = true;
     for (const other of chambers) {
       if (other.index === last.index) continue;
-      const gap: number = Math.hypot(other.centre.x - candidate.centre.x, other.centre.z - candidate.centre.z) - reach - reachOf(other.radius, other.stretch);
+      const gap: number = Math.hypot(other.centre.x - candidate.centre.x, other.centre.z - candidate.centre.z) - reach - reachOf(kit, other.radius, other.stretch);
       if (gap < CAVE_LAYOUT.apart) clear = false;
       nearest = Math.min(nearest, gap);
     }
@@ -101,16 +121,18 @@ function nextChamber(rng: Rng, kit: CaveKit, columns: number, rows: number, cham
   return best;
 }
 
-function makeChamber(rng: Rng, kit: CaveKit, index: number, centre: Vec2): CaveChamber {
-  const radius: number = rng.range(kit.shape.radiusLeast, kit.shape.radiusMost);
-  return { index, centre, radius, stretch: rng.range(CAVE_LAYOUT.stretch.least, CAVE_LAYOUT.stretch.most), turn: rng.range(0, Math.PI), level: CAVE_LAYOUT.top - CAVE_LAYOUT.step * index, theme: kit.letters.themes[rng.int(0, kit.letters.themes.length - 1)] ?? kit.letters.passage };
+function makeChamber(rng: Rng, kit: CaveKit, index: number, centre: Vec2, rooms: number): CaveChamber {
+  const radius: number = rng.range(kit.shape.radiusLeast, kit.shape.radiusMost) * rooms;
+  const rect: boolean = kit.shape.form === 'rect';
+  const stretch: number = rect ? rng.range(CAVE_LAYOUT.rectStretch.least, CAVE_LAYOUT.rectStretch.most) : rng.range(CAVE_LAYOUT.stretch.least, CAVE_LAYOUT.stretch.most);
+  return { index, centre, radius, stretch, turn: rect ? 0 : rng.range(0, Math.PI), level: CAVE_LAYOUT.top - CAVE_LAYOUT.step * index, theme: kit.letters.themes[rng.int(0, kit.letters.themes.length - 1)] ?? kit.letters.passage };
 }
 
-function placeChambers(rng: Rng, kit: CaveKit, columns: number, rows: number, count: number): CaveChamber[] | null {
-  const chambers: CaveChamber[] = [makeChamber(rng, kit, 0, { x: rng.range(columns * 0.2, columns * 0.8), z: CAVE_LAYOUT.border + kit.shape.radiusMost * 1.4 })];
+function placeChambers(rng: Rng, kit: CaveKit, columns: number, rows: number, count: number, rooms: number): CaveChamber[] | null {
+  const chambers: CaveChamber[] = [makeChamber(rng, kit, 0, { x: rng.range(columns * 0.2, columns * 0.8), z: CAVE_LAYOUT.border + kit.shape.radiusMost * rooms * 1.4 }, rooms)];
   let backtracks: number = 0;
   while (chambers.length < count) {
-    const next: CaveChamber | null = nextChamber(rng, kit, columns, rows, chambers);
+    const next: CaveChamber | null = nextChamber(rng, kit, columns, rows, chambers, rooms);
     if (next !== null) {
       chambers.push(next);
       continue;
@@ -145,6 +167,10 @@ function paintBlob(raster: CaveRaster, rng: Rng, centre: ReadonlyVec2, radius: n
 
 function paintChamber(raster: CaveRaster, rng: Rng, kit: CaveKit, chamber: CaveChamber): void {
   const feature: number = chamber.index * 2;
+  if (kit.shape.form === 'rect') {
+    paintBox(raster, chamberBox(chamber), chamber.level, feature, letterCode(chamber.theme));
+    return;
+  }
   const pond: { readonly x: number; readonly z: number; readonly size: number } | null = rng.chance(kit.shape.pondChance) ? { x: rng.range(-0.3, 0.3) * chamber.radius, z: rng.range(-0.3, 0.3) * chamber.radius, size: chamber.radius * CAVE_LAYOUT.pond.size } : null;
   const letter = (dx: number, dz: number): string => {
     if (pond === null) return chamber.theme;
@@ -168,6 +194,53 @@ function bent(rng: Rng, from: ReadonlyVec2, to: ReadonlyVec2): Vec2 {
   return { x: (from.x + to.x) / 2 - dz * sway, z: (from.z + to.z) / 2 + dx * sway };
 }
 
+interface PassageLine {
+  readonly axis: 'x' | 'z';
+  readonly sign: 1 | -1;
+  readonly line: number;
+  readonly begin: number;
+  readonly piece: number;
+}
+
+function linePoint(run: PassageLine, step: number): Vec2 {
+  return run.axis === 'z' ? { x: run.line, z: step + 0.5 } : { x: step + 0.5, z: run.line };
+}
+
+function paintWinding(raster: CaveRaster, rng: Rng, run: PassageLine, from: CaveChamber, to: CaveChamber, feature: number, letter: number): void {
+  const { sign, begin, piece } = run;
+  const upper: Vec2 = linePoint(run, begin);
+  const lower: Vec2 = linePoint(run, begin + sign * (piece - 1));
+  const upperApproach: Vec2 = linePoint(run, begin - sign * CAVE_LAYOUT.approach);
+  const lowerApproach: Vec2 = linePoint(run, begin + sign * (piece - 1 + CAVE_LAYOUT.approach));
+  const upperBend: Vec2 = bent(rng, from.centre, upperApproach);
+  const lowerBend: Vec2 = bent(rng, lowerApproach, to.centre);
+  paintStroke(raster, from.centre, upperBend, CAVE_LAYOUT.brush, from.level, feature, letter);
+  paintStroke(raster, upperBend, upperApproach, CAVE_LAYOUT.brush, from.level, feature, letter);
+  paintStroke(raster, upperApproach, upper, CAVE_LAYOUT.approachBrush, from.level, feature, letter);
+  paintStroke(raster, lower, lowerApproach, CAVE_LAYOUT.approachBrush, to.level, feature, letter);
+  paintStroke(raster, lowerApproach, lowerBend, CAVE_LAYOUT.brush, to.level, feature, letter);
+  paintStroke(raster, lowerBend, to.centre, CAVE_LAYOUT.brush, to.level, feature, letter);
+}
+
+function band(run: PassageLine, alongFrom: number, alongTo: number, acrossFrom: number, acrossTo: number): CellBox {
+  const along: readonly [number, number] = [Math.min(alongFrom, alongTo), Math.max(alongFrom, alongTo)];
+  const across: readonly [number, number] = [Math.min(acrossFrom, acrossTo), Math.max(acrossFrom, acrossTo)];
+  return run.axis === 'z' ? { left: across[0], right: across[1], top: along[0], bottom: along[1] } : { left: along[0], right: along[1], top: across[0], bottom: across[1] };
+}
+
+function corridorTo(raster: CaveRaster, run: PassageLine, chamber: CaveChamber, end: number, feature: number, letter: number): void {
+  const half: number = CAVE_LAYOUT.rampWidth / 2;
+  const along: number = Math.round(run.axis === 'z' ? chamber.centre.z : chamber.centre.x);
+  const across: number = Math.round(run.axis === 'z' ? chamber.centre.x : chamber.centre.z);
+  paintBox(raster, band(run, along - half, along + half - 1, across, run.line), chamber.level, feature, letter);
+  paintBox(raster, band(run, along, end, run.line - half, run.line + half - 1), chamber.level, feature, letter);
+}
+
+function paintCorridors(raster: CaveRaster, run: PassageLine, from: CaveChamber, to: CaveChamber, feature: number, letter: number): void {
+  corridorTo(raster, run, from, run.begin - run.sign, feature, letter);
+  corridorTo(raster, run, to, run.begin + run.sign * run.piece, feature, letter);
+}
+
 function paintPassage(raster: CaveRaster, rng: Rng, kit: CaveKit, from: CaveChamber, to: CaveChamber): CavePassage {
   const feature: number = from.index * 2 + 1;
   const letter: number = letterCode(kit.letters.passage);
@@ -182,19 +255,9 @@ function paintPassage(raster: CaveRaster, rng: Rng, kit: CaveKit, from: CaveCham
   const line: number = Math.round(axis === 'z' ? mid.x + sway : mid.z + sway);
   const begin: number = Math.round((axis === 'z' ? mid.z : mid.x) - (sign * piece) / 2);
   const ramp: CaveRamp = { axis, sign, line, start: begin + sign * CAVE_LAYOUT.lead, width: CAVE_LAYOUT.rampWidth, length: CAVE_LAYOUT.rampLength };
-  const point = (step: number): Vec2 => (axis === 'z' ? { x: line, z: step + 0.5 } : { x: step + 0.5, z: line });
-  const upper: Vec2 = point(begin);
-  const lower: Vec2 = point(begin + sign * (piece - 1));
-  const upperApproach: Vec2 = point(begin - sign * CAVE_LAYOUT.approach);
-  const lowerApproach: Vec2 = point(begin + sign * (piece - 1 + CAVE_LAYOUT.approach));
-  const upperBend: Vec2 = bent(rng, from.centre, upperApproach);
-  const lowerBend: Vec2 = bent(rng, lowerApproach, to.centre);
-  paintStroke(raster, from.centre, upperBend, CAVE_LAYOUT.brush, from.level, feature, letter);
-  paintStroke(raster, upperBend, upperApproach, CAVE_LAYOUT.brush, from.level, feature, letter);
-  paintStroke(raster, upperApproach, upper, CAVE_LAYOUT.approachBrush, from.level, feature, letter);
-  paintStroke(raster, lower, lowerApproach, CAVE_LAYOUT.approachBrush, to.level, feature, letter);
-  paintStroke(raster, lowerApproach, lowerBend, CAVE_LAYOUT.brush, to.level, feature, letter);
-  paintStroke(raster, lowerBend, to.centre, CAVE_LAYOUT.brush, to.level, feature, letter);
+  const run: PassageLine = { axis, sign, line, begin, piece };
+  if (kit.shape.form === 'rect') paintCorridors(raster, run, from, to, feature, letter);
+  else paintWinding(raster, rng, run, from, to, feature, letter);
   for (let along: number = 0; along < piece; along += 1) {
     const step: number = begin + sign * along;
     for (let across: number = 0; across < CAVE_LAYOUT.rampWidth; across += 1) {
@@ -206,15 +269,15 @@ function paintPassage(raster: CaveRaster, rng: Rng, kit: CaveKit, from: CaveCham
     }
   }
   for (const cell of rampCells(ramp)) paintRamp(raster, cell.column, cell.row, feature, letter);
-  return { from: from.index, to: to.index, ramp, landing: point(begin + sign * (piece + 1)) };
+  return { from: from.index, to: to.index, ramp, landing: linePoint(run, begin + sign * (piece + 1)) };
 }
 
 export function deepestChambers(): number {
   return Math.floor(CAVE_LAYOUT.top / CAVE_LAYOUT.step) + 1;
 }
 
-export function shapeCave(rng: Rng, kit: CaveKit, columns: number, rows: number, count: number): CaveShape | null {
-  const chambers: CaveChamber[] | null = placeChambers(rng, kit, columns, rows, count);
+export function shapeCave(rng: Rng, kit: CaveKit, columns: number, rows: number, count: number, rooms: number): CaveShape | null {
+  const chambers: CaveChamber[] | null = placeChambers(rng, kit, columns, rows, count, rooms);
   if (chambers === null) return null;
   const raster: CaveRaster = createRaster(columns, rows);
   for (const chamber of chambers) paintChamber(raster, rng, kit, chamber);

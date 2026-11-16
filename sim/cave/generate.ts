@@ -5,9 +5,9 @@ import { distance } from '../math.ts';
 import { propBlockers } from '../nav/grid.ts';
 import type { Rng } from '../rng.ts';
 import { createRng } from '../rng.ts';
-import type { CaveChamber, CavePassage, CaveShape } from './layout.ts';
-import { CAVE_LAYOUT, deepestChambers, shapeCave } from './layout.ts';
-import type { CaveKit, KitFamily, KitPiece } from './kit.ts';
+import type { CaveChamber, CavePassage, CaveShape, CellBox } from './layout.ts';
+import { CAVE_LAYOUT, chamberBox, deepestChambers, shapeCave } from './layout.ts';
+import type { CaveKit, KitFamily, KitPiece, KitRow, KitRowSide } from './kit.ts';
 import type { CaveRaster } from './raster.ts';
 import { cellAt, evenRampSides, isFloor, rockDistance, ROCK, wallLevels } from './raster.ts';
 
@@ -29,6 +29,7 @@ export const CAVE_GEN = {
   checkpointReach: 6,
   clusterTries: 60,
   keepClear: 4,
+  blockerKeep: 5.5,
   packKeep: 3,
   rampKeep: 2,
   blockerClear: 3,
@@ -37,6 +38,7 @@ export const CAVE_GEN = {
   screenStep: 2,
   stairQuarters: [1, 3],
   propSpin: 360,
+  rowTurns: { wide: [0, 180, 90], deep: [90, 270, 0] },
 } as const;
 
 export interface LevelBand {
@@ -57,6 +59,7 @@ export interface CaveRequest {
   readonly levels: LevelBand;
   readonly packs: number;
   readonly packScale: number;
+  readonly roomScale: number;
   readonly screen: ScreenLimit;
 }
 
@@ -304,7 +307,7 @@ function rounded(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function tryProp(dressing: Dressing, defs: ReadonlyMap<string, PropDef>, prop: string, at: Vec2, level: number, turn: number): boolean {
+function tryProp(dressing: Dressing, defs: ReadonlyMap<string, PropDef>, prop: string, at: Vec2, level: number, turn: number, hug: boolean = false): boolean {
   const def: PropDef | undefined = defs.get(prop);
   const index: number = indexAt(dressing.ground, at);
   if (def === undefined || index < 0 || !isFloor(dressing.ground.raster, index) || dressing.ground.raster.level[index] !== level || dressing.nearRamp[index] === 1) return false;
@@ -313,8 +316,9 @@ function tryProp(dressing: Dressing, defs: ReadonlyMap<string, PropDef>, prop: s
   const blocking: boolean = propBlockers(def, at.x, at.z, rotationDegrees).length > 0;
   if (blocking) {
     const reach: number = Math.max(def.blockRadius, def.blockLength / 2 + def.blockRadius, 1);
-    if ((dressing.ground.clear[index] ?? 0) * dressing.ground.size < reach + CAVE_GEN.blockerClear * dressing.ground.size) return false;
+    if (!hug && (dressing.ground.clear[index] ?? 0) * dressing.ground.size < reach + CAVE_GEN.blockerClear * dressing.ground.size) return false;
     if (dressing.packs.some((pack: CavePack): boolean => distance(pack, at) < CAVE_GEN.packKeep + reach)) return false;
+    if (dressing.keep.some((point: Vec2): boolean => distance(point, at) < CAVE_GEN.blockerKeep + reach)) return false;
     if (dressing.blockers.some((other): boolean => distance(other.at, at) < other.reach + reach + CAVE_GEN.blockerApart)) return false;
   }
   if (def.light !== null) {
@@ -359,11 +363,43 @@ function stairs(ground: Ground, shape: CaveShape, kit: CaveKit): CaveProp[] {
   return placed;
 }
 
+interface RowLine {
+  readonly across: number;
+  readonly turn: number;
+}
+
+function rowLines(row: KitRow, low: number, high: number, turns: readonly [number, number, number]): RowLine[] {
+  return row.sides.flatMap((side: KitRowSide): RowLine[] => (side === 'long' ? [{ across: low + row.inset, turn: turns[0] }, { across: high - row.inset, turn: turns[1] }] : [{ across: (low + high) / 2, turn: turns[2] }]));
+}
+
+function placeRows(dressing: Dressing, defs: ReadonlyMap<string, PropDef>, kit: CaveKit, shape: CaveShape): void {
+  const { size } = dressing.ground;
+  for (const chamber of shape.chambers) {
+    const box: CellBox = chamberBox(chamber);
+    const wide: boolean = box.right - box.left >= box.bottom - box.top;
+    const along: readonly [number, number] = wide ? [box.left * size, (box.right + 1) * size] : [box.top * size, (box.bottom + 1) * size];
+    const across: readonly [number, number] = wide ? [box.top * size, (box.bottom + 1) * size] : [box.left * size, (box.right + 1) * size];
+    for (const row of kit.rows) {
+      const span: number = along[1] - along[0] - row.inset * 2;
+      if (span < 0) continue;
+      const count: number = Math.floor(span / row.step) + 1;
+      const first: number = (along[0] + along[1]) / 2 - ((count - 1) * row.step) / 2;
+      for (const line of rowLines(row, across[0], across[1], wide ? CAVE_GEN.rowTurns.wide : CAVE_GEN.rowTurns.deep)) {
+        for (let at: number = 0; at < count; at += 1) {
+          const step: number = first + at * row.step;
+          tryProp(dressing, defs, row.prop, wide ? { x: step, z: line.across } : { x: line.across, z: step }, chamber.level, line.turn, true);
+        }
+      }
+    }
+  }
+}
+
 function dress(rng: Rng, ground: Ground, shape: CaveShape, spots: Spots, packs: readonly CavePack[], request: CaveRequest, maker: CaveMaker): CaveProp[] {
   const { kit, defs } = maker;
   const { clusters, caches } = kit;
   const floorTiles: number = cellsWhere(ground, (index: number): boolean => isFloor(ground.raster, index)).length;
   const dressing: Dressing = { ground, props: stairs(ground, shape, kit), lights: [], blockers: [], keep: safePoints(spots), packs, nearRamp: rampMask(ground), screen: request.screen };
+  placeRows(dressing, defs, kit, shape);
   const edges: number[] = cellsWhere(ground, (index: number): boolean => {
     const clear: number = ground.clear[index] ?? 0;
     return isFloor(ground.raster, index) && ground.raster.ramp[index] !== 1 && (ground.raster.feature[index] ?? 1) % 2 === 0 && clear >= CAVE_GEN.edgeClear.least && clear <= CAVE_GEN.edgeClear.most;
@@ -422,7 +458,7 @@ function levelLines(raster: CaveRaster, levels: Int16Array): string[] {
 }
 
 function attempt(rng: Rng, request: CaveRequest, maker: CaveMaker): CaveLayout | null {
-  const shape: CaveShape | null = shapeCave(rng, maker.kit, request.columns, request.rows, request.chambers);
+  const shape: CaveShape | null = shapeCave(rng, maker.kit, request.columns, request.rows, request.chambers, request.roomScale);
   if (shape === null) return null;
   const ground: Ground = { raster: shape.raster, clear: rockDistance(shape.raster), size: CAVE_GEN.cellSize };
   const spots: Spots | null = placeSpots(ground, shape);
@@ -435,16 +471,17 @@ function attempt(rng: Rng, request: CaveRequest, maker: CaveMaker): CaveLayout |
   return { seed: request.seed, columns: request.columns, rows: request.rows, cellSize: CAVE_GEN.cellSize, tiles: tileLines(shape.raster), levels: levelLines(shape.raster, levels), chambers: shape.chambers, passages: shape.passages, props, packs, ...spots };
 }
 
-export function requestProblem(request: Pick<CaveRequest, 'chambers' | 'packs' | 'levels' | 'packScale'>): string | null {
+export function requestProblem(request: Pick<CaveRequest, 'chambers' | 'packs' | 'levels' | 'packScale' | 'roomScale'>): string | null {
   if (!Number.isInteger(request.chambers) || request.chambers < 2 || request.chambers > deepestChambers()) return `a cave has 2 to ${deepestChambers()} chambers, not ${request.chambers}`;
   if (!Number.isInteger(request.packs) || request.packs < 1) return `a cave has at least one pack, not ${request.packs}`;
   if (!Number.isInteger(request.levels.from) || !Number.isInteger(request.levels.to) || request.levels.from < 1 || request.levels.to < request.levels.from) return `the level band runs from a whole level of at least 1 up, not ${request.levels.from} to ${request.levels.to}`;
   if (!(request.packScale > 0)) return `the pack scale is above zero, not ${request.packScale}`;
+  if (!(request.roomScale > 0)) return `the room scale is above zero, not ${request.roomScale}`;
   return null;
 }
 
 function kitProps(kit: CaveKit, defs: ReadonlyMap<string, PropDef>): string | null {
-  const named: readonly string[] = [kit.stairs.prop, ...kit.caches, ...kit.clusters.flatMap((cluster: readonly KitPiece[]): string[] => cluster.map((piece: KitPiece): string => piece.prop))];
+  const named: readonly string[] = [kit.stairs.prop, ...kit.caches, ...kit.rows.map((row: KitRow): string => row.prop), ...kit.clusters.flatMap((cluster: readonly KitPiece[]): string[] => cluster.map((piece: KitPiece): string => piece.prop))];
   const missing: readonly string[] = [...new Set(named.filter((prop: string): boolean => !defs.has(prop)))];
   if (missing.length > 0) return `kit ${kit.id} names props the game does not have: ${missing.join(', ')}`;
   const plain: readonly string[] = kit.caches.filter((prop: string): boolean => (defs.get(prop)?.cache ?? null) === null);

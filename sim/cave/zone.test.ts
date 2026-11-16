@@ -14,7 +14,7 @@ const content: Content = loadContent();
 const kit: CaveKit = readKit(hourfall, 'hourfall');
 
 void test('a generated cave is an ordinary zone: the kit dresses it, the entrance and the way down pair with the doors given, and the waypoint and checkpoints are its own', (): void => {
-  const result: CaveResult = generateCave({ seed: 3, columns: 110, rows: 110, chambers: 10, levels: { from: 14, to: 17 }, packs: 18, packScale: 1, screen: { monsters: 20, lights: 12 } }, { kit, defs: content.props, judge: null });
+  const result: CaveResult = generateCave({ seed: 3, columns: 110, rows: 110, chambers: 10, levels: { from: 14, to: 17 }, packs: 18, packScale: 1, roomScale: 1, screen: { monsters: 20, lights: 12 } }, { kit, defs: content.props, judge: null });
   assert.ok(result.ok);
   const zone: ZoneDef = readZone(caveZoneRecord(result.layout, { id: 'cave_test', name: 'Test cave', up: { id: 'up', to: 'above', toExit: 'down', requires: [], lockedHint: '', hiddenWhenLocked: false }, down: { id: 'down', to: 'below', toExit: 'up', requires: [{ type: 'visited', zone: 'below', not: false }], lockedHint: '', hiddenWhenLocked: true } }, kit), 'cave_test');
   assert.equal(zone.kind, 'wild');

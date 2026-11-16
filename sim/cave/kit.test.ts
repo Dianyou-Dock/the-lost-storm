@@ -25,3 +25,17 @@ void test('a kit whose letters are not its floors, or that brings its own levels
   assert.throws((): CaveKit => readKit({ ...hourfall, families: [] }, 'bad'), ContentError);
   assert.throws((): CaveKit => readKit({ ...hourfall, shape: { ...hourfall.shape, radiusMost: 1 } }, 'bad'), ContentError);
 });
+
+void test('a kit may build rect rooms with rows of props, and rows on round caves or with no side are refused', (): void => {
+  const halls: CaveKit = readKit({ ...hourfall, shape: { ...hourfall.shape, form: 'rect' }, rows: [{ prop: 'hall_column', step: 6, inset: 3, sides: ['long', 'aisle'] }] }, 'halls');
+  assert.equal(halls.shape.form, 'rect');
+  assert.deepEqual(halls.rows, [{ prop: 'hall_column', step: 6, inset: 3, sides: ['long', 'aisle'] }]);
+  assert.equal(kit.shape.form, 'blob');
+  assert.deepEqual(kit.rows, []);
+  assert.throws((): CaveKit => readKit({ ...hourfall, rows: [{ prop: 'hall_column', step: 6, inset: 3, sides: ['long'] }] }, 'bad'), ContentError);
+  assert.throws((): CaveKit => readKit({ ...hourfall, shape: { ...hourfall.shape, form: 'rect' }, rows: [{ prop: 'hall_column', step: 6, inset: 3, sides: [] }] }, 'bad'), ContentError);
+  assert.throws((): CaveKit => readKit({ ...hourfall, shape: { ...hourfall.shape, form: 'rect' }, rows: [{ prop: 'hall_column', step: 0, inset: 3, sides: ['long'] }] }, 'bad'), ContentError);
+  assert.throws((): CaveKit => readKit({ ...hourfall, shape: { ...hourfall.shape, form: 'rect' }, rows: [{ prop: 'hall_column', step: 6, inset: -1, sides: ['long'] }] }, 'bad'), ContentError);
+  assert.throws((): CaveKit => readKit({ ...hourfall, shape: { ...hourfall.shape, form: 'rect' }, rows: [{ prop: 'hall_column', step: 6, inset: 3, sides: ['wall'] }] }, 'bad'), ContentError);
+  assert.throws((): CaveKit => readKit({ ...hourfall, shape: { ...hourfall.shape, form: 'oval' } }, 'bad'), ContentError);
+});
