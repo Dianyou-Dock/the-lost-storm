@@ -6,7 +6,12 @@ import { ContentError } from './read.ts';
 import type { SkillVfx } from './vfx-types.ts';
 
 void test('an effect with no lightning, impact or trail keeps the plain look', (): void => {
-  assert.deepEqual(skillVfx({ style: 'bolt', color: '#9be1ff' }, 'vfx'), { style: 'bolt', color: '#9be1ff', cue: 'none', light: 1, lightning: null, impact: null, trail: 0, linger: 0, gather: null, wave: null, punch: null, burn: null, shadow: null });
+  assert.deepEqual(skillVfx({ style: 'bolt', color: '#9be1ff' }, 'vfx'), { style: 'bolt', color: '#9be1ff', cue: 'none', light: 1, lightning: null, impact: null, trail: 0, linger: 0, gather: null, wave: null, punch: null, burn: null, shadow: null, water: null });
+});
+
+void test('an effect reads its water and refuses water with no depth', (): void => {
+  assert.deepEqual(skillVfx({ style: 'gap', color: '#5fa9cf', water: { deep: '#0e3a5c', foam: '#d6efff', depth: 0.6 } }, 'vfx').water, { deep: '#0e3a5c', foam: '#d6efff', depth: 0.6 });
+  assert.throws((): SkillVfx => skillVfx({ style: 'gap', color: '#5fa9cf', water: { deep: '#0e3a5c', foam: '#d6efff', depth: 0 } }, 'vfx'));
 });
 
 void test('an effect reads its shadow and refuses a shadow with no strength', (): void => {

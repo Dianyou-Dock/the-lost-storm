@@ -3,7 +3,7 @@ import { Color, PointLight, Vector3 } from 'three';
 import type { BufferGeometry, Mesh, MeshBasicMaterial, Object3D } from 'three';
 import type { AreaDelivery } from '../../sim/content/shape-types.ts';
 import type { SkillDef, VfxImpact, VfxLightning } from '../../sim/content/types.ts';
-import type { VfxPunch, VfxShadow } from '../../sim/content/vfx-types.ts';
+import type { VfxPunch, VfxShadow, VfxWater } from '../../sim/content/vfx-types.ts';
 import type { Vec2 } from '../../sim/math.ts';
 import { areaOf } from '../../sim/world/areas.ts';
 import { chargeOf, SKILLS } from '../../sim/world/skills.ts';
@@ -13,6 +13,7 @@ import { glow, groundArcs, lightningLine, skyBolt } from './effect-shapes.ts';
 import type { GroundLight, GroundLightForm } from './ground-light.ts';
 import type { ShotTint } from './projectile-views.ts';
 import { createGroundLight, GROUND_LIGHT } from './ground-light.ts';
+import { lap, poolOf, splash, swell, WATER_LOOK } from './water-look.ts';
 import { STRAND } from './strand-shape.ts';
 import { dripsDue, SOAK_COLOR, SOAK_LOOK } from './soak-look.ts';
 import type { BurstOptions } from './particles.ts';
@@ -113,6 +114,7 @@ interface AreaView {
   readonly depth: number;
   readonly glow: number;
   readonly color: Color;
+  readonly foam: Color | null;
   readonly delivery: AreaDelivery;
   readonly duration: number;
   readonly ownerId: number;
@@ -280,7 +282,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
     if (delivery === null) return;
     const color: Color = areaColor(area);
     const gap: boolean = delivery.pulse === 0 && delivery.pull === 0;
-    const shadow: VfxShadow | null = area.skill.vfx.shadow;
+    const shadow: VfxShadow | null = poolOf(area.skill.vfx);
     const round: GroundLightForm = { kind: 'round', radius: delivery.radius, inner: 0, arc: Math.PI * 2 };
     const light: GroundLight = createGroundLight(color, round, { fill: shadow !== null ? STORM_EFFECTS.poolEdgeFill : gap ? STORM_EFFECTS.gapFill : STORM_EFFECTS.areaFill, band: 1, width: delivery.radius * STORM_EFFECTS.areaBandWidth, wobble: delivery.radius * STORM_EFFECTS.areaWobble });
     light.mesh.position.set(area.pos.x, floorUp(area.pos.x, GROUND_LIGHT.height, area.pos.z), area.pos.z);
@@ -293,7 +295,7 @@ export function createStormEffects(kit: StormKit): StormEffects {
       pool.show(shadow?.strength ?? 0);
       kit.addObject(pool.mesh);
     }
-    areas.set(area.id, { light, pool, depth: shadow?.strength ?? 0, glow: shine, color, delivery, duration: delivery.duration, ownerId: area.offence.sourceId, skillId: area.skill.id, center: { x: area.pos.x, z: area.pos.z }, age: 0, moteTimer: 0, lashes: 0 });
+    areas.set(area.id, { light, pool, depth: shadow?.strength ?? 0, glow: shine, color, foam: area.skill.vfx.water === null ? null : kit.colorOf(area.skill.vfx.water.foam), delivery, duration: delivery.duration, ownerId: area.offence.sourceId, skillId: area.skill.id, center: { x: area.pos.x, z: area.pos.z }, age: 0, moteTimer: 0, lashes: 0 });
     if (gap && delivery.slow < 1) kit.flashLight(area.pos.x, 3, area.pos.z, color, STORM_EFFECTS.gapLight);
   };
 
@@ -305,6 +307,10 @@ export function createStormEffects(kit: StormKit): StormEffects {
       kit.burst(area.pos.x, area.pos.z, delivery.radius * 0.55, area.skill);
       kit.spray(area.pos.x, 0.3, area.pos.z, color, STORM_EFFECTS.pullSpray, { speed: { min: 3, max: 9 }, lift: { min: 0.2, max: 1.4 }, life: { min: 0.3, max: 0.7 }, size: { min: 0.5, max: 1.1 }, drag: 3 });
       if (hits > 0) kit.trauma(area.skill.shake);
+      return;
+    }
+    if (view.foam !== null) {
+      swell(kit, area.pos, delivery.radius, view.foam);
       return;
     }
     const angle: number = Math.random() * Math.PI * 2;
@@ -341,6 +347,8 @@ export function createStormEffects(kit: StormKit): StormEffects {
   };
 
   const onLash = (event: Extract<WorldEvent, { type: 'damage' }>): void => {
+    const water: VfxWater | null = event.skill.vfx.water;
+    if (water !== null && areaOf(event.skill) !== null) splash(kit, event.pos, kit.colorOf(water.foam));
     const shadow: VfxShadow | null = event.skill.vfx.shadow;
     if (shadow !== null && areaOf(event.skill) !== null) kit.spray(event.pos.x, STORM_EFFECTS.bodyHeight, event.pos.z, kit.colorOf(event.skill.vfx.color), STORM_EFFECTS.biteMotes, { speed: { min: 0.3, max: 1.4 }, lift: { min: 0.6, max: 2 }, life: { min: 0.5, max: 0.9 }, size: { min: 0.45, max: 0.8 }, gravity: -0.6, drag: 1, jitter: 0.3 });
     const lightning = event.skill.vfx.lightning;
@@ -398,6 +406,11 @@ export function createStormEffects(kit: StormKit): StormEffects {
     const { delivery, color } = view;
     view.moteTimer -= dt;
     if (view.moteTimer > 0) return;
+    if (view.foam !== null && delivery.pull === 0) {
+      view.moteTimer = WATER_LOOK.lapEvery;
+      lap(kit, area.pos, delivery.radius, view.foam, Math.random);
+      return;
+    }
     view.moteTimer = 0.05;
     if (delivery.pull > 0) {
       for (let index: number = 0; index < STORM_EFFECTS.windMotes; index += 1) {

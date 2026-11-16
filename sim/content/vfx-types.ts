@@ -64,6 +64,12 @@ export interface VfxShadow {
   readonly strength: number;
 }
 
+export interface VfxWater {
+  readonly deep: string;
+  readonly foam: string;
+  readonly depth: number;
+}
+
 export interface SkillVfx {
   readonly style: VfxStyle;
   readonly color: string;
@@ -78,4 +84,5 @@ export interface SkillVfx {
   readonly punch: VfxPunch | null;
   readonly burn: VfxBurn | null;
   readonly shadow: VfxShadow | null;
+  readonly water: VfxWater | null;
 }
