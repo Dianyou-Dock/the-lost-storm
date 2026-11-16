@@ -31,3 +31,18 @@ void test('the lobby lights start dark and spring up to full without overshoot o
   assert.ok(key !== undefined, 'the warm key is at full strength and casts a shadow');
 });
 
+
+void test('far lightning lifts only the sky light, and only while it lasts', (): void => {
+  const scene: Scene = new Scene();
+  const lights: LobbyLights = createLobbyLights(scene);
+  for (let frame: number = 0; frame < 360; frame += 1) lights.step(FRAME);
+  const before: number[] = lightsOf(scene).map((light: Light): number => light.intensity);
+  lights.flash(1);
+  lights.step(FRAME);
+  const during: number[] = lightsOf(scene).map((light: Light): number => light.intensity);
+  assert.equal(during.filter((value: number, index: number): boolean => Math.abs(value - (before[index] ?? 0)) > 1e-3).length, 1);
+  assert.ok(Math.abs(Math.max(...during.map((value: number, index: number): number => value - (before[index] ?? 0))) - LOBBY_LIGHTS.sky.intensity * LOBBY_LIGHTS.flashSky) < 1e-3);
+  lights.flash(0);
+  lights.step(FRAME);
+  assert.deepEqual(lightsOf(scene).map((light: Light): number => Math.round(light.intensity * 1e4)), before.map((value: number): number => Math.round(value * 1e4)));
+});

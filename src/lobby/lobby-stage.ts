@@ -14,7 +14,11 @@ import type { QualityName } from '../mobile/quality.ts';
 import { createLobbyPipeline } from './lobby-render.ts';
 import type { LobbyPipeline } from './lobby-render.ts';
 import { groundGeometry, valueNoise } from './lobby-ground.ts';
-import { LOBBY_SCENERY, placeRocks } from './lobby-scenery.ts';
+import { createSetDressing } from './lobby-scenery.ts';
+import type { SetDressing } from './lobby-scenery.ts';
+import { LOBBY_SETS, pickSet, setMounds } from './lobby-sets.ts';
+import type { LobbySet } from './lobby-sets.ts';
+import type { Mound } from './lobby-ground.ts';
 import { createLobbyShaft } from './lobby-shaft.ts';
 import { groundContact, LOBBY_CONTACT, softenOnGround } from './lobby-contact.ts';
 import type { GroundContact } from './lobby-contact.ts';
@@ -30,17 +34,14 @@ import type { LobbyOrbit, OrbitView, Spring } from './lobby-orbit.ts';
 
 export const LOBBY_STAGE = {
   background: 0x05070b,
-  fogNear: 10,
-  fogFar: 23,
   fov: 18,
   cameraHeight: 1.4,
   cameraDistance: 10.2,
   lookHeight: 0.98,
   near: 0.1,
-  far: 40,
+  far: 64,
   facing: -0.34,
   rimGlow: 0x000000,
-  groundSurface: 'black_rock',
   groundWet: 0.12,
   groundShade: 0.6,
   groundRelief: 0.85,
@@ -187,9 +188,9 @@ function quietGround(shared: MeshStandardMaterial): MeshStandardMaterial {
   return material;
 }
 
-function groundMesh(def: SurfaceDef | undefined): Mesh {
+function groundMesh(def: SurfaceDef | undefined, mounds: readonly Mound[]): Mesh {
   const material: MeshBasicMaterial | MeshStandardMaterial = def === undefined ? new MeshBasicMaterial({ color: LOBBY_STAGE.background, vertexColors: true }) : quietGround(surfaceMaterial(def, 'ground', LOBBY_STAGE.groundWet));
-  const mesh: Mesh = new Mesh(groundGeometry(LOBBY_SCENERY.rocks), material);
+  const mesh: Mesh = new Mesh(groundGeometry(mounds), material);
   mesh.receiveShadow = true;
   return mesh;
 }
@@ -228,20 +229,23 @@ function take(event: Event): void {
 }
 
 export function createLobbyStage(content: Content, library: CharacterLibrary, loader: GLTFLoader, random: () => number = Math.random): LobbyStage {
+  const set: LobbySet = pickSet(LOBBY_SETS, window.location.search);
+  const mounds: readonly Mound[] = setMounds(set);
   const scene: Scene = new Scene();
-  scene.fog = new Fog(LOBBY_STAGE.background, LOBBY_STAGE.fogNear, LOBBY_STAGE.fogFar);
+  scene.fog = new Fog(LOBBY_STAGE.background, set.fogNear, set.fogFar);
   const sky: LobbyMist = createLobbyMist();
+  sky.haze(set.haze);
   scene.background = sky.texture;
   const camera: PerspectiveCamera = new PerspectiveCamera(LOBBY_STAGE.fov, 1, LOBBY_STAGE.near, LOBBY_STAGE.far);
   camera.position.set(0, LOBBY_STAGE.cameraHeight, LOBBY_STAGE.cameraDistance);
   camera.lookAt(0, LOBBY_STAGE.lookHeight, 0);
 
   const lights: LobbyLights = createLobbyLights(scene);
-  const contact: GroundContact = groundContact(LOBBY_SCENERY.rocks);
+  const contact: GroundContact = groundContact(mounds);
   const shaft: LobbyShaft = createLobbyShaft(contact);
   scene.add(shaft.mesh);
 
-  scene.add(groundMesh(content.surfaces.get(LOBBY_STAGE.groundSurface)));
+  scene.add(groundMesh(content.surfaces.get(set.ground), mounds));
 
   const mistAlpha: DataTexture = mistTexture();
   const mists: Mesh<PlaneGeometry, MeshBasicMaterial>[] = LOBBY_STAGE.mistDepths.map((depth: number, layer: number): Mesh<PlaneGeometry, MeshBasicMaterial> => {
@@ -260,7 +264,8 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
   const size: Vector2 = new Vector2();
   const toCamera: Vector3 = new Vector3();
   let pipeline: LobbyPipeline | null = null;
-  let scenery: Promise<void> | null = null;
+  const dressing: SetDressing = createSetDressing(set, content, loader, random);
+  let dressed: boolean = false;
   let life: LobbyLife | null = null;
   const orbit: LobbyOrbit = createLobbyOrbit();
   let drawnAt: number = Number.NEGATIVE_INFINITY;
@@ -437,6 +442,13 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
       camera.setViewOffset(size.x, size.y, (0.5 - framing.across) * size.x, framing.down * size.y, size.x, size.y);
       camera.updateProjectionMatrix();
       shaft.step(dt, camera);
+      if (!dressed) {
+        dressed = true;
+        dressing.load(renderer, scene, camera).catch((): void => undefined);
+      }
+      const lightning: number = dressing.step(dt, camera);
+      lights.flash(lightning);
+      sky.flash(lightning);
       sky.draw(renderer, dt, size.x, size.y, devicePixelRatio);
       RIM_LIGHT.value.copy(rimGlow);
       pipeline ??= createLobbyPipeline(renderer, scene, camera);
@@ -448,8 +460,6 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
     },
     async warm(renderer: WebGLRenderer, tier: QualityName): Promise<void> {
       if (hero === null && wanted !== null) dress(wanted);
-      scenery ??= placeRocks(loader, content, scene);
-      await scenery;
       pipeline ??= createLobbyPipeline(renderer, scene, camera);
       await pipeline.compile(tier);
     },

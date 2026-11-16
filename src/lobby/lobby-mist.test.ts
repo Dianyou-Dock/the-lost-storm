@@ -23,3 +23,8 @@ void test('the backdrop shader has no unclamped pow and no reversed smoothstep',
 void test('the backdrop is kept in half-float, so its dark linear sky does not step into blotches before the output dither', (): void => {
   assert.equal(createLobbyMist().texture.type, HalfFloatType);
 });
+
+void test('far lightning brightens the storm sky through one uniform, so a set without lightning costs nothing', (): void => {
+  assert.ok(MIST_FRAGMENT.includes('uniform float uFlash;'));
+  assert.ok(MIST_FRAGMENT.includes('uFlash * 0.3'));
+});

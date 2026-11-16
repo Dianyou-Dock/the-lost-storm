@@ -12,11 +12,13 @@ export const LOBBY_LIGHTS = {
   aimHeight: 1.2,
   shadow: { size: 2048, radius: 5, bias: -0.0004, normalBias: 0.02, rimNormalBias: 0, left: -2, right: 2, top: 2, bottom: -1.8, near: 0.5, far: 12 },
   spring: { freq: 1.4, damping: 1 },
+  flashSky: 0.7,
 } as const;
 
 export interface LobbyLights {
   step(dt: number): void;
   shadows(amount: number): void;
+  flash(amount: number): void;
   readonly share: number;
 }
 
@@ -66,10 +68,15 @@ export function createLobbyLights(scene: Scene): LobbyLights {
     { light: pool, full: spec.pool.intensity },
   ];
   const share: Spring = { x: 0, v: 0 };
+  let lightning: number = 0;
   return {
     step(dt: number): void {
       const amount: number = Math.min(1, Math.max(0, stepSpring(share, 1, spec.spring.freq, spec.spring.damping, dt)));
       for (const entry of lit) entry.light.intensity = entry.full * amount;
+      sky.intensity = spec.sky.intensity * amount * (1 + lightning * spec.flashSky);
+    },
+    flash(amount: number): void {
+      lightning = amount;
     },
     shadows(amount: number): void {
       key.shadow.intensity = amount;

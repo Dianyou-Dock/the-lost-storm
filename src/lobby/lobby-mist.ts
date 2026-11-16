@@ -15,6 +15,8 @@ export interface MistSize {
 export interface LobbyMist {
   readonly texture: Texture;
   draw(renderer: WebGLRenderer, dt: number, cssWidth: number, cssHeight: number, pixelRatio: number): void;
+  flash(amount: number): void;
+  haze(amount: number): void;
   release(): void;
 }
 
@@ -27,6 +29,8 @@ void main() {
 export const MIST_FRAGMENT: string = `
 uniform vec2 uRes;
 uniform float uTime;
+uniform float uFlash;
+uniform float uHaze;
 
 float hash(vec2 p) {
   p = fract(p * vec2(123.34, 456.21));
@@ -84,6 +88,10 @@ void main() {
   vec3 col = mix(nightLow, nightHigh, smoothstep(0.25, 1.0, uv.y));
   col += ember * 0.04 * (1.0 - smoothstep(0.0, 0.45, uv.y)) * (0.4 + fog);
   col += vec3(0.42, 0.50, 0.62) * mist * 0.17;
+  float band = smoothstep(0.56, 0.74, uv.y) * (1.0 - 0.4 * smoothstep(0.82, 1.0, uv.y));
+  float uncovered = 1.0 - (1.0 - smoothstep(0.2, 0.34, uv.x)) * (1.0 - smoothstep(0.72, 0.84, uv.y));
+  col += vec3(0.30, 0.36, 0.48) * uHaze * 0.5 * band * uncovered * (0.6 + 0.4 * fog);
+  col += storm * uFlash * 0.3 * (0.3 + 0.7 * max(low, band * uncovered)) * (0.45 + 0.55 * fog);
 
   float dust = motes(p, t, 13.0, 0.35) + 0.6 * motes(p + 4.7, t, 23.0, 0.22);
   col += pale * dust * 0.1;
@@ -105,10 +113,12 @@ export function createLobbyMist(): LobbyMist {
   geometry.setAttribute('position', new BufferAttribute(new Float32Array([-1, -1, 0, 3, -1, 0, -1, 3, 0]), 3));
   const resolution: Vector2 = new Vector2(1, 1);
   const time: { value: number } = { value: 0 };
+  const lightning: { value: number } = { value: 0 };
+  const hazy: { value: number } = { value: 0 };
   const material: ShaderMaterial = new ShaderMaterial({
     vertexShader: MIST_VERTEX,
     fragmentShader: MIST_FRAGMENT,
-    uniforms: { uRes: { value: resolution }, uTime: time },
+    uniforms: { uRes: { value: resolution }, uTime: time, uFlash: lightning, uHaze: hazy },
     depthTest: false,
     depthWrite: false,
   });
@@ -120,6 +130,12 @@ export function createLobbyMist(): LobbyMist {
   const surface: WebGLRenderTarget = new WebGLRenderTarget(1, 1, { type: HalfFloatType, depthBuffer: false, magFilter: LinearFilter, minFilter: LinearFilter });
   return {
     texture: surface.texture,
+    flash(amount: number): void {
+      lightning.value = amount;
+    },
+    haze(amount: number): void {
+      hazy.value = amount;
+    },
     release(): void {
       surface.dispose();
     },

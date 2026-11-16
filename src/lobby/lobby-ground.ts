@@ -1,10 +1,10 @@
 import { BufferAttribute, BufferGeometry } from 'three';
 
 export const LOBBY_GROUND = {
-  radius: 16,
-  rings: 56,
+  radius: 32,
+  rings: 64,
   spokes: 112,
-  ringEase: 1.6,
+  ringEase: 1.9,
   padFlat: 1.5,
   padBlend: 2.6,
   swellHeight: 0.2,
