@@ -1,4 +1,4 @@
-import type { Camera, Object3D } from 'three';
+import type { Camera, Object3D, Texture } from 'three';
 import { Color, CustomToneMapping, DirectionalLight, Fog, HalfFloatType, HemisphereLight, PCFShadowMap, PerspectiveCamera, PointLight, Scene, ShaderChunk, SRGBColorSpace, Vector2, WebGLRenderer, WebGLRenderTarget } from 'three';
 import type { ZoneAmbience } from '../../sim/content/types.ts';
 import type { ZoneHeroLight } from '../../sim/content/road-types.ts';
@@ -112,6 +112,7 @@ export interface Stage {
   applyQuality(tier: QualityTier): void;
   compileAsync(target: Object3D, viewer: Camera): Promise<Object3D>;
   drawOnce(target: Object3D, viewer: Camera): void;
+  initTexture(texture: Texture): void;
   setFinish(pass: Pass | null): void;
   setSeam(pass: Pass | null): void;
 }
@@ -356,6 +357,9 @@ export function createStage(canvas: HTMLCanvasElement, initial: QualityTier): St
       } finally {
         renderer.setRenderTarget(previous);
       }
+    },
+    initTexture(texture: Texture): void {
+      renderer.initTexture(texture);
     },
   };
 }

@@ -1,10 +1,11 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import type { Camera, Object3D } from 'three';
-import { Group, Mesh, PerspectiveCamera, PointLight, Scene } from 'three';
+import { BufferAttribute, BufferGeometry, Group, Mesh, MeshStandardMaterial, PerspectiveCamera, PointLight, Scene, Texture } from 'three';
 import type { Timers } from '../backend/backend.ts';
+import type { FramePacer } from './paced-work.ts';
 import type { ShaderCompiler } from './warm-up.ts';
-import { revealHidden, warmUp, warmUpWithin } from './warm-up.ts';
+import { revealHidden, WARM_UP, warmUp, warmUpWithin } from './warm-up.ts';
 
 interface Recorder extends ShaderCompiler {
   readonly seen: boolean[];
@@ -30,6 +31,7 @@ function recorder(standIn: Object3D): Recorder {
       });
     },
     drawOnce(): void {},
+    initTexture(): void {},
   };
 }
 
@@ -58,6 +60,8 @@ function manualTimers(): ManualTimers {
   };
 }
 
+const PACER: FramePacer = { now: (): number => 0, next: (): Promise<void> => Promise.resolve() };
+
 function settle(): Promise<void> {
   return new Promise<void>((resolve: () => void): void => {
     setImmediate(resolve);
@@ -76,7 +80,7 @@ void test('stand-ins are in the scene while their shaders are queued and gone fr
   const scene: Scene = new Scene();
   const standIn: Mesh = new Mesh();
   const compiler: Recorder = recorder(standIn);
-  const done: Promise<void> = warmUp(compiler, scene, new PerspectiveCamera(), [standIn]);
+  const done: Promise<void> = warmUp(compiler, scene, new PerspectiveCamera(), [standIn], null, PACER);
   assert.deepEqual(compiler.seen, [true]);
   assert.equal(scene.children.length, 0);
   assert.equal(standIn.parent, null);
@@ -92,8 +96,9 @@ void test('a compiler that throws at once still ends the warm-up and leaves the 
       throw new Error('no context');
     },
     drawOnce(): void {},
+    initTexture(): void {},
   };
-  await warmUp(throwing, scene, new PerspectiveCamera(), [standIn]);
+  await warmUp(throwing, scene, new PerspectiveCamera(), [standIn], null, PACER);
   assert.equal(scene.children.length, 0);
   assert.equal(standIn.parent, null);
 });
@@ -101,7 +106,7 @@ void test('a compiler that throws at once still ends the warm-up and leaves the 
 void test('a warm-up that outlasts its wait holds the game only until the wait ends', async (): Promise<void> => {
   const compiler: Recorder = recorder(new Mesh());
   const clock: ManualTimers = manualTimers();
-  const done: Promise<void> = warmUpWithin(compiler, new Scene(), new PerspectiveCamera(), [], clock.timers, 1);
+  const done: Promise<void> = warmUpWithin(compiler, new Scene(), new PerspectiveCamera(), [], clock.timers, 1, null, PACER);
   const watched: { settled(): boolean } = tracked(done);
   await settle();
   assert.equal(watched.settled(), false);
@@ -115,7 +120,7 @@ void test('a warm-up that outlasts its wait holds the game only until the wait e
 void test('a warm-up that finishes in time cancels its wait', async (): Promise<void> => {
   const compiler: Recorder = recorder(new Mesh());
   const clock: ManualTimers = manualTimers();
-  const done: Promise<void> = warmUpWithin(compiler, new Scene(), new PerspectiveCamera(), [], clock.timers, 1);
+  const done: Promise<void> = warmUpWithin(compiler, new Scene(), new PerspectiveCamera(), [], clock.timers, 1, null, PACER);
   assert.equal(clock.pending(), 1);
   compiler.finish();
   await done;
@@ -151,8 +156,9 @@ void test('hidden meshes are compiled, then drawn once without culling, and are 
     drawOnce(target: Object3D): void {
       seenBy(target, drawnShown);
     },
+    initTexture(): void {},
   };
-  await warmUp(compiler, scene, new PerspectiveCamera(), []);
+  await warmUp(compiler, scene, new PerspectiveCamera(), [], null, PACER);
   assert.deepEqual(compiledShown, [true]);
   assert.deepEqual(drawnShown, [true]);
   assert.equal(later.visible, false);
@@ -193,12 +199,13 @@ void test('a warm-up told of things still loading warms again once they are in',
       return Promise.resolve(target);
     },
     drawOnce(): void {},
+    initTexture(): void {},
   };
   const arrivals: (() => void)[] = [];
   const loading: Promise<void> = new Promise<void>((resolve: () => void): void => {
     arrivals.push(resolve);
   });
-  await warmUp(compiler, scene, new PerspectiveCamera(), [], loading);
+  await warmUp(compiler, scene, new PerspectiveCamera(), [], loading, PACER);
   assert.equal(compiled.length, 1);
   scene.add(new Mesh());
   for (const arrive of arrivals) arrive();
@@ -214,7 +221,7 @@ void test('a stand-in that goes live while its shaders compile stays in the scen
   const loading: Promise<void> = new Promise<void>((resolve: () => void): void => {
     arrivals.push(resolve);
   });
-  const done: Promise<void> = warmUp(compiler, scene, new PerspectiveCamera(), [standIn], loading);
+  const done: Promise<void> = warmUp(compiler, scene, new PerspectiveCamera(), [standIn], loading, PACER);
   assert.equal(standIn.parent, null);
   scene.add(standIn);
   compiler.finish();
@@ -226,4 +233,135 @@ void test('a stand-in that goes live while its shaders compile stays in the scen
   await settle();
   assert.deepEqual(compiler.seen, [true, true]);
   assert.equal(standIn.parent, scene);
+});
+
+interface CountingPacer extends FramePacer {
+  frame(): number;
+}
+
+function countingPacer(): CountingPacer {
+  let frame: number = 0;
+  return {
+    frame: (): number => frame,
+    now: (): number => 0,
+    next: (): Promise<void> => {
+      frame += 1;
+      return Promise.resolve();
+    },
+  };
+}
+
+function sizedTexture(width: number, height: number): Texture {
+  const texture: Texture = new Texture();
+  texture.image = { width, height };
+  return texture;
+}
+
+function sizedMesh(bytes: number): Mesh {
+  const geometry: BufferGeometry = new BufferGeometry();
+  geometry.setAttribute('position', new BufferAttribute(new Float32Array(bytes / Float32Array.BYTES_PER_ELEMENT), 3));
+  return new Mesh(geometry);
+}
+
+void test('textures are uploaded over several frames, no frame past its byte budget', async (): Promise<void> => {
+  const scene: Scene = new Scene();
+  const side: number = Math.floor(Math.sqrt(WARM_UP.textureBytesPerFrame / WARM_UP.bytesPerTexel / WARM_UP.mipmapShare / 2) * Math.SQRT2);
+  for (let index: number = 0; index < 3; index += 1) scene.add(new Mesh(undefined, new MeshStandardMaterial({ map: sizedTexture(side, side) })));
+  const pacer: CountingPacer = countingPacer();
+  const uploads: number[] = [];
+  const compiler: ShaderCompiler = {
+    compileAsync: (target: Object3D): Promise<Object3D> => Promise.resolve(target),
+    drawOnce(): void {},
+    initTexture(): void {
+      uploads.push(pacer.frame());
+    },
+  };
+  await warmUp(compiler, scene, new PerspectiveCamera(), [], null, pacer);
+  assert.deepEqual(uploads, [0, 1, 2]);
+});
+
+function drawnNow(object: Object3D): boolean {
+  let current: Object3D | null = object;
+  while (current !== null) {
+    if (!current.visible) return false;
+    current = current.parent;
+  }
+  return true;
+}
+
+void test('the scene is drawn in slices with the real camera, each draw showing only its slice and every light, and nothing is left hidden', async (): Promise<void> => {
+  const scene: Scene = new Scene();
+  const light: PointLight = new PointLight();
+  scene.add(light);
+  const share: number = Math.floor((WARM_UP.drawCostPerFrame / 2 - WARM_UP.drawFixedCost) / 12) * 12;
+  const meshes: Mesh[] = [sizedMesh(share), sizedMesh(share), sizedMesh(share), sizedMesh(share), sizedMesh(share)];
+  scene.add(...meshes);
+  const camera: PerspectiveCamera = new PerspectiveCamera();
+  const slices: number[][] = [];
+  const lit: boolean[] = [];
+  const masks: number[] = [];
+  const compiler: ShaderCompiler = {
+    compileAsync: (target: Object3D): Promise<Object3D> => Promise.resolve(target),
+    drawOnce(_target: Object3D, viewer: Camera): void {
+      slices.push(meshes.flatMap((mesh: Mesh, index: number): number[] => (drawnNow(mesh) ? [index] : [])));
+      lit.push(drawnNow(light));
+      masks.push(viewer.layers.mask);
+    },
+    initTexture(): void {},
+  };
+  await warmUp(compiler, scene, camera, [], null, countingPacer());
+  assert.deepEqual(slices, [[0, 1], [2, 3], [4]]);
+  assert.deepEqual(lit, [true, true, true]);
+  assert.deepEqual(masks, [1, 1, 1]);
+  for (const mesh of meshes) assert.equal(mesh.visible, true);
+});
+
+void test('a slice keeps the meshes that hold its own visible, and what the scene draws on its own still sees the real camera', async (): Promise<void> => {
+  const scene: Scene = new Scene();
+  const share: number = Math.floor((WARM_UP.drawCostPerFrame - WARM_UP.drawFixedCost) / 12) * 12;
+  const holder: Mesh = sizedMesh(share);
+  const held: Mesh = sizedMesh(share);
+  holder.add(held);
+  scene.add(holder);
+  const hidden: Mesh = sizedMesh(12);
+  hidden.visible = false;
+  scene.add(hidden);
+  const hooked: number[] = [];
+  const shown: boolean[][] = [];
+  const camera: PerspectiveCamera = new PerspectiveCamera();
+  const compiler: ShaderCompiler = {
+    compileAsync: (target: Object3D): Promise<Object3D> => Promise.resolve(target),
+    drawOnce(target: Object3D, viewer: Camera): void {
+      hooked.push(viewer.layers.mask);
+      shown.push([drawnNow(holder), drawnNow(held), drawnNow(hidden)]);
+      assert.equal(target, scene);
+    },
+    initTexture(): void {},
+  };
+  await warmUp(compiler, scene, camera, [], null, countingPacer());
+  assert.deepEqual(shown, [
+    [true, false, false],
+    [true, true, false],
+    [false, false, true],
+  ]);
+  assert.deepEqual(hooked, [1, 1, 1]);
+  assert.equal(holder.visible, true);
+  assert.equal(held.visible, true);
+  assert.equal(hidden.visible, false);
+});
+
+void test('a texture warmed once is not uploaded again by a later warm-up', async (): Promise<void> => {
+  const scene: Scene = new Scene();
+  scene.add(new Mesh(undefined, new MeshStandardMaterial({ map: sizedTexture(4, 4) })));
+  let uploads: number = 0;
+  const compiler: ShaderCompiler = {
+    compileAsync: (target: Object3D): Promise<Object3D> => Promise.resolve(target),
+    drawOnce(): void {},
+    initTexture(): void {
+      uploads += 1;
+    },
+  };
+  await warmUp(compiler, scene, new PerspectiveCamera(), [], null, countingPacer());
+  await warmUp(compiler, scene, new PerspectiveCamera(), [], null, countingPacer());
+  assert.equal(uploads, 1);
 });
