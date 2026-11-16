@@ -1,5 +1,6 @@
 import { moves } from './order.ts';
 import type { Move } from './order.ts';
+import { localizeText } from '../i18n/zh.ts';
 
 export function el<K extends keyof HTMLElementTagNameMap>(tag: K, className: string, parent: HTMLElement | null): HTMLElementTagNameMap[K] {
   const node: HTMLElementTagNameMap[K] = document.createElement(tag);
@@ -16,7 +17,7 @@ export function retrigger(node: HTMLElement, className: string): void {
 
 export function label(className: string, content: string, parent: HTMLElement | null): HTMLDivElement {
   const node: HTMLDivElement = el('div', className, parent);
-  node.textContent = content;
+  node.textContent = localizeText(content);
   return node;
 }
 
@@ -37,8 +38,9 @@ export function tick(node: HTMLElement): void {
 }
 
 export function setText(node: HTMLElement, value: string, animate: boolean): boolean {
-  if (node.textContent === value) return false;
-  node.textContent = value;
+  const localized: string = localizeText(value);
+  if (node.textContent === localized) return false;
+  node.textContent = localized;
   if (animate) tick(node);
   return true;
 }
@@ -50,8 +52,9 @@ export function setClass(node: HTMLElement, className: string, on: boolean): boo
 }
 
 export function setAttr(node: HTMLElement, name: string, value: string): boolean {
-  if (node.getAttribute(name) === value) return false;
-  node.setAttribute(name, value);
+  const localized: string = name === 'aria-label' || name === 'aria-description' || name === 'placeholder' ? localizeText(value) : value;
+  if (node.getAttribute(name) === localized) return false;
+  node.setAttribute(name, localized);
   return true;
 }
 

@@ -6,8 +6,7 @@ import { zoneCharacterNeeds } from '../sim/wear.ts';
 import { carriedPictures, goodsPictures } from '../sim/pictures.ts';
 import { heroRig } from '../sim/hero.ts';
 import { noteInConsole, warnInConsole } from './backend/console-log.ts';
-import { keepFrames } from './frame-keeper.ts';
-import type { FrameKeeper } from './frame-keeper.ts';
+import { keepFrames, type FrameKeeper } from './frame-keeper.ts';
 import { element } from './dom-element.ts';
 import { startKeepPrompt } from './keep/keep-start.ts';
 import { fadePageOut } from './landing/leave.ts';
@@ -147,6 +146,7 @@ import { createTitleSync, followSync } from './title-sync.ts';
 import { createStatusLine, TITLE_NOTICES } from './title-status.ts';
 import { createdOrUnsupported, probeBrowser, RETRY, UnsupportedBrowser, unsupportedReason } from './browser-support.ts';
 import { runStart } from './start-failure.ts';
+import { startLocalization } from './i18n/zh.ts';
 import { defaultBar } from '../sim/skill-book.ts';
 import type { Bar } from '../sim/skill-book.ts';
 import { shippedKeys, showTitleKeys, skillSlots, TITLE_KEYS, titleKeyRows, titleNames } from './title-keys.ts';
@@ -230,7 +230,8 @@ async function start(): Promise<void> {
     if (board !== null) heroName = spokenName(board);
   });
   const keptHero: string | null = save === null ? readHero(createBrowserStore(), content) : null;
-  const world: World = createWorld(content, keptHero === null ? { seed: Date.now() >>> 0, save, opening: true } : { seed: Date.now() >>> 0, save, opening: true, hero: keptHero });
+  const showPrologue: boolean = import.meta.env.MODE !== 'portal';
+  const world: World = createWorld(content, keptHero === null ? { seed: Date.now() >>> 0, save, opening: showPrologue } : { seed: Date.now() >>> 0, save, opening: showPrologue, hero: keptHero });
   let entered: boolean = save !== null;
   const keepChosen = (id: string): void => {
     keepHero(createBrowserStore(), id);
@@ -694,6 +695,5 @@ async function start(): Promise<void> {
 }
 
 document.documentElement.dataset['boot'] = RETRY.started;
-runStart(start, (): void => {
-  titleLines.current?.freeze();
-});
+runStart(start, (): void => { titleLines.current?.freeze(); });
+startLocalization();
