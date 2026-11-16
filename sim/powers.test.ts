@@ -373,3 +373,22 @@ void test('with a blade in hand the heavy places give no Shoulder Through', (): 
   firePowers(world, { on: 'use', skill: roll, target: null, at: world.player.pos });
   assert.equal(world.echoes.length, 0);
 });
+
+const FORKED_ROUTE: readonly string[] = ['echo_forkline', 'first_echo', 'echo_1', 'echo_15', 'echo_4', 'twice_swung', 'echo_5', 'echo_6', 'forked'];
+
+void test('Forked: a hit of any main attack releases a Forkline, at most once per cooldown, with any weapon, and other skills release none', (): void => {
+  const world: World = hero();
+  world.player.allocated = [...FORKED_ROUTE];
+  world.player.wielding = 'crossbow';
+  const cooldown: number = must(content.skillTree.find((node: SkillTreeNodeDef): boolean => node.id === 'forked')?.triggers[0], 'forked trigger').cooldown;
+  const target: MonsterState = place(world, 'test_shambler', { x: ARENA_CENTRE.x + 3, z: ARENA_CENTRE.z });
+  firePowers(world, { on: 'hit', skill: skill('thunderclap'), target, at: target.pos });
+  assert.deepEqual(casts(world), []);
+  firePowers(world, { on: 'hit', skill: skill('quarrel_fan'), target, at: target.pos });
+  firePowers(world, { on: 'hit', skill: skill('quarrel'), target, at: target.pos });
+  assert.deepEqual(casts(world), ['forkline']);
+  stepPowerState(world.player.powers, cooldown + 0.01);
+  world.player.wielding = 'blade';
+  firePowers(world, { on: 'hit', skill: skill('cleave_millwheel'), target, at: target.pos });
+  assert.deepEqual(casts(world), ['forkline', 'forkline']);
+});

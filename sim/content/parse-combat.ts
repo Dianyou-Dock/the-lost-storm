@@ -1,6 +1,6 @@
 import type { Fields } from './read.ts';
 import { ContentError, fields, flag, nullableText, numeric, positive, text, textList } from './read.ts';
-import type { AlarmDef, BodyCrust, DormantDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, SkillCommit, SkillLeap, SummonDef } from './combat-types.ts';
+import type { AlarmDef, BodyCrust, DormantDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, SkillCommit, SkillEchoing, SkillLeap, SummonDef } from './combat-types.ts';
 import type { MonsterRank } from './rank-types.ts';
 import { bodyCrust } from './parse-crust.ts';
 import type { Content, MonsterDef, SkillDef } from './types.ts';
@@ -54,12 +54,10 @@ function commit(source: Fields, where: string): SkillCommit {
   return { at: share(source, 'at', where), breakStagger: positive(source, 'breakStagger', where) };
 }
 
-export interface SkillMotion {
+export interface SkillMotion extends SkillEchoing {
   readonly leap: SkillLeap | null;
   readonly root: number;
   readonly hold: number;
-  readonly echo: number;
-  readonly echoTurn: number;
   readonly lifeOnHit: number;
   readonly commit: SkillCommit | null;
   readonly leaves: string | null;
@@ -72,6 +70,7 @@ export function skillMotion(source: Fields, where: string): SkillMotion {
     hold: zeroOrMore(source, 'hold', where),
     echo: zeroOrMore(source, 'echo', where),
     echoTurn: source['echoTurn'] === undefined ? 0 : numeric(source, 'echoTurn', where),
+    echoShare: source['echoShare'] === undefined ? 1 : share(source, 'echoShare', where),
     lifeOnHit: zeroOrMore(source, 'lifeOnHit', where),
     commit: optional(source['commit'], `${where}.commit`, commit),
     leaves: source['leaves'] === undefined ? null : text(source, 'leaves', where),

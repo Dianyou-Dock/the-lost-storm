@@ -8,8 +8,9 @@ import { emptyEquipment, generateItem } from './items.ts';
 import { wornVariants } from './powers.ts';
 import { createRng } from './rng.ts';
 import { ANY_WEAPON } from './weapons.ts';
-import { applyMods, armourReduction, averageHit, computeStats, damagePerSecond, damageTakenScale, modTargets, resistanceOf, resolveSkill, resolveSkillBar, variantChain } from './stats.ts';
+import { ADDED_ECHO, applyMods, armourReduction, averageHit, computeStats, damagePerSecond, damageTakenScale, modTargets, resistanceOf, resolveSkill, resolveSkillBar, variantChain } from './stats.ts';
 import { addToInventory, equipFromInventory } from './world/character.ts';
+import { echoedSkill } from './world/skills.ts';
 import { createWorld } from './world/create.ts';
 import type { Equipment, ItemInstance, World } from './world/types.ts';
 
@@ -325,4 +326,42 @@ void test('when two held places change one skill the chosen change is active, an
   assert.equal(resolveSkill(content, skillOf('storm_bolt'), both.toReversed()).name, skillOf('storm_bolt_lance').name);
   for (const becomes of ['storm_bolt_echo', 'storm_bolt_lance']) assert.equal(resolveSkill(content, skillOf('storm_bolt'), both, [], [], ANY_WEAPON, { storm_bolt: becomes }).name, skillOf(becomes).name);
   assert.equal(resolveSkill(content, skillOf('storm_bolt'), ['twice_told_bolt'], [], [], ANY_WEAPON, { storm_bolt: 'storm_bolt_lance' }).name, skillOf('storm_bolt_echo').name);
+});
+
+void test('Echoes makes every main attack happen twice with a weaker echo, keeps an echo it already had, and leaves a held spin and other skills alone', (): void => {
+  const echoes = must(content.skillTree.find((node): boolean => node.id === 'twice_swung'), 'twice_swung');
+  const share: number = echoes.skillMods.find((mod: SkillMod): boolean => mod.field === 'echo')?.value ?? 0;
+  assert.ok(share > 0 && share < 1);
+  const route: readonly string[] = ['echo_forkline', 'first_echo', 'echo_1', 'echo_15', 'echo_4', 'twice_swung'];
+  for (const id of ['cleave', 'quarrel', 'storm_bolt']) {
+    const plain: SkillDef = resolveSkill(content, skillOf(id), []);
+    const echoed: SkillDef = resolveSkill(content, skillOf(id), route);
+    assert.equal(plain.echo, 0, id);
+    assert.equal(echoed.echo, ADDED_ECHO.delay, id);
+    assert.equal(echoed.echoShare, share, id);
+    assert.deepEqual(echoed.damage, plain.damage, id);
+    assert.ok(Math.abs(echoedSkill(echoed).damage.weaponPercent - plain.damage.weaponPercent * share) < 1e-9, id);
+  }
+  const spin: SkillDef = resolveSkill(content, skillOf('cleave'), [...route, 'heavy_hands', 'blade_1', 'whetstone', 'blade_4', 'whirling_cleave']);
+  assert.equal(spin.delivery.type, 'nova');
+  assert.equal(spin.echo, ADDED_ECHO.delay);
+  const held: SkillDef = resolveSkill(content, skillOf('cleave'), [...route, 'heavy_hands', 'blade_1', 'whetstone', 'blade_4', 'whirling_cleave', 'endless_turn']);
+  assert.ok(held.momentum !== null);
+  assert.equal(held.echo, 0);
+  assert.deepEqual(held.damage, resolveSkill(content, skillOf('cleave'), ['heavy_hands', 'blade_1', 'whetstone', 'blade_4', 'whirling_cleave', 'endless_turn']).damage);
+  const told: SkillDef = resolveSkill(content, skillOf('storm_bolt'), [...route, 'storm_storm_bolt', 'stormcallers_focus', 'storm_1', 'forked_bolt', 'storm_4', 'twice_told_bolt']);
+  assert.equal(told.echo, skillOf('storm_bolt_echo').echo);
+  assert.equal(told.echoShare, 1);
+  assert.equal(resolveSkill(content, skillOf('thunderclap'), route).echo, 0);
+  assert.equal(resolveSkill(content, skillOf('dodge_roll'), route).echo, 0);
+});
+
+void test('area skill places leave Held Breath alone, and only its own places stretch it', (): void => {
+  const areaPlaces: readonly string[] = ['echo_forkline', 'first_echo', 'echo_1', 'echo_15', 'echo_3', 'echo_7', 'echo_9', 'echo_13'];
+  const base: SkillDef = skillOf('held_breath');
+  assert.deepEqual(resolveSkill(content, base, areaPlaces).delivery, base.delivery);
+  const own: SkillDef = resolveSkill(content, base, [...areaPlaces, 'between_heartbeats']);
+  assert.ok(own.delivery.type === 'area' && base.delivery.type === 'area');
+  assert.ok(own.delivery.duration > base.delivery.duration);
+  assert.ok(own.delivery.radius > base.delivery.radius);
 });

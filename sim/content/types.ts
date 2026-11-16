@@ -5,7 +5,7 @@ import type { AffixDef, FamilyDef, ItemBaseDef, ItemScaling, PowerTriggerDef, Ra
 export type { WeaponKind } from './item-types.ts';
 import type { FlaskDef } from './flasks.ts';
 import type { AttachmentDef, RigDef } from './rig-types.ts';
-import type { AlarmDef, AmbushBehaviour, BodyCrust, DormantDef, FactionDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, StalkerBehaviour, SummonDef, SwarmBehaviour } from './combat-types.ts';
+import type { AlarmDef, AmbushBehaviour, BodyCrust, DormantDef, FactionDef, FieldDelivery, GuardDef, MarkDelivery, MonsterModDef, MonsterPoise, ReviveDelivery, SkillEchoing, StalkerBehaviour, SummonDef, SwarmBehaviour } from './combat-types.ts';
 import type { AreaDelivery, BeamDelivery, BlinkDelivery, ChainDelivery, SkillShape, SkillUnlock } from './shape-types.ts';
 import type { ServiceKind, TradeDef } from './trade-types.ts';
 import type { PropDef, SurfaceDef } from './prop-types.ts';
@@ -56,7 +56,7 @@ export interface StatMod {
   readonly value: number;
 }
 
-export const SKILL_MOD_FIELDS = ['damagePercent', 'areaPercent', 'rangePercent', 'durationPercent', 'cooldownPercent', 'manaCostPercent', 'knockbackPercent', 'staggerPercent', 'projectiles', 'pierce', 'chains', 'chainFalloff', 'momentumCapPercent', 'momentumGracePercent', 'lifePerHit', 'lifeOnHit'] as const;
+export const SKILL_MOD_FIELDS = ['damagePercent', 'areaPercent', 'rangePercent', 'durationPercent', 'cooldownPercent', 'manaCostPercent', 'knockbackPercent', 'staggerPercent', 'projectiles', 'pierce', 'chains', 'chainFalloff', 'momentumCapPercent', 'momentumGracePercent', 'lifePerHit', 'lifeOnHit', 'echo'] as const;
 export type SkillModField = (typeof SKILL_MOD_FIELDS)[number];
 
 export interface SkillMod {
@@ -131,7 +131,7 @@ export interface SkillCombo {
   readonly steps: readonly ComboStep[];
 }
 
-export interface SkillDef extends SkillShape {
+export interface SkillDef extends SkillShape, SkillEchoing {
   readonly id: string;
   readonly form: string;
   readonly name: string;
@@ -155,8 +155,6 @@ export interface SkillDef extends SkillShape {
   readonly category: SkillCategory;
   readonly combo: SkillCombo | null;
   readonly hold: number;
-  readonly echo: number;
-  readonly echoTurn: number;
   readonly lifeOnHit: number;
   readonly leaves: string | null;
 }

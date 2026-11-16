@@ -288,8 +288,14 @@ function resolve(world: World, impact: Impact, team: Team): number {
   world.events.push({ type: 'skill_impact', actorId: offence.sourceId, team, skill, origin: { x: origin.x, z: origin.z }, direction: { x: direction.x, z: direction.z }, hits, echo: impact.echo });
   if (impact.echo || skill.echo <= 0) return hits;
   const turned: Vec2 = skill.echoTurn === 0 ? { x: direction.x, z: direction.z } : rotate(direction, skill.echoTurn * DEGREES_TO_RADIANS);
-  world.echoes.push({ ownerId: offence.sourceId, ...offence, skill, origin: { x: origin.x, z: origin.z }, direction: turned, target: target === null ? null : { x: target.x, z: target.z }, timeLeft: skill.echo });
+  world.echoes.push({ ownerId: offence.sourceId, ...offence, skill: echoedSkill(skill), origin: { x: origin.x, z: origin.z }, direction: turned, target: target === null ? null : { x: target.x, z: target.z }, timeLeft: skill.echo });
   return hits;
+}
+
+export function echoedSkill(skill: SkillDef): SkillDef {
+  if (skill.echoShare >= 1) return skill;
+  const share: number = skill.echoShare;
+  return { ...skill, damage: { ...skill.damage, weaponPercent: skill.damage.weaponPercent * share, flatMin: skill.damage.flatMin * share, flatMax: skill.damage.flatMax * share } };
 }
 
 export function spunSkill(actor: Actor, skill: SkillDef): SkillDef {

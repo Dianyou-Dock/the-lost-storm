@@ -292,8 +292,8 @@ function echoer(data: GuideData): BuildNotes {
     forWho: 'For players who like to set the ground alight and let the crowd walk into it.',
     plays: [
       `Your first point is ${skillName(data, 'forkline')}: lightning that jumps from enemy to enemy. The Echo Weaver walks ${pathName(data, 'echo')}, the path of skills that hit an area and of skills that happen twice.`,
-      `At level ${placeLevel(data, id, 'twice_swung')} ${name(data, 'twice_swung')} makes your swing happen twice. Fork lightning into the pack, then cut what comes close.`,
-      `At level ${placeLevel(data, id, 'echoing_fork')} ${name(data, 'echoing_fork')} makes Forkline happen twice. At level ${keystone} ${name(data, 'twice_remembered')} trades a little damage on everything for bigger, longer area skills and a shorter wait on ${skillName(data, 'held_breath')}.`,
+      `At level ${placeLevel(data, id, 'twice_swung')} ${name(data, 'twice_swung')} makes your main attack happen twice. Fork lightning into the pack, then cut what comes close.`,
+      `At level ${placeLevel(data, id, 'forked')} ${name(data, 'forked')} lets your main attack release a Forkline on its own. At level ${keystone} ${name(data, 'twice_remembered')} trades a little damage on everything for bigger, longer area skills and a shorter wait on ${skillName(data, 'held_breath')}.`,
     ],
     lean: [
       `${skillName(data, 'forkline')} is the button you press most. It is best against a crowd, where every jump finds a new enemy.`,
@@ -323,7 +323,7 @@ function echoer(data: GuideData): BuildNotes {
     thin: [],
     marks: {
       echo_forkline: 'Your first point, and your main skill.',
-      twice_swung: 'Your swing happens twice from here.',
+      twice_swung: 'Your main attack happens twice from here.',
       twice_remembered: 'Bigger, longer area skills for a little less damage on everything.',
       thunder_in_the_bones: `From here the route turns to ${pathName(data, 'storm')}, which makes lightning stronger. Forkline is lightning.`,
     },

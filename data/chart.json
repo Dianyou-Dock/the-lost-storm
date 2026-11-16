@@ -1,7 +1,7 @@
 {
   "title": "The Skill Tree",
   "pointsPerLevel": 2,
-  "revision": 5,
+  "revision": 6,
   "twist": 0.08,
   "respec": {
     "goldPerPoint": 10,
@@ -77,7 +77,6 @@
         "thunderclap",
         "squall",
         "downdraught",
-        "held_breath",
         "forkline",
         "umbra",
         "still_water",
@@ -129,6 +128,23 @@
         "quarrel_fan",
         "quarrel_heave",
         "ghost_wave"
+      ]
+    },
+    {
+      "id": "main",
+      "name": "main attacks",
+      "skills": [
+        "cleave",
+        "cleave_whirl",
+        "cleave_millwheel",
+        "cleave_heave",
+        "quarrel",
+        "quarrel_fan",
+        "quarrel_heave",
+        "storm_bolt",
+        "storm_bolt_echo",
+        "storm_bolt_lance",
+        "spell_strike"
       ]
     }
   ],

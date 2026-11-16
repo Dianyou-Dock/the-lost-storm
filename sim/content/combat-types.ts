@@ -36,6 +36,12 @@ export interface MonsterPoise {
   readonly resolve: number;
 }
 
+export interface SkillEchoing {
+  readonly echo: number;
+  readonly echoTurn: number;
+  readonly echoShare: number;
+}
+
 export interface SkillCommit {
   readonly at: number;
   readonly breakStagger: number;

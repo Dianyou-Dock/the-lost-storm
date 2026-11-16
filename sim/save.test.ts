@@ -668,3 +668,29 @@ void test('a character saved before the Banked Fire loads with a free start over
   assert.ok(canAllocate(content, save.allocated, 1, 'shoulder_through'));
   assert.ok(canAllocate(content, save.allocated, 1, 'stone_fire_burst'));
 });
+
+const ECHO_BEFORE: readonly string[] = ['echo_forkline', 'first_echo', 'echo_1', 'echo_15', 'echo_4', 'twice_swung', 'echo_5', 'echo_6', 'echoing_fork', 'stone_echo_near', 'stone_1', 'bedrock', 'stone_held_breath', 'blade_thunderhead', 'heavy_hands', 'blade_1', 'whetstone', 'blade_static_brand'];
+
+void test('a character saved before the Echo loads with a free start over, keeps Held Breath on the Stone path, gets back Echoing Fork and the Static Brand it can no longer reach, and its Forkline items still cast', (): void => {
+  const world: World = played();
+  world.player.level = 12;
+  world.player.skillPoints = 0;
+  world.player.allocated = [...ECHO_BEFORE];
+  world.player.learned = ['cleave', 'forkline', 'held_breath', 'static_brand', 'thunderhead', 'dodge_roll'];
+  world.player.bar = ['cleave', 'forkline', 'held_breath', 'static_brand', 'thunderhead', 'dodge_roll'];
+  world.player.freeReset = false;
+  world.player.equipped.head = made('crown_of_the_struck_hour', 'stormtouched', 9);
+  world.player.equipped.hands = made('wirethread_gloves', 'stormtouched', 10);
+  const before: number = castsOf(world).filter((id: string): boolean => id === 'forkline').length;
+  const save: SaveData = must(parseSaveText(content, JSON.stringify({ ...toSave(world), treeRevision: content.chart.revision - 1 })), 'save');
+  const gone: readonly string[] = ['echoing_fork', 'blade_static_brand'];
+  assert.equal(save.freeReset, true);
+  assert.deepEqual(save.allocated, ECHO_BEFORE.filter((id: string): boolean => !gone.includes(id)));
+  assert.equal(save.skillPoints, gone.length);
+  assert.ok(!save.learned.includes('static_brand') && !save.bar.includes('static_brand'));
+  assert.ok(['forkline', 'held_breath', 'thunderhead'].every((id: string): boolean => save.bar.includes(id)));
+  assert.ok(canAllocate(content, save.allocated, 1, 'forked'));
+  const restored: World = createWorld(content, { seed: 9, save });
+  assert.ok(before > 0);
+  assert.equal(castsOf(restored).filter((id: string): boolean => id === 'forkline').length, before);
+});

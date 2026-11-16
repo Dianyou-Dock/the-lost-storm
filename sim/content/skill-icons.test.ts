@@ -25,7 +25,7 @@ void test('a change of a change goes back to the skill it started as', (): void 
 });
 
 void test('two bar skills with one icon are named, unless both are changes of the same skill', (): void => {
-  assert.deepEqual(sharedBarIcons(withIcon('spell_strike', 'forkline')), ['skills forkline and spell_strike can both sit on the bar but share the icon forkline', 'skills forkline_echo and spell_strike can both sit on the bar but share the icon forkline']);
+  assert.deepEqual(sharedBarIcons(withIcon('spell_strike', 'forkline')), ['skills forkline and spell_strike can both sit on the bar but share the icon forkline']);
   assert.deepEqual(sharedBarIcons(withIcon('cleave_whirl', 'cleave')), []);
   assert.deepEqual(sharedBarIcons(withIcon('brute_haymaker', 'forkline')), []);
 });

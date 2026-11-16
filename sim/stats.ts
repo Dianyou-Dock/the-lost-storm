@@ -7,6 +7,7 @@ import { ANY_WEAPON, heldGroup, heldPlace } from './weapons.ts';
 export const ARMOUR_HALF_POINT: number = 100;
 export const MIN_ATTACK_SPEED: number = 0.2;
 const MIN_CYCLE: number = 0.05;
+export const ADDED_ECHO = { delay: 0.35 } as const;
 
 export function applyMods(base: StatBlock, mods: readonly StatMod[]): StatBlock {
   const flat: StatBlock = { ...base };
@@ -149,6 +150,18 @@ export function chosenVariant(content: Content, skill: SkillDef, allocated: read
   return variantChain(content, skill, allocated, powers, worn, held, chosen).skill;
 }
 
+interface SkillEcho {
+  readonly echo: number;
+  readonly echoShare: number;
+}
+
+function echoOf(skill: SkillDef, share: number): SkillEcho {
+  const kept: SkillEcho = { echo: skill.echo, echoShare: skill.echoShare };
+  if (skill.echo > 0 || share <= 0 || skill.momentum !== null) return kept;
+  if (skill.delivery.type === 'dash' || skill.delivery.type === 'revive') return kept;
+  return { echo: ADDED_ECHO.delay, echoShare: Math.min(1, share) };
+}
+
 function scaleOf(mods: readonly SkillMod[], field: SkillMod['field']): number {
   return Math.max(0, 1 + sumSkillMod(mods, field));
 }
@@ -176,6 +189,7 @@ export function resolveSkill(content: Content, base: SkillDef, allocated: readon
     knockback: skill.knockback * (1 + sumSkillMod(mods, 'knockbackPercent')),
     stagger: skill.stagger * scaleOf(mods, 'staggerPercent'),
     lifeOnHit: skill.lifeOnHit + sumSkillMod(mods, 'lifeOnHit'),
+    ...echoOf(skill, sumSkillMod(mods, 'echo')),
     momentum: skill.momentum === null ? null : { ...skill.momentum, cap: Math.max(skill.momentum.perHit, skill.momentum.cap * scaleOf(mods, 'momentumCapPercent')), grace: skill.momentum.grace * scaleOf(mods, 'momentumGracePercent'), lifePerHit: skill.momentum.lifePerHit + sumSkillMod(mods, 'lifePerHit') },
   };
 }
