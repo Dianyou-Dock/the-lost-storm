@@ -5,7 +5,7 @@
     "opening": "skipped"
   },
   "town": "hideout",
-  "withheld": [],
+  "withheld": ["columned_hall_open"],
   "scaling": {
     "lifePerLevel": 0.3,
     "damagePerLevel": 0.28,
@@ -54,6 +54,12 @@
             "x": 655,
             "y": 410,
             "when": [{"type": "flag", "flag": "keeper_defeated", "is": "defeated", "not": false}]
+          },
+          {
+            "zone": "ledger_hall",
+            "x": 560,
+            "y": 300,
+            "when": [{"type": "visited", "zone": "ledger_hall", "not": false}]
           }
         ],
         "roads": [
@@ -96,6 +102,11 @@
                 "y": 372
               }
             ]
+          },
+          {
+            "from": "hideout",
+            "to": "ledger_hall",
+            "via": []
           }
         ],
         "features": [
