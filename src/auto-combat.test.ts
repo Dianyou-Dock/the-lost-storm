@@ -7,6 +7,8 @@ import type { MonsterState, World } from '../sim/world/types.ts';
 import { armed, must, worldIn } from '../test/support.ts';
 import { createAutoCombatState, planAutoCombat } from './auto-combat-plan.ts';
 import { moyuContent } from '../sim/content/moyu.ts';
+import { createWorld } from '../sim/world/create.ts';
+import { stepWorld } from '../sim/world/step.ts';
 import type { AutoCombatState } from './auto-combat-plan.ts';
 
 const content: Content = loadContent();
@@ -28,8 +30,8 @@ void test('auto combat selects a nearby hostile target with the main attack', ()
 
 void test('auto combat leaves farming bosses for manual play', (): void => {
   const portal = moyuContent(content);
-  const world: World = armed(worldIn(portal, 'hall_of_time', 7));
-  const def = must(portal.monsters.get('moyu_boss_hall_of_time'), 'boss');
+  const world: World = armed(worldIn(portal, 'under_hall', 7));
+  const def = must(portal.monsters.get('moyu_boss_under_hall'), 'boss');
   const boss = spawnMonster(world, def, world.nextPackId, { x: world.player.pos.x + 3, z: world.player.pos.z }, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(world) });
   world.monsters = [boss];
   const state = createAutoCombatState(world.zone.id);
@@ -44,13 +46,25 @@ void test('manual movement takes priority and pauses automatic attacks', (): voi
   assert.equal(planAutoCombat(world, state, 0.4, [], false).length, 1);
 });
 
-void test('auto chase stops at the leash and never starts while a panel covers play', (): void => {
+void test('auto combat seeks distant monsters and never starts while a panel covers play', (): void => {
   const { world, state, target } = scene();
   assert.deepEqual(planAutoCombat(world, state, 1 / 30, [], true), []);
-  planAutoCombat(world, state, 1 / 30, [], false);
+  target.pos = { x: world.player.pos.x + 30, z: world.player.pos.z };
+  assert.deepEqual(planAutoCombat(world, state, 1 / 30, [], false), [{ type: 'skill', slot: 0, aim: target.pos, targetId: target.id }]);
   world.player.intent = { type: 'attack', slot: 0, targetId: target.id };
   world.player.pos = { x: world.player.pos.x + 11, z: world.player.pos.z };
-  assert.deepEqual(planAutoCombat(world, state, 1 / 30, [], false), [{ type: 'stop' }]);
-  world.player.intent = { type: 'idle' };
-  assert.deepEqual(planAutoCombat(world, state, 1, [], false), []);
+  assert.deepEqual(planAutoCombat(world, state, 1 / 30, [], false), []);
+});
+
+void test('auto combat crosses terrain levels to find monsters in a large farming map', (): void => {
+  const world = createWorld(moyuContent(content), { seed: 7, save: null, opening: false });
+  stepWorld(world, [{ type: 'random_map' }], 1 / 30);
+  const state = createAutoCombatState(world.zone.id);
+  state.enabled = true;
+  assert.equal(world.monsters.length > 0, true);
+  const commands = planAutoCombat(world, state, 1 / 30, [], false);
+  assert.equal(commands[0]?.type, 'skill');
+  stepWorld(world, commands, 1 / 30);
+  assert.equal(world.player.intent.type, 'attack');
+  assert.equal(world.player.path.length > 0, true);
 });

@@ -5,20 +5,31 @@ import { hotWeapon, isMoyu, MOYU_MAPS, moyuContent, moyuRequirements } from './m
 import { createWorld } from '../world/create.ts';
 import { stepWorld } from '../world/step.ts';
 import { canAllocate } from '../progression.ts';
-import { toSave } from '../save.ts';
+import { readSave, toSave } from '../save.ts';
 import { monsterLevel, spawnMonster } from '../world/spawn.ts';
 import { must } from '../../test/support.ts';
+import { resolveSkill } from '../stats.ts';
 
 void test('portal content uses the five element chart without quests', (): void => {
   const content = moyuContent(loadContent());
   assert.equal(isMoyu(content), true);
   assert.equal(content.quests.size, 0);
-  assert.equal(content.skillTree.length, 424);
+  assert.equal(content.skillTree.length, 155);
   assert.equal(content.chart.pointsPerLevel, 1);
   assert.equal(content.player.xp.maxLevel, 41);
   assert.equal(content.chart.grants.reduce((sum, grant): number => sum + grant.points, 0), 10);
   assert.equal(content.zones.get('ledger_hall')?.packs.every((pack): boolean => pack.level === undefined), true);
   assert.equal(content.zones.get('ledger_hall')?.levelUpTo, 41);
+  assert.equal(content.player.skillBook.filter((entry) => entry.level === 1).length, 4);
+  assert.equal(content.player.skillBar.slice(0, 4).every((entry) => entry.skill !== null), true);
+  for (const id of MOYU_MAPS) {
+    const zone = must(content.zones.get(id), id);
+    assert.equal(zone.tiles.length >= 80, true);
+    assert.equal(zone.exits.some((exit) => exit.to === 'hideout'), true);
+    assert.equal(zone.exits.some((exit) => MOYU_MAPS.includes(exit.to)), true);
+    assert.equal(zone.packs.length >= 19, true);
+    assert.equal(zone.packs.some((pack) => pack.members.length > 1), true);
+  }
 });
 
 void test('a random map begins a fresh combat run and can be entered again', (): void => {
@@ -37,9 +48,17 @@ void test('a random map begins a fresh combat run and can be entered again', ():
 void test('an old low-level save in a high-level map returns to the hideout', (): void => {
   const content = moyuContent(loadContent());
   const fresh = createWorld(content, { seed: 5, save: null, opening: false });
-  const save = { ...toSave(fresh), zone: 'under_hall_2' };
+  const save = { ...toSave(fresh), zone: 'under_hall_3' };
   const restored = createWorld(content, { seed: 5, save, opening: false });
   assert.equal(restored.zone.id, 'hideout');
+});
+
+void test('an older portal save receives the newly available weapon actions', (): void => {
+  const content = moyuContent(loadContent());
+  const world = createWorld(content, { seed: 5, save: null, opening: false });
+  const old = { ...toSave(world), treeRevision: content.chart.revision - 1, bar: ['cleave', null, null, null, null, null] };
+  const restored = readSave(content, old);
+  assert.equal(restored?.bar.slice(0, 4).every((skill) => skill !== null), true);
 });
 
 void test('every farming map has one scaled boss with a modest guaranteed drop', (): void => {
@@ -81,10 +100,20 @@ void test('a map boss waits for the challenger conversation before spawning', ()
   assert.equal(world.npcs.some((npc) => npc.id === challenger.id), false);
 });
 
-void test('cold routes can start while hot weapons and unimplemented sockets cannot spend points', (): void => {
+void test('the chart contains only basic paths and two or three element effects', (): void => {
   const content = moyuContent(loadContent());
   assert.equal(canAllocate(content, [], 1, 'base-金-1'), true);
   assert.equal(hotWeapon('armament-手枪-快膛'), true);
   assert.equal(canAllocate(content, [], 1, 'armament-手枪-快膛'), false);
   assert.equal(moyuRequirements(['gate-金'], 'socket-金木'), false);
+  assert.equal(content.skillTree.some((node) => node.id.startsWith('weapon-') || node.id.startsWith('hybrid-')), false);
+  assert.equal(content.skillTree.some((node) => node.id === 'word-流血' && node.skillMods.length > 0), true);
+  const base = must(content.skills.get('cleave'), 'cleave');
+  const boosted = resolveSkill(content, base, ['word-流血']);
+  assert.equal(boosted.damage.weaponPercent > base.damage.weaponPercent, true);
+  assert.equal(boosted.lifeOnHit > base.lifeOnHit, true);
+  const sword = must(content.itemBases.get('rusted_blade'), 'sword');
+  const armed = resolveSkill(content, base, ['word-流血'], [], sword.variants, 'blade');
+  assert.equal(armed.name, '剑刃连斩');
+  assert.equal(armed.damage.weaponPercent > base.damage.weaponPercent, true);
 });

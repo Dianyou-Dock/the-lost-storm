@@ -14,7 +14,8 @@ import { readTally, tallyToSave } from './tally.ts';
 import type { TallySave } from './tally.ts';
 import { adoptLearned, bankedReset, findNode, heldChanges, reachablePlaces } from './progression.ts';
 import type { AdoptedPlaces } from './progression.ts';
-import { readBar, readLearned } from './skill-book.ts';
+import { placeLearned, readBar, readLearned, startingSkills } from './skill-book.ts';
+import { isMoyu } from './content/moyu.ts';
 import { grantIds } from './world/learning.ts';
 import { flaskCharges } from './world/flasks.ts';
 import { glitchToSave } from './world/glitch.ts';
@@ -376,7 +377,7 @@ export function readSave(content: Content, value: unknown): SaveData | null {
     grants,
     treeRevision: content.chart.revision,
     freeReset: bankedReset(content.chart.revision, value['treeRevision'], value['freeReset']),
-    bar: readBar(content, savedBar, learned),
+    bar: isMoyu(content) && value['treeRevision'] !== content.chart.revision ? startingSkills(content).reduce((bar: (string | null)[], skill: string): (string | null)[] => placeLearned(content, bar, skill), readBar(content, savedBar, learned)) : readBar(content, savedBar, learned),
     inventory: slots,
     equipped: worn.equipped,
     spilled: [...kept, ...worn.spilled, ...stashed.overflow, ...unplaced],

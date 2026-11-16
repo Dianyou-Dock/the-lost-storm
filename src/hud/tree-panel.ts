@@ -81,7 +81,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
   element.style.setProperty('--variant-rim', `${TREE_NODES.variantRim}px`);
   const head: HTMLDivElement = el('div', 'tree-head', element);
   label('tree-title', content.chart.title, head);
-  if (isMoyu(content)) label('moyu-prototype-note', '当前加点用于路线构筑；战斗词条效果尚未接入', head);
+  if (isMoyu(content)) label('moyu-prototype-note', '双属性与三属性节点会强化当前装备武器的技能', head);
   const points: HTMLDivElement = el('div', 'tree-points', head);
   const pointCount: HTMLSpanElement = el('span', 'tree-points-count', points);
   const pointWord: HTMLSpanElement = el('span', 'tree-points-word', points);

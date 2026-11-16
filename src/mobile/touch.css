@@ -207,9 +207,13 @@ body.touch .tc-close svg {
 
 .tc-close {
   position: absolute;
-  top: calc(4px + env(safe-area-inset-top, 0px));
-  right: calc(4px + env(safe-area-inset-right, 0px));
-  z-index: 40;
+  top: calc(8px + env(safe-area-inset-top, 0px));
+  right: calc(8px + env(safe-area-inset-right, 0px));
+  z-index: 80;
+  width: 56px;
+  height: 56px;
+  background: rgba(10, 16, 24, 0.72);
+  border-radius: 8px;
   opacity: 0;
   visibility: hidden;
   transform: scale(0.8);
