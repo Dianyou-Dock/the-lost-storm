@@ -154,7 +154,7 @@ function subtree(node: Node): void {
 
 export function startLocalization(): void {
   document.documentElement.lang = 'zh-CN';
-  document.title = '摸鱼游戏';
+  document.title = '摸鱼之路';
   const root: HTMLElement = document.body;
   subtree(root);
   const observer: MutationObserver = new MutationObserver((records: MutationRecord[]): void => {

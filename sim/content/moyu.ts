@@ -2,7 +2,7 @@ import graph from '../../data/moyu-graph.json' with { type: 'json' };
 import zh from '../../src/i18n/zh.json' with { type: 'json' };
 import type { AffixDef, Content, ItemBaseDef, LineDef, MonsterDef, NpcDef, RarityDef, SkillDef, SkillMod, SkillTreeNodeDef, ZoneDef, ZonePack, ZonePoint } from './types.ts';
 
-export const MOYU_TITLE: string = '摸鱼 · 五行天赋图';
+export const MOYU_TITLE: string = '摸鱼之路 · 五行天赋图';
 export const MOYU_MAPS: readonly string[] = ['under_hall', 'under_hall_2', 'under_hall_3', 'lava_depths', 'lava_depths_2', 'ledger_hall', 'ledger_hall_2', 'ledger_hall_3'];
 
 const ELEMENTS = [
