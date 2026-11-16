@@ -1,7 +1,7 @@
 import type { PortalStage } from './world/portal-types.ts';
 import type { AudioDef, CueDef, CueTable, LifeSoundEvent, UiAction, WeaponCue, WorldSoundEvent } from './content/audio.ts';
 import { FALLBACK_KEY, GOLD_KEY, PLAYER_KEY } from './content/audio.ts';
-import type { ItemBaseDef, WeaponKind } from './content/types.ts';
+import type { ItemBaseDef, SkillDef, WeaponKind } from './content/types.ts';
 import { baseOf } from './items.ts';
 import type { Vec2 } from './math.ts';
 import type { Command, GroundItem, ItemInstance, MonsterState, WakeBeat, World, WorldEvent } from './world/types.ts';
@@ -28,6 +28,10 @@ function cues(table: CueTable, key: string, position: Vec2 | null, weapon: Weapo
   const heard: readonly WeaponCue[] = list.filter((entry: WeaponCue): boolean => heldBy(entry, weapon));
   if (heard.length === 0) return NONE;
   return heard.map((entry: CueDef): SoundCue => ({ sound: entry.sound, volume: entry.volume, maxVoices: entry.maxVoices, cooldown: entry.cooldown, reach: entry.reach, holdForVoice: entry.holdForVoice, pitch: entry.pitch, volumeJitter: entry.volumeJitter, position }));
+}
+
+function bySkill(table: CueTable, skill: SkillDef, position: Vec2 | null, weapon: WeaponKind | null = null): readonly SoundCue[] {
+  return table.has(skill.form) ? cues(table, skill.form, position, weapon) : cues(table, skill.id, position, weapon);
 }
 
 function firstOf(table: CueTable, keys: readonly string[], position: Vec2 | null, weapon: WeaponKind | null): readonly SoundCue[] {
@@ -82,13 +86,13 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
   let found: readonly SoundCue[] = NONE;
   switch (event.type) {
     case 'skill_start':
-      found = cues(audio.skillStart, event.skill.id, positionOf(world, event.actorId), weaponOf(world, event.actorId));
+      found = bySkill(audio.skillStart, event.skill, positionOf(world, event.actorId), weaponOf(world, event.actorId));
       break;
     case 'skill_impact':
-      found = cues(audio.skillImpact, event.skill.id, event.origin);
+      found = bySkill(audio.skillImpact, event.skill, event.origin);
       break;
     case 'projectile_spawn':
-      found = cues(audio.projectileSpawn, event.projectile.skill.id, event.projectile.pos, weaponOf(world, event.projectile.ownerId));
+      found = bySkill(audio.projectileSpawn, event.projectile.skill, event.projectile.pos, weaponOf(world, event.projectile.ownerId));
       break;
     case 'projectile_end':
       if (!event.hit) found = cues(audio.projectileExpire, event.skill.id, event.pos);
@@ -97,7 +101,7 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
       if (event.burn) break;
       const weapon: WeaponKind | null = weaponOf(world, event.sourceId);
       const keys: readonly string[] = targetKeys(world, event.targetTeam, event.targetId);
-      const arrival: readonly SoundCue[] = cues(audio.skillHit, event.skill.id, event.pos, weapon);
+      const arrival: readonly SoundCue[] = bySkill(audio.skillHit, event.skill, event.pos, weapon);
       const body: readonly SoundCue[] = firstOf(audio.hit, keys, event.pos, weapon);
       const sweetener: readonly SoundCue[] = event.crit ? firstOf(audio.critHit, keys, event.pos, weapon) : NONE;
       found = [...arrival, ...body, ...sweetener];
@@ -180,7 +184,7 @@ export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): 
       if (event.targetId === world.player.id) found = worldCues(audio, 'hero_burn', event.pos);
       break;
     case 'hazard':
-      if (event.burst) found = cues(audio.skillImpact, event.hazard.skill.id, event.hazard.pos);
+      if (event.burst) found = bySkill(audio.skillImpact, event.hazard.skill, event.hazard.pos);
       break;
     case 'skill_interrupt':
     case 'area':

@@ -25,11 +25,14 @@
     "rank_thrust": [{ "sound": "sword_swing_light", "volume": 0.8, "maxVoices": 3, "pitch": [0.9, 1.0] }],
     "slag_crash": [{ "sound": "growl_brute", "volume": 0.55, "maxVoices": 2, "cooldown": 1.5 }],
     "elder_crash": [{ "sound": "growl_brute", "volume": 0.7, "maxVoices": 1, "cooldown": 2 }],
-    "mite_bite": [{ "sound": "dodge_whoosh", "volume": 0.25, "maxVoices": 3, "cooldown": 0.08 }],
+    "mite_bite": [{ "sound": "lava_bubble", "volume": 0.4, "maxVoices": 3, "cooldown": 0.08, "pitch": [0.9, 1.15] }],
     "cleave": [
       { "sound": "sword_swing_light", "volume": 0.9, "maxVoices": 3 },
       { "sound": "sword_swing_heavy", "volume": 0.5, "maxVoices": 3, "weapons": ["blunt", "greatsword"] }
     ],
+    "umbra": [{ "sound": "shadow_cast", "volume": 0.7, "maxVoices": 2 }],
+    "cleave_millwheel": [{ "sound": "water_sweep", "volume": 0.7, "maxVoices": 2 }, { "sound": "sword_swing_light", "volume": 0.5, "maxVoices": 3 }],
+    "dodge_roll_riptide": [{ "sound": "water_cast", "volume": 0.75, "maxVoices": 2 }, { "sound": "dodge_whoosh", "volume": 0.4, "maxVoices": 2, "pitch": [0.93, 1.07], "volumeJitter": 0.16 }],
     "dodge_roll": [{ "sound": "dodge_whoosh", "volume": 0.8, "maxVoices": 2, "pitch": [0.93, 1.07], "volumeJitter": 0.16 }, { "sound": "footstep_stone", "volume": 0.6, "maxVoices": 2, "pitch": [0.92, 1.08], "volumeJitter": 0.2 }],
     "taker_snatch": [{ "sound": "sword_swing_heavy", "volume": 0.45, "maxVoices": 3 }],
     "wolf_pounce": [{ "sound": "dodge_whoosh", "volume": 0.6, "maxVoices": 3 }],
@@ -75,6 +78,8 @@
     "fire_burst": [{ "sound": "fire_blast", "volume": 0.85, "maxVoices": 2 }]
   },
   "skillImpact": {
+    "riptide_wake": [{ "sound": "water_douse", "volume": 0.6, "maxVoices": 2, "cooldown": 0.2 }],
+    "gathered_embers": [{ "sound": "fire_ignite", "volume": 0.7, "maxVoices": 2, "cooldown": 0.1 }],
     "ember_spit": [{ "sound": "spit_land", "volume": 0.6, "maxVoices": 2, "cooldown": 0.3 }],
     "matron_spit": [{ "sound": "spit_land", "volume": 0.7, "maxVoices": 2, "cooldown": 0.3 }],
     "slag_crash": [{ "sound": "lava_erupt", "volume": 0.5, "maxVoices": 2 }, { "sound": "slam_heavy", "volume": 0.7, "maxVoices": 1 }],
@@ -212,7 +217,10 @@
     "level_up": [{ "sound": "level_up", "volume": 1, "maxVoices": 1 }],
     "surge": [{ "sound": "wave_arrival", "volume": 0.9, "maxVoices": 1 }],
     "monster_spawn": [{ "sound": "monsters_rising", "volume": 0.7, "maxVoices": 1, "cooldown": 4 }],
-    "flask_used": [{ "sound": "potion_uncork", "volume": 0.75, "maxVoices": 2 }, { "sound": "potion_drink", "volume": 0.6, "maxVoices": 2 }],
+    "flask_used": [{ "sound": "flask_drink", "volume": 0.8, "maxVoices": 2 }],
+    "portal_opened": [{ "sound": "portal_open", "volume": 0.7, "maxVoices": 1 }],
+    "portal_entered": [{ "sound": "portal_travel", "volume": 0.8, "maxVoices": 1 }],
+    "portal_arrived": [{ "sound": "portal_travel", "volume": 0.55, "maxVoices": 1 }],
     "player_respawn": [{ "sound": "swell_slow", "volume": 0.8, "maxVoices": 1 }],
     "surge_cleared": [{ "sound": "shimmer_faint", "volume": 0.5, "maxVoices": 1 }],
     "quest_started": [{ "sound": "page_turn", "volume": 0.8, "maxVoices": 2 }],

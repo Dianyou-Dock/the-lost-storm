@@ -370,3 +370,43 @@ void test('no sound id the data names for a weapon hit is the shield sound unles
   const named: string[] = [...audio.hit.values(), ...audio.critHit.values(), ...audio.skillHit.values(), ...audio.death.values()].flatMap((list): string[] => list.map((entry): string => entry.sound));
   assert.ok(!named.includes('hit_shield'));
 });
+
+void test('the flask drink is one short cork-and-gulp sound at the hero', (): void => {
+  const world: World = fresh();
+  const drunk: readonly SoundCue[] = cuesForEvent(audio, world, { type: 'flask_used', slot: 0, flask: 'life', resource: 'life', pos: world.player.pos });
+  assert.deepEqual(sounds(drunk), ['flask_drink']);
+  assert.deepEqual(drunk[0]?.position, world.player.pos);
+});
+
+void test('a portal opens with a sound where it stands, the step through and the arrival travel, and a closing portal is silent', (): void => {
+  const world: World = fresh();
+  const stage = (kind: 'opened' | 'entered' | 'arrived' | 'closed' | 'channel'): readonly SoundCue[] => cuesForEvent(audio, world, { type: 'portal', stage: kind, zone: 'hideout', pos: AWAY });
+  assert.deepEqual(sounds(stage('opened')), ['portal_open']);
+  assert.deepEqual(stage('opened')[0]?.position, AWAY);
+  assert.deepEqual(sounds(stage('entered')), ['portal_travel']);
+  assert.deepEqual(sounds(stage('arrived')), ['portal_travel']);
+  assert.ok((stage('arrived')[0]?.volume ?? 1) < (stage('entered')[0]?.volume ?? 0));
+  assert.deepEqual(stage('closed'), []);
+  assert.deepEqual(stage('channel'), []);
+});
+
+void test('the shadow, water and fire skills each have their own sound, and the Millwheel and the Riptide roll are told apart by their form and the whirl swings like Cleave', (): void => {
+  const world: World = fresh();
+  const starts = (id: string): string[] => sounds(cuesForEvent(audio, world, { type: 'skill_start', actorId: world.player.id, skill: skill(id), direction: AWAY, windup: 0.1, recovery: 0.1 }));
+  assert.deepEqual(starts('umbra'), ['shadow_cast']);
+  const formed = (id: string, form: string): string[] => sounds(cuesForEvent(audio, world, { type: 'skill_start', actorId: world.player.id, skill: { ...skill(id), form }, direction: AWAY, windup: 0.1, recovery: 0.1 }));
+  assert.deepEqual(formed('cleave', 'cleave_millwheel'), ['water_sweep', 'sword_swing_light']);
+  assert.deepEqual(formed('dodge_roll', 'dodge_roll_riptide'), ['water_cast', 'dodge_whoosh']);
+  assert.deepEqual(formed('cleave', 'cleave_whirl'), starts('cleave'));
+  assert.deepEqual(formed('dodge_roll', 'dodge_roll'), starts('dodge_roll'));
+  const lands = (id: string): string[] => sounds(cuesForEvent(audio, world, { type: 'skill_impact', actorId: world.player.id, team: 'player', skill: skill(id), origin: AWAY, direction: AWAY, hits: 0, echo: false }));
+  assert.deepEqual(lands('riptide_wake'), ['water_douse']);
+  assert.deepEqual(lands('gathered_embers'), ['fire_ignite']);
+});
+
+void test('the mite bite is a quiet pop, not the roll whoosh', (): void => {
+  const world: World = fresh();
+  const bite: readonly SoundCue[] = cuesForEvent(audio, world, { type: 'skill_start', actorId: world.player.id, skill: skill('mite_bite'), direction: AWAY, windup: 0.1, recovery: 0.1 });
+  assert.deepEqual(sounds(bite), ['lava_bubble']);
+  assert.ok((bite[0]?.volume ?? 1) <= 0.5);
+});
