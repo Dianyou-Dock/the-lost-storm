@@ -6,6 +6,9 @@ import { POLICIES } from './simulate-policies.ts';
 
 const CAVE_CLI = {
   zone: 'under_hall',
+  through: '',
+  raise: 0,
+  gear: '',
   enterLevel: 8,
   minutes: 60,
   runs: 3,
@@ -18,6 +21,10 @@ function option(name: string, fallback: string): string {
   return at < 0 ? fallback : (process.argv[at + 1] ?? fallback);
 }
 
+function list(value: string): string[] {
+  return value.split(',').filter((entry: string): boolean => entry !== '');
+}
+
 const minutes: number = Number(option('minutes', String(CAVE_CLI.minutes)));
 const runs: number = Number(option('runs', String(CAVE_CLI.runs)));
 const rows: CaveRow[] = [];
@@ -25,7 +32,7 @@ for (const build of option('build', CAVE_CLI.builds).split(',')) {
   for (const skill of option('skill', CAVE_CLI.skills).split(',')) {
     const done: CaveRun[] = [];
     for (let seed: number = 1; seed <= runs; seed += 1) {
-      done.push(runCave({ zone: option('zone', CAVE_CLI.zone), enterLevel: Number(option('enter', String(CAVE_CLI.enterLevel))), minutes, skill, build, seed }, POLICIES));
+      done.push(runCave({ zone: option('zone', CAVE_CLI.zone), through: list(option('through', CAVE_CLI.through)), raise: Number(option('raise', String(CAVE_CLI.raise))), gear: list(option('gear', CAVE_CLI.gear)), enterLevel: Number(option('enter', String(CAVE_CLI.enterLevel))), minutes, skill, build, seed }, POLICIES));
       process.stderr.write(`${build} ${skill} ${seed}/${runs}\n`);
     }
     const row: CaveRow | null = caveRow(done);
