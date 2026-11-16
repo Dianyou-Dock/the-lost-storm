@@ -115,13 +115,14 @@ function tank(data: GuideData): BuildNotes {
     forWho: 'For players who want a big weapon, slow heavy blows, and to walk out of every fight.',
     plays: [
       `You stand in the pack and let it come to you. The Bulwark takes ${pathName(data, 'stone')}, the path of life and armour, and spends little on damage until it is hard to kill. Later it crosses into ${pathName(data, 'echo')} for skills that hit a whole crowd.`,
-      `${skillName(data, 'thunderclap')} is your first point: when the pack closes around you, slam the ground and they are thrown back and staggered. ${skillName(data, 'held_breath')} comes at level ${placeLevel(data, id, 'stone_held_breath')}. Use it when you are surrounded or a big enemy is winding up: everything near you slows to a crawl and you do not.`,
-      `At level ${heave} ${name(data, 'heaving_cleave')} lets you hold ${skillName(data, 'cleave')}: let go and one heavy sweep throws everything in front of you far back. The longer you hold, the bigger and harder the sweep.`,
+      `${skillName(data, 'thunderclap')} is your first point: when the pack closes around you, slam the ground and they are thrown back, staggered and set alight. ${skillName(data, 'held_breath')} comes at level ${placeLevel(data, id, 'stone_held_breath')}. Use it when you are surrounded or a big enemy is winding up: everything near you slows to a crawl and you do not.`,
+      `At level ${placeLevel(data, id, 'shoulder_through')} ${name(data, 'shoulder_through')} turns your roll into a charge that ends in a burst of fire, so the way out of a pack is also a blow. ${skillName(data, 'banked_fire')} comes at level ${placeLevel(data, id, 'stone_banked_fire')}: a fire around you that burns hotter every second they stay in it.`,
+      `At level ${heave} ${name(data, 'heaving_cleave')} lets you hold ${skillName(data, 'cleave')}: let go and one heavy sweep throws everything in front of you far back. ${skillName(data, 'fire_burst')} follows at level ${placeLevel(data, id, 'stone_fire_burst')}, a close heavy slam of fire for the biggest enemy in reach.`,
       `At level ${keystone} you take ${name(data, 'the_unmoved')}: ${armour} more armour, more life and more damage, and you move ${slow} slower. You stop being quick. You also stop being in danger.`,
     ],
     lean: [
       `Lean on ${skillName(data, 'cleave')}, held. A held sweep from ${name(data, 'heaving_cleave')} hits far harder than a quick swing and throws the pack off you.`,
-      `${skillName(data, 'thunderclap')} is not your damage; it is how you stop being hit while the sweep is gathering. ${skillName(data, 'held_breath')} has a long wait, so keep it for the moment a fight turns.`,
+      `${skillName(data, 'thunderclap')} is not your damage; it is how you stop being hit while the sweep is gathering. Light ${skillName(data, 'banked_fire')} and stay in it: it is weak when lit and twice as hot by the end. ${skillName(data, 'held_breath')} has a long wait, so keep it for the moment a fight turns.`,
     ],
     lookFor: [
       `A heavy weapon: ${weaponNames(heavyWeapons(data))}. They swing slower and hit much harder, which suits a held sweep.`,
@@ -146,12 +147,14 @@ function tank(data: GuideData): BuildNotes {
       'Enemies that run or throw from far away. You walk to them slowly.',
     ],
     thin: [
-      'The game has no two-handed weapons as such. The heavy weapons are simply the ones that swing slower and hit harder, and nothing on the tree rewards a slow weapon over a quick one.',
+      `The game has no two-handed weapons as such. The heavy weapons are the ones that swing slower and hit harder, and most of ${pathName(data, 'stone')} answers only while one is in your hands.`,
       'The simulated player wears whatever raises its damage and toughness most, not always a heavy weapon, so the numbers here are for the route, not for the weapon.',
     ],
     marks: {
       stone_thunderclap: 'Your first point. It buys you room from the first fight.',
       tempered_body: 'Life and life regeneration early. The build begins to feel sturdy here.',
+      shoulder_through: 'The roll becomes a charge that ends in fire.',
+      stone_banked_fire: 'A fire around you that grows hotter while they stay.',
       heaving_cleave: 'Hold Cleave for the big sweep. The build starts here.',
       the_unmoved: `${armour} more armour, more life, more damage, ${slow} slower.`,
       worn_groove: 'From here the route turns toward area damage.',

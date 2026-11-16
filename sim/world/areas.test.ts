@@ -3,8 +3,8 @@ import { test } from 'node:test';
 import { cast, damageTo, dummy, offset, run, shapeArena } from '../../test/shape-support.ts';
 import type { Vec2 } from '../math.ts';
 import { distance } from '../math.ts';
-import { timeScaleOf } from './areas.ts';
-import type { MonsterState, World, WorldEvent } from './types.ts';
+import { stokedOffence, timeScaleOf } from './areas.ts';
+import type { AreaState, MonsterState, Offence, World, WorldEvent } from './types.ts';
 
 void test('a lingering area pulses on everything inside it for its whole duration, then ends', (): void => {
   const world: World = shapeArena(['test_squall']);
@@ -73,4 +73,27 @@ void test('a slowed enemy winds up its attack more slowly', (): void => {
   const left: number = action.timeLeft;
   run(world, 0.2);
   assert.ok(brute.action === null || left - brute.action.timeLeft < 0.1);
+});
+
+void test('the weapon damage of a stoked area grows with every pulse up to its cap, and a new cast starts cold', (): void => {
+  const world: World = shapeArena(['test_banked']);
+  dummy(world, offset(5, 0));
+  cast(world, 0, offset(5, 0));
+  run(world, 0.12);
+  const area: AreaState | undefined = world.areas[0];
+  assert.ok(area !== undefined && area.skill.delivery.type === 'area');
+  const delivery = area.skill.delivery;
+  const base: number = 1 + area.offence.damagePercent;
+  const scale = (pulses: number): number => {
+    const hot: AreaState = { ...area, pulses };
+    const offence: Offence = stokedOffence(hot, delivery);
+    return (1 + offence.damagePercent) / base;
+  };
+  assert.equal(scale(0), 1);
+  assert.equal(scale(1), 1.5);
+  assert.equal(scale(2), 2);
+  assert.equal(scale(6), 2);
+  assert.equal(area.pulses, 0);
+  run(world, 0.55);
+  assert.equal(area.pulses, 2);
 });

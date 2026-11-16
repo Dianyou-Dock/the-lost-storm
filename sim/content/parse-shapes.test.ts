@@ -9,9 +9,17 @@ void test('each new delivery reads from data with its own fields', (): void => {
   assert.deepEqual(shapeDelivery('chain', { range: 9, jumps: 3, jumpRange: 5, falloff: 0.8 }, 'x'), { type: 'chain', range: 9, jumps: 3, jumpRange: 5, falloff: 0.8 });
   assert.deepEqual(shapeDelivery('blink', { range: 7, radius: 0 }, 'x'), { type: 'blink', range: 7, radius: 0 });
   assert.deepEqual(shapeDelivery('beam', { range: 11, width: 0.8 }, 'x'), { type: 'beam', range: 11, width: 0.8 });
-  assert.deepEqual(shapeDelivery('area', { range: 9, radius: 3, duration: 4, pulse: 0.5, pull: 0, slow: 1, anchor: 'ground' }, 'x'), { type: 'area', range: 9, radius: 3, duration: 4, pulse: 0.5, pull: 0, slow: 1, weaken: 0, anchor: 'ground', opening: false });
+  assert.deepEqual(shapeDelivery('area', { range: 9, radius: 3, duration: 4, pulse: 0.5, pull: 0, slow: 1, anchor: 'ground' }, 'x'), { type: 'area', range: 9, radius: 3, duration: 4, pulse: 0.5, pull: 0, slow: 1, weaken: 0, anchor: 'ground', opening: false, stoke: null });
   const opening = shapeDelivery('area', { range: 4, radius: 2, duration: 1, pulse: 0, pull: 0, slow: 1, anchor: 'ground', opening: true }, 'x');
   assert.ok(opening.type === 'area' && opening.opening);
+});
+
+void test('an area may burn hotter with every pulse, up to a cap, and only an area that pulses may', (): void => {
+  const banked = shapeDelivery('area', { range: 0, radius: 4, duration: 6, pulse: 1, pull: 0, slow: 1, anchor: 'caster', stoke: { perPulse: 0.2, max: 1 } }, 'x');
+  assert.ok(banked.type === 'area');
+  assert.deepEqual(banked.stoke, { perPulse: 0.2, max: 1 });
+  assert.throws((): unknown => shapeDelivery('area', { range: 0, radius: 4, duration: 6, pulse: 0, pull: 0, slow: 1, anchor: 'caster', stoke: { perPulse: 0.2, max: 1 } }, 'x'), ContentError);
+  assert.throws((): unknown => shapeDelivery('area', { range: 0, radius: 4, duration: 6, pulse: 1, pull: 0, slow: 1, anchor: 'caster', stoke: { perPulse: 0, max: 1 } }, 'x'), ContentError);
 });
 
 void test('a field that pulses less often than it lasts, a fractional jump count or an unknown anchor is refused', (): void => {

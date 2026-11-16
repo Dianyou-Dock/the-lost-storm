@@ -32,12 +32,12 @@ function skillOf(id: string): SkillDef {
 }
 
 void test('a shockwave with a lightning look strikes from the sky with strands', (): void => {
-  const lit: Struck = strike(skillOf('thunderclap'));
+  const lit: Struck = strike(skillOf('static_brand_burst'));
   assert.ok(lit.strands > 0);
 });
 
 void test('a shockwave with no lightning slams up dust and draws nothing in the sky', (): void => {
-  const lit: Struck = strike(skillOf('thunderclap'));
+  const lit: Struck = strike(skillOf('static_brand_burst'));
   const plain: Struck = strike(skillOf('colossus_slam'));
   assert.equal(plain.strands, 0);
   assert.equal(plain.added, lit.added);

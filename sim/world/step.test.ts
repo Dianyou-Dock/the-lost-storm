@@ -273,7 +273,7 @@ void test('Thunderclap costs mana, hits every monster around, then goes on coold
   const events: WorldEvent[] = advance(world, 0.5, [{ type: 'skill', slot: 1, aim: { x: START.x, z: START.z - 1 }, targetId: null }]);
   const impact = must(ofType(events, 'skill_impact').find((entry): boolean => entry.skill.id === 'thunderclap'), 'impact');
   assert.equal(impact.hits, 4);
-  assert.equal(ofType(events, 'damage').filter((hit): boolean => hit.skill.id === 'thunderclap').length, 4);
+  assert.equal(ofType(events, 'damage').filter((hit): boolean => hit.skill.id === 'thunderclap' && !hit.burn).length, 4);
   const cost: number = must(content.skills.get('thunderclap'), 'skill').manaCost;
   assert.ok(world.player.mana <= manaBefore - cost + 3 * 0.5 + 0.01);
   assert.ok(world.player.mana >= manaBefore - cost);

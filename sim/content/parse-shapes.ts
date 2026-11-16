@@ -1,7 +1,7 @@
 import { conditions } from './parse-conditions.ts';
 import type { Fields } from './read.ts';
 import { choice, ContentError, each, fields, flag, fraction, nonNegative, positive, share, text } from './read.ts';
-import type { BeamDelivery, BlinkDelivery, BrandDef, BurnDef, ChainDelivery, AreaDelivery, MomentumDef, MomentumTier, PressDef, SkillUnlock, SoakDef } from './shape-types.ts';
+import type { BeamDelivery, BlinkDelivery, BrandDef, BurnDef, ChainDelivery, AreaDelivery, AreaStoke, MomentumDef, MomentumTier, PressDef, SkillUnlock, SoakDef } from './shape-types.ts';
 import { AREA_ANCHORS } from './shape-types.ts';
 import type { Content, SkillBinding, SkillDef, SkillTreeNodeDef } from './types.ts';
 
@@ -20,11 +20,18 @@ function whole(source: Fields, key: string, where: string): number {
   return value;
 }
 
+function stokeOf(value: unknown, where: string): AreaStoke {
+  const source: Fields = fields(value, where);
+  return { perPulse: positive(source, 'perPulse', where), max: positive(source, 'max', where) };
+}
+
 function area(source: Fields, where: string): AreaDelivery {
   const duration: number = positive(source, 'duration', where);
   const pulse: number = nonNegative(source, 'pulse', where);
   if (pulse > duration) throw new ContentError(`${where}.pulse`, `expected at most the duration ${duration}`);
   if (pulse > 0 && pulse < SHAPE_LIMITS.shortestPulse) throw new ContentError(`${where}.pulse`, `expected 0 or at least ${SHAPE_LIMITS.shortestPulse} seconds`);
+  const stoke: AreaStoke | null = source['stoke'] === undefined ? null : stokeOf(source['stoke'], `${where}.stoke`);
+  if (stoke !== null && pulse === 0) throw new ContentError(`${where}.stoke`, 'expected an area that pulses');
   return {
     type: 'area',
     range: nonNegative(source, 'range', where),
@@ -36,6 +43,7 @@ function area(source: Fields, where: string): AreaDelivery {
     weaken: source['weaken'] === undefined ? 0 : share(source, 'weaken', where),
     anchor: choice(source, 'anchor', AREA_ANCHORS, where),
     opening: source['opening'] === undefined ? false : flag(source, 'opening', where),
+    stoke,
   };
 }
 

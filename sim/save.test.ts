@@ -42,6 +42,7 @@ function played(): World {
   player.equipped.weapon = made('stormsteel_sword', 'rare', 7);
   world.surge = 3;
   world.nextItemUid = 40;
+  world.flags[armedFlag('heavy')] = 'bag';
   return world;
 }
 
@@ -443,7 +444,7 @@ void test('story flags survive a save, and bad entries are dropped', (): void =>
   const save: SaveData = roundTrip(world);
   assert.equal(save.flags['first_choice'], 'took_journal');
   const dirty: SaveData = must(readSave(content, { ...toSave(world), flags: { first_choice: 'took_journal', broken: 7 } }), 'dirty save');
-  assert.deepEqual(dirty.flags, { first_choice: 'took_journal', [content.player.dressedFlag]: 'yes' });
+  assert.deepEqual(dirty.flags, { first_choice: 'took_journal', [content.player.dressedFlag]: 'yes', [armedFlag('heavy')]: 'bag' });
   assert.deepEqual(createWorld(content, { seed: 3, save }).flags, save.flags);
 });
 
@@ -451,11 +452,11 @@ void test('a save from before story flags is a returning hero: the legacy flags 
   const { flags: _dropped, ...older } = toSave(played());
   const migrated: SaveData = must(readSave(content, JSON.parse(JSON.stringify({ ...older, version: 4 }))), 'version 4 save');
   assert.equal(migrated.version, SAVE_VERSION);
-  assert.deepEqual(migrated.flags, { ...content.world.legacyFlags, [content.player.dressedFlag]: 'yes' });
+  assert.deepEqual(migrated.flags, { ...content.world.legacyFlags, [content.player.dressedFlag]: 'yes', [armedFlag('heavy')]: 'bag' });
   const lost: SaveData = must(readSave(content, { ...older, version: 4, zone: 'nowhere' }), 'lost save');
   assert.equal(lost.zone, content.world.town);
   const current: SaveData = must(readSave(content, { ...older, version: SAVE_VERSION, flags: {} }), 'current save');
-  assert.deepEqual(current.flags, { [content.player.dressedFlag]: 'yes' });
+  assert.deepEqual(current.flags, { [content.player.dressedFlag]: 'yes', [armedFlag('heavy')]: 'bag' });
 });
 
 void test('a save in a retired zone loads where the retired zones lead, with the hero and the retirement flags', (): void => {
@@ -477,7 +478,7 @@ void test('a save from before the traveller clothes were items gets them once, i
   const kept: ItemInstance = made('drowned_leathers', 'magic', 90);
   world.player.equipped = { ...emptyEquipment(), chest: kept };
   const { [content.player.dressedFlag]: _given, ...older } = world.flags;
-  const before: Record<string, unknown> = { ...toSave(world), flags: { ...older, [armedFlag('blade')]: 'bag' } };
+  const before: Record<string, unknown> = { ...toSave(world), flags: { ...older, [armedFlag('blade')]: 'bag', [armedFlag('heavy')]: 'bag' } };
   const save: SaveData = must(readSave(content, before), 'old save');
   assert.deepEqual(save.equipped.chest, kept);
   assert.equal(save.equipped.head, null);
@@ -649,4 +650,21 @@ void test('a character saved before the Turning Tide loads with a free start ove
   assert.deepEqual(kept.allocated, turning);
   assert.ok(kept.learned.includes('downdraught'));
   assert.ok(canAllocate(content, kept.allocated, 1, 'riptide'));
+});
+
+void test('a character saved before the Banked Fire loads with a free start over and keeps every stone place it held', (): void => {
+  const world: World = played();
+  world.player.level = 12;
+  world.player.skillPoints = 0;
+  const stone: readonly string[] = ['stone_thunderclap', 'tempered_body', 'stone_1', 'bedrock', 'stone_held_breath', 'stone_2', 'stone_4', 'gathered_clap', 'stone_5', 'stone_6', 'heaving_cleave'];
+  world.player.allocated = [...stone];
+  world.player.learned = ['cleave', 'thunderclap', 'held_breath', 'dodge_roll'];
+  world.player.bar = ['cleave', 'thunderclap', 'held_breath', null, null, 'dodge_roll'];
+  world.player.freeReset = false;
+  const save: SaveData = must(parseSaveText(content, JSON.stringify({ ...toSave(world), treeRevision: content.chart.revision - 1 })), 'save');
+  assert.equal(save.freeReset, true);
+  assert.deepEqual(save.allocated, stone);
+  assert.equal(save.skillPoints, 0);
+  assert.ok(canAllocate(content, save.allocated, 1, 'shoulder_through'));
+  assert.ok(canAllocate(content, save.allocated, 1, 'stone_fire_burst'));
 });

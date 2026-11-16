@@ -343,3 +343,33 @@ void test('Still Water feeds no flask with a crossbow in hand', (): void => {
   for (let struck: number = 0; struck < 8; struck += 1) firePowers(world, { on: 'hit', skill: wheel, target: null, at: world.player.pos });
   assert.ok(world.player.flasks.every((flask): boolean => flask.charges === 0));
 });
+
+const EMBERWARDEN: readonly string[] = ['stone_thunderclap', 'tempered_body', 'stone_1', 'bedrock', 'shoulder_through', 'stone_4', 'gathered_clap'];
+
+function emberwarden(wielding: string): World {
+  const world: World = worldIn(shipped, 'hall_of_time', 3);
+  world.player.allocated = [...EMBERWARDEN];
+  world.player.wielding = wielding;
+  return world;
+}
+
+void test('with a heavy weapon in hand Shoulder Through flares where the charge stops, and Gathered Clap burns and leaves burning ground', (): void => {
+  const world: World = emberwarden('heavy');
+  const roll: SkillDef = resolvedIn(world, 'dodge_roll');
+  assert.deepEqual([roll.id, roll.form], ['dodge_roll', 'dodge_roll_shoulder']);
+  const stop = { x: world.player.pos.x + 3, z: world.player.pos.z };
+  firePowers(world, { on: 'use', skill: roll, target: null, at: stop });
+  const flare: EchoState = must(world.echoes.find((echo: EchoState): boolean => echo.skill.id === 'shoulder_flare'), 'flare');
+  assert.deepEqual(flare.origin, stop);
+  const clap: SkillDef = resolvedIn(world, 'thunderclap');
+  assert.deepEqual([clap.form, clap.leaves], ['thunderclap_gathered', 'gathered_embers']);
+  assert.ok(clap.burn !== null);
+});
+
+void test('with a blade in hand the heavy places give no Shoulder Through', (): void => {
+  const world: World = emberwarden('blade');
+  const roll: SkillDef = resolvedIn(world, 'dodge_roll');
+  assert.equal(roll.form, 'dodge_roll');
+  firePowers(world, { on: 'use', skill: roll, target: null, at: world.player.pos });
+  assert.equal(world.echoes.length, 0);
+});

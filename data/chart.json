@@ -1,7 +1,7 @@
 {
   "title": "The Skill Tree",
   "pointsPerLevel": 2,
-  "revision": 4,
+  "revision": 5,
   "twist": 0.08,
   "respec": {
     "goldPerPoint": 10,
@@ -28,9 +28,9 @@
     },
     {
       "id": "stone",
-      "name": "The Standing Stone",
-      "tint": "#c7a483",
-      "description": "Stand and hold: life, armour, and blows that stop what they hit."
+      "name": "The Banked Fire",
+      "tint": "#e0773a",
+      "description": "Hold your ground and keep them in the fire: heavy blows that burn, a fire banked around you, and the life to stand in it."
     },
     {
       "id": "echo",
@@ -44,7 +44,6 @@
       "id": "lightning",
       "name": "lightning skills",
       "skills": [
-        "thunderclap",
         "storm_bolt",
         "forkline",
         "squall",
@@ -81,7 +80,8 @@
         "held_breath",
         "forkline",
         "umbra",
-        "still_water"
+        "still_water",
+        "banked_fire"
       ]
     },
     {
@@ -100,7 +100,8 @@
       "skills": [
         "dodge_roll",
         "dodge_roll_slip",
-        "dodge_roll_riptide"
+        "dodge_roll_riptide",
+        "dodge_roll_shoulder"
       ]
     },
     {
@@ -109,6 +110,15 @@
       "skills": [
         "cleave_whirl",
         "cleave_millwheel"
+      ]
+    },
+    {
+      "id": "fire",
+      "name": "fire skills",
+      "skills": [
+        "thunderclap",
+        "fire_burst",
+        "banked_fire"
       ]
     }
   ],

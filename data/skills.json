@@ -57,7 +57,7 @@
   {
     "id": "thunderclap",
     "name": "Thunderclap",
-    "description": "Slam the ground and hurl back everything around you.",
+    "description": "Slam the ground and hurl back everything around you, setting it alight.",
     "icon": "thunderclap",
     "animation": "slam",
     "manaCost": 14,
@@ -66,21 +66,15 @@
     "recovery": 0.3,
     "scalesWithAttackSpeed": false,
     "engageRange": 3.5,
-    "delivery": {
-      "type": "nova",
-      "radius": 4.6
-    },
-    "damage": {
-      "weaponPercent": 1.5,
-      "flatMin": 4,
-      "flatMax": 8
-    },
+    "delivery": { "type": "nova", "radius": 4.6 },
+    "damage": { "weaponPercent": 1.5, "flatMin": 4, "flatMax": 8 },
     "knockback": 14,
     "stagger": 0.65,
     "shake": 0.55,
     "hitStop": 0.07,
     "category": "area",
-    "vfx": { "style": "shockwave", "color": "#7fd4ff", "cue": "ground", "light": 0.55, "lightning": { "forks": 2, "glow": 0.5, "afterglow": 0.26, "jitter": 1.1, "width": 2.4, "core": 1.2 }, "impact": { "sparks": 14, "flash": 1.6 } }
+    "vfx": { "style": "shockwave", "color": "#ff7a2a", "cue": "ground", "light": 0.55, "impact": { "sparks": 14, "flash": 1.6 } },
+    "burn": { "duration": 1.25, "tick": 0.25, "share": 0.04 }
   },
   {
     "id": "storm_bolt",
@@ -1197,7 +1191,7 @@
   {
     "id": "thunderclap_gathered",
     "name": "Gathered Clap",
-    "description": "Thunderclap can be held: the longer you gather it, the wider and harder the ring.",
+    "description": "Thunderclap can be held: the longer you gather it, the wider and harder the ring, and the ground it leaves burning drags them back in.",
     "icon": "thunderclap",
     "animation": "slam_charged",
     "manaCost": 14,
@@ -1212,13 +1206,15 @@
     "stagger": 0.65,
     "shake": 0.65,
     "hitStop": 0.09,
-    "vfx": { "style": "shockwave", "color": "#7fd4ff", "cue": "ground", "light": 0.7, "lightning": { "forks": 2, "glow": 0.5, "afterglow": 0.26, "jitter": 1.1, "width": 2.4, "core": 1.2 }, "impact": { "sparks": 14, "flash": 1.6 } },
-    "press": { "type": "charge", "max": 1.0, "damageScale": 2.4, "areaScale": 1.5 }
+    "vfx": { "style": "shockwave", "color": "#ff7a2a", "cue": "ground", "light": 0.7, "impact": { "sparks": 14, "flash": 1.6 } },
+    "press": { "type": "charge", "max": 1.0, "damageScale": 2.4, "areaScale": 1.5 },
+    "burn": { "duration": 1.25, "tick": 0.25, "share": 0.04 },
+    "leaves": "gathered_embers"
   },
   {
     "id": "cleave_heave",
     "name": "Heaving Cleave",
-    "description": "Cleave can be held: release a single heavy sweep that throws enemies far back.",
+    "description": "Cleave can be held: release a single heavy sweep that throws enemies far back and sets them burning.",
     "icon": "cleave",
     "animation": "slam_charged",
     "manaCost": 0,
@@ -1233,8 +1229,9 @@
     "stagger": 0.45,
     "shake": 0.4,
     "hitStop": 0.07,
-    "vfx": { "style": "slash", "color": "#d6ecff", "cue": "blade", "light": 0.3, "impact": { "sparks": 6, "flash": 0 } },
-    "press": { "type": "charge", "max": 0.9, "damageScale": 2.6, "areaScale": 1.4 }
+    "vfx": { "style": "slash", "color": "#ffa060", "cue": "blade", "light": 0.3, "impact": { "sparks": 6, "flash": 0 } },
+    "press": { "type": "charge", "max": 0.9, "damageScale": 2.6, "areaScale": 1.4 },
+    "burn": { "duration": 1.25, "tick": 0.25, "share": 0.03 }
   },
   {
     "id": "storm_bolt_echo",
@@ -1481,16 +1478,16 @@
     "description": "Flame snaps alight in the hand and bursts on the ground a few steps ahead; whatever it catches keeps burning.",
     "icon": "fire_burst",
     "animation": "cast",
-    "manaCost": 14,
-    "cooldown": 1.8,
+    "manaCost": 22,
+    "cooldown": 8,
     "windup": 0.28,
     "recovery": 0.3,
     "scalesWithAttackSpeed": false,
-    "engageRange": 6,
+    "engageRange": 3,
     "delivery": {
       "type": "area",
-      "range": 4.5,
-      "radius": 2.2,
+      "range": 2.5,
+      "radius": 2.8,
       "duration": 1.3,
       "pulse": 0,
       "pull": 0,
@@ -1499,7 +1496,7 @@
       "opening": true
     },
     "damage": {
-      "weaponPercent": 1.1,
+      "weaponPercent": 1.6,
       "flatMin": 4,
       "flatMax": 8
     },
@@ -1580,5 +1577,9 @@
   {"id": "alpha_patch", "category": "area", "name": "Burning Ground", "description": "The ground where it landed, still burning.", "icon": "thunderclap", "animation": "cast", "manaCost": 0, "cooldown": 0, "windup": 0, "recovery": 0, "scalesWithAttackSpeed": false, "engageRange": 0, "delivery": {"type": "area", "range": 0, "radius": 2.3, "duration": 3.4, "pulse": 0.6, "pull": 0, "slow": 1, "anchor": "ground"}, "damage": {"weaponPercent": 0.2, "flatMin": 0, "flatMax": 0}, "burn": {"duration": 1.2, "tick": 0.25, "share": 0.1}, "knockback": 0, "stagger": 0, "shake": 0, "hitStop": 0, "vfx": {"style": "fire", "color": "#ff6a1c", "light": 0.4, "impact": {"sparks": 4, "flash": 0.1}}},
   { "id": "dodge_roll_riptide", "name": "Riptide", "description": "Roll further toward the cursor on a surge of water, leaving a rip current where you land that drags enemies in after you.", "icon": "dodge_roll", "animation": "roll", "manaCost": 0, "cooldown": 1.1, "windup": 0.36, "recovery": 0.12, "scalesWithAttackSpeed": false, "engageRange": 6, "delivery": { "type": "dash", "distance": 6.5, "duration": 0.36, "invulnerable": 0.24, "passThrough": true, "steady": true }, "damage": { "weaponPercent": 0, "flatMin": 0, "flatMax": 0 }, "knockback": 0, "stagger": 0, "shake": 0, "hitStop": 0, "vfx": { "style": "roll", "color": "#6f9fb8", "cue": "none", "shadow": { "color": "#2f86c0", "strength": 0.9 } } },
   { "id": "riptide_wake", "name": "Rip Current", "description": "A rip current that drags enemies into it and strikes them.", "icon": "downdraught", "animation": "cast", "weapons": [], "manaCost": 0, "cooldown": 0, "windup": 0, "recovery": 0, "scalesWithAttackSpeed": false, "engageRange": 3, "delivery": { "type": "area", "range": 0, "radius": 3, "duration": 1, "pulse": 0.5, "pull": 9, "slow": 0.6, "anchor": "ground" }, "damage": { "weaponPercent": 0.35, "flatMin": 1, "flatMax": 2 }, "knockback": 0, "stagger": 0.2, "shake": 0.12, "hitStop": 0, "vfx": { "style": "wind", "color": "#5fa9cf", "cue": "none" } },
-  { "id": "still_water", "name": "Still Water", "description": "A pool of still water spreads around you: enemies inside it are slowed, and it laps at them every second.", "icon": "still_water", "animation": "slam", "weapons": [], "manaCost": 16, "cooldown": 10, "windup": 0.2, "recovery": 0.3, "scalesWithAttackSpeed": false, "engageRange": 4, "delivery": { "type": "area", "range": 0, "radius": 4.5, "duration": 8, "pulse": 1, "pull": 0, "slow": 0.7, "anchor": "caster" }, "damage": { "weaponPercent": 0.3, "flatMin": 1, "flatMax": 2 }, "knockback": 0, "stagger": 0.05, "shake": 0.04, "hitStop": 0, "category": "lasting", "vfx": { "style": "gap", "color": "#5fa9cf", "cue": "ground" } }
+  { "id": "still_water", "name": "Still Water", "description": "A pool of still water spreads around you: enemies inside it are slowed, and it laps at them every second.", "icon": "still_water", "animation": "slam", "weapons": [], "manaCost": 16, "cooldown": 10, "windup": 0.2, "recovery": 0.3, "scalesWithAttackSpeed": false, "engageRange": 4, "delivery": { "type": "area", "range": 0, "radius": 4.5, "duration": 8, "pulse": 1, "pull": 0, "slow": 0.7, "anchor": "caster" }, "damage": { "weaponPercent": 0.3, "flatMin": 1, "flatMax": 2 }, "knockback": 0, "stagger": 0.05, "shake": 0.04, "hitStop": 0, "category": "lasting", "vfx": { "style": "gap", "color": "#5fa9cf", "cue": "ground" } },
+  {"id": "dodge_roll_shoulder", "name": "Shoulder Through", "description": "Drive your shoulder toward the cursor. Nothing hits you early in the charge, and where you stop the ground flares, throwing enemies back and setting them alight.", "icon": "dodge_roll", "animation": "roll", "manaCost": 0, "cooldown": 1.1, "windup": 0.36, "recovery": 0.12, "scalesWithAttackSpeed": false, "engageRange": 6, "delivery": {"type": "dash", "distance": 4.5, "duration": 0.36, "invulnerable": 0.24, "passThrough": true, "steady": true}, "damage": {"weaponPercent": 0, "flatMin": 0, "flatMax": 0}, "knockback": 0, "stagger": 0, "shake": 0, "hitStop": 0, "vfx": {"style": "roll", "color": "#c9733a", "cue": "none", "shadow": {"color": "#e0602a", "strength": 0.9}}},
+  {"id": "shoulder_flare", "name": "Flare", "description": "The ground flares where a shoulder charge stops.", "icon": "thunderclap", "animation": "cast", "weapons": [], "manaCost": 0, "cooldown": 0, "windup": 0, "recovery": 0, "scalesWithAttackSpeed": false, "engageRange": 2.4, "delivery": {"type": "nova", "radius": 2.4}, "damage": {"weaponPercent": 0.5, "flatMin": 2, "flatMax": 4}, "burn": {"duration": 1.25, "tick": 0.25, "share": 0.06}, "knockback": 9, "stagger": 0.3, "shake": 0.25, "hitStop": 0.04, "category": "area", "vfx": {"style": "fire", "color": "#ff7a1a", "cue": "none", "light": 0.6, "impact": {"sparks": 10, "flash": 0.6}}},
+  {"id": "gathered_embers", "name": "Gathered Embers", "description": "The ground a gathered clap leaves burning, dragging enemies back into it.", "icon": "thunderclap", "animation": "cast", "weapons": [], "manaCost": 0, "cooldown": 0, "windup": 0, "recovery": 0, "scalesWithAttackSpeed": false, "engageRange": 0, "delivery": {"type": "area", "range": 0, "radius": 3.2, "duration": 1.5, "pulse": 0.5, "pull": 7, "slow": 1, "anchor": "ground"}, "damage": {"weaponPercent": 0.15, "flatMin": 1, "flatMax": 2}, "burn": {"duration": 1, "tick": 0.25, "share": 0.1}, "knockback": 0, "stagger": 0.05, "shake": 0, "hitStop": 0, "category": "area", "vfx": {"style": "fire", "color": "#ff6a1c", "cue": "none", "light": 0.4, "impact": {"sparks": 4, "flash": 0.1}}},
+  {"id": "banked_fire", "name": "Banked Fire", "description": "A fire banked around you strikes everything close every second, and burns hotter with every strike.", "icon": "banked_fire", "animation": "slam", "weapons": [], "manaCost": 16, "cooldown": 9, "windup": 0.2, "recovery": 0.3, "scalesWithAttackSpeed": false, "engageRange": 3.5, "delivery": {"type": "area", "range": 0, "radius": 4, "duration": 6, "pulse": 1, "pull": 0, "slow": 1, "anchor": "caster", "stoke": {"perPulse": 0.2, "max": 1}}, "damage": {"weaponPercent": 0.3, "flatMin": 1, "flatMax": 2}, "burn": {"duration": 1, "tick": 0.25, "share": 0.1}, "knockback": 0, "stagger": 0.05, "shake": 0.04, "hitStop": 0, "category": "lasting", "vfx": {"style": "fire", "color": "#ff8a3a", "cue": "ground", "light": 0.5, "impact": {"sparks": 6, "flash": 0.2}}}
 ]

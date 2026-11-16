@@ -12,6 +12,11 @@ export interface ChainDelivery {
 export const AREA_ANCHORS = ['ground', 'caster'] as const;
 export type AreaAnchor = (typeof AREA_ANCHORS)[number];
 
+export interface AreaStoke {
+  readonly perPulse: number;
+  readonly max: number;
+}
+
 export interface AreaDelivery {
   readonly type: 'area';
   readonly range: number;
@@ -23,6 +28,7 @@ export interface AreaDelivery {
   readonly weaken: number;
   readonly anchor: AreaAnchor;
   readonly opening: boolean;
+  readonly stoke: AreaStoke | null;
 }
 
 export interface BlinkDelivery {

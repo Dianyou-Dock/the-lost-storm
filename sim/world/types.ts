@@ -287,6 +287,7 @@ export interface AreaState {
   readonly pos: Vec2;
   timeLeft: number;
   pulseLeft: number;
+  pulses: number;
 }
 
 export type GuardOutcome = 'open' | 'blocked' | 'broken';

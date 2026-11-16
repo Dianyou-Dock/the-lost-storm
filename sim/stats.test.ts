@@ -91,7 +91,7 @@ void test('a modifier on a group of skills reaches every skill in the group and 
   const taken: readonly string[] = ['stormcallers_focus', 'storm_1'];
   const lightning: number = must(content.chart.groups.find((group): boolean => group.id === 'lightning'), 'lightning').skills.length;
   assert.ok(lightning > 3);
-  for (const id of ['storm_bolt', 'thunderclap', 'forkline']) {
+  for (const id of ['storm_bolt', 'squall', 'forkline']) {
     const plain: SkillDef = skillOf(id);
     assert.ok(resolveSkill(content, plain, taken).damage.weaponPercent > plain.damage.weaponPercent, id);
   }

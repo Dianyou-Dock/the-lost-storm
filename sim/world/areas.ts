@@ -22,7 +22,7 @@ export function areaOf(skill: SkillDef): AreaDelivery | null {
 export function placeArea(world: World, offence: Offence, skill: SkillDef, at: ReadonlyVec2): AreaState | null {
   const delivery: AreaDelivery | null = areaOf(skill);
   if (delivery === null) return null;
-  const area: AreaState = { id: world.nextId, ownerId: offence.sourceId, from: launchPoint(world, offence.sourceId, { x: at.x, z: at.z }), skill, offence, pos: { x: at.x, z: at.z }, timeLeft: delivery.duration, pulseLeft: delivery.pulse };
+  const area: AreaState = { id: world.nextId, ownerId: offence.sourceId, from: launchPoint(world, offence.sourceId, { x: at.x, z: at.z }), skill, offence, pos: { x: at.x, z: at.z }, timeLeft: delivery.duration, pulseLeft: delivery.pulse, pulses: 0 };
   world.nextId += 1;
   world.areas.push(area);
   world.events.push({ type: 'area', area, stage: 'start', hits: 0 });
@@ -61,15 +61,23 @@ function pull(world: World, area: AreaState, delivery: AreaDelivery, dt: number)
   }
 }
 
+export function stokedOffence(area: AreaState, delivery: AreaDelivery): Offence {
+  if (delivery.stoke === null || area.pulses === 0) return area.offence;
+  const heat: number = Math.min(delivery.stoke.max, delivery.stoke.perPulse * area.pulses);
+  return { ...area.offence, damagePercent: (1 + area.offence.damagePercent) * (1 + heat) - 1 };
+}
+
 function pulse(world: World, area: AreaState, delivery: AreaDelivery): void {
+  const offence: Offence = stokedOffence(area, delivery);
   let hits: number = 0;
   for (const target of targetsOf(world, { sourceId: area.offence.sourceId, faction: area.offence.faction, from: area.from })) {
     if (!covers(world, area, delivery, target.pos, target.radius)) continue;
     const offset: Vec2 = { x: target.pos.x - area.pos.x, z: target.pos.z - area.pos.z };
     const gap: number = Math.hypot(offset.x, offset.z);
     const away: Vec2 = gap > 0 ? { x: offset.x / gap, z: offset.z / gap } : { x: 0, z: 1 };
-    if (applyHit(world, area.offence, target, area.skill, away)) hits += 1;
+    if (applyHit(world, offence, target, area.skill, away)) hits += 1;
   }
+  area.pulses += 1;
   world.events.push({ type: 'area', area, stage: 'pulse', hits });
 }
 
