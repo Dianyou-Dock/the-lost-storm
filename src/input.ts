@@ -149,6 +149,7 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
   canvas.addEventListener('pointerdown', (event: PointerEvent): void => {
     track(event);
     shift = event.shiftKey;
+    pointerInside = true;
     follow(event);
     canvas.setPointerCapture(event.pointerId);
   });
@@ -252,7 +253,7 @@ export function createInput(canvas: InputSurface, windowEvents: KeySource, world
       if (monster.alive) candidates.push(candidateFor('monster', monster.id, monster.pos.x, monster.pos.z));
     }
     for (const npc of world.npcs) candidates.push(candidateFor('npc', npc.id, npc.pos.x, npc.pos.z));
-    return pickActor(candidates, point, labelId);
+    return pickActor(candidates, point, null);
   };
 
   const playerAt = (): string | null => {

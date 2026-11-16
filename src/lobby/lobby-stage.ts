@@ -1,5 +1,5 @@
-import type { AnimationClip, MeshStandardMaterial, WebGLProgramParametersWithUniforms, WebGLRenderer } from 'three';
-import { AdditiveBlending, Box3, Color, DataTexture, Fog, LinearFilter, Mesh, MeshBasicMaterial, PerspectiveCamera, PlaneGeometry, RGBAFormat, Scene, SkinnedMesh, Vector2, Vector3 } from 'three';
+import type { AnimationClip, WebGLProgramParametersWithUniforms, WebGLRenderer } from 'three';
+import { AdditiveBlending, Box3, Color, DataTexture, Fog, LinearFilter, Mesh, MeshBasicMaterial, MeshStandardMaterial, PerspectiveCamera, PlaneGeometry, RGBAFormat, Scene, SkinnedMesh, Vector2, Vector3 } from 'three';
 import type { Object3D } from 'three';
 import type { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { Content, SurfaceDef } from '../../sim/content/types.ts';
@@ -15,6 +15,7 @@ import { createLobbyPipeline } from './lobby-render.ts';
 import type { LobbyPipeline } from './lobby-render.ts';
 import { groundGeometry, valueNoise } from './lobby-ground.ts';
 import { createSetDressing } from './lobby-scenery.ts';
+import type { SkirtGround } from './lobby-skirt.ts';
 import type { SetDressing } from './lobby-scenery.ts';
 import { LOBBY_SETS, pickSet, setMounds } from './lobby-sets.ts';
 import type { LobbySet } from './lobby-sets.ts';
@@ -39,7 +40,7 @@ export const LOBBY_STAGE = {
   cameraDistance: 10.2,
   lookHeight: 0.98,
   near: 0.1,
-  far: 64,
+  far: 96,
   facing: -0.34,
   rimGlow: 0x000000,
   groundWet: 0.12,
@@ -188,11 +189,19 @@ function quietGround(shared: MeshStandardMaterial): MeshStandardMaterial {
   return material;
 }
 
-function groundMesh(def: SurfaceDef | undefined, mounds: readonly Mound[]): Mesh {
-  const material: MeshBasicMaterial | MeshStandardMaterial = def === undefined ? new MeshBasicMaterial({ color: LOBBY_STAGE.background, vertexColors: true }) : quietGround(surfaceMaterial(def, 'ground', LOBBY_STAGE.groundWet));
+function groundMaterial(def: SurfaceDef | undefined): MeshBasicMaterial | MeshStandardMaterial {
+  return def === undefined ? new MeshBasicMaterial({ color: LOBBY_STAGE.background, vertexColors: true }) : quietGround(surfaceMaterial(def, 'ground', LOBBY_STAGE.groundWet));
+}
+
+function groundMesh(material: MeshBasicMaterial | MeshStandardMaterial, mounds: readonly Mound[]): Mesh {
   const mesh: Mesh = new Mesh(groundGeometry(mounds), material);
   mesh.receiveShadow = true;
   return mesh;
+}
+
+function skirtGround(material: MeshBasicMaterial | MeshStandardMaterial, def: SurfaceDef | undefined): SkirtGround | null {
+  if (!(material instanceof MeshStandardMaterial) || def === undefined) return null;
+  return { map: material.map, color: material.color, metres: def.metres };
 }
 
 export function floorLift(lows: readonly number[], clearance: number): number {
@@ -245,7 +254,9 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
   const shaft: LobbyShaft = createLobbyShaft(contact);
   scene.add(shaft.mesh);
 
-  scene.add(groundMesh(content.surfaces.get(set.ground), mounds));
+  const groundDef: SurfaceDef | undefined = content.surfaces.get(set.ground);
+  const floor: MeshBasicMaterial | MeshStandardMaterial = groundMaterial(groundDef);
+  scene.add(groundMesh(floor, mounds));
 
   const mistAlpha: DataTexture = mistTexture();
   const mists: Mesh<PlaneGeometry, MeshBasicMaterial>[] = LOBBY_STAGE.mistDepths.map((depth: number, layer: number): Mesh<PlaneGeometry, MeshBasicMaterial> => {
@@ -264,7 +275,7 @@ export function createLobbyStage(content: Content, library: CharacterLibrary, lo
   const size: Vector2 = new Vector2();
   const toCamera: Vector3 = new Vector3();
   let pipeline: LobbyPipeline | null = null;
-  const dressing: SetDressing = createSetDressing(set, content, loader, random);
+  const dressing: SetDressing = createSetDressing(set, content, loader, contact, skirtGround(floor, groundDef), random);
   let dressed: boolean = false;
   let life: LobbyLife | null = null;
   const orbit: LobbyOrbit = createLobbyOrbit();

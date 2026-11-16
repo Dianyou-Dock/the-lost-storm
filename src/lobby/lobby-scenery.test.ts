@@ -20,7 +20,7 @@ void test('the rocks of the first lobby stand where they always stood, bedded a 
 });
 
 void test('a piece is placed on the ground under it, turned, tilted and sized from its data', (): void => {
-  const piece: SetPiece = { prop: 'castle_column', x: 4, z: -12, y: 0.5, yawDegrees: 90, pitchDegrees: 0, rollDegrees: 0, size: 2, sink: 0.1, mound: false, swayDegrees: 0 };
+  const piece: SetPiece = { prop: 'castle_column', x: 4, z: -12, y: 0.5, yawDegrees: 90, pitchDegrees: 0, rollDegrees: 0, size: 2, sink: 0.1, mound: false, swayDegrees: 0, skirt: true };
   const matrix = pieceMatrix(piece, 1.5, [], 0);
   const origin: Vector3 = new Vector3().setFromMatrixPosition(matrix);
   assert.ok(Math.abs(origin.y - (groundHeight(4, -12, []) - 0.1 + 0.5)) < 1e-9);
@@ -32,7 +32,7 @@ void test('a piece is placed on the ground under it, turned, tilted and sized fr
 });
 
 void test('a banner sways a few degrees and comes back, and a still piece never moves', (): void => {
-  const banner: SetPiece = { prop: 'banner_blue', x: 0, z: -12, y: 0, yawDegrees: 0, pitchDegrees: 0, rollDegrees: 0, size: 1, sink: 0, mound: false, swayDegrees: 3 };
+  const banner: SetPiece = { prop: 'banner_blue', x: 0, z: -12, y: 0, yawDegrees: 0, pitchDegrees: 0, rollDegrees: 0, size: 1, sink: 0, mound: false, swayDegrees: 3, skirt: false };
   const angles: number[] = Array.from({ length: 200 }, (_: unknown, step: number): number => swayAngle(banner, step * 0.05, 0));
   assert.ok(Math.max(...angles) <= (3 * Math.PI) / 180 + 1e-9 && Math.min(...angles) < 0 && Math.max(...angles) > 0);
   assert.equal(swayAngle({ ...banner, swayDegrees: 0 }, 3.3, 2), 0);

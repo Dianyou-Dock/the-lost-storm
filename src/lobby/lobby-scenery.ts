@@ -1,5 +1,5 @@
 import type { Camera, Material, Object3D, Scene, WebGLRenderer } from 'three';
-import { AdditiveBlending, BufferGeometry, Color, ConeGeometry, DataTexture, Euler, Group, InstancedMesh, LinearFilter, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, RGBAFormat, Vector3 } from 'three';
+import { AdditiveBlending, Box3, BufferGeometry, Color, ConeGeometry, DataTexture, Euler, Group, InstancedMesh, LinearFilter, Matrix4, Mesh, MeshBasicMaterial, MeshStandardMaterial, PlaneGeometry, Quaternion, RGBAFormat, Vector3 } from 'three';
 import type { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import type { Content, PropDef } from '../../sim/content/types.ts';
 import { loadModel } from '../render/character-loader.ts';
@@ -7,13 +7,17 @@ import { lookOf, withPropLook } from '../render/prop-surface.ts';
 import type { PropLook } from '../render/prop-surface.ts';
 import { dressedProp } from '../render/surfaces.ts';
 import type { PropDressing } from '../render/surfaces.ts';
+import type { GroundContact } from './lobby-contact.ts';
 import { groundHeight } from './lobby-ground.ts';
 import type { Mound } from './lobby-ground.ts';
 import { stepSpring } from './lobby-orbit.ts';
 import type { Spring } from './lobby-orbit.ts';
-import type { Flash, Glow, LobbySet, Roost, SetPiece } from './lobby-sets.ts';
+import type { Flash, Glow, LobbySet, Roost, Rubble, SetPiece, Skyline } from './lobby-sets.ts';
 import { setMounds } from './lobby-sets.ts';
-import { skylineGeometry } from './lobby-skyline.ts';
+import { skirtMaterial, skirtRubble, skirtUniforms } from './lobby-skirt.ts';
+import type { SkirtGround, SkirtUniforms } from './lobby-skirt.ts';
+import { skylineGeometry, skylineWindows } from './lobby-skyline.ts';
+import type { RingPoint } from './lobby-skyline.ts';
 
 export const LOBBY_SCENERY = {
   wet: 0.12,
@@ -24,7 +28,8 @@ export const LOBBY_SCENERY = {
   roostWidth: 0.4,
   roostSides: 5,
   glowTexture: 64,
-  skylineColor: 0x05070b,
+  window: { size: 0.55, strength: 0.55, color: '#ffb766' },
+  noContact: 1000,
   presence: { freq: 0.45, damping: 1 },
   solidAt: 0.999,
   flash: { rise: 0.05, fall: 0.42, echoAfter: 0.16, echo: 0.6 },
@@ -88,6 +93,11 @@ function featherTexture(): DataTexture {
   return texture;
 }
 
+interface LoadedProp {
+  readonly def: PropDef;
+  readonly gltf: GLTF;
+}
+
 interface Fading {
   readonly material: MeshStandardMaterial | MeshBasicMaterial;
   readonly base: number;
@@ -108,9 +118,19 @@ export interface SetDressing {
   step(dt: number, camera: Camera): number;
 }
 
-function ownMaterial(content: Content, set: LobbySet, def: PropDef, material: MeshStandardMaterial, ground: number): MeshStandardMaterial | null {
-  const dress: Readonly<Record<string, string>> = set.stone === null ? def.surfaces : { [material.name]: set.stone };
-  const dressing: PropDressing = { wet: LOBBY_SCENERY.wet, ground };
+export function windowGlows(skylines: readonly Skyline[]): readonly Glow[] {
+  const spec = LOBBY_SCENERY.window;
+  return skylines.flatMap((skyline: Skyline): Glow[] => skylineWindows(skyline).map((point: RingPoint): Glow => ({ x: point.x, y: point.y, z: point.z, size: spec.size, color: spec.color, strength: spec.strength })));
+}
+
+function dressOf(set: LobbySet, def: PropDef, material: MeshStandardMaterial, groundDressed: boolean): Readonly<Record<string, string>> {
+  if (groundDressed) return { [material.name]: set.ground };
+  return set.stone === null ? def.surfaces : { [material.name]: set.stone };
+}
+
+function ownMaterial(content: Content, set: LobbySet, def: PropDef, material: MeshStandardMaterial, ground: number, groundDressed: boolean): MeshStandardMaterial | null {
+  const dress: Readonly<Record<string, string>> = dressOf(set, def, material, groundDressed);
+  const dressing: PropDressing = { wet: LOBBY_SCENERY.wet, ground: set.skirt === null ? ground : ground - LOBBY_SCENERY.noContact };
   const made: Material = dressedProp(content, dress, material, dressing);
   if (!(made instanceof MeshStandardMaterial)) return null;
   const look: PropLook | undefined = lookOf(made);
@@ -145,8 +165,15 @@ function glowMesh(glows: readonly Glow[]): GlowMesh {
   return mesh;
 }
 
-export function createSetDressing(set: LobbySet, content: Content, loader: GLTFLoader, random: () => number = Math.random): SetDressing {
+export function footprintOf(gltf: GLTF, scale: number): number {
+  const box: Box3 = new Box3().setFromObject(gltf.scene);
+  return (Math.max(box.max.x - box.min.x, box.max.z - box.min.z) / 2) * scale;
+}
+
+export function createSetDressing(set: LobbySet, content: Content, loader: GLTFLoader, contact: GroundContact, ground: SkirtGround | null, random: () => number = Math.random): SetDressing {
   const mounds: readonly Mound[] = setMounds(set);
+  const skirt: SkirtUniforms | null = set.skirt === null || ground === null ? null : skirtUniforms(set.skirt, ground, contact);
+  const allGlows: readonly Glow[] = [...set.glows, ...windowGlows(set.skylines)];
   const group: Group = new Group();
   const fading: Fading[] = [];
   const swaying: Swaying[] = [];
@@ -163,16 +190,17 @@ export function createSetDressing(set: LobbySet, content: Content, loader: GLTFL
     material.opacity = 0;
   };
 
-  const placeProp = (def: PropDef, gltf: GLTF, pieces: readonly SetPiece[]): void => {
-    const ground: number = pieces.reduce((sum: number, piece: SetPiece): number => sum + groundHeight(piece.x, piece.z, mounds), 0) / pieces.length;
+  const placeProp = (def: PropDef, gltf: GLTF, pieces: readonly SetPiece[], groundDressed: boolean): void => {
+    const floorHeight: number = pieces.reduce((sum: number, piece: SetPiece): number => sum + groundHeight(piece.x, piece.z, mounds), 0) / pieces.length;
     gltf.scene.updateMatrixWorld(true);
     gltf.scene.traverse((object: Object3D): void => {
       if (!(object instanceof Mesh)) return;
       const geometry: unknown = object.geometry;
       const material: unknown = object.material;
       if (!(material instanceof MeshStandardMaterial) || !isGeometry(geometry)) return;
-      const own: MeshStandardMaterial | null = ownMaterial(content, set, def, material, ground);
+      const own: MeshStandardMaterial | null = ownMaterial(content, set, def, material, floorHeight, groundDressed);
       if (own === null) return;
+      if (skirt !== null && pieces.every((piece: SetPiece): boolean => piece.skirt)) skirtMaterial(own, skirt);
       toFade(own, false);
       const mesh: InstancedMesh = new InstancedMesh(geometry, own, pieces.length);
       mesh.castShadow = set.shadows;
@@ -189,20 +217,38 @@ export function createSetDressing(set: LobbySet, content: Content, loader: GLTFL
   };
 
   const build = async (): Promise<void> => {
-    const byProp: Map<string, SetPiece[]> = new Map<string, SetPiece[]>();
-    for (const piece of set.pieces) byProp.set(piece.prop, [...(byProp.get(piece.prop) ?? []), piece]);
+    const byKey: Map<string, SetPiece[]> = new Map<string, SetPiece[]>();
+    for (const piece of set.pieces) byKey.set(`${piece.prop}:${piece.skirt}`, [...(byKey.get(`${piece.prop}:${piece.skirt}`) ?? []), piece]);
+    const rubbleProp: string | null = set.skirt?.rubble?.prop ?? null;
+    const ids: readonly string[] = [...new Set([...set.pieces.map((piece: SetPiece): string => piece.prop), ...(rubbleProp === null ? [] : [rubbleProp])])];
+    const models: Map<string, LoadedProp> = new Map<string, LoadedProp>();
     await Promise.all(
-      [...byProp.entries()].map(async ([id, pieces]: [string, SetPiece[]]): Promise<void> => {
+      ids.map(async (id: string): Promise<void> => {
         const def: PropDef | undefined = content.props.get(id);
         if (def === undefined) return;
         const gltf: GLTF | null = await loadModel(loader, def.model).catch((): null => null);
-        if (gltf !== null) placeProp(def, gltf, pieces);
+        if (gltf !== null) models.set(id, { def, gltf });
       }),
     );
-    if (set.skyline !== null) {
-      const material: MeshBasicMaterial = new MeshBasicMaterial({ color: LOBBY_SCENERY.skylineColor });
+    for (const pieces of byKey.values()) {
+      const first: SetPiece | undefined = pieces[0];
+      const model: LoadedProp | undefined = first === undefined ? undefined : models.get(first.prop);
+      if (model !== undefined) placeProp(model.def, model.gltf, pieces, false);
+    }
+    const rubble: Rubble | null = set.skirt?.rubble ?? null;
+    const rubbleModel: LoadedProp | undefined = rubble === null ? undefined : models.get(rubble.prop);
+    if (rubble !== null && rubbleModel !== undefined) {
+      const footprint = (piece: SetPiece): number => {
+        const model: LoadedProp | undefined = models.get(piece.prop);
+        return model === undefined ? 0 : footprintOf(model.gltf, model.def.scale * piece.size);
+      };
+      const stones: readonly SetPiece[] = skirtRubble(set.pieces, rubble, footprint);
+      if (stones.length > 0) placeProp(rubbleModel.def, rubbleModel.gltf, stones, true);
+    }
+    for (const skyline of set.skylines) {
+      const material: MeshBasicMaterial = new MeshBasicMaterial({ color: new Color(skyline.color), fog: false });
       toFade(material, false);
-      group.add(new Mesh(skylineGeometry(set.skyline), material));
+      group.add(new Mesh(skylineGeometry(skyline), material));
     }
     if (set.roosts.length > 0) {
       const hanging: RoostMesh = roostMesh(set.roosts);
@@ -210,8 +256,8 @@ export function createSetDressing(set: LobbySet, content: Content, loader: GLTFL
       group.add(hanging);
       roosts = hanging;
     }
-    if (set.glows.length > 0) {
-      const lit: GlowMesh = glowMesh(set.glows);
+    if (allGlows.length > 0) {
+      const lit: GlowMesh = glowMesh(allGlows);
       toFade(lit.material, true);
       group.add(lit);
       glows = lit;
@@ -254,7 +300,7 @@ export function createSetDressing(set: LobbySet, content: Content, loader: GLTFL
       }
       const lit: GlowMesh | null = glows;
       if (lit !== null) {
-        set.glows.forEach((glow: Glow, index: number): void => {
+        allGlows.forEach((glow: Glow, index: number): void => {
           lit.setMatrixAt(index, at.compose(point.set(glow.x, glow.y, glow.z), camera.quaternion, size.setScalar(glow.size)));
         });
         lit.instanceMatrix.needsUpdate = true;

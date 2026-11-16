@@ -88,6 +88,11 @@ interface ExitLabel {
   pinned: boolean;
 }
 
+interface HoveredLabel {
+  readonly id: number;
+  readonly element: HTMLElement;
+}
+
 interface NpcLabel {
   readonly element: HTMLDivElement;
   readonly npc: NpcState;
@@ -183,7 +188,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
   new ResizeObserver((): void => {
     view = { width: root.clientWidth, height: root.clientHeight };
   }).observe(root);
-  let labelHoverId: number | null = null;
+  let labelHovered: HoveredLabel | null = null;
   let exitsOf: ZoneDef | null = null;
   let aimed: string | null = null;
   let aimedItem: number | null = null;
@@ -359,6 +364,7 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
     if (!sameZone) {
       for (const label of leaving) label.element.remove();
       leaving = [];
+      labelHovered = null;
     }
     for (const label of people) {
       if (world.npcs.includes(label.npc)) continue;
@@ -387,10 +393,10 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
       inner.append(pin, name, title);
       element.append(inner);
       element.addEventListener('pointerenter', (): void => {
-        labelHoverId = npc.id;
+        labelHovered = { id: npc.id, element };
       });
       element.addEventListener('pointerleave', (): void => {
-        if (labelHoverId === npc.id) labelHoverId = null;
+        if (labelHovered?.element === element) labelHovered = null;
       });
       element.addEventListener('pointerdown', (event: PointerEvent): void => {
         event.preventDefault();
@@ -519,7 +525,10 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
       }
     },
     labelHover(): number | null {
-      return labelHoverId;
+      if (labelHovered === null) return null;
+      if (labelHovered.element.isConnected && labelHovered.element.matches(':hover')) return labelHovered.id;
+      labelHovered = null;
+      return null;
     },
     update(dt: number, world: World, hoveredId: number | null): void {
       sinceHudRead += dt;

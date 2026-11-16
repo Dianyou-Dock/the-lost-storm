@@ -3,7 +3,7 @@ import type { Fields } from '../../sim/content/read.ts';
 import { byId, choice, colour, ContentError, each, fields, nullableText, numeric, positive, share, text } from '../../sim/content/read.ts';
 import type { Mound } from './lobby-ground.ts';
 
-export const SKYLINE_KINDS = ['block', 'broken', 'tower', 'spire', 'gable', 'wall'] as const;
+export const SKYLINE_KINDS = ['block', 'broken', 'tower', 'ruin', 'spire', 'gable', 'wall', 'hill', 'cliff'] as const;
 export type SkylineKind = (typeof SKYLINE_KINDS)[number];
 
 export interface SetPiece {
@@ -18,6 +18,7 @@ export interface SetPiece {
   readonly sink: number;
   readonly mound: boolean;
   readonly swayDegrees: number;
+  readonly skirt: boolean;
 }
 
 export interface SkylinePiece {
@@ -25,12 +26,32 @@ export interface SkylinePiece {
   readonly angleDegrees: number;
   readonly width: number;
   readonly height: number;
+  readonly lit: number;
 }
 
 export interface Skyline {
   readonly radius: number;
   readonly sink: number;
+  readonly color: string;
   readonly pieces: readonly SkylinePiece[];
+}
+
+export interface Rubble {
+  readonly prop: string;
+  readonly count: number;
+  readonly sizeMin: number;
+  readonly sizeMax: number;
+  readonly from: number;
+  readonly to: number;
+  readonly minRadius: number;
+}
+
+export interface Skirt {
+  readonly height: number;
+  readonly contact: number;
+  readonly darken: number;
+  readonly hue: number;
+  readonly rubble: Rubble | null;
 }
 
 export interface Flash {
@@ -65,7 +86,8 @@ export interface LobbySet {
   readonly fogFar: number;
   readonly haze: number;
   readonly pieces: readonly SetPiece[];
-  readonly skyline: Skyline | null;
+  readonly skylines: readonly Skyline[];
+  readonly skirt: Skirt | null;
   readonly flash: Flash | null;
   readonly roosts: readonly Roost[];
   readonly glows: readonly Glow[];
@@ -77,7 +99,7 @@ export interface LobbySets {
   readonly sets: ReadonlyMap<string, LobbySet>;
 }
 
-export const LOBBY_SET_PICK = { query: 'lobby-set' } as const;
+export const LOBBY_SET_PICK = { query: 'lobby-set', skylineColor: '#05070b' } as const;
 
 function optional(source: Fields, key: string, fallback: number, where: string): number {
   return source[key] === undefined ? fallback : numeric(source, key, where);
@@ -97,18 +119,40 @@ function readPiece(value: unknown, where: string): SetPiece {
     sink: optional(source, 'sink', 0, where),
     mound: source['mound'] === true,
     swayDegrees: optional(source, 'sway', 0, where),
+    skirt: source['skirt'] !== false,
   };
 }
 
 function readSkylinePiece(value: unknown, where: string): SkylinePiece {
   const source: Fields = fields(value, where);
-  return { kind: choice(source, 'kind', SKYLINE_KINDS, where), angleDegrees: numeric(source, 'angle', where), width: positive(source, 'width', where), height: positive(source, 'height', where) };
+  return { kind: choice(source, 'kind', SKYLINE_KINDS, where), angleDegrees: numeric(source, 'angle', where), width: positive(source, 'width', where), height: positive(source, 'height', where), lit: optional(source, 'lit', 0, where) };
 }
 
-function readSkyline(value: unknown, where: string): Skyline | null {
+function readSkyline(value: unknown, where: string): Skyline {
+  const source: Fields = fields(value, where);
+  return { radius: positive(source, 'radius', where), sink: optional(source, 'sink', 0, where), color: source['color'] === undefined ? LOBBY_SET_PICK.skylineColor : colour(source, 'color', where), pieces: each(source['pieces'], `${where} pieces`, readSkylinePiece) };
+}
+
+function readRubble(value: unknown, where: string): Rubble | null {
   if (value === null || value === undefined) return null;
   const source: Fields = fields(value, where);
-  return { radius: positive(source, 'radius', where), sink: optional(source, 'sink', 0, where), pieces: each(source['pieces'], `${where} pieces`, readSkylinePiece) };
+  const rubble: Rubble = {
+    prop: text(source, 'prop', where),
+    count: positive(source, 'count', where),
+    sizeMin: positive(source, 'sizeMin', where),
+    sizeMax: positive(source, 'sizeMax', where),
+    from: positive(source, 'from', where),
+    to: positive(source, 'to', where),
+    minRadius: positive(source, 'minRadius', where),
+  };
+  if (rubble.sizeMax < rubble.sizeMin || rubble.to < rubble.from) throw new ContentError(where, 'a rubble range runs backwards');
+  return rubble;
+}
+
+function readSkirt(value: unknown, where: string): Skirt | null {
+  if (value === null || value === undefined) return null;
+  const source: Fields = fields(value, where);
+  return { height: positive(source, 'height', where), contact: positive(source, 'contact', where), darken: share(source, 'darken', where), hue: share(source, 'hue', where), rubble: readRubble(source['rubble'], `${where} rubble`) };
 }
 
 function readFlash(value: unknown, where: string): Flash | null {
@@ -143,7 +187,8 @@ function readSet(value: unknown, where: string): LobbySet {
     fogFar: positive(source, 'fogFar', at),
     haze: share(source, 'haze', at),
     pieces: each(source['pieces'], `${at} pieces`, readPiece),
-    skyline: readSkyline(source['skyline'], `${at} skyline`),
+    skylines: source['skylines'] === undefined ? [] : each(source['skylines'], `${at} skylines`, readSkyline),
+    skirt: readSkirt(source['skirt'], `${at} skirt`),
     flash: readFlash(source['flash'], `${at} flash`),
     roosts: source['roosts'] === undefined ? [] : each(source['roosts'], `${at} roosts`, readRoost),
     glows: source['glows'] === undefined ? [] : each(source['glows'], `${at} glows`, readGlow),
