@@ -49,7 +49,7 @@ void test('a moment naming an unknown prop, monster, clip or rarity is reported'
 });
 
 void test('a moment standing on an unknown surface is reported', (): void => {
-  assert.deepEqual(momentProblems(withMoment({ ...MOMENT, ground: 'lava' })), ['moment test_fire stands on unknown surface lava']);
+  assert.deepEqual(momentProblems(withMoment({ ...MOMENT, ground: 'quicksand' })), ['moment test_fire stands on unknown surface quicksand']);
 });
 
 void test('an echo look must fit its rig, and an echo that may turn needs its fighting clip on that rig', (): void => {
