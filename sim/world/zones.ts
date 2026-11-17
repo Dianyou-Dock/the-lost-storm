@@ -95,7 +95,7 @@ export function enterZone(world: World, zone: ZoneDef, respawn: RespawnPoint): v
   world.ground = [];
   world.surgeTimer = null;
   world.zone = zone;
-  if (isMoyu(world.content)) delete world.flags[moyuBossFlag(zone.id)];
+  if (isMoyu(world.content)) { delete world.flags[moyuBossFlag(zone.id)]; delete world.player.moyuComboState; }
   world.grid = buildNavGrid(zone, world.content.props, world.content.surfaces, world.content.player.radius);
   world.respawn = respawn;
   world.shift = { x: 0, z: 0 };

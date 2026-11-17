@@ -83,6 +83,8 @@ const BOSS_TEMPLATES: readonly string[] = ['stormcaller_rival', 'timekeeper_gate
 const BOSS_NAMES: readonly string[] = ['下层回响', '洞窟回响', '深窟回响', '熔渊斗士', '熔渊巨像', '账厅守卫', '账厅裁决者', '终厅巨像'];
 const MOYU_NODE_TYPES: ReadonlySet<string> = new Set(['base', 'word', 'synergy', 'variant', 'confluence']);
 const MOYU_SKILLS: readonly string[] = ['cleave', 'thunderclap', 'storm_bolt', 'dodge_roll'];
+export const MOYU_ACTIONS: readonly string[] = MOYU_SKILLS.slice(0, 3);
+export const MOYU_UNBOUND = 'none';
 const WEAPON_ACTIONS: Readonly<Record<string, readonly [string, string, string]>> = {
   刀: ['斩', '横扫', '重斩'],
   剑: ['突刺', '连斩', '格挡反击'],
@@ -144,6 +146,23 @@ const ELEMENT_BONUS: Readonly<Record<string, string>> = {
   火: '持续施放积累燃势，使第三次动作更快',
   土: '施放技能获得守势，抵消下一次伤害；移动会加速消散',
 };
+const COMBO_RULES: Readonly<Record<string, string>> = {
+  'word-流血': '命中施加 3 秒流血，每秒造成少量伤害。',
+  'word-破甲': '命中正在防御的敌人时，额外提高本次伤害。',
+  'word-锋锐': '命中使下一次锋锐攻击获得额外伤害；剑的连斩触发破绽时额外爆发。',
+  'word-毒蚀': '命中施加 5 秒毒蚀，持续造成少量伤害。',
+  'word-缠绕': '命中短暂定身；同一目标 3 秒内最多一次。',
+  'word-再生': '命中时恢复少量生命，每 2 秒最多一次。',
+  'word-寒伤': '命中使目标的行动速度短暂降低。',
+  'word-冰封': '对同一目标命中 3 次后短暂冰封，首领受控时间较短。',
+  'word-净化': '命中时移除自身灼烧、定身与减速，每 5 秒最多一次；剑的格挡反击成功时额外回血并缩短冷却。',
+  'word-灼烧': '命中施加灼烧，每 0.75 秒造成少量伤害。',
+  'word-躁动': '命中使目标的行动与施法节奏短暂变慢。',
+  'word-急速': '命中使自身短暂加速，每 3 秒最多触发一次。',
+  'word-震击': '命中正在防御的敌人时造成额外伤害。',
+  'word-失衡': '命中正在蓄力的敌人时打断动作；同一目标 4 秒内最多一次。',
+  'word-固守': '命中获得一层守势，抵挡下一次伤害，每 2 秒最多一次。',
+};
 
 export function isMoyu(content: Content): boolean {
   return content.chart.title === MOYU_TITLE;
@@ -155,6 +174,32 @@ export function moyuBossFlag(zoneId: string): string {
 
 export function moyuNode(id: string): (typeof graph.nodes)[number] | null {
   return graph.nodes.find((node): boolean => node.id === id) ?? null;
+}
+
+export function moyuBindingKey(skill: string): string {
+  return `moyu:${skill}`;
+}
+
+export function moyuComboChoices(allocated: readonly string[]): MoyuGraphNode[] {
+  return allocated.map(moyuNode).filter((node): node is MoyuGraphNode => node !== null && (node.type === 'word' || node.type === 'variant'));
+}
+
+export function moyuBoundCombo(allocated: readonly string[], changes: Readonly<Record<string, string>>, skill: string): MoyuGraphNode | null {
+  if (!MOYU_ACTIONS.includes(skill)) return null;
+  const chosen = changes[moyuBindingKey(skill)];
+  if (chosen === MOYU_UNBOUND) return null;
+  const choices = moyuComboChoices(allocated);
+  return choices.find((node): boolean => node.id === chosen) ?? (chosen === undefined ? choices[0] : null) ?? null;
+}
+
+export function moyuComboRoot(node: MoyuGraphNode): string {
+  if (node.type === 'word') return node.id;
+  return node.prereq.find((id: string): boolean => moyuNode(id)?.type === 'word') ?? '';
+}
+
+export function moyuComboDescription(node: MoyuGraphNode): string {
+  const base = COMBO_RULES[moyuComboRoot(node)] ?? node.desc;
+  return node.type === 'variant' ? `${base} 第三元素使效果量提高 20%。` : base;
 }
 
 export interface MoyuSkillEffect {
@@ -169,7 +214,9 @@ export function moyuSkillEffect(allocated: readonly string[]): MoyuSkillEffect |
   if (linked === undefined || linked === null) return null;
   const elements = nodeElements(linked);
   const colors = elements.map((element: string): string => ELEMENT_COLORS.get(element) ?? '#ffffff');
-  const channels = [1, 3, 5].map((offset: number): number => Math.round(colors.reduce((sum: number, color: string): number => sum + Number.parseInt(color.slice(offset, offset + 2), 16), 0) / colors.length));
+  const rank = linked.type === 'word' || linked.type === 'variant' ? graph.nodes.filter((node): boolean => node.type === linked.type && nodeElements(node).join('') === elements.join('')).findIndex((node): boolean => node.id === linked.id) : 0;
+  const offsets = [12 * rank, -7 * rank, 9 * rank];
+  const channels = [1, 3, 5].map((offset: number, index: number): number => Math.max(0, Math.min(255, Math.round(colors.reduce((sum: number, color: string): number => sum + Number.parseInt(color.slice(offset, offset + 2), 16), 0) / colors.length) + (offsets[index] ?? 0))));
   return { label: elements.join('·'), color: `#${channels.map((channel: number): string => channel.toString(16).padStart(2, '0')).join('')}`, count: elements.length };
 }
 
@@ -181,6 +228,12 @@ export function hotWeapon(id: string): boolean {
 export function moyuRequirements(allocated: readonly string[], id: string): boolean {
   const node = moyuNode(id);
   if (node === null || !MOYU_NODE_TYPES.has(node.type) || allocated.length >= 50) return false;
+  if (node.type === 'word' || node.type === 'variant') {
+    const main = allocated.filter((entry: string): boolean => entry.startsWith(`base-${node.element}-`)).length;
+    if (main < 3) return false;
+    if (node.support !== undefined && !allocated.some((entry: string): boolean => entry.startsWith(`base-${node.support}-`))) return false;
+    if (node.third !== undefined && !allocated.some((entry: string): boolean => entry.startsWith(`base-${node.third}-`))) return false;
+  }
   if (!node.prereq.every((required: string): boolean => allocated.includes(required))) return false;
   return true;
 }
@@ -188,7 +241,7 @@ export function moyuRequirements(allocated: readonly string[], id: string): bool
 function graphNodes(): SkillTreeNodeDef[] {
   return graph.nodes.filter((node): boolean => MOYU_NODE_TYPES.has(node.type)).map((node): SkillTreeNodeDef => {
     const point = COORDS.get(node.id);
-    const links: string[] = graph.links.flatMap((link): string[] => link.b === node.id && link.a !== 'root' && MOYU_NODE_TYPES.has(moyuNode(link.a)?.type ?? '') ? [link.a] : []);
+    const links: string[] = node.type === 'word' ? [`base-${node.element}-3`] : graph.links.flatMap((link): string[] => link.b === node.id && link.a !== 'root' && MOYU_NODE_TYPES.has(moyuNode(link.a)?.type ?? '') ? [link.a] : []);
     const path: string = node.element ?? '金';
     const active: boolean = node.type !== 'base';
     const elements: readonly string[] = [node.element, node.support, node.third].filter((entry): entry is string => entry !== undefined);
@@ -197,7 +250,7 @@ function graphNodes(): SkillTreeNodeDef[] {
     return {
       id: node.id,
       name: node.name,
-      description: active ? `${elements.join('·')}联动：强化${elements.join('、')}的核心机制。${bonuses.join('；')}。` : `${baseDescription}；${bonuses.join('；')}。累计 3 点基础天赋激活，5 点与 8 点强化。`,
+      description: node.type === 'word' || node.type === 'variant' ? `${elements.join('·')}技能：${moyuComboDescription(node)}` : active ? `${elements.join('·')}联动：强化${elements.join('、')}的核心机制。${bonuses.join('；')}。` : `${baseDescription}；${bonuses.join('；')}。累计 3 点基础天赋激活，5 点与 8 点强化。`,
       icon: 'focus',
       kind: active ? 'notable' : 'minor',
       path,

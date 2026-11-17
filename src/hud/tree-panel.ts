@@ -1,5 +1,5 @@
 import type { ChartPath, SkillTreeNodeDef } from '../../sim/content/types.ts';
-import { hotWeapon, isMoyu, moyuNode, moyuRequirements, moyuSkillEffect } from '../../sim/content/moyu.ts';
+import { hotWeapon, isMoyu, MOYU_ACTIONS, MOYU_UNBOUND, moyuBoundCombo, moyuComboChoices, moyuNode, moyuRequirements, moyuSkillEffect } from '../../sim/content/moyu.ts';
 import type { PlayerState } from '../../sim/world/types.ts';
 import { refundBlock, refundCost, refundState, respecCost, respecState } from '../../sim/progression.ts';
 import type { ChartChange } from '../../sim/progression.ts';
@@ -96,7 +96,7 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
   element.style.setProperty('--variant-rim', `${TREE_NODES.variantRim}px`);
   const head: HTMLDivElement = el('div', 'tree-head', element);
   label('tree-title', content.chart.title, head);
-  if (isMoyu(content)) label('moyu-prototype-note', '选择组合可直接定位对应节点', head);
+  if (isMoyu(content)) label('moyu-prototype-note', '点亮组合后，给每个武器动作单独装配', head);
   const points: HTMLDivElement = el('div', 'tree-points', head);
   const pointCount: HTMLSpanElement = el('span', 'tree-points-count', points);
   const pointWord: HTMLSpanElement = el('span', 'tree-points-word', points);
@@ -128,6 +128,19 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
   });
 
   const comboNav: HTMLDivElement | null = isMoyu(content) ? el('div', 'moyu-combo-nav', element) : null;
+  const bindings: HTMLDivElement | null = isMoyu(content) ? el('div', 'moyu-action-bindings', element) : null;
+  const bindingSelects: HTMLSelectElement[] = [];
+  if (bindings !== null) {
+    for (const [index, skill] of MOYU_ACTIONS.entries()) {
+      const row = el('label', 'moyu-action-binding', bindings);
+      const name = el('span', 'moyu-action-name', row);
+      name.textContent = `动作 ${index + 1}`;
+      const select = el('select', 'moyu-action-select', row);
+      select.setAttribute('aria-label', `动作 ${index + 1} 的五行组合`);
+      select.addEventListener('change', (): void => context.api.send({ type: 'moyu_bind', skill, combo: select.value }));
+      bindingSelects.push(select);
+    }
+  }
 
   const nodes: readonly SkillTreeNodeDef[] = content.skillTree;
   const bounds: ChartBounds = chartBounds(nodes);
@@ -668,6 +681,27 @@ export function createTreePanel(parent: HTMLElement, context: HudContext, close:
 
   const sync = (): void => {
     const you = player();
+    if (bindings !== null) {
+      const choices = moyuComboChoices(you.allocated);
+      for (const [index, select] of bindingSelects.entries()) {
+        const skill = MOYU_ACTIONS[index];
+        if (skill === undefined) continue;
+        const actionName = you.skills[index]?.name ?? `动作 ${index + 1}`;
+        const name = select.parentElement?.querySelector('.moyu-action-name');
+        if (name !== null && name !== undefined) name.textContent = actionName;
+        const signature = choices.map((node): string => node.id).join('|');
+        if (select.dataset['choices'] !== signature) {
+          select.replaceChildren();
+          select.add(new Option('无组合', MOYU_UNBOUND));
+          for (const node of choices) select.add(new Option(`${node.name} · ${node.element}${node.support ?? ''}${node.third ?? ''}`, node.id));
+          select.dataset['choices'] = signature;
+        }
+        select.disabled = choices.length === 0;
+        const selected = moyuBoundCombo(you.allocated, you.changes, skill);
+        select.value = selected?.id ?? MOYU_UNBOUND;
+        select.style.setProperty('--combo-color', selected === null ? '#77808b' : moyuSkillEffect([selected.id])?.color ?? '#77808b');
+      }
+    }
     setText(pointCount, String(you.skillPoints), true);
     setText(pointWord, you.skillPoints === 1 ? 'point' : 'points', false);
     points.classList.toggle('spendable', you.skillPoints > 0);

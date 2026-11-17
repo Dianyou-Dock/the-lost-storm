@@ -132,7 +132,6 @@ export function createSkillBar(parent: HTMLElement, context: HudContext, track: 
       slots.forEach((view: SlotView, index: number): void => paintKey(view, keyOf(index)));
     },
     update(player: PlayerState): void {
-      const elemental = isMoyu(context.api.world.content) ? moyuSkillEffect(player.allocated) : null;
       if (slots.length !== player.skills.length) {
         for (const view of slots) view.root.remove();
         slots.length = 0;
@@ -146,6 +145,7 @@ export function createSkillBar(parent: HTMLElement, context: HudContext, track: 
       slots.forEach((view: SlotView, index: number): void => {
         const held: SkillDef | null = player.skills[index] ?? null;
         const skill: SkillDef | null = held !== null && usable(player, held) ? held : null;
+        const elemental = isMoyu(context.api.world.content) && skill?.moyuCombo !== undefined ? moyuSkillEffect([skill.moyuCombo]) : null;
         if (view.skill !== skill || view.empty === null) applySkill(view, skill);
         setText(view.effect, skill === null ? '' : elemental?.label ?? '', true);
         view.root.style.setProperty('--moyu-effect', elemental?.color ?? 'transparent');

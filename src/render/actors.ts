@@ -166,10 +166,11 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   let talentColor: string | null = null;
   let talentIntensity: number = 0;
   const paintWeapon = (rig: RigInstance, current: World): void => {
-    const key: string = current.player.allocated.join('|');
+    const active = current.player.action?.skill.moyuCombo ?? current.player.skills.find((skill): boolean => skill?.moyuCombo === talentKey)?.moyuCombo ?? current.player.skills.find((skill): boolean => skill?.moyuCombo !== undefined)?.moyuCombo;
+    const key: string = active ?? '';
     if (key !== talentKey) {
       talentKey = key;
-      const effect = isMoyu(content) ? moyuSkillEffect(current.player.allocated) : null;
+      const effect = isMoyu(content) && active !== undefined ? moyuSkillEffect([active]) : null;
       talentColor = effect !== null && effect.count > 1 ? effect.color : null;
       talentIntensity = effect?.count === 3 ? WEAPON_GLOW.triple : effect?.count === 2 ? WEAPON_GLOW.pair : 0;
     }

@@ -10,7 +10,7 @@ import { isWalkable, lineWalkable } from '../nav/grid.ts';
 import { directPath, findPath, nearFace } from '../nav/path.ts';
 import { blockerInReach, chasePath, chaseStalled, freshChase } from './chase.ts';
 import { pastBlocks, roundPast, stillRound } from './stick.ts';
-import { allocateNode, chooseChange, dropFromInventory, equipFromInventory, refundNode, respecChart, slotSkill, unequip } from './character.ts';
+import { allocateNode, bindMoyuCombo, chooseChange, dropFromInventory, equipFromInventory, refundNode, respecChart, slotSkill, unequip } from './character.ts';
 import { findActor } from './combat.ts';
 import { canDash, dashAim } from './dash.ts';
 import { respawnPlayer } from './death.ts';
@@ -305,6 +305,7 @@ function act(world: World, command: Command): void {
     case 'refund':
     case 'respec':
     case 'choose_change':
+    case 'moyu_bind':
     case 'respawn':
     case 'use_item':
       return;
@@ -343,6 +344,9 @@ export function handleCommand(world: World, command: Command): void {
       return;
     case 'choose_change':
       chooseChange(world, command.skill, command.becomes);
+      return;
+    case 'moyu_bind':
+      bindMoyuCombo(world, command.skill, command.combo);
       return;
     case 'advance':
       advanceDialogue(world);

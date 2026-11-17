@@ -199,6 +199,7 @@ export interface PlayerState extends ActorState {
     earthTime: number;
   };
   moyuLegendary?: { goldTarget: number | null; goldReady: number; woodReady: number; waterLast: string | null; waterReady: number; fireReady: number; earthReady: number };
+  moyuComboState?: { hits: Record<string, number>; ready: Record<string, number>; sharp: boolean };
   changes: Record<string, string>;
   learned: string[];
   grantsTaken: string[];
@@ -401,6 +402,12 @@ export interface ChooseChangeCommand {
   readonly becomes: string;
 }
 
+export interface MoyuBindCommand {
+  readonly type: 'moyu_bind';
+  readonly skill: string;
+  readonly combo: string;
+}
+
 export interface TravelCommand {
   readonly type: 'travel';
   readonly exit: string;
@@ -524,7 +531,7 @@ export interface OverlayCommand {
   readonly open: boolean;
 }
 
-export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | ChooseChangeCommand | TravelCommand | TalkCommand | AdvanceCommand | ReplayCommand | TeleportCommand | { readonly type: 'random_map' } | { readonly type: 'return_home' } | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand | UseItemCommand | EnterPortalCommand;
+export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | ChooseChangeCommand | MoyuBindCommand | TravelCommand | TalkCommand | AdvanceCommand | ReplayCommand | TeleportCommand | { readonly type: 'random_map' } | { readonly type: 'return_home' } | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand | UseItemCommand | EnterPortalCommand;
 
 export interface StartRespawn {
   readonly type: 'start';

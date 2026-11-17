@@ -3,7 +3,7 @@ import { ITEM_SLOTS, STAT_IDS } from './content/types.ts';
 import { itemMods } from './items.ts';
 import type { Equipment } from './world/types.ts';
 import { ANY_WEAPON, heldGroup, heldPlace } from './weapons.ts';
-import { isMoyu, moyuNode, moyuSkillEffect } from './content/moyu.ts';
+import { isMoyu, moyuBoundCombo, moyuComboDescription, moyuComboRoot, moyuSkillEffect } from './content/moyu.ts';
 
 export const ARMOUR_HALF_POINT: number = 100;
 export const MIN_ATTACK_SPEED: number = 0.2;
@@ -179,13 +179,24 @@ function scaleOf(mods: readonly SkillMod[], field: SkillMod['field']): number {
 
 export function resolveSkill(content: Content, base: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON, chosen: ChangeChoice = {}): SkillDef {
   const { skill, through }: ChosenSkill = variantChain(content, base, allocated, powers, worn, held, chosen);
-  const linked = isMoyu(content) ? allocated.toReversed().map(moyuNode).find((node): boolean => node !== null && node.type !== 'base') : undefined;
-  const effect = isMoyu(content) ? moyuSkillEffect(allocated) : null;
-  const palette: Readonly<Record<string, SkillDef['vfx']['style']>> = { '金木': 'wind', '金水': 'mist', '金火': 'fire', '金土': 'heave', '木水': 'wave', '木火': 'brand', '木土': 'claw', '水火': 'storm', '水土': 'shockwave', '火土': 'fire' };
-  const key = linked === undefined || linked === null ? '' : [linked.element, linked.support].filter((part): part is string => part !== undefined).toSorted((a, b): number => '金木水火土'.indexOf(a) - '金木水火土'.indexOf(b)).join('');
-  const action = skill.form.endsWith('_cleave') ? 0 : skill.form.endsWith('_thunderclap') ? 1 : 2;
-  const style = action === 0 ? palette[key] ?? 'slash' : action === 1 ? linked?.third === undefined ? 'shockwave' : 'storm' : linked?.third === undefined ? 'bolt' : 'fork';
-  const visible = effect === null ? skill : { ...skill, vfx: { ...skill.vfx, style: linked === undefined || linked === null ? skill.vfx.style : style, color: effect.color, light: effect.count === 1 ? 0.45 : effect.count === 2 ? 0.7 : 1, trail: effect.count === 1 ? 0.4 : effect.count === 2 ? 0.75 : 1.2, impact: { sparks: effect.count === 1 ? 5 : effect.count === 2 ? 10 : 17, flash: effect.count === 1 ? 0.3 : effect.count === 2 ? 0.65 : 1.1 } } };
+  const linked = isMoyu(content) ? moyuBoundCombo(allocated, chosen, base.id) : null;
+  const effect = linked === null ? null : moyuSkillEffect([linked.id]);
+  const palette: Readonly<Record<string, SkillDef['vfx']['style']>> = {
+    'word-流血': 'slash', 'word-破甲': 'heave', 'word-锋锐': 'beam', 'word-毒蚀': 'mist', 'word-缠绕': 'claw',
+    'word-再生': 'wind', 'word-寒伤': 'fork', 'word-冰封': 'wave', 'word-净化': 'orb', 'word-灼烧': 'fire',
+    'word-躁动': 'storm', 'word-急速': 'gale', 'word-震击': 'shockwave', 'word-失衡': 'gap', 'word-固守': 'brand',
+  };
+  const style = linked === null ? skill.vfx.style : palette[moyuComboRoot(linked)] ?? skill.vfx.style;
+  const root = linked === null ? '' : moyuComboRoot(linked);
+  const variantScale = linked?.type === 'variant' ? 1.2 : 1;
+  const burn = root === 'word-流血' ? { duration: 3, tick: 1, share: 0.055 * variantScale } : root === 'word-毒蚀' ? { duration: 5, tick: 1, share: 0.035 * variantScale } : root === 'word-灼烧' ? { duration: 3, tick: 0.75, share: 0.065 * variantScale } : skill.burn;
+  const visible: SkillDef = effect === null || linked === null ? skill : {
+    ...skill,
+    moyuCombo: linked.id,
+    burn,
+    description: `${skill.description} 五行·${linked.name}：${moyuComboDescription(linked)}`,
+    vfx: { ...skill.vfx, style, color: effect.color, light: linked.type === 'variant' ? 1.35 : 0.9, trail: linked.type === 'variant' ? 1.4 : 0.9, linger: linked.type === 'variant' ? 0.8 : 0.5, impact: { sparks: linked.type === 'variant' ? 20 : 12, flash: linked.type === 'variant' ? 1.2 : 0.8 } },
+  };
   const mods: SkillMod[] = [...allocatedNodes(content, allocated, held).flatMap((node: SkillTreeNodeDef): readonly SkillMod[] => node.skillMods), ...powers.flatMap((power: PowerDef): readonly SkillMod[] => power.skillMods)].filter((mod: SkillMod): boolean => modTargets(content, mod, through));
   if (mods.length === 0) return visible;
   const delivery: Delivery = scaledDelivery(visible.delivery, {

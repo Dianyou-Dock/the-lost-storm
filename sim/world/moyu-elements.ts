@@ -149,12 +149,11 @@ export function startElementSkill(world: World, player: PlayerState, skill: Skil
 
 export function earthGuard(world: World): number {
   const power: number = elementPower(world, '土');
-  if (power === 0) return 1;
   const held = state(world.player);
   if (held.earthCharges === 0 || held.earthTime <= 0) return 1;
   held.earthCharges -= 1;
   announce(world, '土', '守势抵挡', world.player.pos);
-  return 1 - Math.min(0.3, 0.18 * power);
+  return 1 - Math.min(0.3, 0.18 * Math.max(1, power));
 }
 
 export function stepMoyuElements(world: World, dt: number): void {

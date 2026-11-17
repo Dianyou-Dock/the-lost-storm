@@ -359,7 +359,7 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
     view.root.classList.toggle('empty', skill === undefined);
     view.root.setAttribute('aria-label', skill?.name ?? 'Empty skill slot');
     view.root.dataset['skillName'] = skill === undefined ? '' : localizeText(skill.name);
-    const elemental = isMoyu(world.content) && skill !== undefined ? moyuSkillEffect(world.player.allocated) : null;
+    const elemental = isMoyu(world.content) && skill?.moyuCombo !== undefined ? moyuSkillEffect([skill.moyuCombo]) : null;
     view.root.dataset['element'] = elemental?.label ?? '';
     view.root.style.setProperty('--moyu-effect', elemental?.color ?? 'transparent');
     view.root.classList.toggle('elemental', elemental !== null);

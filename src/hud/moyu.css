@@ -199,6 +199,49 @@
   border-bottom: 1px solid rgba(155, 177, 198, 0.14);
 }
 
+.moyu-action-bindings {
+  display: flex;
+  gap: 8px;
+  padding: 7px 10px;
+  background: rgba(6, 10, 17, 0.94);
+  border-bottom: 1px solid rgba(155, 177, 198, 0.18);
+}
+
+.moyu-action-binding {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  color: #d5dfeb;
+  font-size: 12px;
+}
+
+.moyu-action-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.moyu-action-select {
+  flex: 1;
+  min-width: 0;
+  min-height: 34px;
+  padding: 5px 7px;
+  color: #f2f6fc;
+  background: color-mix(in srgb, var(--combo-color) 17%, #111a25);
+  border: 1px solid var(--combo-color);
+  border-radius: 8px;
+}
+
+.moyu-action-select:disabled { opacity: 0.55; }
+
+@media (max-height: 620px) {
+  .moyu-action-bindings { overflow-x: auto; }
+  .moyu-action-binding { flex: 0 0 190px; }
+}
+
 .moyu-combo-caption {
   flex: none;
   color: #b8c6d2;
@@ -324,6 +367,16 @@
     gap: 4px 8px;
     padding: 5px 8px;
   }
+
+  .moyu-action-bindings {
+    flex-direction: column;
+    gap: 5px;
+    padding: 6px 8px;
+  }
+
+  .moyu-action-binding { width: 100%; }
+  .moyu-action-name { width: 72px; flex: none; }
+  .moyu-action-select { min-height: 42px; font-size: 14px; }
 
   .moyu-combo-chips {
     flex-basis: 100%;

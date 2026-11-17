@@ -17,6 +17,7 @@ import { handleTrade, meetNpc, sellPrice } from '../world/trade.ts';
 import { earthGuard, elementPower, goldStrike, legendaryEarthGuard, legendaryFireKill, legendaryGoldGuard, legendaryWoodHit, startElementSkill, stepMoyuElements, woodStrike } from '../world/moyu-elements.ts';
 import { moyuSpecialOf } from '../moyu-specials.ts';
 import { readLedgerItem } from '../../src/backend/ledger-read.ts';
+import { moyuComboDamage, moyuComboHit } from '../world/moyu-combos.ts';
 
 const points = (element: string, count: number): string[] => Array.from({ length: count }, (_: unknown, index: number): string => `base-${element}-${index + 1}`);
 
@@ -130,6 +131,9 @@ void test('a map boss waits for the challenger conversation before spawning', ()
 void test('the chart contains only basic paths and two or three element effects', (): void => {
   const content = moyuContent(loadContent());
   assert.equal(canAllocate(content, [], 1, 'base-金-1'), true);
+  assert.equal(moyuRequirements(['base-金-1', 'base-木-1'], 'word-流血'), false);
+  assert.equal(moyuRequirements([...points('金', 3), 'base-木-1'], 'word-流血'), true);
+  assert.equal(canAllocate(content, [...points('金', 3), 'base-土-1'], 1, 'word-破甲'), true);
   assert.equal(hotWeapon('armament-手枪-快膛'), true);
   assert.equal(canAllocate(content, [], 1, 'armament-手枪-快膛'), false);
   assert.equal(moyuRequirements(['gate-金'], 'socket-金木'), false);
@@ -145,7 +149,9 @@ void test('the chart contains only basic paths and two or three element effects'
   assert.equal(armed.delivery.type, 'arc');
   assert.equal(armed.damage.weaponPercent, base.damage.weaponPercent);
   const second = resolveSkill(content, must(content.skills.get('thunderclap'), 'thunderclap'), ['word-流血'], [], sword.variants, 'blade');
-  assert.notEqual(armed.vfx.style, second.vfx.style);
+  assert.equal(armed.moyuCombo, 'word-流血');
+  assert.equal(second.moyuCombo, 'word-流血');
+  assert.notEqual(armed.name, second.name);
   assert.notEqual(armed.vfx.color, resolveSkill(content, base, ['word-破甲'], [], sword.variants, 'blade').vfx.color);
 });
 
@@ -154,9 +160,10 @@ void test('base points use combat mechanics rather than generic skill bonuses an
   const base = must(content.skills.get('cleave'), 'cleave');
   const gold = resolveSkill(content, base, ['base-金-1']);
   assert.equal(gold.damage.weaponPercent, base.damage.weaponPercent);
-  assert.equal(gold.vfx.color, moyuSkillEffect(['base-金-1'])?.color);
+  assert.equal(gold.vfx.color, base.vfx.color);
+  assert.equal(gold.moyuCombo, undefined);
   const elements = ['金', '木', '水', '火', '土'];
-  const combinations = content.skillTree.filter((node) => node.id.startsWith('word-') || node.id.startsWith('confluence-'));
+  const combinations = content.skillTree.filter((node) => node.id.startsWith('word-'));
   const colors = new Map<string, string>();
   for (const node of combinations) {
     const effect = must(moyuSkillEffect([node.id]), node.id);
@@ -164,12 +171,72 @@ void test('base points use combat mechanics rather than generic skill bonuses an
     assert.equal(resolveSkill(content, base, [node.id]).vfx.color, effect.color);
   }
   assert.equal(new Set(colors.values()).size, colors.size);
+  assert.equal(new Set(combinations.map((node): string => must(moyuSkillEffect([node.id]), node.id).color)).size, combinations.length);
   for (const element of elements) {
     const effect = must(moyuSkillEffect([`base-${element}-1`]), element);
     assert.equal(effect.count, 1);
     assert.equal(colors.has(effect.label), false);
   }
-  assert.equal(resolveSkill(content, base, ['synergy-血芽']).vfx.color, moyuSkillEffect(['synergy-血芽'])?.color);
+  assert.equal(resolveSkill(content, base, ['synergy-血芽']).vfx.color, base.vfx.color);
+});
+
+void test('each weapon action can keep a different unlocked combination through a save', (): void => {
+  const content = moyuContent(loadContent());
+  const world = createWorld(content, { seed: 32, save: null, opening: false });
+  world.player.allocated = [...points('金', 3), 'base-木-1', 'base-土-1', 'word-流血', 'word-破甲'];
+  world.player.changes = {};
+  const first = must(content.skills.get('cleave'), 'first');
+  const second = must(content.skills.get('thunderclap'), 'second');
+  const sword = must(content.itemBases.get('rusted_blade'), 'sword');
+  const original = resolveSkill(content, first, world.player.allocated, [], sword.variants, 'blade', world.player.changes);
+  assert.equal(original.moyuCombo, 'word-流血');
+  stepWorld(world, [{ type: 'moyu_bind', skill: 'cleave', combo: 'word-破甲' }, { type: 'moyu_bind', skill: 'thunderclap', combo: 'word-流血' }], 1 / 30);
+  const slash = resolveSkill(content, first, world.player.allocated, [], sword.variants, 'blade', world.player.changes);
+  const sweep = resolveSkill(content, second, world.player.allocated, [], sword.variants, 'blade', world.player.changes);
+  assert.equal(slash.moyuCombo, 'word-破甲');
+  assert.equal(sweep.moyuCombo, 'word-流血');
+  assert.notEqual(slash.vfx.color, sweep.vfx.color);
+  assert.notEqual(sweep.burn, null);
+  world.player.level = 10;
+  const restored = readSave(content, toSave(world));
+  assert.equal(restored?.changes['moyu:cleave'], 'word-破甲');
+  assert.equal(restored.changes['moyu:thunderclap'], 'word-流血');
+});
+
+void test('equipped combinations change combat timing and target control', (): void => {
+  const content = moyuContent(loadContent());
+  const world = createWorld(content, { seed: 33, save: null, opening: false });
+  const target = spawnMonster(world, must(content.monsters.get('wolf'), 'wolf'), world.nextPackId, { x: world.player.pos.x + 2, z: world.player.pos.z }, { summonerId: null, scatter: 0, revived: false, level: 1 });
+  const base = must(content.skills.get('cleave'), 'cleave');
+  const frost = resolveSkill(content, base, ['word-冰封']);
+  moyuComboHit(world, target, frost);
+  moyuComboHit(world, target, frost);
+  assert.equal(target.tempo, 1);
+  moyuComboHit(world, target, frost);
+  assert.equal(target.tempo, 0);
+  assert.equal(target.tempoTime > 0, true);
+  const guard = resolveSkill(content, base, ['word-破甲']);
+  assert.equal(moyuComboDamage(world, guard, true) > 1, true);
+  assert.equal(moyuComboDamage(world, guard, false), 1);
+});
+
+void test('sword actions gain their own combination interactions', (): void => {
+  const content = moyuContent(loadContent());
+  const world = createWorld(content, { seed: 34, save: null, opening: false });
+  const target = spawnMonster(world, must(content.monsters.get('wolf'), 'wolf'), world.nextPackId, { x: world.player.pos.x + 2, z: world.player.pos.z }, { summonerId: null, scatter: 0, revived: false, level: 1 });
+  const sword = must(content.itemBases.get('rusted_blade'), 'sword');
+  const combo = ['word-锋锐', 'word-净化'];
+  const slash = resolveSkill(content, must(content.skills.get('thunderclap'), 'slash'), combo, [], sword.variants, sword.weaponKind, { 'moyu:thunderclap': 'word-锋锐' });
+  const counter = resolveSkill(content, must(content.skills.get('storm_bolt'), 'counter'), combo, [], sword.variants, sword.weaponKind, { 'moyu:storm_bolt': 'word-净化' });
+  assert.equal(slash.name, '连斩');
+  assert.equal(counter.name, '格挡反击');
+  assert.ok(moyuComboDamage(world, slash, false, 0.35) > moyuComboDamage(world, slash, false, 0));
+  world.player.life = world.player.maxLife * 0.5;
+  world.player.cooldowns[counter.id] = 2;
+  const before = world.player.life;
+  moyuComboHit(world, target, counter, true);
+  assert.ok(world.player.life > before);
+  assert.ok((world.player.cooldowns[counter.id] ?? 2) < 2);
 });
 
 void test('five elements activate at three points and each changes a different combat event', (): void => {
