@@ -25,6 +25,7 @@ import { holdLine, openScale, strike } from './count.ts';
 import type { ActionState, Actor, BrandState, BurnState, GuardOutcome, ItemInstance, MonsterState, Offence, Team, World } from './types.ts';
 import { sameFloor } from './floors.ts';
 import { isMoyu } from '../content/moyu.ts';
+import { earthGuard, goldStrike, woodStrike } from './moyu-elements.ts';
 
 export const COMBAT = {
   guardedKnockback: 0.2,
@@ -180,7 +181,9 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
   if (!target.alive || (target.kind === 'player' && (target.invulnerable > 0 || attacksHeld(world)))) return false;
   const counter = target.kind === 'player' && target.action?.phase === 'windup' && target.action.skill.name === '格挡反击' ? target.action.skill : null;
   const guard: GuardOutcome = guardOutcome(target, skill, direction);
-  const guarded: number = guard === 'blocked' && target.kind === 'monster' ? (target.def.guard?.damageTaken ?? 1) : 1;
+  const pierce: number = offence.sourceId === world.player.id && target.kind === 'monster' ? goldStrike(world, target) : 0;
+  const guardedBase: number = guard === 'blocked' && target.kind === 'monster' ? (target.def.guard?.damageTaken ?? 1) : 1;
+  const guarded: number = guardedBase + (1 - guardedBase) * pierce;
   const weapon: number = world.rng.range(offence.damageMin, offence.damageMax) * (1 + offence.damagePercent) * skill.damage.weaponPercent;
   const flat: number = world.rng.range(skill.damage.flatMin, skill.damage.flatMax);
   const crit: boolean = world.rng.chance(offence.critChance);
@@ -189,7 +192,8 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
   const weakened: number = striker === null ? 1 : dealtScale(world, striker);
   const exposed: number = target.kind === 'monster' ? openScale(world, target) * collateralScale(offence, target) : 1;
   const behind = target.kind === 'monster' && skill.name === '背袭' && dot(directionOf(target.facing), direction) > 0.5 ? 1.8 : 1;
-  const rolled: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded * weakened * exposed * behind * (counter === null ? 1 : 0.1)));
+  const shield: number = target.kind === 'player' && offence.team === 'monster' ? earthGuard(world) : 1;
+  const rolled: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded * weakened * exposed * behind * shield * (counter === null ? 1 : 0.1)));
   const amount: number = target.kind === 'monster' ? holdLine(world, target, strike(world, target, rolled)) : isMoyu(world.content) && striker?.kind === 'monster' && striker.def.boss === null ? Math.min(rolled, Math.max(0, target.life - 1)) : rolled;
   target.life -= amount;
   if (counter !== null && striker?.kind === 'monster' && striker.alive) {
@@ -225,6 +229,7 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
   }
   if (!steady) knockBack(target, { x: direction.x * skill.knockback * poise, z: direction.z * skill.knockback * poise });
   mendSource(world, offence, target, skill);
+  if (offence.sourceId === world.player.id && target.kind === 'monster') woodStrike(world);
   const killed: boolean = target.life <= 0;
   world.events.push({
     type: 'damage',

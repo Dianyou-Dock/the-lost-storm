@@ -349,6 +349,17 @@ body {
   font-size: 14px;
 }
 
+.damage-number[class*='moyu-'] {
+  font-size: 16px;
+  text-shadow: 0 0 12px currentColor, 0 2px 5px #020409;
+}
+
+.damage-number.moyu-metal { color: #f4c44f; }
+.damage-number.moyu-wood { color: #51c878; }
+.damage-number.moyu-water { color: #429fe8; }
+.damage-number.moyu-fire { color: #ef6047; }
+.damage-number.moyu-earth { color: #b99a6b; }
+
 .damage-number.gold {
   color: #f6cf62;
   font-size: 15px;
@@ -594,4 +605,3 @@ body:has(.banner.zone) .exit-label span {
   background: rgba(30, 40, 58, 0.92);
   scale: 1.06;
 }
-

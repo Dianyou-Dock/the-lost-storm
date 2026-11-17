@@ -1,7 +1,7 @@
 import type { ArmourMaterial, Content, ItemBaseDef, ItemSlot, ItemUse, RarityDef } from '../../sim/content/types.ts';
 import { itemVerdict, readItem, readingLines, verdictParts } from '../../sim/item-reading.ts';
 import type { Headline, ItemReading, ReadingRow, Verdict, VerdictKind } from '../../sim/item-reading.ts';
-import { baseOf, itemName, rarityOf, slotOf } from '../../sim/items.ts';
+import { baseOf, itemName, moyuAffixStrength, rarityOf, slotOf } from '../../sim/items.ts';
 import { isMoyu } from '../../sim/content/moyu.ts';
 import { familyReading } from '../../sim/powers.ts';
 import type { FamilyPiece, FamilyReading } from '../../sim/powers.ts';
@@ -112,7 +112,7 @@ function itemCard(api: HudApi, item: ItemInstance, equipped: ItemInstance | null
     if (!rolled.affix.startsWith('moyu_')) continue;
     const element = rolled.affix.slice(5);
     const points = api.world.player.allocated.filter((id): boolean => id.startsWith(`base-${element}-`)).length;
-    label('tip-line use', `${element}行共鸣：${points} 点基础天赋，词条效果 +${points * 3}%`, root);
+    label('tip-line use', `${element}行核心机制强度 +${Math.round(moyuAffixStrength(rolled.affix, rolled.value) * 100)}%（${points}/3 点激活）`, root);
   }
   const use: ItemUse | null = base?.use ?? null;
   if (use !== null) label('tip-line use', USE_WORDS[use.type], root);

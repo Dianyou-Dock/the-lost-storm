@@ -123,6 +123,7 @@ export function allocateNode(world: World, nodeId: string): void {
   const player: PlayerState = world.player;
   if (!canAllocate(world.content, player.allocated, player.skillPoints, nodeId)) return;
   player.allocated.push(nodeId);
+  if (isMoyu(world.content)) delete player.moyuElements;
   player.skillPoints -= 1;
   const unlock: string | null = findNode(world.content, nodeId)?.unlock ?? null;
   if (unlock !== null) learn(world, unlock);
@@ -140,6 +141,7 @@ export function refundNode(world: World, nodeId: string): void {
   const player: PlayerState = world.player;
   if (!pay(world, refundState(world.content, player, nodeId), refundCost(world.content, player.level, 1))) return;
   player.allocated = player.allocated.filter((id: string): boolean => id !== nodeId);
+  if (isMoyu(world.content)) delete player.moyuElements;
   player.skillPoints += 1;
   player.changes = heldChanges(world.content, player.allocated, player.changes);
   const unlock: string | null = findNode(world.content, nodeId)?.unlock ?? null;
@@ -154,6 +156,7 @@ export function respecChart(world: World): void {
   player.freeReset = false;
   for (const skill of chartSkills(world.content, player.allocated)) forget(world, skill);
   player.allocated = [];
+  if (isMoyu(world.content)) delete player.moyuElements;
   player.changes = {};
   player.skillPoints += points;
   refreshPlayer(world);

@@ -424,6 +424,16 @@ export function createEffects(scene: Scene, particles: ParticleSystem, camera: I
         fires.take(event);
         storm.handle(event);
         switch (event.type) {
+          case 'moyu_element': {
+            const elementColors = { metal: '#f4c44f', wood: '#51c878', water: '#429fe8', fire: '#ef6047', earth: '#b99a6b' } as const;
+            const color = colorOf(elementColors[event.element]);
+            if (event.element === 'metal') spray(event.pos.x, 1.2, event.pos.z, color, 18, { speed: { min: 4, max: 9 }, lift: { min: 0.2, max: 1.5 }, life: { min: 0.15, max: 0.35 }, gravity: 4 });
+            else if (event.element === 'wood') spray(event.pos.x, 0.4, event.pos.z, color, 14, { speed: { min: 0.3, max: 1.2 }, lift: { min: 2, max: 5 }, life: { min: 0.45, max: 0.9 }, gravity: -1 });
+            else if (event.element === 'water') spray(event.pos.x, 0.8, event.pos.z, color, 18, { speed: { min: 1, max: 3 }, lift: { min: 0.1, max: 0.8 }, life: { min: 0.2, max: 0.5 }, gravity: 0 });
+            else if (event.element === 'fire') spray(event.pos.x, 0.6, event.pos.z, color, 22, { speed: { min: 1, max: 4 }, lift: { min: 3, max: 7 }, life: { min: 0.3, max: 0.7 }, gravity: -1 });
+            else spray(event.pos.x, 0.2, event.pos.z, color, 24, { speed: { min: 0.3, max: 2 }, lift: { min: 0.2, max: 1.2 }, life: { min: 0.4, max: 0.8 }, size: { min: 0.6, max: 1.3 }, gravity: 2 });
+            break;
+          }
           case 'skill_start':
             onSkillStart(event, world);
             break;

@@ -356,6 +356,8 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
       pending.push(...events);
       for (const event of events) {
         switch (event.type) {
+          case 'moyu_element':
+            break;
           case 'damage':
             if (event.targetTeam === 'player') globes.flashLife();
             break;

@@ -423,6 +423,9 @@ export function createOverlays(root: HTMLElement, camera: IsoCamera, hooks: Over
     handle(events: readonly WorldEvent[], world: World): void {
       for (const event of events) {
         switch (event.type) {
+          case 'moyu_element':
+            float(event.text, `moyu-${event.element}`, event.pos.x, floorUp(event.pos.x, 1.6, event.pos.z), event.pos.z);
+            break;
           case 'damage': {
             if (event.targetTeam !== 'player') targetBar.hit(event.targetId);
             if (event.amount === 0 && event.targetTeam === 'monster') break;

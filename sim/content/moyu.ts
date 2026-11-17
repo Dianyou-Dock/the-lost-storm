@@ -1,6 +1,6 @@
 import graph from '../../data/moyu-graph.json' with { type: 'json' };
 import zh from '../../src/i18n/zh.json' with { type: 'json' };
-import type { AffixDef, Content, ItemBaseDef, LineDef, MonsterDef, NpcDef, RarityDef, SkillDef, SkillMod, SkillTreeNodeDef, ZoneDef, ZonePack, ZonePoint } from './types.ts';
+import type { AffixDef, Content, ItemBaseDef, LineDef, MonsterDef, NpcDef, RarityDef, SkillDef, SkillTreeNodeDef, ZoneDef, ZonePack, ZonePoint } from './types.ts';
 
 export const MOYU_TITLE: string = '摸鱼之路 · 五行天赋图';
 export const MOYU_MAPS: readonly string[] = ['under_hall', 'under_hall_2', 'under_hall_3', 'lava_depths', 'lava_depths_2', 'ledger_hall', 'ledger_hall_2', 'ledger_hall_3'];
@@ -137,12 +137,12 @@ function actionSkill(original: SkillDef, kind: string, index: number, name: stri
     burn: null,
   };
 }
-const ELEMENT_BONUS: Readonly<Record<string, { readonly text: string; readonly field: SkillMod['field']; readonly value: number }>> = {
-  金: { text: '伤害 +2%', field: 'damagePercent', value: 0.02 },
-  木: { text: '命中回复生命 +0.3', field: 'lifeOnHit', value: 0.3 },
-  水: { text: '冷却时间 -2%', field: 'cooldownPercent', value: -0.02 },
-  火: { text: '范围 +2%', field: 'areaPercent', value: 0.02 },
-  土: { text: '削韧 +3%', field: 'staggerPercent', value: 0.03 },
+const ELEMENT_BONUS: Readonly<Record<string, string>> = {
+  金: '连续命中同一目标后，下一击穿透部分防护',
+  木: '连续命中积累生息，触发有间隔的生命恢复',
+  水: '交替使用不同技能时返还能量并缩短本次冷却',
+  火: '持续施放积累燃势，使第三次动作更快',
+  土: '施放技能获得守势，抵消下一次伤害；移动会加速消散',
 };
 
 export function isMoyu(content: Content): boolean {
@@ -192,12 +192,12 @@ function graphNodes(): SkillTreeNodeDef[] {
     const path: string = node.element ?? '金';
     const active: boolean = node.type !== 'base';
     const elements: readonly string[] = [node.element, node.support, node.third].filter((entry): entry is string => entry !== undefined);
-    const bonuses = elements.flatMap((element: string) => ELEMENT_BONUS[element] === undefined ? [] : [ELEMENT_BONUS[element]]);
+    const bonuses = elements.flatMap((element: string) => ELEMENT_BONUS[element] === undefined ? [] : [`${element}：${ELEMENT_BONUS[element]}`]);
     const baseDescription: string = node.desc.replace(/[。；]+$/, '');
     return {
       id: node.id,
       name: node.name,
-      description: active ? `${elements.join('·')}：${bonuses.map((bonus) => bonus.text).join('，')}。装备武器后应用到技能。` : `${baseDescription}；技能${bonuses.map((bonus) => bonus.text).join('，')}；同属性装备词条效果提高 3%。`,
+      description: active ? `${elements.join('·')}联动：强化${elements.join('、')}的核心机制。${bonuses.join('；')}。` : `${baseDescription}；${bonuses.join('；')}。累计 3 点基础天赋激活，5 点与 8 点强化。`,
       icon: 'focus',
       kind: active ? 'notable' : 'minor',
       path,
@@ -205,7 +205,7 @@ function graphNodes(): SkillTreeNodeDef[] {
       row: (point?.y ?? 950) / 72 - 950 / 72,
       requires: [...new Set<string>(links)],
       statMods: [],
-      skillMods: MOYU_SKILLS.flatMap((skill: string): SkillMod[] => bonuses.map((bonus): SkillMod => ({ target: { type: 'skill', skill }, field: bonus.field, value: bonus.value }))),
+      skillMods: [],
       variants: [],
       unlock: null,
       weapon: null,
@@ -304,12 +304,12 @@ function elementAffixes(content: Content): Map<string, AffixDef> {
   const slots: AffixDef['slots'] = ['weapon', 'head', 'chest', 'hands', 'legs', 'feet', 'charm'];
   const entries = [
     ['金', 'damagePercent', 'percent', 0.015, 0.05],
-    ['木', 'lifeRegen', 'add', 0.2, 0.8],
-    ['水', 'manaRegen', 'add', 0.2, 0.8],
+    ['木', 'lifeRegen', 'percent', 0.02, 0.05],
+    ['水', 'manaRegen', 'percent', 0.02, 0.05],
     ['火', 'attackSpeed', 'percent', 0.015, 0.05],
-    ['土', 'armour', 'add', 2, 7],
+    ['土', 'armour', 'percent', 0.02, 0.05],
   ] as const;
-  for (const [element, stat, op, min, max] of entries) affixes.set(`moyu_${element}`, { id: `moyu_${element}`, label: `${element}行`, slots, stat, op, min, max, perLevel: 0.035 });
+  for (const [element, stat, op, min, max] of entries) affixes.set(`moyu_${element}`, { id: `moyu_${element}`, label: `${element}行`, slots, stat, op, min, max, perLevel: 0.01 });
   return affixes;
 }
 

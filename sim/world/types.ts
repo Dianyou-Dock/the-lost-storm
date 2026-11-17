@@ -185,6 +185,18 @@ export interface PlayerState extends ActorState {
   gold: number;
   skillPoints: number;
   allocated: string[];
+  moyuElements?: {
+    goldTarget: number | null;
+    goldHits: number;
+    goldUntil: number;
+    woodHits: number;
+    woodReady: number;
+    waterLast: string | null;
+    fireHeat: number;
+    fireUntil: number;
+    earthCharges: number;
+    earthTime: number;
+  };
   changes: Record<string, string>;
   learned: string[];
   grantsTaken: string[];
@@ -539,6 +551,7 @@ export type ArmedWhere = 'bag' | 'ground';
 export type NoticeReason = 'wrong_weapon' | 'no_mana' | 'on_cooldown' | 'inventory_full' | 'flask_empty' | 'life_full' | 'mana_full' | 'no_gold' | 'stash_full' | 'legendary_limit' | 'portal_town' | 'portal_boss';
 
 export type WorldEvent =
+  | { readonly type: 'moyu_element'; readonly element: 'metal' | 'wood' | 'water' | 'fire' | 'earth'; readonly text: string; readonly pos: Vec2 }
   | { readonly type: 'skill_start'; readonly actorId: number; readonly skill: SkillDef; readonly direction: Vec2; readonly windup: number; readonly recovery: number }
   | { readonly type: 'skill_impact'; readonly actorId: number; readonly team: Team; readonly skill: SkillDef; readonly origin: Vec2; readonly direction: Vec2; readonly hits: number; readonly echo: boolean }
   | { readonly type: 'revive'; readonly monsterId: number; readonly corpseId: number; readonly by: number }

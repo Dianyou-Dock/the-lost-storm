@@ -45,7 +45,7 @@ function affixMods(content: Content, item: ItemInstance): StatMod[] {
   const mods: StatMod[] = [];
   for (const rolled of item.affixes) {
     const affix: AffixDef | undefined = content.affixes.get(rolled.affix);
-    if (affix !== undefined) mods.push({ stat: affix.stat, op: affix.op, value: rolled.value });
+    if (affix !== undefined && !(isMoyu(content) && rolled.affix.startsWith('moyu_'))) mods.push({ stat: affix.stat, op: affix.op, value: rolled.value });
   }
   return mods;
 }
@@ -83,8 +83,15 @@ export function itemLines(content: Content, item: ItemInstance): ItemLine[] {
   if (min !== undefined && max !== undefined) lines.push({ text: `${min.value}–${max.value} Damage`, source: 'implicit' });
   const rest: StatMod[] = implicit.filter((mod: StatMod): boolean => !(min !== undefined && max !== undefined && (mod === min || mod === max)));
   for (const mod of rest.toSorted((a: StatMod, b: StatMod): number => orderOf(a.stat) - orderOf(b.stat))) lines.push({ text: describeMod(mod), source: 'implicit' });
-  for (const line of rolledLines(content, item)) lines.push({ text: describeMod({ stat: line.affix.stat, op: line.affix.op, value: line.value }), source: 'affix' });
+  for (const line of rolledLines(content, item)) lines.push({ text: isMoyu(content) && line.affix.id.startsWith('moyu_') ? `${line.affix.label}核心机制强度 +${Math.round(moyuAffixStrength(line.affix.id, line.value) * 100)}%` : describeMod({ stat: line.affix.stat, op: line.affix.op, value: line.value }), source: 'affix' });
   return lines;
+}
+
+export function moyuAffixStrength(id: string, value: number): number {
+  // Older saves rolled regeneration as decimals and armour as whole points.
+  if ((id === 'moyu_木' || id === 'moyu_水') && value >= 0.2) return value / 10;
+  if (id === 'moyu_土' && value >= 1) return value / 100;
+  return value;
 }
 
 function rollAffixes(content: Content, rng: Rng, base: ItemBaseDef, rarity: RarityDef, level: number): RolledAffix[] {

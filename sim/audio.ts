@@ -85,6 +85,8 @@ function portalCues(audio: AudioDef, stage: PortalStage, position: Vec2): readon
 export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): readonly SoundCue[] {
   let found: readonly SoundCue[] = NONE;
   switch (event.type) {
+    case 'moyu_element':
+      break;
     case 'skill_start':
       found = bySkill(audio.skillStart, event.skill, positionOf(world, event.actorId), weaponOf(world, event.actorId));
       break;

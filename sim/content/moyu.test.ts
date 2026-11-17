@@ -11,9 +11,12 @@ import { must } from '../../test/support.ts';
 import { resolveSkill } from '../stats.ts';
 import { applyHit, offenceOf } from '../world/combat.ts';
 import { addToInventory } from '../world/character.ts';
-import { generateItem } from '../items.ts';
+import { generateItem, itemMods, moyuAffixStrength } from '../items.ts';
 import { createRng } from '../rng.ts';
 import { handleTrade, meetNpc, sellPrice } from '../world/trade.ts';
+import { earthGuard, elementPower, goldStrike, startElementSkill, stepMoyuElements, woodStrike } from '../world/moyu-elements.ts';
+
+const points = (element: string, count: number): string[] => Array.from({ length: count }, (_: unknown, index: number): string => `base-${element}-${index + 1}`);
 
 void test('portal content uses the five element chart without quests', (): void => {
   const content = moyuContent(loadContent());
@@ -129,26 +132,26 @@ void test('the chart contains only basic paths and two or three element effects'
   assert.equal(canAllocate(content, [], 1, 'armament-手枪-快膛'), false);
   assert.equal(moyuRequirements(['gate-金'], 'socket-金木'), false);
   assert.equal(content.skillTree.some((node) => node.id.startsWith('weapon-') || node.id.startsWith('hybrid-')), false);
-  assert.equal(content.skillTree.some((node) => node.id === 'word-流血' && node.skillMods.length > 0), true);
+  assert.equal(content.skillTree.every((node) => node.skillMods.length === 0), true);
   const base = must(content.skills.get('cleave'), 'cleave');
   const boosted = resolveSkill(content, base, ['word-流血']);
-  assert.equal(boosted.damage.weaponPercent > base.damage.weaponPercent, true);
-  assert.equal(boosted.lifeOnHit > base.lifeOnHit, true);
+  assert.equal(boosted.damage.weaponPercent, base.damage.weaponPercent);
+  assert.equal(boosted.lifeOnHit, base.lifeOnHit);
   const sword = must(content.itemBases.get('rusted_blade'), 'sword');
   const armed = resolveSkill(content, base, ['word-流血'], [], sword.variants, 'blade');
   assert.equal(armed.name, '突刺');
   assert.equal(armed.delivery.type, 'arc');
-  assert.equal(armed.damage.weaponPercent > base.damage.weaponPercent, true);
+  assert.equal(armed.damage.weaponPercent, base.damage.weaponPercent);
   const second = resolveSkill(content, must(content.skills.get('thunderclap'), 'thunderclap'), ['word-流血'], [], sword.variants, 'blade');
   assert.notEqual(armed.vfx.style, second.vfx.style);
   assert.notEqual(armed.vfx.color, resolveSkill(content, base, ['word-破甲'], [], sword.variants, 'blade').vfx.color);
 });
 
-void test('base points affect skills and every element mix has a stable distinct color', (): void => {
+void test('base points use combat mechanics rather than generic skill bonuses and every mix has a distinct color', (): void => {
   const content = moyuContent(loadContent());
   const base = must(content.skills.get('cleave'), 'cleave');
   const gold = resolveSkill(content, base, ['base-金-1']);
-  assert.equal(gold.damage.weaponPercent > base.damage.weaponPercent, true);
+  assert.equal(gold.damage.weaponPercent, base.damage.weaponPercent);
   assert.equal(gold.vfx.color, moyuSkillEffect(['base-金-1'])?.color);
   const elements = ['金', '木', '水', '火', '土'];
   const combinations = content.skillTree.filter((node) => node.id.startsWith('word-') || node.id.startsWith('confluence-'));
@@ -165,6 +168,67 @@ void test('base points affect skills and every element mix has a stable distinct
     assert.equal(colors.has(effect.label), false);
   }
   assert.equal(resolveSkill(content, base, ['synergy-血芽']).vfx.color, moyuSkillEffect(['synergy-血芽'])?.color);
+});
+
+void test('five elements activate at three points and each changes a different combat event', (): void => {
+  const content = moyuContent(loadContent());
+  const world = createWorld(content, { seed: 23, save: null, opening: false });
+  const player = world.player;
+  const target = spawnMonster(world, must(content.monsters.get('moyu_boss_under_hall'), 'boss'), world.nextPackId, { x: player.pos.x + 2, z: player.pos.z }, { summonerId: null, scatter: 0, revived: false, level: 1 });
+  player.allocated = points('金', 2);
+  assert.equal(elementPower(world, '金'), 0);
+  player.allocated = points('金', 3);
+  assert.equal(goldStrike(world, target), 0);
+  assert.equal(goldStrike(world, target), 0);
+  assert.ok(goldStrike(world, target) > 0);
+
+  player.allocated = points('木', 3);
+  player.life = player.maxLife - 20;
+  woodStrike(world);
+  woodStrike(world);
+  assert.equal(player.life, player.maxLife - 20);
+  woodStrike(world);
+  assert.ok(player.life > player.maxLife - 20);
+
+  const first = must(content.skills.get('cleave'), 'first skill');
+  const second = must(content.skills.get('thunderclap'), 'second skill');
+  player.allocated = points('水', 3);
+  player.mana = 20;
+  player.cooldowns[second.id] = second.cooldown;
+  startElementSkill(world, player, first);
+  assert.equal(player.mana, 20);
+  startElementSkill(world, player, second);
+  assert.notEqual(player.mana, 20);
+  assert.ok((player.cooldowns[second.id] ?? Infinity) < second.cooldown);
+
+  player.allocated = points('火', 3);
+  assert.equal(startElementSkill(world, player, first), 1);
+  assert.equal(startElementSkill(world, player, first), 1);
+  assert.ok(startElementSkill(world, player, first) < 1);
+
+  player.allocated = points('土', 3);
+  startElementSkill(world, player, first);
+  assert.ok(earthGuard(world) < 1);
+  assert.equal(earthGuard(world), 1);
+  startElementSkill(world, player, first);
+  player.moving = true;
+  stepMoyuElements(world, 2);
+  assert.equal(earthGuard(world), 1);
+});
+
+void test('element equipment strengthens only its matching unlocked mechanic', (): void => {
+  const content = moyuContent(loadContent());
+  const world = createWorld(content, { seed: 24, save: null, opening: false });
+  const item = { ...must(generateItem(content, createRng(24), 900, 1, 'rusted_blade', 'common'), 'sword'), affixes: [{ affix: 'moyu_金', value: 0.05 }] };
+  world.player.equipped.weapon = item;
+  world.player.allocated = ['base-金-1', 'base-金-2'];
+  assert.equal(elementPower(world, '金'), 0);
+  world.player.allocated.push('base-金-3');
+  assert.ok(elementPower(world, '金') > 1);
+  assert.equal(elementPower(world, '木'), 0);
+  assert.equal(itemMods(content, item).some((mod) => mod.stat === 'damagePercent'), false);
+  assert.equal(moyuAffixStrength('moyu_木', 0.5), 0.05);
+  assert.equal(moyuAffixStrength('moyu_土', 5), 0.05);
 });
 
 void test('the five element chart groups basic paths, two element effects and three element effects into clear rings', (): void => {

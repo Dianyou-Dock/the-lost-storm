@@ -493,6 +493,8 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       countLook.handle(events);
       for (const event of events) {
         switch (event.type) {
+          case 'moyu_element':
+            break;
           case 'skill_start':
             viewOf(event.actorId)?.startAction(event.skill.animation, event.windup, event.recovery);
             break;
