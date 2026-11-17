@@ -121,6 +121,10 @@
   will-change: auto;
 }
 
+.tree-panel.moyu .tree-board {
+  will-change: auto;
+}
+
 .tree-links {
   position: absolute;
   inset: 0;
@@ -650,5 +654,4 @@ body:has(.hud.chart-open) #overlays {
 .tree-tip-status.no_points {
   color: #d98572;
 }
-
 

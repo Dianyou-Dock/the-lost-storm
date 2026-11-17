@@ -68,10 +68,10 @@
   top: 50%;
   left: 50%;
   width: min(90vw, 560px);
-  max-height: min(80vh, 680px);
+  max-height: min(80dvh, 680px);
   box-sizing: border-box;
   padding: 16px;
-  overflow: auto;
+  overflow: hidden;
   transform: translate(-50%, -50%);
   border: 1px solid rgba(174, 209, 243, 0.46);
   border-radius: 12px;
@@ -81,7 +81,29 @@
 }
 
 .moyu-item-detail.shown {
-  display: block;
+  display: flex;
+  flex-direction: column;
+}
+
+.moyu-item-detail-head,
+.moyu-item-detail-actions {
+  flex: none;
+}
+
+.moyu-item-detail-status {
+  margin-left: auto;
+  color: #9fdbff;
+  font-size: 12px;
+  text-align: right;
+}
+
+.moyu-item-detail-body {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
 }
 
 .moyu-item-detail-head,
@@ -269,7 +291,11 @@
 
 .tree-panel.moyu .tree-viewport.searching .tree-track:not(.route),
 .tree-panel.moyu .tree-viewport.searching .tree-shade {
-  opacity: 0.12;
+  opacity: 0.4;
+}
+
+.tree-panel.moyu .tree-viewport.searching .tree-socket:not(.match) {
+  opacity: 0.7;
 }
 
 @media (max-width: 700px) {
@@ -289,7 +315,7 @@
 
   .moyu-item-detail {
     width: calc(100vw - 24px);
-    max-height: 76vh;
+    max-height: min(76dvh, calc(100dvh - 32px));
     padding: 14px;
   }
 

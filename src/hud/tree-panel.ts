@@ -36,7 +36,7 @@ import type { CardEvent, CardState, CardStep } from './tree-card.ts';
 const CHART = {
   unit: TREE_NODES.unit,
   margin: 4,
-  moyuMargin: 16,
+  moyuMargin: 6,
   dragThreshold: 5,
   velocityBlend: 0.35,
   wheelLine: 32,

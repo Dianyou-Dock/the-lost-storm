@@ -76,6 +76,7 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
   const detail: HTMLDivElement = el('div', 'moyu-item-detail', parent);
   const detailHead: HTMLDivElement = el('div', 'moyu-item-detail-head', detail);
   label('', '装备详情', detailHead);
+  const detailStatus: HTMLSpanElement = el('span', 'moyu-item-detail-status', detailHead);
   const cancel: HTMLButtonElement = el('button', '', detailHead);
   cancel.type = 'button';
   cancel.textContent = '取消';
@@ -119,7 +120,9 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
     clearPreview();
     const slot: ItemSlot | null = slotOf(context.api.world.content, item);
     const equipped: ItemInstance | null = index === null || slot === null ? null : context.api.world.player.equipped[slot];
+    detailStatus.textContent = index === null ? '当前装备' : equipped === null ? '背包物品' : '背包物品 · 右侧为当前装备';
     detailBody.replaceChildren(itemTooltip(context.api, item, equipped, index === null ? '双击卸下' : '双击装备 · 长按可丢弃'));
+    detailBody.scrollTop = 0;
     detailItem = item;
     detailIndex = index;
     const canSell: boolean = index !== null && context.api.world.service?.kind === 'vendor' && buysBack(context.api.world, item);
