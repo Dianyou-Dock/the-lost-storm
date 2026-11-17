@@ -63,7 +63,7 @@ export function createPlayerTradePanel(parent: HTMLElement, context: HudContext,
       uid = PLAYER_TRADE_PANEL.firstUid - uids.size;
       uids.set(item.id, uid);
     }
-    return { uid, base: item.base, rarity: item.rarity, level: item.level, affixes: item.affixes, ledger: item.id };
+    return { uid, base: item.base, rarity: item.rarity, level: item.level, affixes: item.affixes, ...(item.special === undefined ? {} : { special: item.special }), ledger: item.id };
   };
   const shown = (items: readonly TradeItem[]): readonly ItemInstance[] => items.filter((item: TradeItem): boolean => context.api.world.content.itemBases.has(item.base)).map(instanceOf);
 

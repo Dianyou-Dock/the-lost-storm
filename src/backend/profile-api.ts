@@ -3,6 +3,7 @@ import { isFields } from '../../sim/content/read.ts';
 import type { Content, ItemSlot } from '../../sim/content/types.ts';
 import { ITEM_SLOTS } from '../../sim/content/types.ts';
 import type { RolledAffix } from '../../sim/world/types.ts';
+import { isMoyuSpecial } from '../../sim/moyu-specials.ts';
 import { exchange } from './api.ts';
 import type { Answer, CharacterProfile, FetchFn, ProfileBuild, ProfileLookup, ProfileStats, WornItem } from './api.ts';
 
@@ -67,7 +68,9 @@ function readWorn(content: Content, value: unknown): WornItem | null {
   if (content.itemBases.get(base)?.slot !== slot || !content.rarities.some((entry): boolean => entry.id === rarity)) return null;
   const list: readonly unknown[] = affixes;
   const rolled: RolledAffix[] = list.map((entry: unknown): RolledAffix | null => readAffix(content, entry)).filter((entry: RolledAffix | null): entry is RolledAffix => entry !== null);
-  return { slot, base, rarity, level, affixes: rolled };
+  const special: unknown = value['special'];
+  if (special !== undefined && (rarity !== 'stormtouched' || !isMoyuSpecial(special))) return null;
+  return { slot, base, rarity, level, affixes: rolled, ...(isMoyuSpecial(special) ? { special } : {}) };
 }
 
 function readWornList(content: Content, value: unknown): readonly WornItem[] {

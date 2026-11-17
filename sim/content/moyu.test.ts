@@ -11,10 +11,12 @@ import { must } from '../../test/support.ts';
 import { resolveSkill } from '../stats.ts';
 import { applyHit, offenceOf } from '../world/combat.ts';
 import { addToInventory } from '../world/character.ts';
-import { generateItem, itemMods, moyuAffixStrength } from '../items.ts';
+import { generateItem, itemLines, itemMods, moyuAffixStrength } from '../items.ts';
 import { createRng } from '../rng.ts';
 import { handleTrade, meetNpc, sellPrice } from '../world/trade.ts';
-import { earthGuard, elementPower, goldStrike, startElementSkill, stepMoyuElements, woodStrike } from '../world/moyu-elements.ts';
+import { earthGuard, elementPower, goldStrike, legendaryEarthGuard, legendaryFireKill, legendaryGoldGuard, legendaryWoodHit, startElementSkill, stepMoyuElements, woodStrike } from '../world/moyu-elements.ts';
+import { moyuSpecialOf } from '../moyu-specials.ts';
+import { readLedgerItem } from '../../src/backend/ledger-read.ts';
 
 const points = (element: string, count: number): string[] => Array.from({ length: count }, (_: unknown, index: number): string => `base-${element}-${index + 1}`);
 
@@ -253,7 +255,63 @@ void test('farming equipment has five exact random affix tiers and respec is fre
     const item = must(generateItem(content, createRng(400 + count), count, 5, 'rusted_blade', rarity.id), rarity.id);
     assert.equal(item.affixes.length, count + 1);
     assert.equal(new Set(item.affixes.map((affix) => affix.affix)).size, count + 1);
+    const special = moyuSpecialOf(item);
+    if (rarity.id === 'stormtouched') {
+      assert.notEqual(special, null);
+      assert.ok(item.affixes.some((affix): boolean => affix.affix === `moyu_${special}`));
+      assert.equal(itemLines(content, item).filter((line): boolean => line.source === 'special').length, 1);
+    } else assert.equal(special, null);
   }
+});
+
+void test('legendary special survives a save and old legendary equipment gains a stable special', (): void => {
+  const content = moyuContent(loadContent());
+  const world = createWorld(content, { seed: 42, save: null, opening: false });
+  const item = must(generateItem(content, createRng(42), 910, 5, 'rusted_blade', 'stormtouched'), 'legendary');
+  world.player.equipped.weapon = item;
+  const saved = must(readSave(content, toSave(world)), 'saved game');
+  assert.equal(moyuSpecialOf(must(saved.equipped.weapon, 'restored weapon')), moyuSpecialOf(item));
+  const minted = must(readLedgerItem(content, { id: `itm_${'A'.repeat(22)}`, base: item.base, rarity: item.rarity, level: item.level, affixes: item.affixes, special: item.special }), 'minted equipment');
+  assert.equal(moyuSpecialOf(minted), moyuSpecialOf(item));
+  const old = { base: item.base, rarity: item.rarity, level: item.level, affixes: item.affixes };
+  assert.equal(moyuSpecialOf(old), moyuSpecialOf({ ...old }));
+  assert.notEqual(moyuSpecialOf(old), null);
+});
+
+void test('legendary combat effects trigger separately and gain power from matching points', (): void => {
+  const content = moyuContent(loadContent());
+  const world = createWorld(content, { seed: 43, save: null, opening: false });
+  const player = world.player;
+  const item = must(generateItem(content, createRng(43), 911, 5, 'rusted_blade', 'stormtouched'), 'legendary');
+  const target = spawnMonster(world, must(content.monsters.get('moyu_boss_under_hall'), 'boss'), world.nextPackId, { x: player.pos.x + 2, z: player.pos.z }, { summonerId: null, scatter: 0, revived: false, level: 1 });
+  player.equipped.weapon = { ...item, special: '金' };
+  player.mana = 10;
+  legendaryGoldGuard(world, target);
+  assert.equal(player.mana, 12);
+  legendaryGoldGuard(world, target);
+  assert.equal(player.mana, 12);
+  player.allocated = points('金', 3);
+  world.time += 3;
+  legendaryGoldGuard(world, target);
+  assert.equal(player.mana, 14.5);
+
+  player.equipped.weapon = { ...item, special: '木' };
+  player.life = player.maxLife * 0.4;
+  const low = player.life;
+  legendaryWoodHit(world);
+  assert.ok(player.life > low);
+  player.equipped.weapon = { ...item, special: '火' };
+  player.mana = 10;
+  legendaryFireKill(world);
+  assert.equal(player.mana, 14);
+  player.equipped.weapon = { ...item, special: '土' };
+  player.moving = false;
+  assert.equal(legendaryEarthGuard(world), 0.88);
+  player.equipped.weapon = { ...item, special: '水' };
+  player.mana = 10;
+  startElementSkill(world, player, must(content.skills.get('cleave'), 'cleave'));
+  startElementSkill(world, player, must(content.skills.get('thunderclap'), 'thunderclap'));
+  assert.equal(player.mana, 12);
 });
 
 void test('ordinary map monsters cannot finish the player while boss damage remains lethal', (): void => {

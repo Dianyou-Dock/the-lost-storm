@@ -1,5 +1,6 @@
 import { generateAtLeast, generateItem } from '../items.ts';
 import { createRng } from '../rng.ts';
+import { moyuSpecialOf } from '../moyu-specials.ts';
 import type { Rng } from '../rng.ts';
 import { ITEM_SLOTS } from '../content/types.ts';
 import type { ItemInstance, RolledAffix, World } from './types.ts';
@@ -32,6 +33,7 @@ export interface LedgerItem {
   readonly rarity: string;
   readonly level: number;
   readonly affixes: readonly RolledAffix[];
+  readonly special?: string;
 }
 
 export type PurseKind = 'list' | 'cancel' | 'buy' | 'collect';
@@ -128,6 +130,7 @@ export function takeClaims(world: World): readonly MintClaim[] {
 
 function sameRoll(item: ItemInstance, minted: LedgerItem): boolean {
   if (item.base !== minted.base || item.rarity !== minted.rarity || item.level !== minted.level || item.affixes.length !== minted.affixes.length) return false;
+  if (moyuSpecialOf(item) !== moyuSpecialOf(minted)) return false;
   return item.affixes.every((affix: RolledAffix, index: number): boolean => {
     const other: RolledAffix | undefined = minted.affixes[index];
     return other !== undefined && affix.affix === other.affix && affix.value === other.value;

@@ -16,6 +16,7 @@ import { adoptLearned, bankedReset, findNode, heldChanges, reachablePlaces } fro
 import type { AdoptedPlaces } from './progression.ts';
 import { placeLearned, readBar, readLearned, startingSkills } from './skill-book.ts';
 import { isMoyu } from './content/moyu.ts';
+import { moyuSpecialOf } from './moyu-specials.ts';
 import { grantIds } from './world/learning.ts';
 import { flaskCharges } from './world/flasks.ts';
 import { glitchToSave } from './world/glitch.ts';
@@ -152,9 +153,11 @@ function readItem(content: Content, value: unknown): ItemInstance | null {
   const list: readonly unknown[] = affixes;
   const rolled: RolledAffix[] = list.map((entry: unknown): RolledAffix | null => readAffix(content, entry)).filter((entry: RolledAffix | null): entry is RolledAffix => entry !== null);
   const minted: string | null = typeof ledger === 'string' && LEDGER_ID.test(ledger) ? ledger : null;
-  if (rolled.length === list.length) return { uid, base, rarity, level, affixes: rolled, ledger: minted };
+  const savedSpecial = value['special'];
+  const special = rarity === 'stormtouched' && isMoyu(content) ? moyuSpecialOf({ base, rarity, level, affixes: rolled, ...(typeof savedSpecial === 'string' ? { special: savedSpecial } : {}) }) : null;
+  if (rolled.length === list.length) return { uid, base, rarity, level, affixes: rolled, ...(special === null ? {} : { special }), ledger: minted };
   const fresh: ItemInstance | null = generateItem(content, createRng(uid), uid, level, base, rarity);
-  return { uid, base, rarity, level, affixes: fresh === null ? rolled : fresh.affixes, ledger: null };
+  return { uid, base, rarity, level, affixes: fresh === null ? rolled : fresh.affixes, ...(special === null ? {} : { special }), ledger: null };
 }
 
 function readEquipped(content: Content, value: unknown, inventory: (ItemInstance | null)[]): Worn {

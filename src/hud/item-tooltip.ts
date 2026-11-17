@@ -3,6 +3,7 @@ import { itemVerdict, readItem, readingLines, verdictParts } from '../../sim/ite
 import type { Headline, ItemReading, ReadingRow, Verdict, VerdictKind } from '../../sim/item-reading.ts';
 import { baseOf, itemName, moyuAffixStrength, rarityOf, slotOf } from '../../sim/items.ts';
 import { isMoyu } from '../../sim/content/moyu.ts';
+import { MOYU_SPECIALS, moyuSpecialOf } from '../../sim/moyu-specials.ts';
 import { familyReading } from '../../sim/powers.ts';
 import type { FamilyPiece, FamilyReading } from '../../sim/powers.ts';
 import type { ItemInstance } from '../../sim/world/types.ts';
@@ -114,6 +115,8 @@ function itemCard(api: HudApi, item: ItemInstance, equipped: ItemInstance | null
     const points = api.world.player.allocated.filter((id): boolean => id.startsWith(`base-${element}-`)).length;
     label('tip-line use', `${element}行核心机制强度 +${Math.round(moyuAffixStrength(rolled.affix, rolled.value) * 100)}%（${points}/3 点激活）`, root);
   }
+  const special = isMoyu(content) ? moyuSpecialOf(item) : null;
+  if (special !== null) label('tip-line use', `传说专属·${MOYU_SPECIALS[special].name}：${MOYU_SPECIALS[special].text}对应元素达到 3 点时，效果增强 25%。`, root);
   const use: ItemUse | null = base?.use ?? null;
   if (use !== null) label('tip-line use', USE_WORDS[use.type], root);
   const family: FamilyReading | null = familyReading(content, item, api.world.player.equipped);

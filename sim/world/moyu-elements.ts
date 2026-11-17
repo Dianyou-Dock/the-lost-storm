@@ -1,12 +1,21 @@
 import { isMoyu, moyuNode } from '../content/moyu.ts';
 import type { SkillDef } from '../content/types.ts';
 import { moyuAffixStrength } from '../items.ts';
+import { hasMoyuSpecial } from '../moyu-specials.ts';
 import type { MonsterState, PlayerState, World } from './types.ts';
 
 type Element = '金' | '木' | '水' | '火' | '土';
 type ElementLook = 'metal' | 'wood' | 'water' | 'fire' | 'earth';
 
 const LOOK: Readonly<Record<Element, ElementLook>> = { 金: 'metal', 木: 'wood', 水: 'water', 火: 'fire', 土: 'earth' };
+
+function legendary(world: World): NonNullable<PlayerState['moyuLegendary']> {
+  return world.player.moyuLegendary ??= { goldTarget: null, goldReady: 0, woodReady: 0, waterLast: null, waterReady: 0, fireReady: 0, earthReady: 0 };
+}
+
+function legendaryScale(world: World, element: Element): number {
+  return elementPower(world, element) > 0 ? 1.25 : 1;
+}
 
 function state(player: PlayerState): NonNullable<PlayerState['moyuElements']> {
   return player.moyuElements ??= {
@@ -46,6 +55,43 @@ export function goldStrike(world: World, target: MonsterState): number {
   return Math.min(0.6, 0.35 * power);
 }
 
+export function legendaryGoldGuard(world: World, target: MonsterState): void {
+  if (!hasMoyuSpecial(world, '金')) return;
+  const held = legendary(world);
+  if (held.goldTarget === target.id && world.time < held.goldReady) return;
+  held.goldTarget = target.id;
+  held.goldReady = world.time + 3;
+  world.player.mana = Math.min(world.player.stats.maxMana, world.player.mana + 2 * legendaryScale(world, '金'));
+  announce(world, '金', '断势回能', target.pos);
+}
+
+export function legendaryWoodHit(world: World): void {
+  if (!hasMoyuSpecial(world, '木') || world.player.life >= world.player.maxLife * 0.5) return;
+  const held = legendary(world);
+  if (world.time < held.woodReady) return;
+  held.woodReady = world.time + 5;
+  world.player.life = Math.min(world.player.maxLife, world.player.life + world.player.maxLife * 0.02 * legendaryScale(world, '木'));
+  announce(world, '木', '回春', world.player.pos);
+}
+
+export function legendaryFireKill(world: World): void {
+  if (!hasMoyuSpecial(world, '火')) return;
+  const held = legendary(world);
+  if (world.time < held.fireReady) return;
+  held.fireReady = world.time + 3;
+  world.player.mana = Math.min(world.player.stats.maxMana, world.player.mana + 4 * legendaryScale(world, '火'));
+  announce(world, '火', '余烬回能', world.player.pos);
+}
+
+export function legendaryEarthGuard(world: World): number {
+  if (!hasMoyuSpecial(world, '土') || world.player.moving) return 1;
+  const held = legendary(world);
+  if (world.time < held.earthReady) return 1;
+  held.earthReady = world.time + 5;
+  announce(world, '土', '磐石抵挡', world.player.pos);
+  return 1 - 0.12 * legendaryScale(world, '土');
+}
+
 export function woodStrike(world: World): void {
   const power: number = elementPower(world, '木');
   if (power === 0) return;
@@ -63,6 +109,15 @@ export function woodStrike(world: World): void {
 
 export function startElementSkill(world: World, player: PlayerState, skill: SkillDef): number {
   if (!isMoyu(world.content) || skill.delivery.type === 'dash') return 1;
+  if (hasMoyuSpecial(world, '水')) {
+    const held = legendary(world);
+    if (held.waterLast !== null && held.waterLast !== skill.id && world.time >= held.waterReady) {
+      player.mana = Math.min(player.stats.maxMana, player.mana + 2 * legendaryScale(world, '水'));
+      held.waterReady = world.time + 3;
+      announce(world, '水', '清流回能', player.pos);
+    }
+    held.waterLast = skill.id;
+  }
   const held = state(player);
   const water: number = elementPower(world, '水');
   if (water > 0 && held.waterLast !== null && held.waterLast !== skill.id) {

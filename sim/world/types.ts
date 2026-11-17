@@ -39,6 +39,7 @@ export interface ItemInstance {
   readonly rarity: string;
   readonly level: number;
   readonly affixes: readonly RolledAffix[];
+  readonly special?: string;
   readonly ledger: string | null;
 }
 
@@ -197,6 +198,7 @@ export interface PlayerState extends ActorState {
     earthCharges: number;
     earthTime: number;
   };
+  moyuLegendary?: { goldTarget: number | null; goldReady: number; woodReady: number; waterLast: string | null; waterReady: number; fireReady: number; earthReady: number };
   changes: Record<string, string>;
   learned: string[];
   grantsTaken: string[];
