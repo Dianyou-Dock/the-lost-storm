@@ -5,6 +5,7 @@ import { describeMod } from './stat-text.ts';
 import { armourReduction, computeStats, damagePerSecond, skillCycle } from './stats.ts';
 import { xpToNextLevel } from './progression.ts';
 import { heldGroup, heldPlace } from './weapons.ts';
+import { isMoyu } from './content/moyu.ts';
 import type { Equipment, PlayerState } from './world/types.ts';
 
 export interface Figure {
@@ -95,9 +96,14 @@ function skillModText(content: Content, mod: SkillMod): string {
 
 function treeBonuses(content: Content, allocated: readonly string[], held: string | null): SheetBonus[] {
   const bonuses: SheetBonus[] = [];
+  const moyu: boolean = isMoyu(content);
   for (const place of content.skillTree) {
     if (!allocated.includes(place.id)) continue;
     const node: SkillTreeNodeDef = heldPlace(content, place, held);
+    if (moyu) {
+      bonuses.push({ source: 'tree', text: `${node.name}：${node.description}` });
+      continue;
+    }
     const parts: string[] = [...node.statMods.map(describeMod), ...node.skillMods.map((mod: SkillMod): string => skillModText(content, mod))];
     bonuses.push({ source: 'tree', text: parts.length === 0 ? node.name : `${node.name}: ${parts.join(', ')}` });
   }

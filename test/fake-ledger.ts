@@ -21,6 +21,7 @@ export interface FakeLedgerItem {
   readonly rarity: string;
   readonly level: number;
   readonly affixes: ItemInstance['affixes'];
+  readonly special?: string;
 }
 
 export interface FakeLedgerAnswer {
@@ -87,7 +88,7 @@ export function createFakeLedger(content: Content): FakeLedger {
   const items: FakeLedgerItem[] = [];
   let nextTicket: number = 1;
   let nextItem: number = 1;
-  const view = (item: FakeLedgerItem): unknown => ({ id: item.id, base: item.base, rarity: item.rarity, level: item.level, affixes: item.affixes });
+  const view = (item: FakeLedgerItem): unknown => ({ id: item.id, base: item.base, rarity: item.rarity, level: item.level, affixes: item.affixes, ...(item.special === undefined ? {} : { special: item.special }) });
   const issue = (accountId: string, now: number): FakeLedgerAnswer => {
     for (const ticket of tickets) if (ticket.accountId === accountId && ticket.state === 'open' && ticket.issuedAt <= now - FAKE_TICKETS.lifeMs) ticket.state = 'expired';
     const open = (): FakeTicket[] => tickets.filter((ticket: FakeTicket): boolean => ticket.accountId === accountId && ticket.state === 'open');
@@ -111,7 +112,7 @@ export function createFakeLedger(content: Content): FakeLedger {
       ticket.state = 'refused';
       return refused(422, 'implausible_source');
     }
-    const item: FakeLedgerItem = { id: `itm_${String(nextItem).padStart(ID_CHARS, '0')}`, accountId, base: rolled.base, rarity: rolled.rarity, level: rolled.level, affixes: rolled.affixes };
+    const item: FakeLedgerItem = { id: `itm_${String(nextItem).padStart(ID_CHARS, '0')}`, accountId, base: rolled.base, rarity: rolled.rarity, level: rolled.level, affixes: rolled.affixes, ...(rolled.special === undefined ? {} : { special: rolled.special }) };
     nextItem += 1;
     items.push(item);
     ticket.state = 'minted';

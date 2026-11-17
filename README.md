@@ -1,5 +1,13 @@
 # The Lost Storm
 
+## 摸鱼之路离线刷图分支
+
+`npm run build:portal` 会构建 case-music 使用的“摸鱼之路”离线版本。这个版本从藏身处开始，移除任务链，点击“随机进图”可反复进入八张大型战斗地图；地图随角色等级开放，怪物等级随角色成长，每次进入都会重新生成怪物。每张图有回城和通往相邻地图的入口。每张地图深处有首领挑战者；与挑战者完成对话后，首领才会出现并开战，不会干扰普通刷图。首领随角色数值成长，击败后固定掉落一件魔法装备；自动战斗不会主动攻击首领。手机界面也有独立的刷图入口。
+
+离线版首次进入默认关闭游戏声音，避免盖过 case-music 正在播放的音乐。在游戏设置中取消静音后，选择会保存在本机，之后进入游戏沿用该选择。
+
+五行天赋图保留基础路径和双属性、三属性效果，共 155 个节点，支持配比前置、50 点上限和存档。等级提供 40 点，初始及八张地图的首次发现合计提供 10 点。节点直接强化当前武器的攻击动作；六类冷兵器各显示对应的动作名称，技能栏默认开放三个攻击动作和翻滚。热兵器、武器专属天赋与复杂联动节点暂时不在图中。
+
 ## Play it now: [theloststorm.com](https://theloststorm.com)
 
 Free, in your browser, on a computer or a phone. Nothing to install and no account needed: open [theloststorm.com](https://theloststorm.com) and press play.

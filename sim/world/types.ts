@@ -39,6 +39,7 @@ export interface ItemInstance {
   readonly rarity: string;
   readonly level: number;
   readonly affixes: readonly RolledAffix[];
+  readonly special?: string;
   readonly ledger: string | null;
 }
 
@@ -185,6 +186,20 @@ export interface PlayerState extends ActorState {
   gold: number;
   skillPoints: number;
   allocated: string[];
+  moyuElements?: {
+    goldTarget: number | null;
+    goldHits: number;
+    goldUntil: number;
+    woodHits: number;
+    woodReady: number;
+    waterLast: string | null;
+    fireHeat: number;
+    fireUntil: number;
+    earthCharges: number;
+    earthTime: number;
+  };
+  moyuLegendary?: { goldTarget: number | null; goldReady: number; woodReady: number; waterLast: string | null; waterReady: number; fireReady: number; earthReady: number };
+  moyuComboState?: { hits: Record<string, number>; ready: Record<string, number>; sharp: boolean };
   changes: Record<string, string>;
   learned: string[];
   grantsTaken: string[];
@@ -387,6 +402,12 @@ export interface ChooseChangeCommand {
   readonly becomes: string;
 }
 
+export interface MoyuBindCommand {
+  readonly type: 'moyu_bind';
+  readonly skill: string;
+  readonly combo: string;
+}
+
 export interface TravelCommand {
   readonly type: 'travel';
   readonly exit: string;
@@ -419,7 +440,6 @@ export interface TeleportCommand {
   readonly type: 'teleport';
   readonly zone: string;
 }
-
 export type RespawnChoice = 'checkpoint' | 'town';
 
 export interface RespawnCommand {
@@ -478,6 +498,7 @@ export interface OpenChest {
 export type TradeAction =
   | { readonly type: 'buy'; readonly index: number }
   | { readonly type: 'sell'; readonly inventoryIndex: number }
+  | { readonly type: 'sell_all' }
   | { readonly type: 'buy_back'; readonly index: number }
   | { readonly type: 'buy_good'; readonly index: number }
   | { readonly type: 'stash'; readonly inventoryIndex: number }
@@ -510,7 +531,7 @@ export interface OverlayCommand {
   readonly open: boolean;
 }
 
-export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | ChooseChangeCommand | TravelCommand | TalkCommand | AdvanceCommand | ReplayCommand | TeleportCommand | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand | UseItemCommand | EnterPortalCommand;
+export type Command = HeroCommand | StrikeCommand | SpawnCommand | SlotCommand | HoldCommand | SteerCommand | GlitchCommand | GlitchSettingCommand | OverlayCommand | ReadCommand | MoveCommand | WalkCommand | SkillCommand | PickupCommand | StopCommand | EquipCommand | UnequipCommand | DropCommand | AllocateCommand | RefundCommand | RespecCommand | ChooseChangeCommand | MoyuBindCommand | TravelCommand | TalkCommand | AdvanceCommand | ReplayCommand | TeleportCommand | { readonly type: 'random_map' } | { readonly type: 'return_home' } | RespawnCommand | FlaskCommand | UseCommand | OpenChest | TradeCommand | PurseCommand | UseItemCommand | EnterPortalCommand;
 
 export interface StartRespawn {
   readonly type: 'start';
@@ -539,6 +560,7 @@ export type ArmedWhere = 'bag' | 'ground';
 export type NoticeReason = 'wrong_weapon' | 'no_mana' | 'on_cooldown' | 'inventory_full' | 'flask_empty' | 'life_full' | 'mana_full' | 'no_gold' | 'stash_full' | 'legendary_limit' | 'portal_town' | 'portal_boss';
 
 export type WorldEvent =
+  | { readonly type: 'moyu_element'; readonly element: 'metal' | 'wood' | 'water' | 'fire' | 'earth'; readonly text: string; readonly pos: Vec2 }
   | { readonly type: 'skill_start'; readonly actorId: number; readonly skill: SkillDef; readonly direction: Vec2; readonly windup: number; readonly recovery: number }
   | { readonly type: 'skill_impact'; readonly actorId: number; readonly team: Team; readonly skill: SkillDef; readonly origin: Vec2; readonly direction: Vec2; readonly hits: number; readonly echo: boolean }
   | { readonly type: 'revive'; readonly monsterId: number; readonly corpseId: number; readonly by: number }

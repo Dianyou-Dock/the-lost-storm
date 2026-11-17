@@ -14,7 +14,8 @@ export function createAutoCombat(root: HTMLElement, world: World, send: (command
   const buttons: readonly HTMLButtonElement[] = [desktop, mobile];
   const update = (): void => {
     for (const button of buttons) {
-      button.textContent = state.enabled ? '自动战斗：开' : '自动战斗：关';
+      button.textContent = state.enabled ? '自动刷图：开' : '自动刷图：关';
+      button.title = '自动寻找小怪、随机施放可用技能、拾取掉落并在低血量时使用药剂';
       button.setAttribute('aria-pressed', String(state.enabled));
       button.classList.toggle('open', state.enabled);
     }
@@ -26,6 +27,7 @@ export function createAutoCombat(root: HTMLElement, world: World, send: (command
       state.enabled = !state.enabled;
       state.focus = null;
       state.home = null;
+      state.lastSlot = null;
       state.delay = 0;
       update();
     });

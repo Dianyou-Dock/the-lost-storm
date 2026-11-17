@@ -132,6 +132,7 @@ export interface SkillCombo {
 }
 
 export interface SkillDef extends SkillShape, SkillEchoing {
+  readonly moyuCombo?: string;
   readonly id: string;
   readonly form: string;
   readonly name: string;

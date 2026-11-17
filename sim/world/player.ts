@@ -10,7 +10,7 @@ import { isWalkable, lineWalkable } from '../nav/grid.ts';
 import { directPath, findPath, nearFace } from '../nav/path.ts';
 import { blockerInReach, chasePath, chaseStalled, freshChase } from './chase.ts';
 import { pastBlocks, roundPast, stillRound } from './stick.ts';
-import { allocateNode, chooseChange, dropFromInventory, equipFromInventory, refundNode, respecChart, slotSkill, unequip } from './character.ts';
+import { allocateNode, bindMoyuCombo, chooseChange, dropFromInventory, equipFromInventory, refundNode, respecChart, slotSkill, unequip } from './character.ts';
 import { findActor } from './combat.ts';
 import { canDash, dashAim } from './dash.ts';
 import { respawnPlayer } from './death.ts';
@@ -32,7 +32,8 @@ import { chooseGait } from '../gait.ts';
 import type { GaitChoice } from '../gait.ts';
 import { chooseHero, HERO, heroRig } from '../hero.ts';
 import { stepWaypoints, teleport } from './waypoints.ts';
-import { findExit, stepCheckpoints, travelThrough } from './zones.ts';
+import { enterZone, findExit, stepCheckpoints, travelThrough } from './zones.ts';
+import { isMoyu, MOYU_MAPS } from '../content/moyu.ts';
 import { exitWaits } from './scene.ts';
 import type { PortalEnd } from './portal-types.ts';
 import { sameFloor } from './floors.ts';
@@ -236,6 +237,28 @@ function act(world: World, command: Command): void {
     case 'teleport':
       teleport(world, command.zone);
       return;
+    case 'random_map': {
+      if (!isMoyu(world.content)) return;
+      const choices: readonly string[] = MOYU_MAPS.filter((id: string): boolean => id !== world.zone.id && (world.content.zones.get(id)?.level ?? Number.POSITIVE_INFINITY) <= world.player.level + 2);
+      const id: string | undefined = choices[world.rng.int(0, choices.length - 1)];
+      const zone = id === undefined ? undefined : world.content.zones.get(id);
+      if (zone === undefined) return;
+      const from: string = world.zone.id;
+      world.portal = null;
+      enterZone(world, zone, { type: 'start' });
+      world.events.push({ type: 'zone_changed', from, to: zone.id });
+      return;
+    }
+    case 'return_home': {
+      if (!isMoyu(world.content) || world.zone.id === 'hideout') return;
+      const zone = world.content.zones.get('hideout');
+      if (zone === undefined) return;
+      const from: string = world.zone.id;
+      world.portal = null;
+      enterZone(world, zone, { type: 'start' });
+      world.events.push({ type: 'zone_changed', from, to: zone.id });
+      return;
+    }
     case 'enter_portal': {
       const end: PortalEnd | null = portalEndHere(world);
       if (end === null) return;
@@ -282,6 +305,7 @@ function act(world: World, command: Command): void {
     case 'refund':
     case 'respec':
     case 'choose_change':
+    case 'moyu_bind':
     case 'respawn':
     case 'use_item':
       return;
@@ -320,6 +344,9 @@ export function handleCommand(world: World, command: Command): void {
       return;
     case 'choose_change':
       chooseChange(world, command.skill, command.becomes);
+      return;
+    case 'moyu_bind':
+      bindMoyuCombo(world, command.skill, command.combo);
       return;
     case 'advance':
       advanceDialogue(world);
@@ -379,6 +406,8 @@ export function handleCommand(world: World, command: Command): void {
     case 'travel':
     case 'talk':
     case 'teleport':
+    case 'random_map':
+    case 'return_home':
     case 'enter_portal':
       if (!player.alive) return;
       if (command.type !== 'skill') closeDialogue(world, false);

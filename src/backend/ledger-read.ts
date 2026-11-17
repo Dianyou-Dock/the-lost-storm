@@ -4,6 +4,7 @@ import type { Content } from '../../sim/content/types.ts';
 import { LEDGER_ID } from '../../sim/world/ledger.ts';
 import type { LedgerItem } from '../../sim/world/ledger.ts';
 import type { RolledAffix } from '../../sim/world/types.ts';
+import { isMoyuSpecial } from '../../sim/moyu-specials.ts';
 
 export const LEDGER_READ: { readonly maxAffixes: number } = {
   maxAffixes: 16,
@@ -35,5 +36,7 @@ export function readLedgerItem(content: Content, value: unknown): LedgerItem | n
   const list: readonly unknown[] = affixes;
   const rolled: (RolledAffix | null)[] = list.map((entry: unknown): RolledAffix | null => readAffix(content, entry));
   if (!rolled.every((entry: RolledAffix | null): boolean => entry !== null)) return null;
-  return { id, base, rarity, level, affixes: rolled.filter((entry: RolledAffix | null): entry is RolledAffix => entry !== null) };
+  const special: unknown = value['special'];
+  if (special !== undefined && (rarity !== 'stormtouched' || !isMoyuSpecial(special))) return null;
+  return { id, base, rarity, level, affixes: rolled.filter((entry: RolledAffix | null): entry is RolledAffix => entry !== null), ...(isMoyuSpecial(special) ? { special } : {}) };
 }

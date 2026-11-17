@@ -24,7 +24,7 @@ export interface PathLabel {
 }
 
 function words(text: string): string[] {
-  return text.toLowerCase().split(/[^a-z0-9']+/).filter((word: string): boolean => word.length > 0);
+  return text.toLowerCase().split(/[^\p{L}\p{N}']+/u).filter((word: string): boolean => word.length > 0);
 }
 
 function searchText(content: Content, node: SkillTreeNodeDef): string {
@@ -35,7 +35,7 @@ function searchText(content: Content, node: SkillTreeNodeDef): string {
 
 export function chartMatches(content: Content, query: string): ReadonlySet<string> | null {
   const wanted: readonly string[] = words(query);
-  if (wanted.join('').length < CHART_MODEL.minQuery) return null;
+  if (wanted.join('').length < (content.chart.title === '摸鱼之路 · 五行天赋图' ? 1 : CHART_MODEL.minQuery)) return null;
   const found: Set<string> = new Set<string>();
   for (const node of content.skillTree) {
     const text: string = searchText(content, node);

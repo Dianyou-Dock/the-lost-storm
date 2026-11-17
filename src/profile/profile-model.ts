@@ -22,7 +22,7 @@ export interface ProfileFigure {
 export function profileSlots(profile: CharacterProfile, batch: number): readonly ProfileSlot[] {
   return ITEM_SLOTS.map((slot: ItemSlot, index: number): ProfileSlot => {
     const worn: WornItem | undefined = profile.worn.find((entry: WornItem): boolean => entry.slot === slot);
-    return { slot, item: worn === undefined ? null : { uid: PROFILE_MODEL.firstUid - batch * ITEM_SLOTS.length - index, base: worn.base, rarity: worn.rarity, level: worn.level, affixes: worn.affixes, ledger: null } };
+    return { slot, item: worn === undefined ? null : { uid: PROFILE_MODEL.firstUid - batch * ITEM_SLOTS.length - index, base: worn.base, rarity: worn.rarity, level: worn.level, affixes: worn.affixes, ...(worn.special === undefined ? {} : { special: worn.special }), ledger: null } };
   });
 }
 

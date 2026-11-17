@@ -1,5 +1,5 @@
 import type { AnimationClip, IUniform, Object3D } from 'three';
-import { AnimationMixer, BufferGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, MeshStandardMaterial, PropertyBinding, SkinnedMesh } from 'three';
+import { AnimationMixer, BufferGeometry, Color, Group, Material, Mesh, MeshBasicMaterial, MeshStandardMaterial, PointLight, PropertyBinding, SkinnedMesh } from 'three';
 import type { GLTF, GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { clone as cloneSkinned } from 'three/addons/utils/SkeletonUtils.js';
 import { boundSkins, disposeSkeletons } from './skeletons.ts';
@@ -95,6 +95,7 @@ export interface RigInstance {
   readonly mixer: AnimationMixer;
   readonly clips: RigClipSet;
   setGear(attachmentIds: readonly string[]): void;
+  setWeaponGlow(color: string | null, intensity: number): void;
   armed(): boolean;
   stance(): StanceClipSet | null;
   setWear(wearableIds: readonly string[], hiddenParts: readonly string[]): void;
@@ -119,6 +120,13 @@ export const CHARACTER = {
   featherTo: 0.8,
 } as const;
 
+export const WEAPON_GLOW = {
+  pair: 2.6,
+  triple: 3.6,
+  lightShare: 0.55,
+  lightDistance: 3,
+} as const;
+
 export const CHARACTER_SHADE: string = [
   '#include <emissivemap_fragment>',
   'float edgeFacing = clamp( 1.0 - dot( normal, normalize( vViewPosition ) ), 0.0, 1.0 );',
@@ -140,6 +148,8 @@ interface HeldPiece {
   readonly holder: Group;
   readonly size: number;
   readonly materials: MeshStandardMaterial[];
+  readonly natural: { readonly color: Color; readonly intensity: number }[];
+  lamp: PointLight | null;
   value: number;
   velocity: number;
   target: number;
@@ -558,6 +568,30 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
     return piece;
   };
   const heldMaterials = (): MeshStandardMaterial[] => [...held.values(), ...lettingGo].flatMap((piece: HeldPiece): MeshStandardMaterial[] => piece.materials);
+  let weaponColor: string | null = null;
+  let weaponIntensity: number = 0;
+  const paintWeapon = (piece: HeldPiece): void => {
+    piece.materials.forEach((material: MeshStandardMaterial, index: number): void => {
+      const natural = piece.natural[index];
+      if (weaponColor === null) {
+        if (natural !== undefined) {
+          material.emissive.copy(natural.color);
+          material.emissiveIntensity = natural.intensity;
+        }
+      } else {
+        material.emissive.set(weaponColor);
+        material.emissiveIntensity = weaponIntensity;
+      }
+    });
+    if (weaponColor !== null && piece.lamp === null) {
+      piece.lamp = new PointLight(weaponColor, 0, WEAPON_GLOW.lightDistance, 2);
+      piece.holder.add(piece.lamp);
+    }
+    if (piece.lamp !== null) {
+      if (weaponColor !== null) piece.lamp.color.set(weaponColor);
+      piece.lamp.intensity = weaponColor === null ? 0 : weaponIntensity * WEAPON_GLOW.lightShare;
+    }
+  };
   const release = (piece: HeldPiece): void => {
     piece.holder.removeFromParent();
     for (const material of piece.materials) material.dispose();
@@ -593,15 +627,23 @@ export function instantiateRig(rig: LoadedRig, library: CharacterLibrary, look: 
         const holder: Group = new Group();
         holder.position.set(socket.position[0], socket.position[1], socket.position[2]);
         holder.rotation.set(socket.rotationDegrees[0] * DEGREES, socket.rotationDegrees[1] * DEGREES, socket.rotationDegrees[2] * DEGREES);
-        const piece: HeldPiece = { holder, size: socket.scale, materials: [], value: instant ? 1 : 0, velocity: 0, target: 1 };
+        const piece: HeldPiece = { holder, size: socket.scale, materials: [], natural: [], lamp: null, value: instant ? 1 : 0, velocity: 0, target: 1 };
         holder.scale.setScalar(socket.scale * piece.value);
         const copy: Object3D = attachment.template.clone(true);
         if (look.ghost !== null) copy.traverse((object: Object3D): void => dress(object, look, glow, piece.materials));
         else shadeHeld(copy, glow, piece.materials);
+        for (const material of piece.materials) piece.natural.push({ color: material.emissive.clone(), intensity: material.emissiveIntensity });
+        paintWeapon(piece);
         holder.add(copy);
         bone.add(holder);
         held.set(id, piece);
       }
+    },
+    setWeaponGlow(color: string | null, intensity: number): void {
+      if (weaponColor === color && weaponIntensity === intensity) return;
+      weaponColor = color;
+      weaponIntensity = intensity;
+      for (const piece of held.values()) paintWeapon(piece);
     },
     armed(): boolean {
       return held.size > 0;

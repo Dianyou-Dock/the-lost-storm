@@ -139,6 +139,7 @@ export interface WornItem {
   readonly rarity: string;
   readonly level: number;
   readonly affixes: readonly RolledAffix[];
+  readonly special?: string;
 }
 
 export interface ProfileStats {

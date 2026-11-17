@@ -85,6 +85,8 @@ function portalCues(audio: AudioDef, stage: PortalStage, position: Vec2): readon
 export function cuesForEvent(audio: AudioDef, world: World, event: WorldEvent): readonly SoundCue[] {
   let found: readonly SoundCue[] = NONE;
   switch (event.type) {
+    case 'moyu_element':
+      break;
     case 'skill_start':
       found = bySkill(audio.skillStart, event.skill, positionOf(world, event.actorId), weaponOf(world, event.actorId));
       break;
@@ -264,6 +266,7 @@ export function uiActionForCommand(command: Command): UiAction | null {
     case 'refund':
     case 'respec':
     case 'choose_change':
+    case 'moyu_bind':
       action = 'skill_point';
       break;
     case 'equip':
@@ -288,6 +291,8 @@ export function uiActionForCommand(command: Command): UiAction | null {
     case 'advance':
     case 'replay':
     case 'teleport':
+    case 'random_map':
+    case 'return_home':
     case 'respawn':
     case 'flask':
     case 'use':

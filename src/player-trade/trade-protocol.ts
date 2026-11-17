@@ -1,6 +1,7 @@
 import type { Fields } from '../../sim/content/read.ts';
 import { isFields } from '../../sim/content/read.ts';
 import type { RolledAffix } from '../../sim/world/types.ts';
+import { isMoyuSpecial } from '../../sim/moyu-specials.ts';
 
 export const LIVE_TRADE_VERSION: number = 1;
 
@@ -30,6 +31,7 @@ export interface TradeItem {
   readonly rarity: string;
   readonly level: number;
   readonly affixes: readonly RolledAffix[];
+  readonly special?: string;
 }
 
 export interface TradeSide {
@@ -112,7 +114,9 @@ export function readTradeItem(value: unknown): TradeItem | null {
     if (affix === null) return null;
     rolled.push(affix);
   }
-  return { id, base, rarity, level, affixes: rolled };
+  const special: unknown = value['special'];
+  if (special !== undefined && (rarity !== 'stormtouched' || !isMoyuSpecial(special))) return null;
+  return { id, base, rarity, level, affixes: rolled, ...(isMoyuSpecial(special) ? { special } : {}) };
 }
 
 function readItems(value: unknown): readonly TradeItem[] | null {

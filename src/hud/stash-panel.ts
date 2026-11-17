@@ -19,7 +19,8 @@ export function createStashPanel(parent: HTMLElement, context: HudContext): Pane
   label('panel-title', 'Stash', head);
   const tally: HTMLDivElement = label('trade-role', '', head);
   const grid: HTMLDivElement = el('div', 'inv-grid stash-grid', element);
-  const cells: ItemCell[] = Array.from({ length: context.api.world.content.trade.stashSize }, (_: unknown, index: number): ItemCell => {
+  const cells: ItemCell[] = [];
+  const addCell = (index: number): void => {
     const view: ItemCell = createItemCell(context, grid, (): string => promptText(context.api.touch, use(STASH.hint)));
     const take = (): void => {
       if (view.current === null) return;
@@ -28,19 +29,21 @@ export function createStashPanel(parent: HTMLElement, context: HudContext): Pane
     };
     view.cell.addEventListener('click', take);
     view.cell.addEventListener('contextmenu', take);
-    return view;
-  });
+    cells.push(view);
+  };
+  for (let index = 0; index < context.api.world.stash.length; index += 1) addCell(index);
 
   return {
     element,
     refresh(): void {
       const world: World = context.api.world;
+      while (cells.length < world.stash.length) addCell(cells.length);
       let changed: boolean = false;
       for (const [index, view] of cells.entries()) {
         if (showItem(context, view, world.stash[index] ?? null)) changed = true;
       }
       const used: number = world.stash.filter((item: ItemInstance | null): boolean => item !== null).length;
-      setText(tally, `${used} / ${world.stash.length}`, changed);
+      setText(tally, `${used} · 无上限`, changed);
       if (changed) context.tooltip.hide();
     },
   };

@@ -1,4 +1,5 @@
 import type { MonsterDef, ZonePack } from '../content/types.ts';
+import { isMoyu } from '../content/moyu.ts';
 import type { Vec2 } from '../math.ts';
 import { nearestWalkable, routedGrid } from '../nav/grid.ts';
 import type { MonsterScale } from './monster-scale.ts';
@@ -50,7 +51,8 @@ export function spawnMonster(world: World, def: MonsterDef, packId: number, cent
   const reach: number = world.rng.range(0, origin.scatter);
   const wanted: Vec2 = { x: center.x + Math.cos(angle) * reach, z: center.z + Math.sin(angle) * reach };
   const pos: Vec2 = nearestWalkable(routedGrid(world.grid), wanted, SPAWN.spawnSnap) ?? { x: center.x, z: center.z };
-  const life: number = def.scalesLife ? Math.round(def.life * scale.life) : def.life;
+  const moyuBoss: boolean = isMoyu(world.content) && def.id === `moyu_boss_${world.zone.id}`;
+  const life: number = moyuBoss ? Math.round(world.player.maxLife * 2.4) : def.scalesLife ? Math.round(def.life * scale.life) : def.life;
   const monster: MonsterState = {
     kind: 'monster',
     unison: { seen: false, lookUntil: 0, flinchUntil: 0 },
@@ -58,8 +60,8 @@ export function spawnMonster(world: World, def: MonsterDef, packId: number, cent
     def,
     level,
     packId,
-    damageMin: def.damageMin * scale.damage,
-    damageMax: def.damageMax * scale.damage,
+    damageMin: moyuBoss ? world.player.maxLife * 0.12 : def.damageMin * scale.damage,
+    damageMax: moyuBoss ? world.player.maxLife * 0.19 : def.damageMax * scale.damage,
     home: { x: pos.x, z: pos.z },
     strafeSign: world.rng.chance(0.5) ? 1 : -1,
     pos,

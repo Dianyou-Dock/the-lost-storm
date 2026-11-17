@@ -5,6 +5,7 @@ import type { TradeGood } from '../content/trade-types.ts';
 import type { Vec2 } from '../math.ts';
 import { distance, facingOf } from '../math.ts';
 import { createRng, pickWeighted } from '../rng.ts';
+import { isMoyu } from '../content/moyu.ts';
 import { allHold } from './conditions.ts';
 import { hasNews, nextTalk, openDialogue } from './dialogue.ts';
 import type { ItemInstance, NoticeReason, NpcState, PlayerState, TradeAction, VendorStock, World } from './types.ts';
@@ -126,6 +127,10 @@ function changed(world: World): void {
 function receive(world: World, item: ItemInstance): boolean {
   const free: number = world.player.inventory.indexOf(null);
   if (free < 0) {
+    if (isMoyu(world.content)) {
+      world.player.inventory.push(item);
+      return true;
+    }
     notice(world, 'inventory_full');
     return false;
   }
@@ -186,6 +191,20 @@ function sell(world: World, vendor: VendorStock, inventoryIndex: number): void {
   changed(world);
 }
 
+function sellAll(world: World, vendor: VendorStock): void {
+  if (!isMoyu(world.content)) return;
+  const player: PlayerState = world.player;
+  let sold: boolean = false;
+  for (const [index, item] of player.inventory.entries()) {
+    if (item === null || !buysBack(world, item)) continue;
+    player.inventory[index] = null;
+    player.gold += sellPrice(world.content, item);
+    vendor.buyback = [item, ...vendor.buyback].slice(0, world.content.trade.buybackSize);
+    sold = true;
+  }
+  if (sold) changed(world);
+}
+
 function buyBack(world: World, vendor: VendorStock, index: number): void {
   const item: ItemInstance | undefined = vendor.buyback[index];
   if (item === undefined) return;
@@ -202,6 +221,12 @@ function stash(world: World, inventoryIndex: number): void {
   if (item === null) return;
   const free: number = world.stash.indexOf(null);
   if (free < 0) {
+    if (isMoyu(world.content)) {
+      world.stash.push(item);
+      player.inventory[inventoryIndex] = null;
+      changed(world);
+      return;
+    }
     notice(world, 'stash_full');
     return;
   }
@@ -230,6 +255,9 @@ export function handleTrade(world: World, action: TradeAction): void {
       return;
     case 'sell':
       if (vendor !== null) sell(world, vendor, action.inventoryIndex);
+      return;
+    case 'sell_all':
+      if (vendor !== null) sellAll(world, vendor);
       return;
     case 'buy_back':
       if (vendor !== null) buyBack(world, vendor, action.index);

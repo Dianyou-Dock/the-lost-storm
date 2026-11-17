@@ -29,6 +29,7 @@ export interface MobileSetup {
   readonly stage: Stage;
   readonly itemNames: ItemNames;
   readonly feedback: (() => void) | null;
+  send(command: Command): void;
   openMenu(): void;
 }
 
@@ -65,6 +66,7 @@ export function startMobile(boot: MobileBoot, setup: MobileSetup): Mobile {
         zoomBy: (wheelDelta: number): void => setup.camera.zoomBy(wheelDelta),
         itemNames: setup.itemNames,
         feedback: setup.feedback,
+        send: (command: Command): void => setup.send(command),
         openMenu: (): void => setup.openMenu(),
       })
     : null;

@@ -1,4 +1,5 @@
 import type { Content, SkillTreeNodeDef, SkillVariant, XpCurve, XpGap, XpReduction } from './content/types.ts';
+import { isMoyu, MOYU_ACTIONS, MOYU_UNBOUND, moyuComboChoices, moyuRequirements } from './content/moyu.ts';
 
 export interface XpResult {
   readonly level: number;
@@ -109,6 +110,11 @@ export function holdingTrunk(content: Content, allocated: readonly string[]): st
 export type JoinBlock = 'begin' | 'connect' | 'branch';
 
 export function joinBlock(content: Content, allocated: readonly string[], node: SkillTreeNodeDef): JoinBlock | null {
+  if (isMoyu(content)) {
+    if (isStartingPlace(node)) return null;
+    const near: readonly string[] = placeLinks(content).get(node.id) ?? [];
+    return near.some((id: string): boolean => allocated.includes(id)) ? null : 'connect';
+  }
   const trunk: readonly string[] = holdingTrunk(content, allocated);
   if (trunk.length === 0) return isStartingPlace(node) ? null : 'begin';
   const near: readonly string[] = placeLinks(content).get(node.id) ?? [];
@@ -121,12 +127,16 @@ export function offersChange(content: Content, allocated: readonly string[], ski
 }
 
 export function heldChanges(content: Content, allocated: readonly string[], changes: Readonly<Record<string, string>>): Record<string, string> {
-  return Object.fromEntries(Object.entries(changes).filter(([skill, becomes]: [string, string]): boolean => offersChange(content, allocated, skill, becomes)));
+  return Object.fromEntries(Object.entries(changes).filter(([skill, becomes]: [string, string]): boolean => {
+    if (isMoyu(content) && skill.startsWith('moyu:')) return MOYU_ACTIONS.includes(skill.slice(5)) && (becomes === MOYU_UNBOUND || moyuComboChoices(allocated).some((node): boolean => node.id === becomes));
+    return offersChange(content, allocated, skill, becomes);
+  }));
 }
 
 export function canAllocate(content: Content, allocated: readonly string[], skillPoints: number, nodeId: string): boolean {
   const node: SkillTreeNodeDef | null = findNode(content, nodeId);
   if (node === null || skillPoints <= 0 || allocated.includes(nodeId)) return false;
+  if (isMoyu(content) && !moyuRequirements(allocated, nodeId)) return false;
   return joinBlock(content, allocated, node) === null;
 }
 

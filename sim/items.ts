@@ -4,11 +4,14 @@ import { linesFor } from './content/item-rules.ts';
 import type { Rng } from './rng.ts';
 import { pickWeighted } from './rng.ts';
 import { describeMod, roundStat } from './stat-text.ts';
+import { isMoyu } from './content/moyu.ts';
+import { MOYU_SPECIALS, moyuSpecialOf, rollMoyuSpecial } from './moyu-specials.ts';
+import type { MoyuSpecial } from './moyu-specials.ts';
 import type { Equipment, ItemInstance, RolledAffix } from './world/types.ts';
 
 export interface ItemLine {
   readonly text: string;
-  readonly source: 'implicit' | 'affix';
+  readonly source: 'implicit' | 'affix' | 'special';
 }
 
 const FALLBACK_RARITY: RarityDef = { id: 'unknown', name: 'Unknown', color: '#9aa3ad', marker: 'none', weight: 0, affixMin: 0, affixMax: 0, powers: false, wornLimit: null };
@@ -44,7 +47,7 @@ function affixMods(content: Content, item: ItemInstance): StatMod[] {
   const mods: StatMod[] = [];
   for (const rolled of item.affixes) {
     const affix: AffixDef | undefined = content.affixes.get(rolled.affix);
-    if (affix !== undefined) mods.push({ stat: affix.stat, op: affix.op, value: rolled.value });
+    if (affix !== undefined && !(isMoyu(content) && rolled.affix.startsWith('moyu_'))) mods.push({ stat: affix.stat, op: affix.op, value: rolled.value });
   }
   return mods;
 }
@@ -82,14 +85,31 @@ export function itemLines(content: Content, item: ItemInstance): ItemLine[] {
   if (min !== undefined && max !== undefined) lines.push({ text: `${min.value}–${max.value} Damage`, source: 'implicit' });
   const rest: StatMod[] = implicit.filter((mod: StatMod): boolean => !(min !== undefined && max !== undefined && (mod === min || mod === max)));
   for (const mod of rest.toSorted((a: StatMod, b: StatMod): number => orderOf(a.stat) - orderOf(b.stat))) lines.push({ text: describeMod(mod), source: 'implicit' });
-  for (const line of rolledLines(content, item)) lines.push({ text: describeMod({ stat: line.affix.stat, op: line.affix.op, value: line.value }), source: 'affix' });
+  for (const line of rolledLines(content, item)) lines.push({ text: isMoyu(content) && line.affix.id.startsWith('moyu_') ? `${line.affix.label}核心机制强度 +${Math.round(moyuAffixStrength(line.affix.id, line.value) * 100)}%` : describeMod({ stat: line.affix.stat, op: line.affix.op, value: line.value }), source: 'affix' });
+  const special = isMoyu(content) ? moyuSpecialOf(item) : null;
+  if (special !== null) lines.push({ text: `传说专属·${MOYU_SPECIALS[special].name}：${MOYU_SPECIALS[special].text}`, source: 'special' });
   return lines;
 }
 
-function rollAffixes(content: Content, rng: Rng, base: ItemBaseDef, rarity: RarityDef, level: number): RolledAffix[] {
+export function moyuAffixStrength(id: string, value: number): number {
+  // Older saves rolled regeneration as decimals and armour as whole points.
+  if ((id === 'moyu_木' || id === 'moyu_水') && value >= 0.2) return value / 10;
+  if (id === 'moyu_土' && value >= 1) return value / 100;
+  return value;
+}
+
+function rollAffixes(content: Content, rng: Rng, base: ItemBaseDef, rarity: RarityDef, level: number, special: MoyuSpecial | null): RolledAffix[] {
   const pool: AffixDef[] = base.slot === null ? [] : [...linesFor(content, base.slot)];
   const wanted: number = rng.int(rarity.affixMin, rarity.affixMax);
   const rolled: RolledAffix[] = [];
+  if (special !== null) {
+    const forced = pool.find((affix): boolean => affix.id === `moyu_${special}`);
+    if (forced !== undefined) {
+      const scale = 1 + forced.perLevel * (level - 1);
+      rolled.push({ affix: forced.id, value: roundStat(forced.stat, forced.op, rng.range(forced.min, forced.max) * scale) });
+      for (let at = pool.length - 1; at >= 0; at -= 1) if (pool[at]?.stat === forced.stat) pool.splice(at, 1);
+    }
+  }
   while (rolled.length < wanted && pool.length > 0) {
     const index: number = rng.int(0, pool.length - 1);
     const affix: AffixDef | undefined = pool[index];
@@ -125,6 +145,7 @@ interface Pick {
 }
 
 function settle(content: Content, rng: Rng, level: number, base: ItemBaseDef, rarity: RarityDef, forced: boolean): Pick | null {
+  if (isMoyu(content)) return { base, rarity };
   if (base.power !== null) {
     const powered: RarityDef | null = poweredRarity(content);
     return powered === null ? null : { base, rarity: powered };
@@ -153,5 +174,6 @@ export function generateItem(content: Content, rng: Rng, uid: number, level: num
   if (base === null || rarity === null) return null;
   const pick: Pick | null = settle(content, rng, level, base, rarity, forcedBase !== null);
   if (pick === null) return null;
-  return { uid, base: pick.base.id, rarity: pick.rarity.id, level, affixes: rollAffixes(content, rng, pick.base, pick.rarity, level), ledger: null };
+  const special: MoyuSpecial | null = isMoyu(content) && pick.rarity.id === 'stormtouched' ? rollMoyuSpecial(rng) : null;
+  return { uid, base: pick.base.id, rarity: pick.rarity.id, level, affixes: rollAffixes(content, rng, pick.base, pick.rarity, level, special), ...(special === null ? {} : { special }), ledger: null };
 }

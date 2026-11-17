@@ -97,7 +97,7 @@ function removeLedger(world: World, ledger: string): boolean {
 }
 
 function unverifiedCopy(item: ItemInstance): ItemInstance {
-  return { uid: item.uid, base: item.base, rarity: item.rarity, level: item.level, affixes: item.affixes, ledger: null };
+  return { uid: item.uid, base: item.base, rarity: item.rarity, level: item.level, affixes: item.affixes, ...(item.special === undefined ? {} : { special: item.special }), ledger: null };
 }
 
 function clearedIn(item: ItemInstance, ledgers: ReadonlySet<string>): ItemInstance {
@@ -151,7 +151,7 @@ export function unverifyLedger(world: World, ids: readonly string[]): boolean {
 }
 
 function fromLedger(world: World, item: LedgerItem): ItemInstance {
-  const made: ItemInstance = { uid: world.nextItemUid, base: item.base, rarity: item.rarity, level: item.level, affixes: [...item.affixes], ledger: item.id };
+  const made: ItemInstance = { uid: world.nextItemUid, base: item.base, rarity: item.rarity, level: item.level, affixes: [...item.affixes], ...(item.special === undefined ? {} : { special: item.special }), ledger: item.id };
   world.nextItemUid += 1;
   return made;
 }

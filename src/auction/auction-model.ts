@@ -196,7 +196,7 @@ export function createShownItems(): ShownItems {
       const known: number | undefined = uids.get(item.id);
       const uid: number = known ?? -(uids.size + 1);
       if (known === undefined) uids.set(item.id, uid);
-      return { uid, base: item.base, rarity: item.rarity, level: item.level, affixes: item.affixes, ledger: item.id };
+      return { uid, base: item.base, rarity: item.rarity, level: item.level, affixes: item.affixes, ...(item.special === undefined ? {} : { special: item.special }), ledger: item.id };
     },
   };
 }

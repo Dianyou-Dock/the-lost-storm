@@ -22,8 +22,11 @@ import { steadied } from './momentum.ts';
 import { flinchTogether } from './unison.ts';
 import { dealtScale } from './weaken.ts';
 import { holdLine, openScale, strike } from './count.ts';
+import { moyuComboDamage, moyuComboHit } from './moyu-combos.ts';
 import type { ActionState, Actor, BrandState, BurnState, GuardOutcome, ItemInstance, MonsterState, Offence, Team, World } from './types.ts';
 import { sameFloor } from './floors.ts';
+import { isMoyu } from '../content/moyu.ts';
+import { earthGuard, goldStrike, legendaryEarthGuard, legendaryFireKill, legendaryGoldGuard, legendaryWoodHit, woodStrike } from './moyu-elements.ts';
 
 export const COMBAT = {
   guardedKnockback: 0.2,
@@ -175,10 +178,14 @@ function mendSource(world: World, offence: Offence, target: Actor, skill: SkillD
   source.life = Math.min(source.maxLife, source.life + skill.lifeOnHit);
 }
 
-export function applyHit(world: World, offence: Offence, target: Actor, skill: SkillDef, direction: ReadonlyVec2): boolean {
+export function applyHit(world: World, offence: Offence, target: Actor, skill: SkillDef, direction: ReadonlyVec2, countered: boolean = false): boolean {
   if (!target.alive || (target.kind === 'player' && (target.invulnerable > 0 || attacksHeld(world)))) return false;
+  const counter = target.kind === 'player' && target.action?.phase === 'windup' && target.action.skill.name === '格挡反击' ? target.action.skill : null;
   const guard: GuardOutcome = guardOutcome(target, skill, direction);
-  const guarded: number = guard === 'blocked' && target.kind === 'monster' ? (target.def.guard?.damageTaken ?? 1) : 1;
+  if (offence.sourceId === world.player.id && target.kind === 'monster' && guard === 'blocked') legendaryGoldGuard(world, target);
+  const pierce: number = offence.sourceId === world.player.id && target.kind === 'monster' ? goldStrike(world, target) : 0;
+  const guardedBase: number = guard === 'blocked' && target.kind === 'monster' ? (target.def.guard?.damageTaken ?? 1) : 1;
+  const guarded: number = guardedBase + (1 - guardedBase) * pierce;
   const weapon: number = world.rng.range(offence.damageMin, offence.damageMax) * (1 + offence.damagePercent) * skill.damage.weaponPercent;
   const flat: number = world.rng.range(skill.damage.flatMin, skill.damage.flatMax);
   const crit: boolean = world.rng.chance(offence.critChance);
@@ -186,9 +193,17 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
   const striker: Actor | null = findActor(world, offence.sourceId);
   const weakened: number = striker === null ? 1 : dealtScale(world, striker);
   const exposed: number = target.kind === 'monster' ? openScale(world, target) * collateralScale(offence, target) : 1;
-  const rolled: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded * weakened * exposed));
-  const amount: number = target.kind === 'monster' ? holdLine(world, target, strike(world, target, rolled)) : rolled;
+  const behind = target.kind === 'monster' && skill.name === '背袭' && dot(directionOf(target.facing), direction) > 0.5 ? 1.8 : 1;
+  const shield: number = target.kind === 'player' && offence.team === 'monster' ? earthGuard(world) * legendaryEarthGuard(world) : 1;
+  const comboScale = offence.sourceId === world.player.id && target.kind === 'monster' ? moyuComboDamage(world, skill, guard !== 'open', pierce) : 1;
+  const rolled: number = Math.max(1, Math.round((weapon + flat) * (crit ? offence.critMultiplier : 1) * mitigation * guarded * weakened * exposed * behind * shield * comboScale * (counter === null ? 1 : 0.1)));
+  const amount: number = target.kind === 'monster' ? holdLine(world, target, strike(world, target, rolled)) : isMoyu(world.content) && striker?.kind === 'monster' && striker.def.boss === null ? Math.min(rolled, Math.max(0, target.life - 1)) : rolled;
   target.life -= amount;
+  if (counter !== null && striker?.kind === 'monster' && striker.alive) {
+    const back = { x: -direction.x, z: -direction.z };
+    applyHit(world, offenceOf(target), striker, counter, back, true);
+    target.action = null;
+  }
   const poise: number = steadiness(target) * (guard === 'blocked' ? COMBAT.guardedKnockback : 1);
   const steady: boolean = steadied(target) || rollsSteady(target);
   if (skill.root > 0 && target.kind === 'player' && target.rootGrace <= 0 && !steady) {
@@ -217,6 +232,11 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
   }
   if (!steady) knockBack(target, { x: direction.x * skill.knockback * poise, z: direction.z * skill.knockback * poise });
   mendSource(world, offence, target, skill);
+  if (offence.sourceId === world.player.id && target.kind === 'monster') {
+    woodStrike(world);
+    legendaryWoodHit(world);
+    moyuComboHit(world, target, skill, countered);
+  }
   const killed: boolean = target.life <= 0;
   world.events.push({
     type: 'damage',
@@ -231,7 +251,10 @@ export function applyHit(world: World, offence: Offence, target: Actor, skill: S
     skill,
     burn: false,
   });
-  if (killed) kill(world, target, direction);
+  if (killed) {
+    if (offence.sourceId === world.player.id && target.kind === 'monster') legendaryFireKill(world);
+    kill(world, target, direction);
+  }
   else {
     ignite(world, offence, target, skill, amount);
     drench(world, target, skill);

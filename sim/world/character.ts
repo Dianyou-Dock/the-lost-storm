@@ -6,10 +6,12 @@ import type { XpResult } from '../progression.ts';
 import { assignSlot, chartSkills } from '../skill-book.ts';
 import { computeStats, modTargets, resolveSkillBar, variantChain } from '../stats.ts';
 import { heldGroup } from '../weapons.ts';
+import { isMoyu } from '../content/moyu.ts';
 import { buffMods, heldPowers, wornVariants, wouldPassLimit } from '../powers.ts';
 import { dropOnGround } from './ground.ts';
 import { forget, learn } from './learn.ts';
 import type { EmpowerState, ItemInstance, PlayerState, World } from './types.ts';
+import { MOYU_ACTIONS, MOYU_UNBOUND, moyuBindingKey, moyuComboChoices } from '../content/moyu.ts';
 
 export function refreshPlayer(world: World): void {
   const player: PlayerState = world.player;
@@ -61,9 +63,15 @@ export function grantXp(world: World, amount: number, reduced: XpReduction | nul
   world.events.push({ type: 'level_up', level: player.level });
 }
 
-export function addToInventory(player: PlayerState, item: ItemInstance): boolean {
+export function addToInventory(player: PlayerState, item: ItemInstance, unlimited: boolean = false): boolean {
   const free: number = player.inventory.indexOf(null);
-  if (free < 0) return false;
+  if (free < 0) {
+    if (unlimited) {
+      player.inventory.push(item);
+      return true;
+    }
+    return false;
+  }
   player.inventory[free] = item;
   return true;
 }
@@ -87,7 +95,7 @@ export function unequip(world: World, slot: ItemSlot): void {
   const player: PlayerState = world.player;
   const item: ItemInstance | null = player.equipped[slot];
   if (item === null) return;
-  if (!addToInventory(player, item)) {
+  if (!addToInventory(player, item, isMoyu(world.content))) {
     world.events.push({ type: 'notice', reason: 'inventory_full' });
     return;
   }
@@ -116,6 +124,7 @@ export function allocateNode(world: World, nodeId: string): void {
   const player: PlayerState = world.player;
   if (!canAllocate(world.content, player.allocated, player.skillPoints, nodeId)) return;
   player.allocated.push(nodeId);
+  if (isMoyu(world.content)) { delete player.moyuElements; delete player.moyuComboState; }
   player.skillPoints -= 1;
   const unlock: string | null = findNode(world.content, nodeId)?.unlock ?? null;
   if (unlock !== null) learn(world, unlock);
@@ -133,6 +142,7 @@ export function refundNode(world: World, nodeId: string): void {
   const player: PlayerState = world.player;
   if (!pay(world, refundState(world.content, player, nodeId), refundCost(world.content, player.level, 1))) return;
   player.allocated = player.allocated.filter((id: string): boolean => id !== nodeId);
+  if (isMoyu(world.content)) { delete player.moyuElements; delete player.moyuComboState; }
   player.skillPoints += 1;
   player.changes = heldChanges(world.content, player.allocated, player.changes);
   const unlock: string | null = findNode(world.content, nodeId)?.unlock ?? null;
@@ -147,6 +157,7 @@ export function respecChart(world: World): void {
   player.freeReset = false;
   for (const skill of chartSkills(world.content, player.allocated)) forget(world, skill);
   player.allocated = [];
+  if (isMoyu(world.content)) { delete player.moyuElements; delete player.moyuComboState; }
   player.changes = {};
   player.skillPoints += points;
   refreshPlayer(world);
@@ -156,5 +167,15 @@ export function chooseChange(world: World, skill: string, becomes: string): void
   const player: PlayerState = world.player;
   if (!offersChange(world.content, player.allocated, skill, becomes) || player.changes[skill] === becomes) return;
   player.changes = { ...player.changes, [skill]: becomes };
+  refreshPlayer(world);
+}
+
+export function bindMoyuCombo(world: World, skill: string, combo: string): void {
+  if (!isMoyu(world.content) || !MOYU_ACTIONS.includes(skill)) return;
+  if (combo !== MOYU_UNBOUND && !moyuComboChoices(world.player.allocated).some((node): boolean => node.id === combo)) return;
+  const key = moyuBindingKey(skill);
+  if (world.player.changes[key] === combo) return;
+  world.player.changes = { ...world.player.changes, [key]: combo };
+  delete world.player.moyuComboState;
   refreshPlayer(world);
 }

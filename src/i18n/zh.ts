@@ -17,6 +17,7 @@ const terminology: readonly (readonly [string, string])[] = [
   ['道奇', '闪避'],
   ['航路点', '传送点'],
   ['路径点', '传送点'],
+  ['接机', '拾取'],
 ];
 const overrides: Dictionary = {
   'A name, then who wakes': '取个名字，再选择角色',
@@ -28,18 +29,50 @@ const overrides: Dictionary = {
   'Critical Chance': '暴击率',
   'Critical chance': '暴击率',
   'Damage': '伤害',
+  'Maximum Life': '最大生命',
+  'Maximum Mana': '最大法力',
+  'Life Regenerated per Second': '每秒生命恢复',
+  'Mana Regenerated per Second': '每秒法力恢复',
+  'Minimum Damage': '最小伤害',
+  'Maximum Damage': '最大伤害',
+  'Attack Speed': '攻击速度',
+  'Critical Strike Chance': '暴击率',
+  'Critical Strike Damage': '暴击伤害',
+  'Movement Speed': '移动速度',
+  'Gold Found': '金币掉落',
+  'Storm Resistance': '风暴抗性',
+  'Frost Resistance': '冰霜抗性',
+  'Headgear': '头盔',
+  'Body Armour': '胸甲',
+  'Leggings': '护腿',
+  'Charm': '护符',
+  'Cloth': '布甲',
+  'Leather': '皮甲',
+  'Mail': '锁甲',
+  'Plate': '板甲',
+  'Better': '更强',
+  'Worse': '更弱',
+  'Trade': '交易',
+  'Same': '相当',
+  'Equipped': '已装备',
+  'average hit': '平均单次伤害',
+  'damage': '伤害',
+  'toughness': '生存',
+  'attack speed': '攻击速度',
   'Damage per second': '每秒伤害',
   'Drop?': '丢弃？',
   'Close Inventory': '关闭背包',
-  'Charm': '护符',
   'Biggest hit': '最高单次伤害',
+  'Bonuses': '属性加成',
   'Gold looted': '获得金币',
+  'Gold found': '金币掉落加成',
   'Critical multiplier': '暴击伤害倍率',
   'Storm resistance': '风暴抗性',
   'Freeze resistance': '冰冻抗性',
   'Deaths': '死亡次数',
   'Moments cleared': '已清除异变',
   'No points yet. Moments in the storm and each new level bring them.': '尚无天赋点。清除异变或升级可获得。',
+  'No bonuses yet': '暂无属性加成',
   'points': '点可用',
   'point': '点可用',
   'The Gathering Storm': '风暴聚集',
@@ -47,10 +80,19 @@ const overrides: Dictionary = {
   'The Long Shadow': '漫长暗影',
   'The Banked Fire': '蓄火',
   'The Echo': '回响',
+  'Time played': '游玩时间',
   'free': '免费',
   'Delete character': '删除角色',
   'Discord': 'Discord',
   'Flasks': '药剂',
+  'Stash': '仓库',
+  'Your bag': '你的背包',
+  'Dodge Roll': '闪避翻滚',
+  'Unverified': '未认证',
+  'Story items cannot be traded': '剧情物品不能交易',
+  'Only items in the ledger can be traded': '仅认证装备可交易',
+  'Open the skill tree from the top bar to choose a place': '点击顶部天赋按钮选择节点',
+  'Open the skill tree with T to choose a place': '按 T 打开天赋图选择节点',
   'Inventory is full': '背包已满',
   'Ladder': '天梯',
   'Life flask': '生命药剂',
@@ -86,11 +128,23 @@ function phrase(value: string): string {
   if (uses !== null) return `${phrase(uses[1] ?? '')}，剩余 ${uses[2]}/${uses[3]} 次`;
   const played: RegExpMatchArray | null = /^Played (\d+) min$/.exec(value);
   if (played !== null) return `已游玩 ${played[1]} 分钟`;
+  const playedHours: RegExpMatchArray | null = /^Played (\d+) h$/.exec(value);
+  if (playedHours !== null) return `已游玩 ${playedHours[1]} 小时`;
+  const bag: RegExpMatchArray | null = /^Your bag: (.+)$/.exec(value);
+  if (bag !== null) return `你的背包：${phrase(bag[1] ?? '')}`;
   const lastSeen: RegExpMatchArray | null = /^Last seen in (.+)$/.exec(value);
   if (lastSeen !== null) return `上次位于${phrase(lastSeen[1] ?? '')}`;
   const points: RegExpMatchArray | null = /^(\d+) points$/.exec(value);
   if (points !== null) return `${points[1]} 点可用`;
-  const stat: RegExpMatchArray | null = /^([+-]\d+(?:\.\d+)?%?) (.+)$/.exec(value);
+  const itemLevel: RegExpMatchArray | null = /^Item level (\d+)$/.exec(value);
+  if (itemLevel !== null) return `物品等级 ${itemLevel[1]}`;
+  const rarity: RegExpMatchArray | null = /^(普通|精良|优秀|史诗|传说) (.+)$/.exec(value);
+  if (rarity !== null) return `${rarity[1]} ${phrase(rarity[2] ?? '')}`;
+  const armourKind: RegExpMatchArray | null = /^(Cloth|Leather|Mail|Plate) (Headgear|Body Armour|Gloves|Leggings|Boots)$/.exec(value);
+  if (armourKind !== null) return `${phrase(armourKind[1] ?? '')}${phrase(armourKind[2] ?? '')}`;
+  const range: RegExpMatchArray | null = /^(\d+(?:\.\d+)?)–(\d+(?:\.\d+)?) Damage$/.exec(value);
+  if (range !== null) return `${range[1]}–${range[2]} 伤害`;
+  const stat: RegExpMatchArray | null = /^([+−-]\d+(?:\.\d+)?%?) (.+)$/.exec(value);
   if (stat !== null) return `${stat[1]} ${phrase(stat[2] ?? '')}`;
   if (value.includes(' · ')) return value.split(' · ').map(phrase).join(' · ');
   return value;
@@ -141,7 +195,7 @@ function subtree(node: Node): void {
 
 export function startLocalization(): void {
   document.documentElement.lang = 'zh-CN';
-  document.title = '失落风暴 · 离线版';
+  document.title = '摸鱼之路';
   const root: HTMLElement = document.body;
   subtree(root);
   const observer: MutationObserver = new MutationObserver((records: MutationRecord[]): void => {

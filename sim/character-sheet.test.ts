@@ -4,6 +4,7 @@ import { CLASSIC_BAR, must, worldIn } from '../test/support.ts';
 import { characterSheet } from './character-sheet.ts';
 import type { CharacterSheet, SheetSubject, SkillOffence } from './character-sheet.ts';
 import { loadContent } from './content/content.ts';
+import { moyuContent } from './content/moyu.ts';
 import type { Content } from './content/types.ts';
 import { emptyEquipment, generateItem } from './items.ts';
 import { createRng } from './rng.ts';
@@ -72,6 +73,16 @@ void test('tree skill modifiers reach the skill figures and the bonus list', ():
   const texts: string[] = sheet.bonuses.filter((bonus): boolean => bonus.source === 'tree').map((bonus): string => bonus.text);
   assert.equal(texts.length, 2);
   assert.equal(texts[1]?.startsWith('Rolling Thunder'), true);
+});
+
+void test('five element bonuses describe their effects in Chinese without repeating legacy skill names', (): void => {
+  const game: Content = moyuContent(content);
+  const wood = must(game.skillTree.find((node): boolean => node.name === '木 · 1'), 'wood point');
+  const sheet: CharacterSheet = characterSheet(game, { level: 1, xp: 0, equipped: emptyEquipment(), allocated: [wood.id], skills: [] });
+  const bonus: string = must(sheet.bonuses.find((entry): boolean => entry.source === 'tree'), 'wood bonus').text;
+  assert.match(bonus, /命中回复生命 \+0\.3/);
+  assert.doesNotMatch(bonus, /。；/);
+  assert.doesNotMatch(bonus, /lifeOnHit|Cleave|Thunderclap|Storm Bolt|Dodge Roll/);
 });
 
 void test('a tree place off the weapon in hand lists only the lines it still gives', (): void => {

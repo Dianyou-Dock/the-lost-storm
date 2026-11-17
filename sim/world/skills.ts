@@ -1,6 +1,8 @@
 import type { SkillLeap } from '../content/combat-types.ts';
 import type { PressDef } from '../content/shape-types.ts';
 import type { ComboStep, Delivery, ProjectileDelivery, SkillDef } from '../content/types.ts';
+import { isMoyu } from '../content/moyu.ts';
+import { startElementSkill } from './moyu-elements.ts';
 import type { ReadonlyVec2, Vec2 } from '../math.ts';
 import { DEGREES_TO_RADIANS, directionOf, dot, facingOf, normalize, rotate } from '../math.ts';
 import { isSolid, isWalkable, moveWithCollision } from '../nav/grid.ts';
@@ -154,10 +156,11 @@ export function startSkill(world: World, actor: Actor, requested: SkillDef, dire
   const skill: SkillDef = chainedSkill(actor, requested);
   const speed: number = actor.kind === 'player' && skill.scalesWithAttackSpeed ? effectiveAttackSpeed(actor.stats) : 1;
   const aim: Vec2 = normalize(direction, directionOf(actor.facing));
-  const windup: number = skill.delivery.type === 'dash' ? skill.delivery.duration : skill.windup / speed;
-  const recovery: number = skill.recovery / speed;
   payCost(actor, skill);
   actor.cooldowns[skill.id] = skill.cooldown;
+  const elementSpeed: number = actor.kind === 'player' ? startElementSkill(world, actor, skill) : 1;
+  const windup: number = skill.delivery.type === 'dash' ? skill.delivery.duration : skill.windup / speed * elementSpeed;
+  const recovery: number = skill.recovery / speed * elementSpeed;
   actor.facing = facingOf(aim);
   actor.moving = false;
   const planned: number = reachOf(skill, skill.leap, Math.hypot(direction.x, direction.z));
@@ -237,7 +240,10 @@ function strike(world: World, impact: Impact): number {
         if (gap > delivery.reach + target.radius || !sameFloor(world, origin, target.pos)) continue;
         const toward: Vec2 = normalize(offset, direction);
         if (gap > target.radius && dot(toward, direction) < minDot) continue;
-        if (applyHit(world, offence, target, skill, toward)) hits += 1;
+        if (applyHit(world, offence, target, skill, toward)) {
+          hits += 1;
+          if (isMoyu(world.content) && skill.category === 'single') break;
+        }
       }
       return hits;
     }
@@ -375,7 +381,7 @@ function finishWindup(world: World, actor: Actor, action: ActionState): void {
     action.phase = 'recovery';
     action.timeLeft += action.recovery;
   }
-  resolveImpact(world, actor, action, skill);
+  if (!(actor.kind === 'player' && skill.name === '格挡反击')) resolveImpact(world, actor, action, skill);
   if (actor.kind === 'player' && firePowers(world, { on: 'use', skill: action.skill, target: null, at: from })) refreshPlayer(world);
 }
 

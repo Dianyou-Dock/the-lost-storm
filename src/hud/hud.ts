@@ -8,6 +8,7 @@ import { createBrowserStore } from '../storage.ts';
 import { createHintStore } from '../hints-store.ts';
 import type { HintPanel } from '../../sim/content/hints.ts';
 import { onWaypoint } from '../../sim/world/waypoints.ts';
+import { isMoyu } from '../../sim/content/moyu.ts';
 import atlasCss from './atlas.css?inline';
 import { createBanners } from './banners.ts';
 import { armedLine } from './armed-line.ts';
@@ -56,6 +57,7 @@ import type { MapPanel } from './map-panel.ts';
 import { watchFit } from './fit-view.ts';
 import { createMenuButton, nextCalling } from './menu.ts';
 import menuCss from './menu.css?inline';
+import moyuCss from './moyu.css?inline';
 import { PICKUP_NOTE, pickupLine } from './pickup-notes.ts';
 import type { MenuButton } from './menu.ts';
 import panelsCss from './panels.css?inline';
@@ -123,7 +125,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
   root.classList.add('hud');
   const style: HTMLStyleElement = el('style', '', root);
   watchFit(root);
-  style.textContent = `${hudCss}\n${globesCss}\n${fpsCss}\n${bannersCss}\n${panelsCss}\n${volumeCss}\n${dialogueCss}\n${questsCss}\n${bossCss}\n${treeCss}\n${chartPlacesCss}\n${chartStormCss}\n${atlasCss}\n${characterCss}\n${deathCss}\n${flasksCss}\n${tradeCss}\n${auctionCss}\n${playerTradeCss}\n${dropdownCss}\n${contextCss}\n${stallCss}\n${elsewhereCss}\n${pickerCss}\n${menuCss}`;
+  style.textContent = `${hudCss}\n${globesCss}\n${fpsCss}\n${bannersCss}\n${panelsCss}\n${volumeCss}\n${dialogueCss}\n${questsCss}\n${bossCss}\n${treeCss}\n${chartPlacesCss}\n${chartStormCss}\n${atlasCss}\n${characterCss}\n${deathCss}\n${flasksCss}\n${tradeCss}\n${auctionCss}\n${playerTradeCss}\n${dropdownCss}\n${contextCss}\n${stallCss}\n${elsewhereCss}\n${pickerCss}\n${menuCss}\n${moyuCss}`;
   const hovered: Set<HTMLElement> = new Set<HTMLElement>();
   const track = (element: HTMLElement): void => {
     element.addEventListener('pointerenter', (): void => {
@@ -188,7 +190,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
   };
   let mapWanted: boolean = false;
 
-  const hints: Hints = createHints(bottom, loadHints(api.world.content), createHintStore(createBrowserStore()), (): ResolvedKeys => api.settings.keys(), (): ReadonlySet<HintPanel> => new Set<HintPanel>(HINT_PANELS.filter((id: HintPanel): boolean => isOpen(id))), api.touch);
+  const hints: Hints = createHints(bottom, isMoyu(api.world.content) ? { hints: [] } : loadHints(api.world.content), createHintStore(createBrowserStore()), (): ResolvedKeys => api.settings.keys(), (): ReadonlySet<HintPanel> => new Set<HintPanel>(HINT_PANELS.filter((id: HintPanel): boolean => isOpen(id))), api.touch);
   const pending: WorldEvent[] = [];
 
   const backdrop: HTMLDivElement = el('div', 'panel-backdrop', null);
@@ -253,8 +255,23 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
   buttons.inventory = createMenuButton(row, 'inventory', 'Inventory', keyOf('inventory'), (): void => fromRow((): void => toggle('inventory')), track);
   buttons.character = createMenuButton(row, 'character', 'Character', keyOf('character'), (): void => fromRow((): void => toggle('character')), track);
   const skillBar: SkillBar = createSkillBar(row, context, track);
-  buttons.tree = createMenuButton(row, 'tree', 'Skill Tree', keyOf('tree'), (): void => fromRow((): void => toggle('tree')), track);
+  buttons.tree = createMenuButton(row, 'tree', isMoyu(api.world.content) ? '五行天赋' : 'Skill Tree', keyOf('tree'), (): void => fromRow((): void => toggle('tree')), track);
   buttons.map = createMenuButton(row, 'map', 'Map', keyOf('map'), (): void => fromRow((): void => toggle('map')), track);
+  let returnHome: HTMLButtonElement | null = null;
+  if (isMoyu(api.world.content)) {
+    const randomMap: HTMLButtonElement = el('button', 'moyu-random-map', row);
+    randomMap.type = 'button';
+    randomMap.textContent = '随机进图';
+    randomMap.setAttribute('aria-label', '随机进入一张刷图地图');
+    randomMap.addEventListener('click', (): void => fromRow((): void => api.send({ type: 'random_map' })));
+    track(randomMap);
+    returnHome = el('button', 'moyu-return-home', row);
+    returnHome.type = 'button';
+    returnHome.textContent = '回城';
+    returnHome.setAttribute('aria-label', '返回藏身处');
+    returnHome.addEventListener('click', (): void => fromRow((): void => api.send({ type: 'return_home' })));
+    track(returnHome);
+  }
   const corner: HTMLDivElement = createVolumeButton(row, api.audio, track, (): void => fromRow((): void => api.openSettings('sound')));
   const feedback: (() => void) | null = api.feedback;
   if (feedback !== null) createFeedbackButton(corner, track, (): void => fromRow(feedback));
@@ -298,6 +315,7 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
     },
     update(dt: number, view: FrameView): void {
       const world = api.world;
+      if (returnHome !== null) returnHome.hidden = world.zone.id === 'hideout';
       if (warmWanted && warmWait-- <= 0) {
         warmWait = HUD_WARM.retryFrames;
         if (chartPanel.warm()) warmWanted = false;
@@ -338,6 +356,8 @@ export function createHud(root: HTMLElement, api: HudApi): Hud {
       pending.push(...events);
       for (const event of events) {
         switch (event.type) {
+          case 'moyu_element':
+            break;
           case 'damage':
             if (event.targetTeam === 'player') globes.flashLife();
             break;

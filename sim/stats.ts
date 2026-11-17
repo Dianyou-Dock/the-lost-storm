@@ -3,6 +3,7 @@ import { ITEM_SLOTS, STAT_IDS } from './content/types.ts';
 import { itemMods } from './items.ts';
 import type { Equipment } from './world/types.ts';
 import { ANY_WEAPON, heldGroup, heldPlace } from './weapons.ts';
+import { isMoyu, moyuBoundCombo, moyuComboDescription, moyuComboRoot, moyuSkillEffect } from './content/moyu.ts';
 
 export const ARMOUR_HALF_POINT: number = 100;
 export const MIN_ATTACK_SPEED: number = 0.2;
@@ -29,7 +30,17 @@ export function computeStats(content: Content, level: number, equipped: Equipmen
   for (const mod of content.player.perLevel) mods.push({ ...mod, value: mod.value * (level - 1) });
   for (const slot of ITEM_SLOTS) {
     const item = equipped[slot];
-    if (item !== null) mods.push(...itemMods(content, item));
+    if (item !== null) {
+      mods.push(...itemMods(content, item));
+      if (isMoyu(content)) for (const line of item.affixes) {
+        const element = line.affix.startsWith('moyu_') ? line.affix.slice(5) : null;
+        if (element === null) continue;
+        const def = content.affixes.get(line.affix);
+        if (def === undefined) continue;
+        const points = Math.min(8, allocated.filter((id): boolean => id.startsWith(`base-${element}-`)).length);
+        if (points > 0) mods.push({ stat: def.stat, op: def.op, value: line.value * points * 0.03 });
+      }
+    }
   }
   for (const node of allocatedNodes(content, allocated, held)) mods.push(...node.statMods);
   mods.push(...extra);
@@ -168,9 +179,27 @@ function scaleOf(mods: readonly SkillMod[], field: SkillMod['field']): number {
 
 export function resolveSkill(content: Content, base: SkillDef, allocated: readonly string[], powers: readonly PowerDef[] = [], worn: readonly SkillVariant[] = [], held: string | null = ANY_WEAPON, chosen: ChangeChoice = {}): SkillDef {
   const { skill, through }: ChosenSkill = variantChain(content, base, allocated, powers, worn, held, chosen);
+  const linked = isMoyu(content) ? moyuBoundCombo(allocated, chosen, base.id) : null;
+  const effect = linked === null ? null : moyuSkillEffect([linked.id]);
+  const palette: Readonly<Record<string, SkillDef['vfx']['style']>> = {
+    'word-流血': 'slash', 'word-破甲': 'heave', 'word-锋锐': 'beam', 'word-毒蚀': 'mist', 'word-缠绕': 'claw',
+    'word-再生': 'wind', 'word-寒伤': 'fork', 'word-冰封': 'wave', 'word-净化': 'orb', 'word-灼烧': 'fire',
+    'word-躁动': 'storm', 'word-急速': 'gale', 'word-震击': 'shockwave', 'word-失衡': 'gap', 'word-固守': 'brand',
+  };
+  const style = linked === null ? skill.vfx.style : palette[moyuComboRoot(linked)] ?? skill.vfx.style;
+  const root = linked === null ? '' : moyuComboRoot(linked);
+  const variantScale = linked?.type === 'variant' ? 1.2 : 1;
+  const burn = root === 'word-流血' ? { duration: 3, tick: 1, share: 0.055 * variantScale } : root === 'word-毒蚀' ? { duration: 5, tick: 1, share: 0.035 * variantScale } : root === 'word-灼烧' ? { duration: 3, tick: 0.75, share: 0.065 * variantScale } : skill.burn;
+  const visible: SkillDef = effect === null || linked === null ? skill : {
+    ...skill,
+    moyuCombo: linked.id,
+    burn,
+    description: `${skill.description} 五行·${linked.name}：${moyuComboDescription(linked)}`,
+    vfx: { ...skill.vfx, style, color: effect.color, light: linked.type === 'variant' ? 1.35 : 0.9, trail: linked.type === 'variant' ? 1.4 : 0.9, linger: linked.type === 'variant' ? 0.8 : 0.5, impact: { sparks: linked.type === 'variant' ? 20 : 12, flash: linked.type === 'variant' ? 1.2 : 0.8 } },
+  };
   const mods: SkillMod[] = [...allocatedNodes(content, allocated, held).flatMap((node: SkillTreeNodeDef): readonly SkillMod[] => node.skillMods), ...powers.flatMap((power: PowerDef): readonly SkillMod[] => power.skillMods)].filter((mod: SkillMod): boolean => modTargets(content, mod, through));
-  if (mods.length === 0) return skill;
-  const delivery: Delivery = scaledDelivery(skill.delivery, {
+  if (mods.length === 0) return visible;
+  const delivery: Delivery = scaledDelivery(visible.delivery, {
     area: scaleOf(mods, 'areaPercent'),
     range: scaleOf(mods, 'rangePercent'),
     duration: scaleOf(mods, 'durationPercent'),
@@ -181,7 +210,7 @@ export function resolveSkill(content: Content, base: SkillDef, allocated: readon
   });
   const damageScale: number = scaleOf(mods, 'damagePercent');
   return {
-    ...skill,
+    ...visible,
     delivery,
     damage: { type: skill.damage.type, weaponPercent: skill.damage.weaponPercent * damageScale, flatMin: skill.damage.flatMin * damageScale, flatMax: skill.damage.flatMax * damageScale },
     cooldown: skill.cooldown * scaleOf(mods, 'cooldownPercent'),

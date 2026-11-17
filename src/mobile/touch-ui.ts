@@ -7,6 +7,8 @@ import type { Vec2 } from '../../sim/math.ts';
 import { readyToRepeat } from '../../sim/world/skills.ts';
 import { glidesWith } from '../../sim/world/momentum.ts';
 import type { Command, FlaskState, MonsterState, World } from '../../sim/world/types.ts';
+import { isMoyu, moyuSkillEffect } from '../../sim/content/moyu.ts';
+import { localizeText } from '../i18n/zh.ts';
 import { cannotStep, isTimeHeld } from '../../sim/world/movement.ts';
 import type { KeyValueStore } from '../backend/backend.ts';
 import { el } from '../hud/dom.ts';
@@ -40,6 +42,7 @@ export interface TouchSetup {
   readonly itemNames: ItemNames;
   zoomBy(wheelDelta: number): void;
   readonly feedback: (() => void) | null;
+  send(command: Command): void;
   openMenu(): void;
 }
 
@@ -192,6 +195,19 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
     button.innerHTML = iconSvg(item.icon);
     button.addEventListener('click', (): void => hud.togglePanel(item.panel));
   }
+  let returnHome: HTMLButtonElement | null = null;
+  if (isMoyu(world.content)) {
+    const randomMap: HTMLButtonElement = el('button', 'tc-random-map', hudRoot);
+    randomMap.type = 'button';
+    randomMap.textContent = '随机进图';
+    randomMap.setAttribute('aria-label', '随机进入一张刷图地图');
+    randomMap.addEventListener('click', (): void => setup.send({ type: 'random_map' }));
+    returnHome = el('button', 'tc-return-home', hudRoot);
+    returnHome.type = 'button';
+    returnHome.textContent = '回城';
+    returnHome.setAttribute('aria-label', '返回藏身处');
+    returnHome.addEventListener('click', (): void => setup.send({ type: 'return_home' }));
+  }
   const feedback: (() => void) | null = setup.feedback;
   if (feedback !== null) {
     const send: HTMLButtonElement = el('button', 'tc-menu-btn tc-feedback', menu);
@@ -342,6 +358,11 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
     }
     view.root.classList.toggle('empty', skill === undefined);
     view.root.setAttribute('aria-label', skill?.name ?? 'Empty skill slot');
+    view.root.dataset['skillName'] = skill === undefined ? '' : localizeText(skill.name);
+    const elemental = isMoyu(world.content) && skill?.moyuCombo !== undefined ? moyuSkillEffect([skill.moyuCombo]) : null;
+    view.root.dataset['element'] = elemental?.label ?? '';
+    view.root.style.setProperty('--moyu-effect', elemental?.color ?? 'transparent');
+    view.root.classList.toggle('elemental', elemental !== null);
   };
 
   const createButton = (spec: TouchButton): ButtonView => {
@@ -602,6 +623,7 @@ export function createTouchControls(setup: TouchSetup): TouchControls {
       return commands;
     },
     update(): void {
+      if (returnHome !== null) returnHome.hidden = world.zone.id === 'hideout';
       refreshButtons();
       const talking: boolean = world.dialogue !== null;
       if (talking !== document.body.classList.contains(TOUCH.talkingClass)) document.body.classList.toggle(TOUCH.talkingClass, talking);

@@ -1,4 +1,5 @@
 import { bookOf } from '../../sim/content/story.ts';
+import { isMoyu } from '../../sim/content/moyu.ts';
 import type { ItemBaseDef, ItemSlot } from '../../sim/content/types.ts';
 import { ITEM_SLOTS } from '../../sim/content/types.ts';
 import { baseOf, rarityOf, slotOf } from '../../sim/items.ts';
@@ -11,6 +12,8 @@ import { attachTooltip } from './tooltip.ts';
 import { promptText, use } from './prompts.ts';
 import type { BagAction } from './trade-actions.ts';
 import { bagAction, inventoryHint } from './trade-actions.ts';
+import { pickupMinimum, setPickupMinimum } from '../loot-filter.ts';
+import { buysBack, sellPrice } from '../../sim/world/trade.ts';
 
 const INVENTORY = {
   hintEquipped: 'unequip',
@@ -56,6 +59,83 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
     event.preventDefault();
   });
   label('panel-title', 'Inventory', element);
+  const moyu: boolean = isMoyu(context.api.world.content);
+  if (moyu) {
+    const picker: HTMLLabelElement = el('label', 'moyu-pickup-filter', element);
+    label('moyu-pickup-label', '自动拾取', picker);
+    const select: HTMLSelectElement = el('select', '', picker);
+    context.api.world.content.rarities.forEach((rarity, rank): void => {
+      const option: HTMLOptionElement = el('option', '', select);
+      option.value = String(rank);
+      option.textContent = rank === 0 ? '所有品质' : `${rarity.name}及以上`;
+    });
+    select.value = String(pickupMinimum());
+    select.addEventListener('change', (): void => setPickupMinimum(Number(select.value)));
+  }
+
+  const detail: HTMLDivElement = el('div', 'moyu-item-detail', parent);
+  const detailHead: HTMLDivElement = el('div', 'moyu-item-detail-head', detail);
+  label('', '装备详情', detailHead);
+  const detailStatus: HTMLSpanElement = el('span', 'moyu-item-detail-status', detailHead);
+  const cancel: HTMLButtonElement = el('button', '', detailHead);
+  cancel.type = 'button';
+  cancel.textContent = '取消';
+  const detailBody: HTMLDivElement = el('div', 'moyu-item-detail-body', detail);
+  const detailActions: HTMLDivElement = el('div', 'moyu-item-detail-actions', detail);
+  const sellOne: HTMLButtonElement = el('button', '', detailActions);
+  sellOne.type = 'button';
+  const drop: HTMLButtonElement = el('button', 'moyu-item-drop', detailActions);
+  drop.type = 'button';
+  drop.textContent = '丢弃';
+  let detailItem: ItemInstance | null = null;
+  let detailIndex: number | null = null;
+  let previewTimer: number | null = null;
+  const clearPreview = (): void => {
+    if (previewTimer !== null) window.clearTimeout(previewTimer);
+    previewTimer = null;
+  };
+  const closeDetail = (): void => {
+    clearPreview();
+    detail.classList.remove('shown');
+    detailItem = null;
+    detailIndex = null;
+  };
+  cancel.addEventListener('click', closeDetail);
+  sellOne.addEventListener('click', (): void => {
+    const index: number | null = detailIndex;
+    const item: ItemInstance | null = index === null ? null : context.api.world.player.inventory[index] ?? null;
+    if (index === null || item === null || item.uid !== detailItem?.uid || !buysBack(context.api.world, item)) return;
+    context.api.send({ type: 'trade', action: { type: 'sell', inventoryIndex: index } });
+    closeDetail();
+  });
+  drop.addEventListener('click', (): void => {
+    const index: number | null = detailIndex;
+    const item: ItemInstance | null = index === null ? null : context.api.world.player.inventory[index] ?? null;
+    if (item === null || item.uid !== detailItem?.uid || bookOf(context.api.world.content, baseOf(context.api.world.content, item)) !== null) return;
+    if (index === null) return;
+    context.api.send({ type: 'drop', inventoryIndex: index });
+    closeDetail();
+  });
+  const showDetail = (item: ItemInstance, index: number | null, showDrop: boolean): void => {
+    clearPreview();
+    const slot: ItemSlot | null = slotOf(context.api.world.content, item);
+    const equipped: ItemInstance | null = index === null || slot === null ? null : context.api.world.player.equipped[slot];
+    detailStatus.textContent = index === null ? '当前装备' : equipped === null ? '背包物品' : '背包物品 · 右侧为当前装备';
+    detailBody.replaceChildren(itemTooltip(context.api, item, equipped, index === null ? '双击卸下' : '双击装备 · 长按可丢弃'));
+    detailBody.scrollTop = 0;
+    detailItem = item;
+    detailIndex = index;
+    const canSell: boolean = index !== null && context.api.world.service?.kind === 'vendor' && buysBack(context.api.world, item);
+    sellOne.hidden = !canSell;
+    if (canSell) sellOne.textContent = `出售此物 · ${sellPrice(context.api.world.content, item)} 金币`;
+    drop.hidden = !showDrop || index === null || bookOf(context.api.world.content, baseOf(context.api.world.content, item)) !== null;
+    detail.classList.add('shown');
+    context.tooltip.hide();
+  };
+  const preview = (item: ItemInstance, index: number | null): void => {
+    clearPreview();
+    previewTimer = window.setTimeout((): void => showDetail(item, index, false), 430);
+  };
 
   const equipRow: HTMLDivElement = el('div', 'equip-row', element);
   const grid: HTMLDivElement = el('div', 'inv-grid', element);
@@ -89,11 +169,19 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
     const view: CellView = buildCell(holder, 'cell big');
     label('equip-name', SLOT_TITLES[slot], holder);
     equipCells.set(slot, view);
-    attachTooltip(context.tooltip, view.cell, (): HTMLElement | null =>
+    if (!moyu) attachTooltip(context.tooltip, view.cell, (): HTMLElement | null =>
       view.current === null ? null : itemTooltip(context.api, view.current, null, promptText(context.api.touch, use(INVENTORY.hintEquipped))),
     );
-    view.cell.addEventListener('click', (): void => {
+    let lastClick: number = 0;
+    view.cell.addEventListener('click', (event: MouseEvent): void => {
       if (view.current === null) return;
+      const double: boolean = event.detail >= 2 || (lastClick > 0 && performance.now() - lastClick < 420);
+      lastClick = performance.now();
+      if (moyu && !double) {
+        preview(view.current, null);
+        return;
+      }
+      clearPreview();
       context.tooltip.hide();
       context.api.send({ type: 'unequip', slot });
     });
@@ -129,11 +217,11 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
         return;
     }
   };
-  for (let index: number = 0; index < context.api.world.content.player.inventorySize; index += 1) {
+  const addCell = (index: number): void => {
     const view: CellView = buildCell(grid, 'cell');
     label('cell-drop', INVENTORY.dropAsk, view.cell);
     inventoryCells.push(view);
-    attachTooltip(context.tooltip, view.cell, (): HTMLElement | null => {
+    if (!moyu) attachTooltip(context.tooltip, view.cell, (): HTMLElement | null => {
       const item: ItemInstance | null = view.current;
       if (item === null) return null;
       const content = context.api.world.content;
@@ -143,6 +231,7 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
     });
     let hold: Hold | null = null;
     let held: boolean = false;
+    let lastClick: number = 0;
     const release = (): void => {
       if (hold === null) return;
       window.clearTimeout(hold.timer);
@@ -151,9 +240,16 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
     view.cell.addEventListener('pointerdown', (event: PointerEvent): void => {
       release();
       held = false;
-      if (event.pointerType !== 'touch' || view.current === null) return;
+      if (event.button !== 0 || view.current === null) return;
       const timer: number = window.setTimeout((): void => {
         hold = null;
+        if (moyu) {
+          const item: ItemInstance | null = view.current;
+          if (item === null) return;
+          held = true;
+          showDetail(item, index, true);
+          return;
+        }
         const action: BagAction = bagAction(context.api.world, index, 'right');
         if (action.kind !== 'offer') return;
         held = true;
@@ -174,6 +270,15 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
         return;
       }
       if (view.current === null) return;
+      if (moyu && !(event.ctrlKey || event.metaKey)) {
+        const double: boolean = event.detail >= 2 || (lastClick > 0 && performance.now() - lastClick < 420);
+        lastClick = performance.now();
+        if (!double) {
+          preview(view.current, index);
+          return;
+        }
+        closeDetail();
+      }
       context.tooltip.hide();
       if (bookOf(context.api.world.content, baseOf(context.api.world.content, view.current)) !== null) {
         context.api.readBook(view.current);
@@ -184,6 +289,10 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
     view.cell.addEventListener('contextmenu', (): void => {
       const item: ItemInstance | null = view.current;
       if (item === null || held) return;
+      if (moyu) {
+        showDetail(item, index, true);
+        return;
+      }
       context.tooltip.hide();
       const action: BagAction = bagAction(context.api.world, index, 'right');
       if (action.kind === 'send' && action.command.type === 'drop' && (armed === null || armed.index !== index || armed.uid !== item.uid)) {
@@ -193,7 +302,8 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
       disarm();
       act(index, view, action);
     });
-  }
+  };
+  for (let index: number = 0; index < context.api.world.player.inventory.length; index += 1) addCell(index);
 
   const markOffered = (uid: number | null): void => {
     for (const view of inventoryCells) view.cell.classList.toggle('offered', uid !== null && view.current !== null && view.current.uid === uid);
@@ -204,6 +314,7 @@ export function createInventoryPanel(parent: HTMLElement, context: HudContext): 
     element,
     refresh(): void {
       const player: PlayerState = context.api.world.player;
+      while (inventoryCells.length < player.inventory.length) addCell(inventoryCells.length);
       let changed: boolean = false;
       for (const slot of ITEM_SLOTS) {
         const view: CellView | undefined = equipCells.get(slot);

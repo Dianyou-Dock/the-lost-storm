@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { loadContent } from './content/content.ts';
+import { moyuContent } from './content/moyu.ts';
 import type { Content, SkillTreeNodeDef, XpCurve } from './content/types.ts';
 import { adoptLearned, applyXp, gapBand, gapScale, canAllocate, canRefund, findNode, holdingParts, holdingTrunk, joinBlock, placeLinks, reachablePlaces, bankedReset, refundBlock, refundCost, refundState, respecCost, respecState, heldChanges, offersChange, startingPlaces, xpToNextLevel } from './progression.ts';
 import type { XpResult } from './progression.ts';
 
 const content: Content = loadContent();
+const moyu: Content = moyuContent(content);
 const curve: XpCurve = { base: 60, growth: 1.42, maxLevel: 30, gap: { band: 5, widenEvery: 10, soft: 2, power: 3, floor: 0.05, above: true } };
 
 function node(id: string): SkillTreeNodeDef {
@@ -46,6 +48,17 @@ void test('levelling stops at the maximum level', (): void => {
 void test('findNode finds shipped nodes and nothing else', (): void => {
   assert.equal(findNode(content, 'heavy_hands')?.name, 'Heavy Hands');
   assert.equal(findNode(content, 'nope'), null);
+});
+
+void test('moyu can grow each element independently and unlock a two-element effect', (): void => {
+  const taken: string[] = [];
+  for (const id of ['base-火-1', 'base-金-1', 'base-木-1', 'base-金-2', 'base-木-2']) {
+    assert.equal(canAllocate(moyu, taken, 1, id), true, id);
+    taken.push(id);
+  }
+  assert.equal(canAllocate(moyu, ['base-金-1', 'base-金-2'], 1, 'synergy-血芽'), false);
+  assert.equal(canAllocate(moyu, taken, 1, 'synergy-血芽'), true);
+  assert.equal(canAllocate(moyu, taken, 0, 'base-水-1'), false);
 });
 
 const STARTS: readonly string[] = ['storm_storm_bolt', 'blade_thunderhead', 'wind_ghost_wave', 'stone_thunderclap', 'echo_forkline'];

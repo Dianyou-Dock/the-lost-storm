@@ -16,6 +16,8 @@ import { ACTOR, createActorView } from './actor-view.ts';
 import type { CharacterLibrary, LoadedRig, RigInstance } from './character-loader.ts';
 import { hasWear, instantiateRig } from './character-loader.ts';
 import { holdEquipped } from './hero-gear.ts';
+import { isMoyu, moyuSkillEffect } from '../../sim/content/moyu.ts';
+import { WEAPON_GLOW } from './character-loader.ts';
 import type { GhostUniforms } from './ghost-material.ts';
 import { createGhostUniforms } from './ghost-material.ts';
 import { echoFade, momentOfEcho } from '../../sim/world/moments.ts';
@@ -160,9 +162,24 @@ function echoLook(current: World, monster: MonsterState): EchoLook | null {
 export function createActors(scene: Scene, library: CharacterLibrary, world: World, feather: boolean, sight: Sight = SEES_ALL, particles: ParticleSystem | null = null): Actors {
   const content: Content = world.content;
   const spin: SpinView = createSpinView(scene, particles);
+  let talentKey: string = '';
+  let talentColor: string | null = null;
+  let talentIntensity: number = 0;
+  const paintWeapon = (rig: RigInstance, current: World): void => {
+    const active = current.player.action?.skill.moyuCombo ?? current.player.skills.find((skill): boolean => skill?.moyuCombo === talentKey)?.moyuCombo ?? current.player.skills.find((skill): boolean => skill?.moyuCombo !== undefined)?.moyuCombo;
+    const key: string = active ?? '';
+    if (key !== talentKey) {
+      talentKey = key;
+      const effect = isMoyu(content) && active !== undefined ? moyuSkillEffect([active]) : null;
+      talentColor = effect !== null && effect.count > 1 ? effect.color : null;
+      talentIntensity = effect?.count === 3 ? WEAPON_GLOW.triple : effect?.count === 2 ? WEAPON_GLOW.pair : 0;
+    }
+    rig.setWeaponGlow(talentColor, talentIntensity);
+  };
   const heroView = (loaded: LoadedRig, current: World): ActorView => {
     const view: ActorView = createActorView(instantiateRig(loaded, library, { tint: content.player.tint, glow: content.player.color, ghost: null, feather }), HERO.size, current.player.facing);
     holdEquipped(content, view.rig, current.player.equipped);
+    paintWeapon(view.rig, current);
     dress(content, loaded.def.id, view.rig, heroBase(content, loaded.def.id), current.player.equipped);
     scene.add(view.rig.root);
     return view;
@@ -187,6 +204,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
   const dressHero = (current: World): void => {
     standChosen(current);
     holdEquipped(content, playerView.rig, current.player.equipped);
+    paintWeapon(playerView.rig, current);
     dress(content, playerView.rig.def.id, playerView.rig, heroBase(content, playerView.rig.def.id), current.player.equipped);
   };
   const librarySize = (): number => library.rigs.size + library.wearables.size + library.attachments.size;
@@ -367,6 +385,7 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
         dressHero(current);
       }
       holdEquipped(content, playerView.rig, current.player.equipped);
+      paintWeapon(playerView.rig, current);
       playerView.wake(current.wake === null ? null : wakePose(wakeStage(current.wake.plan, current.wake.elapsed), current.wake.elapsed));
       const spun: SpinPose = spin.step(dt, current.time, current.player);
       playerView.spin(spun.animation, spun.turn);
@@ -475,6 +494,8 @@ export function createActors(scene: Scene, library: CharacterLibrary, world: Wor
       countLook.handle(events);
       for (const event of events) {
         switch (event.type) {
+          case 'moyu_element':
+            break;
           case 'skill_start':
             viewOf(event.actorId)?.startAction(event.skill.animation, event.windup, event.recovery);
             break;

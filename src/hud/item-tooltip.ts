@@ -1,7 +1,9 @@
 import type { ArmourMaterial, Content, ItemBaseDef, ItemSlot, ItemUse, RarityDef } from '../../sim/content/types.ts';
 import { itemVerdict, readItem, readingLines, verdictParts } from '../../sim/item-reading.ts';
 import type { Headline, ItemReading, ReadingRow, Verdict, VerdictKind } from '../../sim/item-reading.ts';
-import { baseOf, itemName, rarityOf, slotOf } from '../../sim/items.ts';
+import { baseOf, itemName, moyuAffixStrength, rarityOf, slotOf } from '../../sim/items.ts';
+import { isMoyu } from '../../sim/content/moyu.ts';
+import { MOYU_SPECIALS, moyuSpecialOf } from '../../sim/moyu-specials.ts';
 import { familyReading } from '../../sim/powers.ts';
 import type { FamilyPiece, FamilyReading } from '../../sim/powers.ts';
 import type { ItemInstance } from '../../sim/world/types.ts';
@@ -63,9 +65,9 @@ function appendHeadline(parent: HTMLElement, headline: Headline): void {
   if (headline.row.deltaText !== null) label(`tip-delta${deltaClass(headline.row.delta)}`, headline.row.deltaText, block);
 }
 
-function appendVerdict(parent: HTMLElement, verdict: Verdict): void {
+function appendVerdict(parent: HTMLElement, verdict: Verdict, moyu: boolean): void {
   const line: HTMLDivElement = el('div', `tip-verdict ${verdict.kind}`, parent);
-  label('tip-verdict-word', VERDICT_WORDS[verdict.kind], line);
+  label('tip-verdict-word', moyu && verdict.kind === 'trade' ? '各有优劣' : VERDICT_WORDS[verdict.kind], line);
   const parts: readonly string[] = verdictParts(verdict);
   if (parts.length > 0) label('tip-verdict-detail', parts.join(' · '), line);
 }
@@ -107,13 +109,21 @@ function itemCard(api: HudApi, item: ItemInstance, equipped: ItemInstance | null
   if (api.unverified(item)) label('tip-sub tip-unverified', TOOLTIP_WORDS.unverified, heading);
   el('div', 'tip-sep', root);
   appendReading(root, readItem(content, item, equipped));
+  if (isMoyu(content)) for (const rolled of item.affixes) {
+    if (!rolled.affix.startsWith('moyu_')) continue;
+    const element = rolled.affix.slice(5);
+    const points = api.world.player.allocated.filter((id): boolean => id.startsWith(`base-${element}-`)).length;
+    label('tip-line use', `${element}行核心机制强度 +${Math.round(moyuAffixStrength(rolled.affix, rolled.value) * 100)}%（${points}/3 点激活）`, root);
+  }
+  const special = isMoyu(content) ? moyuSpecialOf(item) : null;
+  if (special !== null) label('tip-line use', `传说专属·${MOYU_SPECIALS[special].name}：${MOYU_SPECIALS[special].text}对应元素达到 3 点时，效果增强 25%。`, root);
   const use: ItemUse | null = base?.use ?? null;
   if (use !== null) label('tip-line use', USE_WORDS[use.type], root);
   const family: FamilyReading | null = familyReading(content, item, api.world.player.equipped);
   if (family !== null) appendPower(root, family);
   if (compare) {
     const verdict: Verdict | null = itemVerdict(content, api.world.player, api.world.zone, item);
-    if (verdict !== null) appendVerdict(root, verdict);
+    if (verdict !== null) appendVerdict(root, verdict, isMoyu(content));
   }
   if (hint !== null) label('tip-hint', hint, root);
   return root;
