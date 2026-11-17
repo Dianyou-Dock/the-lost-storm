@@ -43,6 +43,32 @@ void test('auto combat leaves farming bosses for manual play', (): void => {
   assert.deepEqual(planAutoCombat(world, state, 1 / 30, [], false), []);
 });
 
+void test('moyu auto combat varies ready weapon skills and skips unavailable skills', (): void => {
+  const portal = moyuContent(content);
+  const world: World = armed(worldIn(portal, 'under_hall', 7));
+  const target = spawnMonster(world, must(portal.monsters.get('wolf'), 'wolf'), world.nextPackId, { x: world.player.pos.x + 3, z: world.player.pos.z }, { summonerId: null, scatter: 0, revived: false, level: monsterLevel(world) });
+  world.monsters = [target];
+  const state = createAutoCombatState(world.zone.id);
+  state.enabled = true;
+  state.random = 7;
+  const selected = Array.from({ length: 24 }, (): number => {
+    const command = planAutoCombat(world, state, 1 / 30, [], false)[0];
+    assert.equal(command?.type, 'skill');
+    return command.slot;
+  });
+  assert.equal(new Set(selected).size > 1, true);
+  assert.equal(selected.every((slot): boolean => world.player.skills[slot]?.delivery.type !== 'dash'), true);
+
+  const unavailable = must(selected[0], 'selected skill slot');
+  const skill = must(world.player.skills[unavailable], 'selected skill');
+  world.player.cooldowns[skill.id] = 10;
+  for (let index = 0; index < 24; index += 1) {
+    const command = planAutoCombat(world, state, 1 / 30, [], false)[0];
+    assert.equal(command?.type, 'skill');
+    assert.notEqual(command.slot, unavailable);
+  }
+});
+
 void test('manual movement takes priority and pauses automatic attacks', (): void => {
   const { world, state } = scene();
   assert.deepEqual(planAutoCombat(world, state, 1 / 30, [{ type: 'move', held: false, dest: world.player.pos }], false), []);

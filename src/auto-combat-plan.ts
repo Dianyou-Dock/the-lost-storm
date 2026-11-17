@@ -15,6 +15,8 @@ export interface AutoCombatState {
   home: Vec2 | null;
   zone: string;
   delay: number;
+  lastSlot: number | null;
+  random: number;
 }
 
 export interface AutoCombat {
@@ -22,7 +24,35 @@ export interface AutoCombat {
 }
 
 export function createAutoCombatState(zone: string): AutoCombatState {
-  return { enabled: false, focus: null, home: null, zone, delay: 0 };
+  return { enabled: false, focus: null, home: null, zone, delay: 0, lastSlot: null, random: Math.floor(Math.random() * 0x1_0000_0000) };
+}
+
+function nextRandom(state: AutoCombatState): number {
+  state.random = (Math.imul(state.random, 1664525) + 1013904223) >>> 0;
+  return state.random / 0x1_0000_0000;
+}
+
+function readySlot(world: World, state: AutoCombatState): number | null {
+  const main = mainSlot(world.content);
+  if (!isMoyu(world.content)) {
+    const skill = world.player.skills[main];
+    return skill !== null && skill !== undefined && skill.press === null && skill.delivery.type !== 'dash' && blockedReason(world.player, skill) === null ? main : null;
+  }
+  const seen = new Set<string>();
+  const choices: number[] = [];
+  for (const [slot, skill] of world.player.skills.entries()) {
+    if (skill === null || skill.press !== null || skill.delivery.type === 'dash' || blockedReason(world.player, skill) !== null || seen.has(skill.id)) continue;
+    seen.add(skill.id);
+    choices.push(slot);
+  }
+  if (choices.length === 0) return null;
+  const weights = choices.map((slot): number => slot === state.lastSlot && choices.length > 1 ? 1 : 3);
+  let ticket = Math.floor(nextRandom(state) * weights.reduce((sum, weight): number => sum + weight, 0));
+  for (const [index, slot] of choices.entries()) {
+    ticket -= weights[index] ?? 0;
+    if (ticket < 0) return slot;
+  }
+  return choices[0] ?? null;
 }
 
 function nearest(world: World): MonsterState | null {
@@ -65,11 +95,13 @@ export function planAutoCombat(world: World, state: AutoCombatState, dt: number,
     state.zone = world.zone.id;
     state.focus = null;
     state.home = null;
+    state.lastSlot = null;
   }
   if (!state.enabled) return [];
   if (manual.length > 0) {
     state.focus = null;
     state.home = null;
+    state.lastSlot = null;
     state.delay = AUTO.manualDelay;
     return [];
   }
@@ -85,9 +117,6 @@ export function planAutoCombat(world: World, state: AutoCombatState, dt: number,
     return [];
   }
   if (intent.type !== 'idle' || world.player.action !== null || world.player.queued !== null) return [];
-  const slot: number = mainSlot(world.content);
-  const skill = world.player.skills[slot];
-  if (skill === null || skill === undefined || skill.press !== null || skill.delivery.type === 'dash' || blockedReason(world.player, skill) !== null) return [];
   const target: MonsterState | null = nearest(world);
   if (isMoyu(world.content) && (target === null || distance(world.player.pos, target.pos) > 8)) {
     const pickup = nearestGround(world);
@@ -97,6 +126,9 @@ export function planAutoCombat(world: World, state: AutoCombatState, dt: number,
     const pickup = isMoyu(world.content) ? nearestGround(world) : null;
     return pickup === null ? [] : [pickup];
   }
+  const slot = readySlot(world, state);
+  if (slot === null) return [];
   state.focus = target.id;
+  state.lastSlot = slot;
   return [{ type: 'skill', slot, aim: { x: target.pos.x, z: target.pos.z }, targetId: target.id }];
 }
